@@ -1,0 +1,6 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.sap-abap/
+.sap-abap-mcp.json
