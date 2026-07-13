@@ -1,188 +1,238 @@
 # sap-abap-mcp
 
-SAP GUI나 VS Code 확장 세션 없이 SAP ADT(ABAP Development Tools) HTTP API에 직접 로그인하는 로컬 MCP 서버입니다.
+Codex나 Claude가 SAP ADT를 통해 ABAP 저장소를 읽고 수정하며 품질 검사와 운영 분석까지 수행하게 해 주는 로컬 MCP 서버입니다.
 
-현재 버전은 첫 번째 수직 슬라이스입니다. ABAP FS의 MCP 도구 42개 이름을 호환성 매니페스트로 고정했고, 그중 아래 4개를 실제 구현했습니다.
+처음 한 번만 SAP 접속 정보를 등록하고 로그인하면 됩니다. 별도 서버, SAP GUI, VS Code, 수동 `serve` 실행은 필요하지 않습니다.
 
-Windows에서 Codex/Claude가 stdio MCP를 자동 실행하고 여러 SAP 프로필을 사용하는 전체 과정은 [`docs/localhost-mcp-end-to-end.md`](docs/localhost-mcp-end-to-end.md)에 정리되어 있습니다.
+## 가장 쉬운 시작 방법
 
-Public preview 패키지는 다음 명령으로 실행할 수 있습니다.
+아래 설명은 **Windows에서 Codex 또는 Claude로 SAP 시스템 1개를 연결하는 경우**를 기준으로 합니다. 명령은 PowerShell에 한 줄씩 복사해서 실행하세요.
 
-```bash
-npx -y @coaspe/sap-abap-mcp@0.1.1 help
+### 0. 먼저 준비할 것
+
+SAP 관리자에게 아래 3가지만 받으세요.
+
+| 필요한 값 | 예시 | 뜻 |
+|---|---|---|
+| SAP 주소 | `https://sap-dev.company.com` | SAP 서버의 HTTPS 기본 주소 |
+| 클라이언트 번호 | `100` | 숫자 3자리 |
+| 사용자명 | `DEV_USER` | SAP 로그인 ID |
+
+이 사용자에게 ADT 개발 권한이 있고, SAP 서버에서 `/sap/bc/adt`와 Basic Auth를 사용할 수 있어야 합니다. 잘 모르겠다면 이 문장을 그대로 SAP 관리자에게 보여 주세요.
+
+컴퓨터에는 다음 프로그램이 필요합니다.
+
+- [Node.js](https://nodejs.org/en/download) 20 이상
+- Codex 또는 Claude Code
+- 회사 SAP에 접속하기 위한 사내망 또는 VPN
+
+Node.js가 준비됐는지 확인합니다.
+
+```powershell
+node --version
 ```
 
-`0.1.1`부터 macOS Keychain과 Windows DPAPI 자격증명 저장소를 지원합니다. Windows에서는 현재 사용자 계정으로만 복호화할 수 있는 암호화 파일을 사용합니다.
+`v20` 이상의 숫자가 나오면 준비 완료입니다. `node`를 찾을 수 없다는 메시지가 나오면 Node.js를 설치한 뒤 PowerShell을 다시 여세요.
 
-- `get_connected_systems`
-- `get_sap_system_info`
-- `search_abap_objects`
-- `get_abap_object_lines`
+### 1. SAP를 등록하세요
 
-나머지 도구는 아직 MCP 목록에 노출하지 않습니다. 동작하지 않는 스텁을 42개 노출하는 대신 ADT 연동과 테스트가 끝난 도구만 추가합니다.
+아래 명령에서 SAP 주소, 클라이언트 번호, 사용자명만 자신의 값으로 바꾸세요.
 
-## 동작 구조
-
-```text
-Codex / Claude Code
-        │ MCP stdio
-        ▼
-  sap-abap-mcp 프로세스
-        ├── 프로필: 사용자별 sap-abap-mcp 설정 폴더
-        ├── 암호: macOS Keychain 또는 Windows DPAPI
-        └── HTTPS + Basic Auth + SAP ADT API
-                         │
-                         ▼
-                     SAP 서버
+```powershell
+npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 profile add DEV100 --url "https://sap-dev.company.com" --client 100 --username "DEV_USER"
 ```
 
-ABAP FS 확장을 먼저 열거나 로그인해 둘 필요가 없습니다. 사용자가 이 CLI에서 한 번 로그인하면 암호는 운영체제별 보안 저장소에 저장되고, Codex/Claude가 시작한 MCP 프로세스가 같은 사용자 계정으로 암호를 읽어 자체 ADT 세션을 만듭니다.
+`DEV100`은 이 SAP에 붙인 별명입니다. 그대로 사용해도 됩니다.
 
-## 사전 조건
+성공하면 화면에 `"id": "DEV100"`이 표시됩니다.
 
-- macOS 또는 Windows와 Node.js 20 이상
-- SAP 서버의 ADT ICF 서비스 활성화 및 HTTPS 접근 가능
-- ADT 개발 권한이 있는 SAP 사용자
-- 사내망/VPN, 인증서 체인, 프록시 등 SAP 서버까지의 네트워크 경로
+### 2. SAP에 로그인하세요
 
-macOS는 Keychain을 사용합니다. Windows는 PowerShell의 DPAPI를 사용해 `%APPDATA%\sap-abap-mcp\secrets`에 프로필별 암호화 파일을 저장합니다. 이 파일은 일반적으로 암호화한 Windows 사용자와 머신에서만 복호화할 수 있습니다. Linux Secret Service는 후속 범위입니다.
-
-## 1. 설치와 빌드
-
-```bash
-cd "/Users/coaspe/Documents/Q&A/sap-abap-mcp"
-npm install
-npm run build
+```powershell
+npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 auth login DEV100
 ```
 
-## 2. SAP 프로필 등록
+`SAP password:`가 나오면 SAP 암호를 입력하고 Enter를 누르세요. 입력하는 동안 글자가 보이지 않는 것이 정상입니다.
 
-```bash
-node dist/src/index.js profile add DEV100 \
-  --url https://sap.example.com \
-  --client 100 \
-  --language EN \
-  --environment development \
-  --username DEVELOPER \
-  --packages Z_MY_PACKAGE
+성공하면 `"credentialStored": true`가 표시됩니다.
+
+### 3. 연결을 확인하세요
+
+```powershell
+npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 doctor DEV100
 ```
 
-프로필에는 접속 URL과 사용자명만 저장되며 암호는 들어가지 않습니다. 프로필 확인:
+`"ok": true`가 나오면 SAP 연결은 끝났습니다.
 
-```bash
-node dist/src/index.js profile list
+### 4. Codex 또는 Claude에 연결하세요
+
+둘 중 자신이 사용하는 프로그램 하나만 선택하면 됩니다.
+
+#### Codex
+
+```powershell
+codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 serve --profile DEV100
 ```
 
-## 3. 자체 로그인
+등록됐는지 확인합니다.
 
-```bash
-node dist/src/index.js auth login DEV100
-```
-
-암호 입력은 화면에 표시되지 않습니다. 서버가 먼저 실제 ADT 로그인을 검증하고 성공한 경우에만 운영체제별 보안 저장소에 저장합니다. CI처럼 TTY가 없는 환경에서는 암호를 명령행 인자로 남기지 말고 표준입력을 사용합니다.
-
-```bash
-printf '%s\n' "$SAP_PASSWORD" | \
-  node dist/src/index.js auth login DEV100 --password-stdin
-```
-
-상태 확인과 삭제:
-
-```bash
-node dist/src/index.js auth status DEV100
-node dist/src/index.js auth logout DEV100
-```
-
-## 4. 연결 진단
-
-```bash
-node dist/src/index.js doctor DEV100
-```
-
-여기서 `ok: true`와 SAP 릴리스/클라이언트 정보가 나오면 MCP 클라이언트 등록 전에 네트워크, ADT, 인증이 모두 확인된 것입니다.
-
-## 5. Codex에 등록
-
-[Codex 공식 MCP 문서](https://developers.openai.com/codex/mcp/)의 stdio 등록 방식에 따라 실행합니다.
-
-```bash
-codex mcp add sap-abap -- \
-  node "/Users/coaspe/Documents/Q&A/sap-abap-mcp/dist/src/index.js" \
-  serve --profile DEV100
-```
-
-확인:
-
-```bash
+```powershell
 codex mcp list
 ```
 
-Codex 데스크톱 앱에서는 Settings → MCP servers → Add server에서 STDIO를 선택하고 같은 명령과 인수를 입력한 뒤 재시작할 수도 있습니다. Codex CLI, 데스크톱 앱, IDE 확장은 같은 Codex 호스트의 MCP 설정을 공유합니다.
+목록에 `sap-abap`이 보이면 Codex를 다시 시작하세요. Codex 안에서 `/mcp`를 입력해 연결 상태를 볼 수도 있습니다.
 
-직접 `~/.codex/config.toml`에 넣으려면:
+`codex` 명령을 사용할 수 없다면 Codex 앱에서 직접 등록할 수 있습니다.
 
-```toml
-[mcp_servers.sap-abap]
-command = "node"
-args = [
-  "/Users/coaspe/Documents/Q&A/sap-abap-mcp/dist/src/index.js",
-  "serve",
-  "--profile",
-  "DEV100"
-]
-startup_timeout_sec = 20
-tool_timeout_sec = 120
+1. **Settings → MCP servers → Add server**를 엽니다.
+2. 이름은 `sap-abap`, 종류는 **STDIO**를 선택합니다.
+3. Command에는 `npx.cmd`를 입력합니다.
+4. Arguments에는 아래 값을 순서대로 추가합니다.
+
+```text
+-y
+@coaspe/sap-abap-mcp@0.2.0
+serve
+--profile
+DEV100
 ```
 
-## 6. Claude Code에 등록
+5. 저장한 뒤 Codex를 다시 시작합니다.
 
-[Claude Code 공식 MCP 문서](https://docs.anthropic.com/en/docs/claude-code/mcp)의 로컬 stdio 방식입니다.
+#### Claude Code
+
+```powershell
+claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 serve --profile DEV100
+```
+
+등록됐는지 확인합니다.
+
+```powershell
+claude mcp get sap-abap
+```
+
+등록 정보가 나오면 Claude Code를 다시 시작하세요. Claude Code 안에서 `/mcp`를 입력해 연결 상태를 볼 수도 있습니다.
+
+### 5. 이제 말로 요청하세요
+
+Codex 또는 Claude에 다음처럼 물어보세요.
+
+```text
+DEV100에 연결됐는지 확인해줘.
+DEV100에서 ZCL_DEMO 클래스를 찾아줘.
+ZCL_DEMO의 RUN 메서드 소스를 읽고 쉽게 설명해줘.
+```
+
+여기까지가 전부입니다. MCP 서버는 Codex나 Claude가 필요할 때 자동으로 실행하므로 사용자가 `serve` 명령을 직접 실행할 필요가 없습니다.
+
+## 막혔을 때
+
+| 화면에 보이는 문제 | 먼저 해 볼 것 |
+|---|---|
+| `node`를 찾을 수 없음 | Node.js 20 이상을 설치하고 PowerShell을 다시 엽니다. |
+| npm 패키지를 내려받지 못함 | 인터넷, 회사 프록시, npm registry 접근 여부를 확인합니다. |
+| `PROFILE_NOT_FOUND` | 1단계의 `profile add` 명령을 다시 실행합니다. |
+| 로그인이 실패함 | SAP 주소, 클라이언트 번호, 사용자명, 암호가 맞는지 확인합니다. |
+| `doctor`가 인증서 또는 연결 오류를 표시함 | VPN 연결 후 다시 시도하고, 계속 실패하면 사내 CA·프록시·ADT 활성화 여부를 SAP 관리자에게 문의합니다. |
+| Codex 또는 Claude에서 도구가 보이지 않음 | `/mcp`에서 연결 상태를 확인하고 프로그램을 완전히 종료했다가 다시 실행합니다. |
+
+현재 인증 방식은 Basic Auth입니다. 회사 SAP가 SSO나 MFA만 허용한다면 현재 버전으로는 로그인할 수 없으므로 SAP 관리자에게 Basic Auth 사용 가능 여부를 확인하세요.
+
+## macOS에서 사용하기
+
+위 명령의 `npx.cmd`를 모두 `npx`로 바꾸면 됩니다. Codex 등록 명령은 다음과 같습니다.
 
 ```bash
-claude mcp add sap-abap --scope user -- \
-  node "/Users/coaspe/Documents/Q&A/sap-abap-mcp/dist/src/index.js" \
-  serve --profile DEV100
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@0.2.0 serve --profile DEV100
 ```
 
-확인:
+## macOS에서 Claude Code 사용하기
+
+macOS에서는 다음 명령으로 등록합니다.
+
+```bash
+claude mcp add --transport stdio --scope user sap-abap -- npx -y @coaspe/sap-abap-mcp@0.2.0 serve --profile DEV100
+```
+
+등록 확인:
 
 ```bash
 claude mcp get sap-abap
 ```
 
-## 7. 첫 사용 예시
+## SAP 시스템이 여러 개인 경우
 
-Codex 또는 Claude에 다음처럼 요청합니다.
+각 SAP에 서로 다른 별명을 붙여 1~3단계를 반복합니다. 예를 들어 개발기는 `DEV100`, 품질기는 `QAS200`, 운영기는 `PRD100`으로 등록할 수 있습니다.
 
-```text
-DEV100에서 ZCL_DEMO 클래스를 찾아줘.
-RUN 메서드의 실제 소스를 읽고 동작을 설명해줘.
+여러 SAP를 하나의 MCP에서 함께 사용하려면 기존 등록을 지우고 `--profile DEV100` 없이 다시 등록하세요.
+
+```powershell
+codex mcp remove sap-abap
+codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 serve
 ```
 
-에이전트는 보통 `get_connected_systems` → `search_abap_objects` → `get_abap_object_lines` 순서로 호출합니다.
+Windows 다중 시스템 설정과 운영 시 주의사항은 [상세 가이드](docs/localhost-mcp-end-to-end.md)를 참고하세요.
 
-## 보안 원칙
+## 암호는 어디에 저장되나요?
 
-- SAP 암호를 MCP 도구 인자, 프로필 JSON, 로그에 넣지 않습니다.
-- `serve --profile DEV100`으로 MCP 프로세스를 한 시스템에 제한합니다.
-- 프로덕션 프로필은 후속 쓰기 도구에서 별도의 승인과 정책을 적용할 예정입니다.
-- 소스 변경 도구를 구현할 때는 `read → lock → write → syntax check → activate → unlock` 순서와 transport 강제를 적용합니다.
+- macOS: Keychain
+- Windows: 현재 사용자만 복호화할 수 있는 DPAPI 암호화 파일
 
-## 개발과 테스트
+프로필 파일에는 SAP 주소, 클라이언트 번호, 사용자명만 저장되며 암호는 저장하지 않습니다.
+
+로그인 상태 확인과 삭제:
+
+```powershell
+npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 auth status DEV100
+npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 auth logout DEV100
+```
+
+## 현재 저장소에서 할 수 있는 일
+
+현재 소스는 ABAP FS 2.6.5의 MCP 도구 42개를 모두 구현합니다.
+
+- 연결·discovery 3개: 시스템 목록/정보, ADT discovery export
+- 저장소 읽기·탐색 10개: 객체/소스 검색, 구간·배치 읽기, where-used, URL/URI 탐색
+- 저장소 쓰기 6개: 객체·테스트 include 생성, 정확 일치 소스 교체, 진단, 활성화, 텍스트 요소
+- 품질·수명주기 6개: ABAP Unit, ATC, 전송 요청, 버전 이력, 다운로드
+- 데이터·참조 3개: read-only SQL, SQL 문법, 호환성 문서 검색
+- 런타임 운영 9개: 디버거, dump/trace 분석, heartbeat
+- 산출물 5개: Mermaid 검증·문서·HTML viewer, DOCX 테스트 문서
+
+쓰기 안전 정책은 다음과 같습니다.
+
+- `production` 프로필에서는 저장소 쓰기를 거부합니다.
+- `allowedPackages`에 없는 패키지는 수정하지 않습니다. 빈 목록은 쓰기 전면 금지입니다.
+- `$TMP`가 아닌 패키지는 transport request가 필수입니다.
+- 소스 교체는 현재 소스에서 정확히 한 곳만 일치해야 하며 lock → 재확인 → write → syntax check → 선택적 activate 순서를 사용합니다.
+- SQL은 `SELECT`와 `WITH`만 허용합니다.
+
+## 토큰 사용량이 많은 환경
+
+`0.2.0`부터 MCP 응답은 compact JSON이며, 대형 소스·검색·SQL·ATC·dump·trace·transport·version 결과는 기본적으로 페이지 또는 요약을 반환합니다. 응답의 `nextStartIndex`, `nextLine`, `nextRowStart`를 다음 호출에 사용하면 전체 데이터를 이어서 읽을 수 있습니다. discovery와 대형 다운로드 목록은 로컬 파일로 내보낼 수 있습니다.
+
+Claude Code는 기본 Tool Search를 사용할 수 있으므로 일반적으로 42개 전체를 등록하는 것이 편합니다. Tool Search가 없는 호스트에서 도구 스키마 토큰도 줄이려면 `--toolsets`를 사용하세요.
 
 ```bash
+sap-abap-mcp serve --profile DEV100 --toolsets core,write,analysis
+```
+
+사용 가능한 값은 `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, `all`입니다. 기본값은 `all`이라 기존 설정과 기능은 그대로 유지됩니다.
+
+## 개발자용: 저장소에서 실행하기
+
+일반 사용자는 이 과정이 필요 없습니다. 소스를 수정하거나 테스트할 때만 실행하세요.
+
+```bash
+npm install
+npm run build
 npm test
 ```
 
-테스트는 실제 SAP 암호를 사용하지 않습니다. 메모리 자격증명 저장소와 가짜 ADT 클라이언트, MCP 인메모리 전송 계층으로 프로필 저장, 연결 캐시, 도구 검색, 객체 검색, 메서드 소스 조회를 검증합니다.
+로컬 빌드로 Codex에 등록하는 예시는 다음과 같습니다.
 
-## 다음 구현 순서
+```bash
+codex mcp add sap-abap-local -- node "/absolute/path/to/sap-abap-mcp/dist/src/index.js" serve --profile DEV100
+```
 
-1. 소스 내부 검색과 객체 메타데이터: `search_abap_object_lines`, `get_abap_object_info`, `get_object_by_uri`
-2. 안전한 수정 루프: `replace_string_in_abap_object`, `abap_activate`, diagnostics
-3. 신규 객체와 transport 관리
-4. ABAP Unit, ATC, SQL query
-5. where-used, version history, download, 문서화
-6. debugger, dump/trace, 나머지 ABAP FS 호환 도구
-
-42개 기준 목록은 `src/compat/abap-fs-tools.ts`에 있습니다. 기준 버전은 ABAP FS 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`입니다.
+ABAP FS 호환 도구 기준 목록은 `src/compat/abap-fs-tools.ts`에 있습니다. 기준 버전은 ABAP FS 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`입니다.

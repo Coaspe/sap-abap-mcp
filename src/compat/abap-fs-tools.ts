@@ -53,5 +53,123 @@ export const IMPLEMENTED_TOOL_NAMES = [
   "get_connected_systems",
   "get_sap_system_info",
   "search_abap_objects",
-  "get_abap_object_lines"
+  "get_abap_object_lines",
+  "search_abap_object_lines",
+  "get_abap_object_info",
+  "get_batch_lines",
+  "get_object_by_uri",
+  "create_mermaid_diagram",
+  "validate_mermaid_syntax",
+  "get_mermaid_documentation",
+  "detect_mermaid_diagram_type",
+  "create_test_documentation",
+  "create_object_programmatically",
+  "execute_data_query",
+  "get_abap_sql_syntax",
+  "run_atc_analysis",
+  "get_atc_decorations",
+  "manage_text_elements",
+  "find_where_used",
+  "get_abap_object_url",
+  "get_abap_object_workspace_uri",
+  "open_object",
+  "abap_download",
+  "run_unit_tests",
+  "create_test_include",
+  "manage_transport_requests",
+  "get_version_history",
+  "abap_fs_documentation",
+  "abap_debug_session",
+  "abap_debug_breakpoint",
+  "abap_debug_step",
+  "abap_debug_variable",
+  "abap_debug_stack",
+  "abap_debug_status",
+  "analyze_abap_dumps",
+  "analyze_abap_traces",
+  "manage_heartbeat",
+  "adt_discovery_export",
+  "abap_activate",
+  "replace_string_in_abap_object",
+  "get_abap_diagnostics"
 ] as const
+
+export const TOOLSET_NAMES = [
+  "core",
+  "write",
+  "analysis",
+  "debug",
+  "operations",
+  "artifacts",
+  "all"
+] as const
+
+export type ToolsetName = typeof TOOLSET_NAMES[number]
+
+export const ABAP_MCP_TOOLSETS: Record<
+  Exclude<ToolsetName, "all">,
+  readonly typeof IMPLEMENTED_TOOL_NAMES[number][]
+> = {
+  core: [
+    "get_connected_systems",
+    "get_sap_system_info",
+    "search_abap_objects",
+    "get_abap_object_lines",
+    "search_abap_object_lines",
+    "get_abap_object_info",
+    "get_batch_lines",
+    "get_object_by_uri",
+    "find_where_used",
+    "get_abap_object_url",
+    "get_abap_object_workspace_uri",
+    "open_object",
+    "abap_fs_documentation",
+    "get_abap_sql_syntax",
+    "get_abap_diagnostics"
+  ],
+  write: [
+    "create_object_programmatically",
+    "manage_text_elements",
+    "create_test_include",
+    "abap_activate",
+    "replace_string_in_abap_object"
+  ],
+  analysis: [
+    "execute_data_query",
+    "run_atc_analysis",
+    "get_atc_decorations",
+    "run_unit_tests",
+    "manage_transport_requests",
+    "get_version_history"
+  ],
+  debug: [
+    "abap_debug_session",
+    "abap_debug_breakpoint",
+    "abap_debug_step",
+    "abap_debug_variable",
+    "abap_debug_stack",
+    "abap_debug_status"
+  ],
+  operations: [
+    "analyze_abap_dumps",
+    "analyze_abap_traces",
+    "manage_heartbeat",
+    "adt_discovery_export"
+  ],
+  artifacts: [
+    "create_mermaid_diagram",
+    "validate_mermaid_syntax",
+    "get_mermaid_documentation",
+    "detect_mermaid_diagram_type",
+    "create_test_documentation",
+    "abap_download"
+  ]
+}
+
+export function toolsForToolsets(toolsets: readonly ToolsetName[]): ReadonlySet<string> {
+  if (toolsets.includes("all")) return new Set(IMPLEMENTED_TOOL_NAMES)
+  const selected = toolsets.filter(
+    (toolset): toolset is Exclude<ToolsetName, "all"> => toolset !== "all"
+  )
+  return new Set(selected.flatMap(toolset => ABAP_MCP_TOOLSETS[toolset]))
+}
