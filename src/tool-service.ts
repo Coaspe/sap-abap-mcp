@@ -1,19 +1,31 @@
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
+import { execFile } from "node:child_process"
 import { mkdir, mkdtemp, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, isAbsolute, join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { promisify } from "node:util"
+import { createTwoFilesPatch, diffLines } from "diff"
 import { AppError } from "./errors.js"
 import {
   isCreatableTypeId,
   isGroupType,
   objectPath,
   parentTypeId,
+  servicePreviewUrl,
   type NewBindingOptions,
   type NewObjectOptions,
   type NewPackageOptions,
   type NonGroupTypeIds,
   type PackageTypes,
+  type Delta,
+  type FixProposal,
+  type GenericRefactoring,
+  type GitRepo,
+  type GitStaging,
+  type RapGeneratorContent,
+  type RapGeneratorId,
+  type RenameRefactoring,
   type TextElement,
   type TextElementCategory,
   type TransportObject,
@@ -21,6 +33,13 @@ import {
   type ValidateOptions,
   type UsageReference
 } from "abap-adt-api"
+import type { ChangePackageRefactoring } from "abap-adt-api/build/api/refactor.js"
+import {
+  abapGitCredentialKey,
+  decodeAbapGitCredentials,
+  normalizeAbapGitRepositoryUrl,
+  type AbapGitCredentials
+} from "./abapgit-credentials.js"
 import type { ConnectionSummary } from "./connection-manager.js"
 import {
   readAbapFsDocumentation,
@@ -36,12 +55,14 @@ import {
 } from "./mermaid-tools.js"
 import type { SapClient } from "./sap-client.js"
 import type { SapNewObjectOptions, SapObjectReference } from "./sap-client.js"
+import type { SecretStore } from "./secret-store.js"
 import {
   createTestDocumentation as createTestDocumentationArtifact,
   type TestDocumentationInput
 } from "./test-documentation.js"
 
 type BindingCategory = "0" | "1"
+const execFileAsync = promisify(execFile)
 
 export interface ConnectionProvider {
   listConnections(): Promise<ConnectionSummary[]>
@@ -211,10 +232,27 @@ export interface ManageTransportsInput {
     | "get_transport_details"
     | "get_transport_objects"
     | "compare_transports"
+    | "create_transport"
+    | "release_transport"
+    | "delete_transport"
+    | "set_owner"
+    | "add_user"
+    | "list_system_users"
+    | "resolve_object"
   connectionId: string
   user?: string
+  targetUser?: string
   transportNumber?: string
   transportNumbers?: string[]
+  description?: string
+  packageName?: string
+  transportLayer?: string
+  pgmid?: string
+  objectType?: string
+  objectName?: string
+  ignoreLocks?: boolean
+  ignoreAtc?: boolean
+  confirmation?: string
   startIndex: number
   maxResults: number
   includeObjects: boolean
@@ -230,6 +268,141 @@ export interface VersionHistoryInput extends ObjectLocatorInput {
   maxResults: number
   startLine: number
   lineCount: number
+}
+
+export interface InspectCodeInput extends WorkspaceFileInput {
+  action: "completion" | "definition" | "quick_fixes" | "format_preview"
+  line: number
+  column: number
+  endColumn?: number
+  implementation: boolean
+  startIndex: number
+  maxResults: number
+}
+
+export interface PreviewRefactoringInput extends WorkspaceFileInput {
+  action:
+    | "preview_rename"
+    | "preview_change_package"
+    | "preview_extract_method"
+    | "preview_quick_fix"
+    | "preview_format"
+    | "preview_delete"
+  line?: number
+  column?: number
+  endColumn?: number
+  endLine?: number
+  newName?: string
+  newPackage?: string
+  methodName?: string
+  proposalIndex?: number
+  transport?: string
+  activate: boolean
+}
+
+export interface ExecuteRefactoringInput {
+  action: "execute"
+  planId: string
+  confirmation: string
+}
+
+export type RefactorCodeInput = PreviewRefactoringInput | ExecuteRefactoringInput
+
+export interface ManageAbapGitInput {
+  action:
+    | "list_repositories"
+    | "remote_info"
+    | "create_repository"
+    | "pull_repository"
+    | "unlink_repository"
+    | "stage_repository"
+    | "push_repository"
+    | "check_repository"
+    | "switch_branch"
+  connectionId: string
+  repositoryId?: string
+  repositoryUrl?: string
+  packageName?: string
+  branch?: string
+  createBranch?: boolean
+  transport?: string
+  stageId?: string
+  objectKeys?: string[]
+  stageAll?: boolean
+  comment?: string
+  authorName?: string
+  authorEmail?: string
+  committerName?: string
+  committerEmail?: string
+  confirmation?: string
+  startIndex: number
+  maxResults: number
+}
+
+export interface ManageRapInput {
+  action:
+    | "availability"
+    | "get_schema"
+    | "get_defaults"
+    | "validate"
+    | "preview"
+    | "generate"
+    | "publish"
+    | "unpublish"
+    | "service_details"
+  connectionId: string
+  generatorId?: RapGeneratorId
+  referenceObjectName?: string
+  referenceObjectType?: string
+  packageName?: string
+  content?: RapGeneratorContent
+  transport?: string
+  serviceBindingName?: string
+  serviceName?: string
+  serviceVersion?: string
+  confirmation?: string
+  contentOffset: number
+  contentLength: number
+}
+
+export interface ManageVersionsInput {
+  action: "list_inactive" | "get_inactive_source" | "preview_restore" | "execute_restore"
+  connectionId: string
+  objectName?: string
+  objectType?: string
+  versionNumber?: number
+  planId?: string
+  confirmation?: string
+  transport?: string
+  activate: boolean
+  startIndex: number
+  maxResults: number
+  startLine: number
+  lineCount: number
+}
+
+export interface CompareSystemsInput {
+  objectName: string
+  objectType?: string
+  sourceConnectionId: string
+  targetConnectionId: string
+  ignoreWhitespace: boolean
+  maxPatchLines: number
+}
+
+export interface DependencyGraphInput extends ObjectLocatorInput {
+  line?: number
+  column?: number
+  depth: number
+  maxNodes: number
+  customOnly: boolean
+}
+
+export interface RunSapTransactionInput {
+  connectionId: string
+  transactionCode: string
+  parameters?: Record<string, string>
+  mode: "url" | "launch"
 }
 
 export interface DownloadInput {
@@ -373,8 +546,119 @@ interface DataViewState {
   filters: NonNullable<ExecuteDataQueryInput["filters"]>
 }
 
+type RefactorPlanKind =
+  | "rename"
+  | "change_package"
+  | "extract_method"
+  | "quick_fix"
+  | "format"
+  | "delete"
+  | "restore_version"
+
+interface RefactorPlan {
+  id: string
+  kind: RefactorPlanKind
+  connectionId: string
+  confirmation: string
+  fingerprint: string
+  expiresAt: number
+  request: Record<string, unknown>
+  payload: unknown
+}
+
+interface GitStageState {
+  connectionId: string
+  repository: GitRepo
+  staging: GitStaging
+  expiresAt: number
+}
+
 const INLINE_TEXT_BYTE_LIMIT = 96 * 1024
+const DIFF_PATCH_BYTE_LIMIT = 64 * 1024
 const MAX_BATCH_LINES = 5000
+const PLAN_TTL_MS = 10 * 60 * 1000
+const MAX_CACHED_PLANS = 100
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(",")}}`
+  }
+  return JSON.stringify(value)
+}
+
+function payloadFingerprint(value: unknown): string {
+  return createHash("sha256").update(stableJson(value)).digest("hex")
+}
+
+function sourceOffset(source: string, line: number, column: number): number {
+  const lines = source.split(/\r?\n/)
+  if (line < 1 || line > lines.length) {
+    throw new AppError("SOURCE_RANGE_INVALID", `Line ${line} is outside 1-${lines.length}`)
+  }
+  const current = lines[line - 1] ?? ""
+  if (column < 0 || column > current.length) {
+    throw new AppError(
+      "SOURCE_RANGE_INVALID",
+      `Column ${column} is outside line ${line} length ${current.length}`
+    )
+  }
+  let offset = 0
+  for (let index = 0; index < line - 1; index += 1) {
+    offset += (lines[index] ?? "").length + 1
+  }
+  return offset + column
+}
+
+function applyDeltas(source: string, deltas: Delta[]): string {
+  const ordered = [...deltas].sort((left, right) => {
+    const line = right.range.start.line - left.range.start.line
+    return line || right.range.start.column - left.range.start.column
+  })
+  let result = source.replace(/\r\n/g, "\n")
+  let previousStart = Number.POSITIVE_INFINITY
+  for (const delta of ordered) {
+    const start = sourceOffset(result, delta.range.start.line, delta.range.start.column)
+    const end = sourceOffset(result, delta.range.end.line, delta.range.end.column)
+    if (start > end || end > previousStart) {
+      throw new AppError("SOURCE_EDIT_OVERLAP", "SAP quick-fix returned overlapping edits")
+    }
+    result = `${result.slice(0, start)}${delta.content}${result.slice(end)}`
+    previousStart = start
+  }
+  return source.includes("\r\n") ? result.replace(/(?<!\r)\n/g, "\r\n") : result
+}
+
+function summarizeDiff(before: string, after: string, maxPatchLines = 200) {
+  const changes = diffLines(before, after)
+  const addedLines = changes
+    .filter(change => change.added)
+    .reduce((sum, change) => sum + (change.count ?? 0), 0)
+  const removedLines = changes
+    .filter(change => change.removed)
+    .reduce((sum, change) => sum + (change.count ?? 0), 0)
+  const patchLines = createTwoFilesPatch("before", "after", before, after, "", "", {
+    context: 3
+  }).split("\n")
+  const selectedLines: string[] = []
+  let selectedBytes = 0
+  for (const line of patchLines.slice(0, maxPatchLines)) {
+    const lineBytes = Buffer.byteLength(line, "utf8") + (selectedLines.length > 0 ? 1 : 0)
+    if (selectedBytes + lineBytes > DIFF_PATCH_BYTE_LIMIT) break
+    selectedLines.push(line)
+    selectedBytes += lineBytes
+  }
+  return {
+    changed: before !== after,
+    addedLines,
+    removedLines,
+    patchTruncated: selectedLines.length < patchLines.length,
+    patch: selectedLines.join("\n")
+  }
+}
 
 function pageItems<T>(items: T[], startIndex: number, maxResults: number) {
   const page = items.slice(startIndex, startIndex + maxResults)
@@ -491,6 +775,37 @@ function referenceName(reference: UsageReference): string {
     : reference["adtcore:name"] || reference.objectIdentifier || ""
 }
 
+function dependencyReference(reference: UsageReference) {
+  const parts = reference.objectIdentifier?.split(";")
+  if (!parts || parts[0] !== "ABAPFullName" || !parts[1]) return undefined
+  let type = reference["adtcore:type"] || ""
+  if (!type) {
+    type = reference.uri.includes("/oo/classes/") ? "CLAS/OC" : "UNKNOWN"
+  }
+  let name = parts[1]
+  let parentClass: string | undefined
+  if (type === "PROG/I" && parts[2]) name = parts[2]
+  if ((type === "FUGR/FF" || type === "CLAS/OM") && reference["adtcore:name"]) {
+    name = reference["adtcore:name"]
+    if (type === "CLAS/OM") parentClass = parts[1].split("=")[0]
+  }
+  const packageName = reference.packageRef?.["adtcore:name"] || ""
+  return {
+    id: `${name}::${type}`,
+    name,
+    type,
+    description: reference["adtcore:description"] || null,
+    responsible: reference["adtcore:responsible"] || null,
+    packageName: packageName || null,
+    custom: /^[ZY]/i.test(parentClass || name) || /^[ZY]/i.test(packageName),
+    canExpand: reference.canHaveChildren,
+    uri: reference.uri,
+    parentUri: reference.parentUri,
+    objectIdentifier: reference.objectIdentifier,
+    usageInformation: reference.usageInformation || null
+  }
+}
+
 function parseAdtLocation(value: string, explicitConnectionId?: string) {
   if (value.startsWith("adt://")) {
     const uri = new URL(value)
@@ -596,6 +911,21 @@ function requireWritablePackage(client: SapClient, packageName?: string): string
   return normalizedPackage
 }
 
+function requireNonProduction(client: SapClient): void {
+  if (client.profile.environment === "production") {
+    throw new AppError(
+      "PRODUCTION_WRITE_BLOCKED",
+      `Writes are disabled for production profile ${client.profile.id}`
+    )
+  }
+}
+
+function requireExactConfirmation(actual: string | undefined, expected: string): void {
+  if (actual !== expected) {
+    throw new AppError("CONFIRMATION_MISMATCH", `Confirmation must exactly equal ${expected}`)
+  }
+}
+
 function requireTransport(packageName: string, transport?: string): string | undefined {
   const normalizedTransport = transport?.trim().toUpperCase()
   if (packageName !== "$TMP" && !normalizedTransport) {
@@ -678,13 +1008,80 @@ function stripHtml(html: string): string {
 export class AbapToolService {
   private readonly atcDecorations = new Map<string, unknown[]>()
   private readonly dataViews = new Map<string, DataViewState>()
+  private readonly refactorPlans = new Map<string, RefactorPlan>()
+  private readonly gitStages = new Map<string, GitStageState>()
   private readonly heartbeatTasks = new Map<string, HeartbeatTask>()
   private readonly heartbeatHistory: Array<Record<string, unknown>> = []
   private heartbeatActive = false
   private heartbeatTimer: NodeJS.Timeout | undefined
   private heartbeatLastRun?: string
 
-  constructor(private readonly connections: ConnectionProvider) {}
+  constructor(
+    private readonly connections: ConnectionProvider,
+    private readonly secrets?: SecretStore
+  ) {}
+
+  private cachePlan(plan: Omit<RefactorPlan, "id" | "expiresAt">): RefactorPlan {
+    const now = Date.now()
+    for (const [id, cached] of this.refactorPlans) {
+      if (cached.expiresAt <= now) this.refactorPlans.delete(id)
+    }
+    while (this.refactorPlans.size >= MAX_CACHED_PLANS) {
+      const oldest = this.refactorPlans.keys().next().value as string | undefined
+      if (!oldest) break
+      this.refactorPlans.delete(oldest)
+    }
+    const cached: RefactorPlan = {
+      ...plan,
+      id: randomUUID(),
+      expiresAt: now + PLAN_TTL_MS
+    }
+    this.refactorPlans.set(cached.id, cached)
+    return cached
+  }
+
+  private takePlan(planId: string, confirmation: string): RefactorPlan {
+    const plan = this.refactorPlans.get(planId)
+    if (!plan || plan.expiresAt <= Date.now()) {
+      this.refactorPlans.delete(planId)
+      throw new AppError("PLAN_EXPIRED", "The preview plan is missing or expired; create a new preview")
+    }
+    if (confirmation !== plan.confirmation) {
+      throw new AppError(
+        "CONFIRMATION_MISMATCH",
+        `Confirmation must exactly equal ${plan.confirmation}`
+      )
+    }
+    this.refactorPlans.delete(planId)
+    return plan
+  }
+
+  private async gitCredentials(
+    connectionId: string,
+    repositoryUrl: string
+  ): Promise<AbapGitCredentials | undefined> {
+    const normalizedUrl = normalizeAbapGitRepositoryUrl(repositoryUrl)
+    const stored = await this.secrets?.get(abapGitCredentialKey(connectionId))
+    return stored
+      ? decodeAbapGitCredentials(stored).find(item => item.repositoryUrl === normalizedUrl)
+      : undefined
+  }
+
+  private async findGitRepository(client: SapClient, repositoryId?: string): Promise<GitRepo> {
+    if (!repositoryId?.trim()) {
+      throw new AppError("GIT_REPOSITORY_REQUIRED", "This action requires repositoryId")
+    }
+    const normalized = repositoryId.trim()
+    const repositories = await client.listGitRepositories()
+    const matches = repositories.filter(repository => repository.key === normalized)
+    if (matches.length !== 1) {
+      throw new AppError(
+        "GIT_REPOSITORY_NOT_FOUND",
+        `abapGit repository ${normalized} was not found`
+      )
+    }
+    return matches[0]!
+  }
 
   private async resolveEditableTarget(input: WorkspaceFileInput): Promise<EditableTarget> {
     const location = parseAdtLocation(input.fileUri, input.connectionId)
@@ -723,6 +1120,66 @@ export class AbapToolService {
     }
   }
 
+  private async packageForReference(
+    client: SapClient,
+    reference: { name: string; type: string; uri: string; parentUri?: string }
+  ): Promise<string> {
+    const candidates = await client.searchObjects(reference.name, reference.type, 50)
+    const exact = candidates.find(candidate =>
+      candidate.uri.replace(/\/+$/, "") === objectUriFromSourceUri(reference.uri).replace(/\/+$/, "")
+    ) ?? candidates.find(candidate =>
+      candidate.name.toUpperCase() === reference.name.toUpperCase() &&
+      sameType(candidate.type, reference.type)
+    )
+    if (exact?.packageName) return exact.packageName.toUpperCase()
+
+    if (reference.parentUri) {
+      try {
+        const structure = await client.getObjectStructure(reference.parentUri)
+        const parentCandidates = await client.searchObjects(
+          structure.metaData["adtcore:name"],
+          structure.metaData["adtcore:type"],
+          50
+        )
+        const parent = parentCandidates.find(candidate =>
+          candidate.uri.replace(/\/+$/, "") === reference.parentUri?.replace(/\/+$/, "")
+        )
+        if (parent?.packageName) return parent.packageName.toUpperCase()
+      } catch {
+        // The caller rejects unknown packages below.
+      }
+    }
+    throw new AppError(
+      "AFFECTED_PACKAGE_UNKNOWN",
+      `Could not determine the package for affected object ${reference.type} ${reference.name}`,
+      { uri: reference.uri }
+    )
+  }
+
+  private async enforceAffectedPackages(
+    client: SapClient,
+    references: Array<{ name: string; type: string; uri: string; parentUri?: string }>
+  ): Promise<string[]> {
+    const packages = new Set<string>()
+    for (const reference of references) {
+      packages.add(requireWritablePackage(client, await this.packageForReference(client, reference)))
+    }
+    return [...packages]
+  }
+
+  private planResponse(
+    plan: RefactorPlan,
+    summary: Record<string, unknown>
+  ): Record<string, unknown> {
+    return {
+      planId: plan.id,
+      operation: plan.kind,
+      confirmation: plan.confirmation,
+      expiresAt: new Date(plan.expiresAt).toISOString(),
+      ...summary
+    }
+  }
+
   async getConnectedSystems() {
     return { systems: await this.connections.listConnections() }
   }
@@ -758,6 +1215,556 @@ export class AbapToolService {
   async getSapSystemInfo(connectionId: string, includeComponents: boolean) {
     const client = await this.connections.getClient(connectionId)
     return client.getSystemInfo(includeComponents)
+  }
+
+  async inspectCode(input: InspectCodeInput) {
+    const target = await this.resolveEditableTarget(input)
+    if (input.action === "completion") {
+      const proposals = await target.client.getCodeCompletions(
+        target.sourceUri,
+        target.source,
+        input.line,
+        input.column
+      )
+      const unique = [...new Map(proposals.map(proposal => [proposal.IDENTIFIER, proposal])).values()]
+      const page = pageItems(unique, input.startIndex, input.maxResults)
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        line: input.line,
+        column: input.column,
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        proposals: page.items.map(proposal => ({
+          identifier: proposal.IDENTIFIER,
+          kind: proposal.KIND,
+          prefixLength: proposal.PREFIXLENGTH,
+          grade: proposal.GRADE,
+          inherited: Boolean(proposal.IS_INHERITED)
+        }))
+      }
+    }
+
+    if (input.action === "definition") {
+      const definition = await target.client.findDefinition(
+        target.sourceUri,
+        target.source,
+        input.line,
+        input.column,
+        input.endColumn ?? input.column,
+        input.implementation,
+        target.mainProgram
+      )
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        definition: definition.url
+          ? {
+              uri: definition.url,
+              workspaceUri: `adt://${target.connectionId.toLowerCase()}${definition.url}`,
+              line: definition.line,
+              column: definition.column
+            }
+          : null
+      }
+    }
+
+    if (input.action === "quick_fixes") {
+      const proposals = (await target.client.getQuickFixes(
+        target.sourceUri,
+        target.source,
+        input.line,
+        input.column
+      )).filter(proposal => !proposal["adtcore:type"].match(/dialog|rename_quickfix/i))
+      const page = pageItems(proposals, input.startIndex, input.maxResults)
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        proposals: page.items.map((proposal, pageIndex) => ({
+          proposalIndex: input.startIndex + pageIndex,
+          name: proposal["adtcore:name"],
+          type: proposal["adtcore:type"],
+          description: proposal["adtcore:description"]
+        }))
+      }
+    }
+
+    const formatted = await target.client.formatSource(target.source)
+    if (!formatted) throw new AppError("FORMATTER_EMPTY", "SAP formatter returned empty source")
+    const ratio = Math.abs(formatted.length - target.source.length) / Math.max(formatted.length, 1)
+    if (ratio > 0.2) {
+      throw new AppError(
+        "FORMATTER_SANITY_CHECK_FAILED",
+        "SAP formatter changed source length by more than 20%; refusing the result"
+      )
+    }
+    return {
+      connectionId: target.connectionId,
+      object: target.object,
+      ...summarizeDiff(target.source, formatted)
+    }
+  }
+
+  private async buildRefactorPreview(input: PreviewRefactoringInput): Promise<{
+    kind: RefactorPlanKind
+    connectionId: string
+    confirmation: string
+    fingerprint: string
+    request: Record<string, unknown>
+    payload: unknown
+    summary: Record<string, unknown>
+  }> {
+    const target = await this.resolveEditableTarget(input)
+    const sourcePackage = requireWritablePackage(target.client, target.object.packageName)
+    const request = { ...input } as unknown as Record<string, unknown>
+
+    if (input.action === "preview_rename") {
+      if (input.line === undefined || input.column === undefined || !input.newName?.trim()) {
+        throw new AppError("RENAME_INPUT_REQUIRED", "Rename preview requires line, column, and newName")
+      }
+      const transport = requireTransport(sourcePackage, input.transport)
+      const proposal = await target.client.evaluateRename(
+        target.sourceUri,
+        input.line,
+        input.column,
+        input.endColumn ?? input.column
+      )
+      proposal.newName = input.newName.trim()
+      proposal.ignoreSyntaxErrors = false
+      const preview = await target.client.previewRename(proposal, transport)
+      preview.ignoreSyntaxErrors = false
+      if (preview.affectedObjects.length === 0) {
+        throw new AppError("REFACTORING_EMPTY", "SAP rename preview returned no affected objects")
+      }
+      const packages = await this.enforceAffectedPackages(target.client, preview.affectedObjects)
+      const confirmation = `${preview.oldName}->${preview.newName}`
+      return {
+        kind: "rename",
+        connectionId: target.connectionId,
+        confirmation,
+        fingerprint: payloadFingerprint(preview),
+        request,
+        payload: preview,
+        summary: {
+          object: target.object,
+          oldName: preview.oldName,
+          newName: preview.newName,
+          transport: preview.transport || null,
+          affectedObjectCount: preview.affectedObjects.length,
+          affectedPackages: packages,
+          affectedObjects: preview.affectedObjects.slice(0, 50).map(item => ({
+            name: item.name,
+            type: item.type,
+            uri: item.uri,
+            editCount: item.textReplaceDeltas.length
+          })),
+          affectedObjectsTruncated: preview.affectedObjects.length > 50
+        }
+      }
+    }
+
+    if (input.action === "preview_change_package") {
+      const newPackage = requireWritablePackage(target.client, input.newPackage)
+      if (newPackage === sourcePackage) {
+        throw new AppError("NO_PACKAGE_CHANGE", `Object is already in package ${newPackage}`)
+      }
+      const transport = requireTransport(sourcePackage === "$TMP" ? newPackage : sourcePackage, input.transport)
+      const proposal: ChangePackageRefactoring = {
+        oldPackage: sourcePackage,
+        newPackage,
+        transport: transport ?? "",
+        ignoreSyntaxErrorsAllowed: false,
+        ignoreSyntaxErrors: false,
+        adtObjectUri: target.objectUri,
+        affectedObjects: {
+          uri: target.objectUri,
+          type: target.object.type,
+          name: target.object.name,
+          oldPackage: sourcePackage,
+          newPackage,
+          parentUri: ""
+        },
+        userContent: ""
+      }
+      const preview = await target.client.previewPackageChange(proposal, transport)
+      preview.ignoreSyntaxErrors = false
+      const confirmation = `${sourcePackage}->${newPackage}`
+      return {
+        kind: "change_package",
+        connectionId: target.connectionId,
+        confirmation,
+        fingerprint: payloadFingerprint(preview),
+        request,
+        payload: preview,
+        summary: {
+          object: target.object,
+          oldPackage: sourcePackage,
+          newPackage,
+          transport: preview.transport || null,
+          affectedObject: preview.affectedObjects
+        }
+      }
+    }
+
+    if (input.action === "preview_extract_method") {
+      if (
+        input.line === undefined ||
+        input.column === undefined ||
+        input.endLine === undefined ||
+        input.endColumn === undefined ||
+        !input.methodName?.trim()
+      ) {
+        throw new AppError(
+          "EXTRACT_INPUT_REQUIRED",
+          "Extract preview requires line, column, endLine, endColumn, and methodName"
+        )
+      }
+      const transport = requireTransport(sourcePackage, input.transport)
+      const proposal = await target.client.evaluateExtractMethod(target.sourceUri, {
+        start: { line: input.line, column: input.column },
+        end: { line: input.endLine, column: input.endColumn }
+      })
+      proposal.name = input.methodName.trim().toUpperCase()
+      proposal.genericRefactoring.transport = transport ?? ""
+      proposal.genericRefactoring.ignoreSyntaxErrors = false
+      const preview = await target.client.previewExtractMethod(proposal)
+      preview.ignoreSyntaxErrors = false
+      if (preview.affectedObjects.length === 0) {
+        throw new AppError("REFACTORING_EMPTY", "SAP extract-method preview returned no affected objects")
+      }
+      const packages = await this.enforceAffectedPackages(target.client, preview.affectedObjects)
+      return {
+        kind: "extract_method",
+        connectionId: target.connectionId,
+        confirmation: proposal.name,
+        fingerprint: payloadFingerprint({ proposal, preview }),
+        request,
+        payload: { proposal, preview },
+        summary: {
+          object: target.object,
+          methodName: proposal.name,
+          transport: preview.transport || null,
+          affectedObjectCount: preview.affectedObjects.length,
+          affectedPackages: packages
+        }
+      }
+    }
+
+    if (input.action === "preview_quick_fix") {
+      if (input.line === undefined || input.column === undefined || input.proposalIndex === undefined) {
+        throw new AppError(
+          "QUICK_FIX_INPUT_REQUIRED",
+          "Quick-fix preview requires line, column, and proposalIndex"
+        )
+      }
+      const transport = requireTransport(sourcePackage, input.transport)
+      const proposals = (await target.client.getQuickFixes(
+        target.sourceUri,
+        target.source,
+        input.line,
+        input.column
+      )).filter(proposal => !proposal["adtcore:type"].match(/dialog|rename_quickfix/i))
+      const proposal = proposals[input.proposalIndex]
+      if (!proposal) {
+        throw new AppError(
+          "QUICK_FIX_NOT_FOUND",
+          `proposalIndex ${input.proposalIndex} is outside 0-${Math.max(proposals.length - 1, 0)}`
+        )
+      }
+      const edits = await target.client.getQuickFixEdits(proposal, target.source)
+      if (edits.length === 0) throw new AppError("QUICK_FIX_EMPTY", "SAP quick-fix returned no edits")
+      const packages = await this.enforceAffectedPackages(
+        target.client,
+        edits.map(edit => ({ name: edit.name, type: edit.type, uri: edit.uri }))
+      )
+      const payload = { proposal, edits, transport: transport ?? "", activate: input.activate }
+      return {
+        kind: "quick_fix",
+        connectionId: target.connectionId,
+        confirmation: proposal["adtcore:name"],
+        fingerprint: payloadFingerprint(payload),
+        request,
+        payload,
+        summary: {
+          object: target.object,
+          proposal: proposal["adtcore:name"],
+          editCount: edits.length,
+          affectedObjectCount: new Set(edits.map(edit => edit.uri)).size,
+          affectedPackages: packages,
+          activate: input.activate
+        }
+      }
+    }
+
+    if (input.action === "preview_format") {
+      const transport = requireTransport(sourcePackage, input.transport)
+      const formatted = await target.client.formatSource(target.source)
+      if (!formatted) throw new AppError("FORMATTER_EMPTY", "SAP formatter returned empty source")
+      const ratio = Math.abs(formatted.length - target.source.length) / Math.max(formatted.length, 1)
+      if (ratio > 0.2) {
+        throw new AppError(
+          "FORMATTER_SANITY_CHECK_FAILED",
+          "SAP formatter changed source length by more than 20%; refusing the result"
+        )
+      }
+      if (formatted === target.source) throw new AppError("NO_SOURCE_CHANGE", "Source is already formatted")
+      const payload = {
+        object: target.object,
+        objectUri: target.objectUri,
+        sourceUri: target.sourceUri,
+        before: target.source,
+        after: formatted,
+        transport: transport ?? "",
+        activate: input.activate,
+        mainProgram: target.mainProgram
+      }
+      return {
+        kind: "format",
+        connectionId: target.connectionId,
+        confirmation: target.object.name,
+        fingerprint: payloadFingerprint(payload),
+        request,
+        payload,
+        summary: {
+          object: target.object,
+          ...summarizeDiff(target.source, formatted),
+          activate: input.activate
+        }
+      }
+    }
+
+    const transport = requireTransport(sourcePackage, input.transport)
+    if (!isCreatableTypeId(target.object.type)) {
+      throw new AppError(
+        "OBJECT_DELETE_UNSUPPORTED",
+        `ADT only allows deletion of creatable object types; ${target.object.type} is not eligible`
+      )
+    }
+    const state = await target.client.getObjectFingerprint(target.objectUri)
+    const payload = {
+      object: target.object,
+      objectUri: target.objectUri,
+      state,
+      transport: transport ?? ""
+    }
+    return {
+      kind: "delete",
+      connectionId: target.connectionId,
+      confirmation: target.object.name,
+      fingerprint: payloadFingerprint(payload),
+      request,
+      payload,
+      summary: {
+        object: target.object,
+        packageName: sourcePackage,
+        transport: transport ?? null,
+        state: {
+          fingerprint: state.fingerprint,
+          version: state.version,
+          changedAt: state.changedAt
+        }
+      }
+    }
+  }
+
+  async refactorCode(input: RefactorCodeInput) {
+    if (input.action !== "execute") {
+      const built = await this.buildRefactorPreview(input)
+      const plan = this.cachePlan({
+        kind: built.kind,
+        connectionId: built.connectionId,
+        confirmation: built.confirmation,
+        fingerprint: built.fingerprint,
+        request: built.request,
+        payload: built.payload
+      })
+      return this.planResponse(plan, built.summary)
+    }
+
+    const plan = this.takePlan(input.planId, input.confirmation)
+    if (plan.kind === "restore_version") {
+      throw new AppError(
+        "PLAN_TOOL_MISMATCH",
+        "Restore plans must be executed through manage_abap_versions"
+      )
+    }
+    const rebuilt = await this.buildRefactorPreview(plan.request as unknown as PreviewRefactoringInput)
+    if (rebuilt.fingerprint !== plan.fingerprint) {
+      throw new AppError(
+        "REFACTORING_CHANGED",
+        "SAP returned a different preview because source or repository state changed; review a new preview"
+      )
+    }
+    const client = await this.connections.getClient(plan.connectionId)
+
+    if (plan.kind === "rename") {
+      const result = await client.executeRename(rebuilt.payload as RenameRefactoring)
+      return { executed: true, operation: plan.kind, result }
+    }
+    if (plan.kind === "change_package") {
+      const result = await client.executePackageChange(rebuilt.payload as ChangePackageRefactoring)
+      return { executed: true, operation: plan.kind, result }
+    }
+    if (plan.kind === "extract_method") {
+      const result = await client.executeExtractMethod(
+        (rebuilt.payload as { preview: GenericRefactoring }).preview
+      )
+      return { executed: true, operation: plan.kind, result }
+    }
+    if (plan.kind === "quick_fix") {
+      const payload = rebuilt.payload as {
+        edits: Delta[]
+        transport: string
+        activate: boolean
+      }
+      const result = await this.applySourceDeltas(
+        plan.connectionId,
+        payload.edits,
+        payload.transport || undefined,
+        payload.activate
+      )
+      return { executed: true, operation: plan.kind, ...result }
+    }
+    if (plan.kind === "format") {
+      const payload = rebuilt.payload as {
+        object: SapObjectReference
+        objectUri: string
+        sourceUri: string
+        before: string
+        after: string
+        transport: string
+        activate: boolean
+        mainProgram?: string
+      }
+      const result = await client.replaceSource(
+        payload.object.name,
+        payload.objectUri,
+        payload.sourceUri,
+        payload.before,
+        payload.after,
+        payload.transport || undefined,
+        payload.activate,
+        payload.mainProgram
+      )
+      return { executed: true, operation: plan.kind, diagnostics: result.diagnostics,
+        activation: result.activation ?? null, activationSkipped: result.activationSkipped }
+    }
+    const payload = rebuilt.payload as {
+      object: SapObjectReference
+      objectUri: string
+      state: { fingerprint: string }
+      transport: string
+    }
+    await client.deleteObject(payload.objectUri, payload.state.fingerprint, payload.transport || undefined)
+    return { executed: true, operation: plan.kind, object: payload.object }
+  }
+
+  private async applySourceDeltas(
+    connectionId: string,
+    deltas: Delta[],
+    transport: string | undefined,
+    activate: boolean
+  ) {
+    const client = await this.connections.getClient(connectionId)
+    const grouped = new Map<string, Delta[]>()
+    for (const delta of deltas) {
+      grouped.set(delta.uri, [...(grouped.get(delta.uri) ?? []), delta])
+    }
+    const changes: Array<{
+      object: SapObjectReference
+      objectUri: string
+      sourceUri: string
+      before: string
+      after: string
+    }> = []
+    for (const [uri, edits] of grouped) {
+      const source = await client.readSourceByUri(uri)
+      const objectUri = objectUriFromSourceUri(source.sourceUri)
+      const structure = await client.getObjectStructure(objectUri)
+      const object: SapObjectReference = {
+        name: structure.metaData["adtcore:name"],
+        type: structure.metaData["adtcore:type"],
+        uri: objectUri,
+        packageName: await this.packageForReference(client, {
+          name: structure.metaData["adtcore:name"],
+          type: structure.metaData["adtcore:type"],
+          uri: objectUri
+        })
+      }
+      const packageName = requireWritablePackage(client, object.packageName)
+      requireTransport(packageName, transport)
+      const after = applyDeltas(source.source, edits)
+      const diagnostics = await client.checkSyntax(objectUri, source.sourceUri, after)
+      if (diagnostics.some(item => /^(E|ERROR)$/i.test(item.severity.trim()))) {
+        throw new AppError(
+          "QUICK_FIX_SYNTAX_ERROR",
+          `Quick-fix would introduce syntax errors in ${object.name}`,
+          { diagnostics: diagnostics.slice(0, 100) }
+        )
+      }
+      changes.push({ object, objectUri, sourceUri: source.sourceUri, before: source.source, after })
+    }
+
+    const applied: typeof changes = []
+    try {
+      for (const change of changes) {
+        await client.replaceSource(
+          change.object.name,
+          change.objectUri,
+          change.sourceUri,
+          change.before,
+          change.after,
+          transport,
+          false
+        )
+        applied.push(change)
+      }
+    } catch (error) {
+      const rollbackFailures: string[] = []
+      for (const change of [...applied].reverse()) {
+        try {
+          await client.replaceSource(
+            change.object.name,
+            change.objectUri,
+            change.sourceUri,
+            change.after,
+            change.before,
+            transport,
+            false
+          )
+        } catch {
+          rollbackFailures.push(change.object.name)
+        }
+      }
+      throw new AppError(
+        "MULTI_OBJECT_WRITE_FAILED",
+        "Quick-fix failed while writing affected objects",
+        {
+          cause: error instanceof Error ? error.message : String(error),
+          rolledBack: applied.length - rollbackFailures.length,
+          rollbackFailures
+        }
+      )
+    }
+
+    const activations = []
+    if (activate) {
+      for (const change of changes) {
+        activations.push({
+          object: change.object.name,
+          result: await client.activateObject(change.object.name, change.objectUri)
+        })
+      }
+    }
+    return { changedObjects: changes.map(change => change.object), activations }
   }
 
   async createObjectProgrammatically(input: CreateObjectInput) {
@@ -1355,10 +2362,38 @@ export class AbapToolService {
     if (input.action === "get_user_transports") {
       const user = (input.user || client.profile.username || "").toUpperCase()
       if (!user) throw new AppError("USER_REQUIRED", "No SAP user was provided")
+      const results = await client.getUserTransports(user)
+      const transports = [
+        ...results.workbench.flatMap(target => [
+          ...target.modifiable.map(transport => ({ category: "workbench", state: "modifiable", target, transport })),
+          ...target.released.map(transport => ({ category: "workbench", state: "released", target, transport }))
+        ]),
+        ...results.customizing.flatMap(target => [
+          ...target.modifiable.map(transport => ({ category: "customizing", state: "modifiable", target, transport })),
+          ...target.released.map(transport => ({ category: "customizing", state: "released", target, transport }))
+        ])
+      ]
+      const page = pageItems(transports, input.startIndex, input.maxResults)
       return {
         connectionId: input.connectionId.toUpperCase(),
         user,
-        transports: await client.getUserTransports(user)
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        transports: page.items.map(({ category, state, target, transport }) => ({
+          category,
+          state,
+          target: target["tm:name"],
+          targetDescription: target["tm:desc"],
+          number: transport["tm:number"],
+          owner: transport["tm:owner"],
+          description: transport["tm:desc"],
+          status: transport["tm:status"],
+          taskCount: transport.tasks.length,
+          objectCount: transportObjects(transport).length
+        }))
       }
     }
     if (input.action === "get_transport_details" || input.action === "get_transport_objects") {
@@ -1393,6 +2428,104 @@ export class AbapToolService {
         truncated: page.truncated,
         nextStartIndex: page.nextStartIndex,
         objects: page.items
+      }
+    }
+    if (input.action === "list_system_users") {
+      const users = await client.listSystemUsers()
+      const page = pageItems(users, input.startIndex, input.maxResults)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        users: page.items
+      }
+    }
+    if (input.action === "create_transport") {
+      if (!input.description?.trim() || !input.packageName?.trim()) {
+        throw new AppError(
+          "TRANSPORT_CREATE_INPUT_REQUIRED",
+          "create_transport requires description and packageName"
+        )
+      }
+      const packageName = requireWritablePackage(client, input.packageName)
+      const packageObject = await resolveObject(client, packageName, "DEVC/K")
+      const transportNumber = await client.createTransport(
+        packageObject.uri,
+        input.description.trim(),
+        packageName,
+        input.transportLayer?.trim()
+      )
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        created: true,
+        transportNumber,
+        packageName,
+        description: input.description.trim()
+      }
+    }
+    if (input.action === "resolve_object") {
+      if (!input.pgmid?.trim() || !input.objectType?.trim() || !input.objectName?.trim()) {
+        throw new AppError(
+          "TRANSPORT_OBJECT_INPUT_REQUIRED",
+          "resolve_object requires pgmid, objectType, and objectName"
+        )
+      }
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        transportReference: await client.resolveTransportObject(
+          input.pgmid.trim().toUpperCase(),
+          input.objectType.trim().toUpperCase(),
+          input.objectName.trim().toUpperCase(),
+          input.transportNumber?.trim().toUpperCase()
+        )
+      }
+    }
+    if (
+      input.action === "release_transport" ||
+      input.action === "delete_transport" ||
+      input.action === "set_owner" ||
+      input.action === "add_user"
+    ) {
+      requireNonProduction(client)
+      const transportNumber = input.transportNumber?.trim().toUpperCase()
+      if (!transportNumber) {
+        throw new AppError("TRANSPORT_NUMBER_REQUIRED", `${input.action} requires transportNumber`)
+      }
+      const targetUser = input.targetUser?.trim().toUpperCase()
+      const confirmation = input.action === "set_owner" || input.action === "add_user"
+        ? `${transportNumber}:${targetUser ?? ""}`
+        : transportNumber
+      if (!targetUser && (input.action === "set_owner" || input.action === "add_user")) {
+        throw new AppError("TARGET_USER_REQUIRED", `${input.action} requires targetUser`)
+      }
+      requireExactConfirmation(input.confirmation, confirmation)
+      if (input.action === "release_transport") {
+        const reports = await client.releaseTransport(
+          transportNumber,
+          input.ignoreLocks ?? false,
+          input.ignoreAtc ?? false
+        )
+        const released = reports.length > 0 && reports.every(
+          report => report["chkrun:status"] === "released"
+        )
+        return { connectionId: input.connectionId.toUpperCase(), transportNumber, released, reports }
+      }
+      if (input.action === "delete_transport") {
+        await client.deleteTransport(transportNumber)
+        return { connectionId: input.connectionId.toUpperCase(), transportNumber, deleted: true }
+      }
+      const result = input.action === "set_owner"
+        ? await client.setTransportOwner(transportNumber, targetUser!)
+        : await client.addTransportUser(transportNumber, targetUser!)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        transportNumber,
+        targetUser,
+        action: input.action,
+        result
       }
     }
     if (!input.transportNumbers || input.transportNumbers.length < 2) {
@@ -1432,6 +2565,666 @@ export class AbapToolService {
           ).slice(input.startIndex, input.startIndex + input.maxResults)
         ])
       )
+    }
+  }
+
+  async manageAbapGit(input: ManageAbapGitInput) {
+    const client = await this.connections.getClient(input.connectionId)
+
+    if (input.action === "list_repositories") {
+      const repositories = await client.listGitRepositories()
+      const page = pageItems(repositories, input.startIndex, input.maxResults)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        repositories: page.items.map(repository => ({
+          id: repository.key,
+          packageName: repository.sapPackage,
+          url: repository.url,
+          branch: repository.branch_name,
+          status: repository.status ?? null,
+          statusText: repository.status_text ?? null,
+          createdBy: repository.created_by,
+          createdAt: repository.created_at
+        }))
+      }
+    }
+
+    if (input.action === "remote_info") {
+      if (!input.repositoryUrl?.trim()) {
+        throw new AppError("GIT_URL_REQUIRED", "remote_info requires repositoryUrl")
+      }
+      const credentials = await this.gitCredentials(input.connectionId, input.repositoryUrl)
+      const auth = credentials ? [credentials.username, credentials.password] as const : [] as const
+      const remote = await client.getGitRemoteInfo(input.repositoryUrl.trim(), ...auth)
+      if (remote.access_mode === "PRIVATE" && !credentials) {
+        throw new AppError(
+          "ABAPGIT_CREDENTIAL_REQUIRED",
+          "Private repository credentials are not configured; use the abapgit auth login CLI command"
+        )
+      }
+      const page = pageItems(remote.branches, input.startIndex, input.maxResults)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        repositoryUrl: input.repositoryUrl.trim(),
+        accessMode: remote.access_mode,
+        credentialAvailable: Boolean(credentials),
+        totalBranches: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        branches: page.items.map(branch => ({
+          name: branch.name,
+          displayName: branch.display_name,
+          head: branch.is_head,
+          type: branch.type,
+          sha1: branch.sha1
+        }))
+      }
+    }
+
+    if (input.action === "create_repository") {
+      if (!input.repositoryUrl?.trim() || !input.packageName?.trim()) {
+        throw new AppError(
+          "GIT_CREATE_INPUT_REQUIRED",
+          "create_repository requires repositoryUrl and packageName"
+        )
+      }
+      const packageName = requireWritablePackage(client, input.packageName)
+      const transport = requireTransport(packageName, input.transport)
+      requireExactConfirmation(
+        input.confirmation,
+        `${packageName}:${normalizeAbapGitRepositoryUrl(input.repositoryUrl)}`
+      )
+      const credentials = await this.gitCredentials(input.connectionId, input.repositoryUrl)
+      const auth = credentials ? [credentials.username, credentials.password] as const : [] as const
+      const remote = await client.getGitRemoteInfo(input.repositoryUrl.trim(), ...auth)
+      if (remote.access_mode === "PRIVATE" && !credentials) {
+        throw new AppError(
+          "ABAPGIT_CREDENTIAL_REQUIRED",
+          "Private repository credentials are not configured; use the abapgit auth login CLI command"
+        )
+      }
+      const branch = input.branch?.trim()
+      if (branch && !remote.branches.some(item => item.name === branch)) {
+        throw new AppError("GIT_BRANCH_NOT_FOUND", `Remote branch ${branch} was not found`)
+      }
+      await client.createGitRepository(
+        packageName,
+        input.repositoryUrl.trim(),
+        branch,
+        transport,
+        ...auth
+      )
+      return { connectionId: input.connectionId.toUpperCase(), created: true, packageName,
+        repositoryUrl: input.repositoryUrl.trim(), branch: branch ?? null, transport: transport ?? null }
+    }
+
+    const repository = await this.findGitRepository(client, input.repositoryId)
+    const credentials = await this.gitCredentials(input.connectionId, repository.url)
+    const auth = credentials ? [credentials.username, credentials.password] as const : [] as const
+    if (
+      input.action !== "unlink_repository" &&
+      input.action !== "push_repository"
+    ) {
+      const remote = await client.getGitRemoteInfo(repository.url, ...auth)
+      if (remote.access_mode === "PRIVATE" && !credentials) {
+        throw new AppError(
+          "ABAPGIT_CREDENTIAL_REQUIRED",
+          "Private repository credentials are not configured; use the abapgit auth login CLI command"
+        )
+      }
+    }
+    if (input.action === "stage_repository") {
+      const staging = await client.stageGitRepository(repository, ...auth)
+      const stageId = randomUUID()
+      const now = Date.now()
+      for (const [id, stage] of this.gitStages) {
+        if (stage.expiresAt <= now) this.gitStages.delete(id)
+      }
+      this.gitStages.set(stageId, {
+        connectionId: input.connectionId.toUpperCase(),
+        repository,
+        staging,
+        expiresAt: now + PLAN_TTL_MS
+      })
+      const changes = [...staging.staged, ...staging.unstaged]
+      const page = pageItems(changes, input.startIndex, input.maxResults)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        repositoryId: repository.key,
+        stageId,
+        expiresAt: new Date(now + PLAN_TTL_MS).toISOString(),
+        totalChanges: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        changes: page.items.map(change => ({
+          key: change.wbkey,
+          name: change.name,
+          type: change.type,
+          fileCount: change.abapGitFiles.length,
+          states: [...new Set(change.abapGitFiles.map(file => file.localState))]
+        }))
+      }
+    }
+
+    if (input.action === "push_repository") {
+      requireWritablePackage(client, repository.sapPackage)
+      if (!credentials) {
+        throw new AppError(
+          "ABAPGIT_CREDENTIAL_REQUIRED",
+          "Push credentials are not configured; use the abapgit auth login CLI command"
+        )
+      }
+      if (!input.stageId?.trim()) {
+        throw new AppError("GIT_STAGE_REQUIRED", "push_repository requires a fresh stageId")
+      }
+      const cached = this.gitStages.get(input.stageId)
+      this.gitStages.delete(input.stageId)
+      if (
+        !cached || cached.expiresAt <= Date.now() ||
+        cached.connectionId !== input.connectionId.toUpperCase() ||
+        cached.repository.key !== repository.key
+      ) {
+        throw new AppError("GIT_STAGE_EXPIRED", "The staged snapshot is missing, expired, or belongs to another repository")
+      }
+      requireExactConfirmation(input.confirmation, repository.key)
+      const all = [...cached.staging.staged, ...cached.staging.unstaged]
+      const requested = new Set(input.objectKeys ?? [])
+      const selected = input.stageAll
+        ? all
+        : all.filter(item => requested.has(item.wbkey))
+      if (selected.length === 0) {
+        throw new AppError(
+          "GIT_SELECTION_REQUIRED",
+          "Select changed object wbkeys with objectKeys, or set stageAll=true"
+        )
+      }
+      const comment = input.comment?.trim()
+      const authorName = input.authorName?.trim() || cached.staging.author.name
+      const authorEmail = input.authorEmail?.trim() || cached.staging.author.email
+      const committerName = input.committerName?.trim() || cached.staging.committer.name || authorName
+      const committerEmail = input.committerEmail?.trim() || cached.staging.committer.email || authorEmail
+      if (!comment || !authorName || !authorEmail || !committerName || !committerEmail) {
+        throw new AppError(
+          "GIT_COMMIT_DETAILS_REQUIRED",
+          "push_repository requires comment, authorName, authorEmail, committerName, and committerEmail"
+        )
+      }
+      const staging: GitStaging = {
+        ...cached.staging,
+        staged: selected,
+        unstaged: all.filter(item => !selected.includes(item)),
+        comment,
+        author: { name: authorName, email: authorEmail },
+        committer: { name: committerName, email: committerEmail }
+      }
+      await client.pushGitRepository(repository, staging, ...auth)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        repositoryId: repository.key,
+        pushed: true,
+        objectCount: selected.length,
+        fileCount: selected.reduce((sum, item) => sum + item.abapGitFiles.length, 0)
+      }
+    }
+
+    if (input.action === "check_repository") {
+      await client.checkGitRepository(repository, ...auth)
+      return { connectionId: input.connectionId.toUpperCase(), repositoryId: repository.key, checked: true }
+    }
+
+    requireWritablePackage(client, repository.sapPackage)
+    requireExactConfirmation(input.confirmation, repository.key)
+    if (input.action === "pull_repository") {
+      const transport = requireTransport(repository.sapPackage.toUpperCase(), input.transport)
+      await client.pullGitRepository(repository.key, input.branch?.trim(), transport, ...auth)
+      return { connectionId: input.connectionId.toUpperCase(), repositoryId: repository.key,
+        pulled: true, branch: input.branch?.trim() ?? repository.branch_name, transport: transport ?? null }
+    }
+    if (input.action === "unlink_repository") {
+      await client.unlinkGitRepository(repository.key)
+      return { connectionId: input.connectionId.toUpperCase(), repositoryId: repository.key, unlinked: true }
+    }
+    if (input.action === "switch_branch") {
+      if (!input.branch?.trim()) {
+        throw new AppError("GIT_BRANCH_REQUIRED", "switch_branch requires branch")
+      }
+      await client.switchGitBranch(repository, input.branch.trim(), input.createBranch ?? false, ...auth)
+      return { connectionId: input.connectionId.toUpperCase(), repositoryId: repository.key,
+        switched: true, branch: input.branch.trim(), created: input.createBranch ?? false }
+    }
+    throw new AppError("UNKNOWN_ACTION", `Unknown abapGit action: ${input.action}`)
+  }
+
+  async manageRap(input: ManageRapInput) {
+    const client = await this.connections.getClient(input.connectionId)
+    if (input.action === "availability") {
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        generatorId: input.generatorId ?? null,
+        available: await client.isRapGeneratorAvailable(input.generatorId)
+      }
+    }
+
+    if (
+      input.action === "publish" ||
+      input.action === "unpublish" ||
+      input.action === "service_details"
+    ) {
+      if (!input.serviceBindingName?.trim()) {
+        throw new AppError("SERVICE_BINDING_REQUIRED", `${input.action} requires serviceBindingName`)
+      }
+      const name = input.serviceBindingName.trim().toUpperCase()
+      const details = await client.getServiceBindingDetails(name)
+      if (input.action === "service_details") {
+        const baseUrl = client.profile.url.replace(/\/$/, "")
+        return {
+          connectionId: input.connectionId.toUpperCase(),
+          binding: {
+            name: details.binding.name,
+            description: details.binding.description,
+            type: details.binding.type,
+            version: details.binding.version,
+            published: details.binding.published,
+            packageName: details.binding.packageRef.name,
+            responsible: details.binding.responsible,
+            changedAt: details.binding.changedAt
+          },
+          services: (details.details?.services ?? []).map(service => {
+            const rawServiceUrl = service.serviceUrl || service.serviceInformation.url
+            const serviceUrl = rawServiceUrl.startsWith("http")
+              ? rawServiceUrl
+              : `${baseUrl}${rawServiceUrl.startsWith("/") ? "" : "/"}${rawServiceUrl}`
+            const preview = service.serviceInformation.collection[0]
+              ? servicePreviewUrl(service, service.serviceInformation.collection[0].name)
+              : undefined
+            return {
+              repositoryId: service.repositoryId,
+              serviceId: service.serviceId,
+              serviceVersion: service.serviceVersion,
+              published: service.published,
+              serviceUrl,
+              metadataUrl: `${serviceUrl.replace(/\/?$/, "/")}$metadata`,
+              ...(preview ? {
+                previewUrl: preview.startsWith("http")
+                  ? preview
+                  : `${baseUrl}${preview.startsWith("/") ? "" : "/"}${preview}`
+              } : {}),
+              collections: service.serviceInformation.collection.map(collection => collection.name)
+            }
+          })
+        }
+      }
+
+      requireWritablePackage(client, details.binding.packageRef.name)
+      if (input.action === "publish") {
+        requireExactConfirmation(input.confirmation, name)
+        const result = await client.publishRapService(name)
+        if (result.severity === "error") {
+          throw new AppError("SERVICE_BINDING_OPERATION_FAILED", result.shortText, {
+            longText: result.longText
+          })
+        }
+        return {
+          connectionId: input.connectionId.toUpperCase(),
+          serviceBindingName: name,
+          published: true,
+          result
+        }
+      }
+      if (details.binding.binding.version.toUpperCase() !== "V2") {
+        throw new AppError(
+          "SERVICE_UNPUBLISH_UNSUPPORTED",
+          "The available ADT unpublish endpoint only supports OData V2 service bindings"
+        )
+      }
+      const serviceName = input.serviceName?.trim().toUpperCase()
+      const serviceVersion = input.serviceVersion?.trim()
+      const candidates = details.binding.services.filter(service =>
+        (!serviceName || service.name.toUpperCase() === serviceName) &&
+        (!serviceVersion || String(service.version) === serviceVersion)
+      )
+      if (candidates.length !== 1) {
+        throw new AppError(
+          "SERVICE_SELECTION_REQUIRED",
+          "unpublish requires serviceName and serviceVersion when the binding does not resolve to exactly one service",
+          { services: details.binding.services.map(service => ({ name: service.name, version: service.version })) }
+        )
+      }
+      const service = candidates[0]!
+      const version = String(service.version)
+      requireExactConfirmation(input.confirmation, `${name}:${service.name}:${version}`)
+      const result = await client.unpublishServiceBinding(service.name, version)
+      if (/^(error|e)$/i.test(result.severity)) {
+        throw new AppError("SERVICE_BINDING_OPERATION_FAILED", result.shortText, {
+          longText: result.longText
+        })
+      }
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        serviceBindingName: name,
+        serviceName: service.name,
+        serviceVersion: version,
+        published: false,
+        result
+      }
+    }
+
+    if (!input.generatorId || !input.referenceObjectName?.trim() || !input.packageName?.trim()) {
+      throw new AppError(
+        "RAP_INPUT_REQUIRED",
+        `${input.action} requires generatorId, referenceObjectName, and packageName`
+      )
+    }
+    const generatorId = input.generatorId
+    if (!await client.isRapGeneratorAvailable(generatorId)) {
+      throw new AppError("RAP_GENERATOR_UNAVAILABLE", `RAP generator ${generatorId} is not available`)
+    }
+    const reference = await resolveObject(
+      client,
+      input.referenceObjectName,
+      input.referenceObjectType
+    )
+    const packageName = input.packageName.trim().toUpperCase()
+    const initial = await client.validateRapGeneratorInitial(generatorId, reference.uri, packageName)
+    if (initial.severity === "error") {
+      throw new AppError("RAP_INITIAL_VALIDATION_FAILED", initial.shortText, {
+        longText: initial.longText
+      })
+    }
+
+    if (input.action === "get_schema") {
+      const schema = await client.getRapGeneratorSchema(generatorId, reference.uri, packageName)
+      const offset = Math.min(input.contentOffset, schema.length)
+      const end = Math.min(schema.length, offset + input.contentLength)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        generatorId,
+        reference,
+        packageName,
+        initialValidation: initial,
+        totalCharacters: schema.length,
+        contentOffset: offset,
+        returnedCharacters: end - offset,
+        truncated: end < schema.length,
+        nextContentOffset: end < schema.length ? end : null,
+        schema: schema.slice(offset, end)
+      }
+    }
+    if (input.action === "get_defaults") {
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        generatorId,
+        reference,
+        packageName,
+        initialValidation: initial,
+        content: await client.getRapGeneratorContent(generatorId, reference.uri, packageName)
+      }
+    }
+    if (input.action === "validate" && !input.content) {
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        generatorId,
+        reference,
+        packageName,
+        validation: initial
+      }
+    }
+    if (!input.content) {
+      throw new AppError("RAP_CONTENT_REQUIRED", `${input.action} requires content`)
+    }
+    const contentPackage = input.content.metadata?.package?.trim().toUpperCase()
+    if (contentPackage && contentPackage !== packageName) {
+      throw new AppError(
+        "RAP_PACKAGE_MISMATCH",
+        `content.metadata.package ${contentPackage} does not match packageName ${packageName}`
+      )
+    }
+    const validation = await client.validateRapGeneratorContent(
+      generatorId,
+      reference.uri,
+      input.content
+    )
+    if (input.action === "validate") {
+      return { connectionId: input.connectionId.toUpperCase(), generatorId, reference,
+        packageName, validation }
+    }
+    if (validation.severity === "error") {
+      throw new AppError("RAP_CONTENT_VALIDATION_FAILED", validation.shortText, {
+        longText: validation.longText
+      })
+    }
+    const preview = await client.previewRapGenerator(generatorId, reference.uri, input.content)
+    if (preview.length === 0) {
+      throw new AppError("RAP_PREVIEW_EMPTY", "SAP RAP generator returned no objects")
+    }
+    if (input.action === "preview") {
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        generatorId,
+        reference,
+        packageName,
+        validation,
+        objectCount: preview.length,
+        objects: preview
+      }
+    }
+
+    const writablePackage = requireWritablePackage(client, packageName)
+    const transport = requireTransport(writablePackage, input.transport)
+    const bindingName = input.content.businessService.serviceBinding.name.trim().toUpperCase()
+    requireExactConfirmation(input.confirmation, `${generatorId}:${bindingName}`)
+    const generated = await client.generateRapObjects(
+      generatorId,
+      reference.uri,
+      transport ?? "",
+      input.content
+    )
+    const expected = preview.map(item => `${item.type}:${item.name}`).sort()
+    const actual = generated.map(item => `${item.type}:${item.name}`).sort()
+    if (stableJson(expected) !== stableJson(actual)) {
+      throw new AppError(
+        "RAP_GENERATION_RESULT_MISMATCH",
+        "SAP created a different object set than the immediately preceding preview",
+        { expected, actual }
+      )
+    }
+    return {
+      connectionId: input.connectionId.toUpperCase(),
+      generatorId,
+      reference,
+      packageName,
+      transport: transport ?? null,
+      generated: true,
+      objectCount: generated.length,
+      objects: generated
+    }
+  }
+
+  private async buildRestorePreview(input: ManageVersionsInput) {
+    if (!input.objectName?.trim() || !input.versionNumber) {
+      throw new AppError(
+        "VERSION_RESTORE_INPUT_REQUIRED",
+        "preview_restore requires objectName and versionNumber"
+      )
+    }
+    const client = await this.connections.getClient(input.connectionId)
+    const object = await resolveObject(client, input.objectName, input.objectType)
+    const packageName = requireWritablePackage(client, object.packageName)
+    const transport = requireTransport(packageName, input.transport)
+    const revisions = await client.getRevisions(object.uri)
+    if (input.versionNumber < 1 || input.versionNumber > revisions.length) {
+      throw new AppError(
+        "VERSION_NOT_FOUND",
+        `Version ${input.versionNumber} is outside the available range 1-${revisions.length}`
+      )
+    }
+    const revision = revisions[input.versionNumber - 1]!
+    const [current, historical, state] = await Promise.all([
+      client.readObject(object),
+      client.readSourceByUri(revision.uri),
+      client.getObjectFingerprint(object.uri)
+    ])
+    if (current.source === historical.source) {
+      throw new AppError("NO_SOURCE_CHANGE", `Version ${input.versionNumber} already matches current source`)
+    }
+    const payload = {
+      object,
+      sourceUri: current.sourceUri,
+      before: current.source,
+      after: historical.source,
+      revision,
+      versionNumber: input.versionNumber,
+      state,
+      transport: transport ?? "",
+      activate: input.activate
+    }
+    return {
+      client,
+      payload,
+      fingerprint: payloadFingerprint(payload),
+      summary: {
+        object,
+        versionNumber: input.versionNumber,
+        revision,
+        transport: transport ?? null,
+        activate: input.activate,
+        ...summarizeDiff(current.source, historical.source)
+      }
+    }
+  }
+
+  async manageVersions(input: ManageVersionsInput) {
+    const client = await this.connections.getClient(input.connectionId)
+    if (input.action === "list_inactive") {
+      const records = await client.getInactiveObjects()
+      const page = pageItems(records, input.startIndex, input.maxResults)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        inactive: page.items.map(record => ({
+          object: record.object ? {
+            name: record.object["adtcore:name"],
+            type: record.object["adtcore:type"],
+            uri: record.object["adtcore:uri"],
+            parentUri: record.object["adtcore:parentUri"],
+            user: record.object.user,
+            deleted: record.object.deleted,
+            description: record.object["adtcore:description"] ?? null
+          } : null,
+          transport: record.transport ? {
+            name: record.transport["adtcore:name"],
+            type: record.transport["adtcore:type"],
+            uri: record.transport["adtcore:uri"],
+            user: record.transport.user,
+            deleted: record.transport.deleted
+          } : null
+        }))
+      }
+    }
+    if (input.action === "get_inactive_source") {
+      if (!input.objectName?.trim()) {
+        throw new AppError("OBJECT_NAME_REQUIRED", "get_inactive_source requires objectName")
+      }
+      const records = await client.getInactiveObjects()
+      const matches = records
+        .map(record => record.object)
+        .filter(item => item &&
+          item["adtcore:name"].toUpperCase() === input.objectName!.trim().toUpperCase() &&
+          sameType(item["adtcore:type"], input.objectType))
+      if (matches.length === 0) {
+        throw new AppError("INACTIVE_OBJECT_NOT_FOUND", `No inactive object matched ${input.objectName}`)
+      }
+      if (matches.length > 1 && !input.objectType) {
+        throw new AppError(
+          "OBJECT_AMBIGUOUS",
+          `Multiple inactive objects named ${input.objectName} were found; provide objectType`
+        )
+      }
+      const object = matches[0]!
+      const source = await client.readSourceByUri(object["adtcore:uri"], "inactive")
+      const lines = source.source.split(/\r?\n/)
+      const selected = selectLines(lines, Math.max(0, input.startLine - 1), input.lineCount)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        object: {
+          name: object["adtcore:name"],
+          type: object["adtcore:type"],
+          uri: object["adtcore:uri"],
+          user: object.user,
+          deleted: object.deleted
+        },
+        sourceUri: source.sourceUri,
+        startLine: input.startLine,
+        endLine: selected.endIndex,
+        totalLines: lines.length,
+        truncated: selected.truncated,
+        nextLine: selected.nextIndex === null ? null : selected.nextIndex + 1,
+        source: selected.selected.join("\n")
+      }
+    }
+    if (input.action === "preview_restore") {
+      const built = await this.buildRestorePreview(input)
+      const plan = this.cachePlan({
+        kind: "restore_version",
+        connectionId: input.connectionId.toUpperCase(),
+        confirmation: `${input.objectName!.trim().toUpperCase()}:VERSION:${input.versionNumber}`,
+        fingerprint: built.fingerprint,
+        request: { ...input },
+        payload: built.payload
+      })
+      return this.planResponse(plan, built.summary)
+    }
+    if (!input.planId?.trim() || input.confirmation === undefined) {
+      throw new AppError(
+        "RESTORE_PLAN_REQUIRED",
+        "execute_restore requires planId and confirmation from preview_restore"
+      )
+    }
+    const plan = this.takePlan(input.planId, input.confirmation)
+    if (plan.kind !== "restore_version") {
+      throw new AppError(
+        "PLAN_TOOL_MISMATCH",
+        "Only restore plans can be executed through manage_abap_versions"
+      )
+    }
+    const rebuilt = await this.buildRestorePreview(plan.request as unknown as ManageVersionsInput)
+    if (rebuilt.fingerprint !== plan.fingerprint) {
+      throw new AppError(
+        "RESTORE_STATE_CHANGED",
+        "Current source or version history changed after preview; review a new restore preview"
+      )
+    }
+    const payload = rebuilt.payload
+    const result = await rebuilt.client.replaceSource(
+      payload.object.name,
+      payload.object.uri,
+      payload.sourceUri,
+      payload.before,
+      payload.after,
+      payload.transport || undefined,
+      payload.activate
+    )
+    return {
+      connectionId: plan.connectionId,
+      restored: true,
+      object: payload.object,
+      versionNumber: payload.versionNumber,
+      diagnostics: result.diagnostics,
+      activation: result.activation ?? null,
+      activationSkipped: result.activationSkipped
     }
   }
 
@@ -2684,6 +4477,169 @@ export class AbapToolService {
       objectType,
       transaction: transaction.code,
       url: url.toString()
+    }
+  }
+
+  async compareSystems(input: CompareSystemsInput) {
+    if (input.sourceConnectionId.toUpperCase() === input.targetConnectionId.toUpperCase()) {
+      throw new AppError("SAME_CONNECTION", "Choose two different SAP connections")
+    }
+    const [sourceClient, targetClient] = await Promise.all([
+      this.connections.getClient(input.sourceConnectionId),
+      this.connections.getClient(input.targetConnectionId)
+    ])
+    const [sourceObject, targetObject] = await Promise.all([
+      resolveObject(sourceClient, input.objectName, input.objectType),
+      resolveObject(targetClient, input.objectName, input.objectType)
+    ])
+    const [source, target] = await Promise.all([
+      sourceClient.readObject(sourceObject),
+      targetClient.readObject(targetObject)
+    ])
+    const normalize = (value: string) => input.ignoreWhitespace
+      ? value.split(/\r?\n/).map(line => line.trim().replace(/\s+/g, " ")).join("\n")
+      : value.replace(/\r\n/g, "\n")
+    const normalizedSource = normalize(source.source)
+    const normalizedTarget = normalize(target.source)
+    return {
+      objectName: input.objectName.toUpperCase(),
+      objectType: sourceObject.type,
+      source: {
+        connectionId: input.sourceConnectionId.toUpperCase(),
+        object: sourceObject,
+        sourceUri: source.sourceUri,
+        sha256: createHash("sha256").update(source.source).digest("hex"),
+        lines: source.source.split(/\r?\n/).length
+      },
+      target: {
+        connectionId: input.targetConnectionId.toUpperCase(),
+        object: targetObject,
+        sourceUri: target.sourceUri,
+        sha256: createHash("sha256").update(target.source).digest("hex"),
+        lines: target.source.split(/\r?\n/).length
+      },
+      ignoreWhitespace: input.ignoreWhitespace,
+      ...summarizeDiff(normalizedSource, normalizedTarget, input.maxPatchLines)
+    }
+  }
+
+  async dependencyGraph(input: DependencyGraphInput) {
+    const client = await this.connections.getClient(input.connectionId)
+    const object = await resolveObject(client, input.objectName, input.objectType)
+    const source = await client.readObject(object)
+    const rootId = `${object.name}::${object.type}`
+    const nodes = new Map<string, Record<string, unknown>>([
+      [rootId, {
+        id: rootId,
+        name: object.name,
+        type: object.type,
+        packageName: object.packageName ?? null,
+        custom: /^[ZY]/i.test(object.name) || /^[ZY]/i.test(object.packageName ?? ""),
+        root: true,
+        uri: source.sourceUri
+      }]
+    ])
+    const edges = new Map<string, Record<string, unknown>>()
+    const queue: Array<{ id: string; uri: string; level: number; line?: number; column?: number }> = [{
+      id: rootId,
+      uri: source.sourceUri,
+      level: 0,
+      ...(input.line !== undefined ? { line: input.line } : {}),
+      ...(input.column !== undefined ? { column: input.column } : {})
+    }]
+    const expanded = new Set<string>()
+    let limited = false
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      const expansionKey = `${current.id}:${current.uri}`
+      if (expanded.has(expansionKey) || current.level >= input.depth) continue
+      expanded.add(expansionKey)
+      const references = await client.findUsageReferences(
+        current.uri,
+        current.line ?? 1,
+        current.column ?? 0
+      )
+      for (const reference of references) {
+        const parsed = dependencyReference(reference)
+        if (!parsed || parsed.id === current.id) continue
+        if (input.customOnly && !parsed.custom) continue
+        if (!nodes.has(parsed.id)) {
+          if (nodes.size >= input.maxNodes) {
+            limited = true
+            continue
+          }
+          nodes.set(parsed.id, { ...parsed, root: false, depth: current.level + 1 })
+        }
+        const edgeKey = `${parsed.id}->${current.id}`
+        if (!edges.has(edgeKey)) {
+          edges.set(edgeKey, {
+            source: parsed.id,
+            target: current.id,
+            usageType: parsed.usageInformation
+          })
+        }
+        if (parsed.canExpand && current.level + 1 < input.depth) {
+          queue.push({ id: parsed.id, uri: parsed.uri, level: current.level + 1 })
+        }
+      }
+    }
+    return {
+      connectionId: input.connectionId.toUpperCase(),
+      object,
+      depth: input.depth,
+      customOnly: input.customOnly,
+      nodeCount: nodes.size,
+      edgeCount: edges.size,
+      truncated: limited,
+      nodes: [...nodes.values()],
+      edges: [...edges.values()]
+    }
+  }
+
+  async runSapTransaction(input: RunSapTransactionInput) {
+    const transactionCode = input.transactionCode.trim().toUpperCase()
+    if (!/^(?:\/[A-Z0-9_]+\/)?[A-Z0-9_]{2,20}$/.test(transactionCode)) {
+      throw new AppError("INVALID_TRANSACTION_CODE", `Invalid SAP transaction code: ${transactionCode}`)
+    }
+    const parameters = Object.entries(input.parameters ?? {}).map(([rawName, rawValue]) => {
+      const name = rawName.trim().toUpperCase()
+      if (!/^[A-Z0-9_-]{1,40}$/.test(name)) {
+        throw new AppError("INVALID_TRANSACTION_PARAMETER", `Invalid parameter name: ${rawName}`)
+      }
+      if (!/^[A-Za-z0-9_./:+@-]{0,120}$/.test(rawValue)) {
+        throw new AppError(
+          "INVALID_TRANSACTION_PARAMETER",
+          `Parameter ${name} contains characters that are unsafe in an ITS transaction command`
+        )
+      }
+      return `${name}=${rawValue}`
+    })
+    const client = await this.connections.getClient(input.connectionId)
+    const baseUrl = client.profile.url.replace(/\/sap\/bc\/adt.*$/i, "").replace(/\/$/, "")
+    const url = new URL(`${baseUrl}/sap/bc/gui/sap/its/webgui`)
+    const command = `*${transactionCode}${parameters.length ? ` ${parameters.join(";")}` : ""}`
+    url.searchParams.set("~transaction", command)
+    url.searchParams.set("sap-client", client.profile.client)
+    url.searchParams.set("sap-language", client.profile.language)
+    url.searchParams.set("saml2", "disabled")
+    const target = url.toString()
+    if (input.mode === "launch") {
+      if (process.platform === "darwin") {
+        await execFileAsync("/usr/bin/open", [target], { timeout: 10_000 })
+      } else if (process.platform === "win32") {
+        await execFileAsync("rundll32.exe", ["url.dll,FileProtocolHandler", target], {
+          timeout: 10_000
+        })
+      } else {
+        await execFileAsync("xdg-open", [target], { timeout: 10_000 })
+      }
+    }
+    return {
+      connectionId: input.connectionId.toUpperCase(),
+      transactionCode,
+      mode: input.mode,
+      launched: input.mode === "launch",
+      url: target
     }
   }
 }

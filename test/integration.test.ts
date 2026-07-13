@@ -10,6 +10,11 @@ import { IMPLEMENTED_TOOL_NAMES } from "../src/compat/abap-fs-tools.js"
 import { createMcpServer } from "../src/mcp-server.js"
 import { ProfileStore, type SapProfile } from "../src/profile-store.js"
 import { MemorySecretStore } from "../src/secret-store.js"
+import {
+  abapGitCredentialKey,
+  encodeAbapGitCredentials,
+  normalizeAbapGitRepositoryUrl
+} from "../src/abapgit-credentials.js"
 import type {
   SapClient,
   SapObjectReference,
@@ -64,6 +69,10 @@ class FakeSapClient implements SapClient {
   currentSource = source
   createdObject: unknown
   debugActive = false
+  deletedObject = false
+  transportMutations: string[] = []
+  gitAuthCalls: Array<{ url: string; user?: string; password?: string }> = []
+  serviceBindingProtocol = "V4"
 
   constructor(readonly profile: SapProfile) {}
 
@@ -80,6 +89,15 @@ class FakeSapClient implements SapClient {
     objectType?: string,
     _maxResults?: number
   ): Promise<SapObjectReference[]> {
+    if (query.toUpperCase() === "Z_DEMO" && (!objectType || objectType.startsWith("DEVC"))) {
+      return [{
+        name: "Z_DEMO",
+        type: "DEVC/K",
+        uri: "/sap/bc/adt/packages/z_demo",
+        description: "Demo package",
+        packageName: "Z_DEMO"
+      }]
+    }
     if (!query.toUpperCase().includes("ZCL_DEMO")) return []
     if (objectType && objectType.replace(/\/.*$/, "") !== "CLAS") return []
     return [object]
@@ -116,6 +134,17 @@ class FakeSapClient implements SapClient {
         "adtcore:version": "active"
       },
       links: []
+    }
+  }
+
+  async getObjectFingerprint(): Promise<any> {
+    return {
+      fingerprint: `fingerprint:${this.currentSource}`,
+      name: object.name,
+      type: object.type,
+      version: "active",
+      changedAt: 0,
+      sourceUri: `${object.uri}/source/main`
     }
   }
 
@@ -351,6 +380,33 @@ class FakeSapClient implements SapClient {
     }
   }
 
+  async releaseTransport(transportNumber: string): Promise<any[]> {
+    this.transportMutations.push(`release:${transportNumber}`)
+    return [{ "chkrun:status": "released", "chkrun:statusText": "Released", messages: [] }]
+  }
+
+  async deleteTransport(transportNumber: string): Promise<void> {
+    this.transportMutations.push(`delete:${transportNumber}`)
+  }
+
+  async setTransportOwner(transportNumber: string, user: string): Promise<any> {
+    this.transportMutations.push(`owner:${transportNumber}:${user}`)
+    return { "tm:number": transportNumber, "tm:targetuser": user }
+  }
+
+  async addTransportUser(transportNumber: string, user: string): Promise<any> {
+    this.transportMutations.push(`user:${transportNumber}:${user}`)
+    return { "tm:number": transportNumber, "tm:targetuser": user, "tm:uri": "", "tm:useraction": "ADD" }
+  }
+
+  async listSystemUsers(): Promise<any[]> {
+    return [{ id: "DEVELOPER", title: "Developer" }]
+  }
+
+  async resolveTransportObject(_pgmid: string, _type: string, name: string): Promise<string> {
+    return name === object.name ? object.uri : ""
+  }
+
   async getRevisions(): Promise<any[]> {
     return [
       {
@@ -368,6 +424,240 @@ class FakeSapClient implements SapClient {
         versionTitle: "Previous"
       }
     ]
+  }
+
+  async getInactiveObjects(): Promise<any[]> {
+    return [{ object: {
+      "adtcore:uri": object.uri,
+      "adtcore:type": object.type,
+      "adtcore:name": object.name,
+      "adtcore:parentUri": "",
+      user: "DEVELOPER",
+      deleted: false
+    } }]
+  }
+
+  async getCodeCompletions(): Promise<any[]> {
+    return [{ IDENTIFIER: "WRITE", KIND: 1, ICON: 0, SUBICON: 0, BOLD: 0, COLOR: 0,
+      QUICKINFO_EVENT: 0, INSERT_EVENT: 0, IS_META: 0, PREFIXLENGTH: 0, ROLE: 0,
+      LOCATION: 0, GRADE: 1, VISIBILITY: 0, IS_INHERITED: 0, PROP1: 0, PROP2: 0,
+      PROP3: 0, SYNTCNTXT: 0 }]
+  }
+
+  async findDefinition(): Promise<any> {
+    return { url: object.uri, line: 1, column: 6 }
+  }
+
+  async getQuickFixes(): Promise<any[]> {
+    return [{
+      "adtcore:uri": "quickfix:1",
+      "adtcore:type": "quickfix",
+      "adtcore:name": "Replace 42 with 43",
+      "adtcore:description": "",
+      uri: `${object.uri}/source/main`,
+      line: "3",
+      column: "13",
+      userContent: ""
+    }]
+  }
+
+  async getQuickFixEdits(): Promise<any[]> {
+    return [{
+      uri: `${object.uri}/source/main`,
+      range: { start: { line: 3, column: 13 }, end: { line: 3, column: 15 } },
+      name: object.name,
+      type: object.type,
+      content: "43"
+    }]
+  }
+
+  async formatSource(text: string): Promise<string> {
+    return text.replace(/result = (\d+)\./, "result = $1. ")
+  }
+
+  async evaluateRename(_uri: string, line: number, column: number): Promise<any> {
+    return {
+      oldName: "result",
+      newName: "",
+      ignoreSyntaxErrorsAllowed: false,
+      ignoreSyntaxErrors: false,
+      adtObjectUri: {
+        uri: object.uri,
+        query: undefined,
+        range: { start: { line, column }, end: { line, column } }
+      },
+      affectedObjects: [{
+        uri: object.uri,
+        type: object.type,
+        name: object.name,
+        parentUri: "",
+        userContent: "",
+        textReplaceDeltas: [{
+          rangeFragment: { start: { line: 3, column: 4 }, end: { line: 3, column: 10 } },
+          contentOld: "result",
+          contentNew: "renamed_result"
+        }]
+      }],
+      userContent: ""
+    }
+  }
+
+  async previewRename(proposal: any, transport = ""): Promise<any> {
+    return { ...proposal, transport }
+  }
+
+  async executeRename(refactoring: any): Promise<any> {
+    this.currentSource = this.currentSource.replaceAll(refactoring.oldName, refactoring.newName)
+    return refactoring
+  }
+
+  async previewPackageChange(refactoring: any, transport = ""): Promise<any> {
+    return { ...refactoring, transport: refactoring.transport || transport }
+  }
+
+  async executePackageChange(refactoring: any): Promise<any> {
+    object.packageName = refactoring.newPackage
+    return refactoring
+  }
+
+  async evaluateExtractMethod(_uri: string, range: any): Promise<any> {
+    return {
+      name: "",
+      isStatic: false,
+      isForTesting: false,
+      visibility: "private",
+      classBasedExceptions: true,
+      genericRefactoring: {
+        title: "Extract Method",
+        adtObjectUri: { uri: object.uri, query: undefined, range },
+        transport: "",
+        ignoreSyntaxErrorsAllowed: false,
+        ignoreSyntaxErrors: false,
+        userContent: "",
+        affectedObjects: []
+      },
+      content: "result = 42.",
+      className: object.name,
+      isEventAllowed: false,
+      isEvent: false,
+      userContent: "",
+      parameters: [],
+      exceptions: []
+    }
+  }
+
+  async previewExtractMethod(proposal: any): Promise<any> {
+    return {
+      ...proposal.genericRefactoring,
+      affectedObjects: [{
+        uri: object.uri,
+        type: object.type,
+        name: object.name,
+        parentUri: "",
+        userContent: "",
+        textReplaceDeltas: [{
+          rangeFragment: proposal.genericRefactoring.adtObjectUri.range,
+          contentOld: proposal.content,
+          contentNew: `${proposal.name}( ).`
+        }]
+      }]
+    }
+  }
+
+  async executeExtractMethod(refactoring: any): Promise<any> {
+    return refactoring
+  }
+
+  async deleteObject(_uri: string, expectedFingerprint: string): Promise<void> {
+    assert.equal(expectedFingerprint, `fingerprint:${this.currentSource}`)
+    this.deletedObject = true
+  }
+
+  private gitRepository() {
+    return {
+      key: "REPO-1", sapPackage: "Z_DEMO", url: "https://example.test/repo.git",
+      branch_name: "main", created_by: "DEVELOPER", created_at: new Date(),
+      links: []
+    }
+  }
+
+  async listGitRepositories(): Promise<any[]> { return [this.gitRepository()] }
+  async getGitRemoteInfo(url: string, user?: string, password?: string): Promise<any> {
+    this.gitAuthCalls.push({ url, ...(user ? { user } : {}), ...(password ? { password } : {}) })
+    return { access_mode: "PUBLIC", branches: [{ sha1: "abc", name: "main", type: "branch", is_head: true, display_name: "main" }] }
+  }
+  async createGitRepository(): Promise<void[]> { return [] }
+  async pullGitRepository(): Promise<void[]> { return [] }
+  async unlinkGitRepository(): Promise<void> {}
+  async stageGitRepository(): Promise<any> {
+    return {
+      staged: [],
+      unstaged: [{ wbkey: "R3TR CLAS ZCL_DEMO", uri: object.uri, type: object.type,
+        name: object.name, abapGitFiles: [] }],
+      ignored: [], comment: "",
+      author: { name: "Developer", email: "dev@example.test" },
+      committer: { name: "Developer", email: "dev@example.test" }
+    }
+  }
+  async pushGitRepository(): Promise<void> {}
+  async checkGitRepository(): Promise<void> {}
+  async switchGitBranch(): Promise<void> {}
+
+  async isRapGeneratorAvailable(): Promise<boolean> { return true }
+  async validateRapGeneratorInitial(): Promise<any> { return { severity: "ok", shortText: "OK" } }
+  async getRapGeneratorSchema(): Promise<string> { return JSON.stringify({ type: "object" }) }
+  async getRapGeneratorContent(): Promise<any> {
+    return {
+      metadata: { package: "Z_DEMO" }, general: { description: "Demo" },
+      businessObject: {
+        dataModelEntity: { cdsName: "ZI_DEMO" },
+        behavior: { implementationType: "managed", implementationClass: "ZBP_I_DEMO", draftTable: "ZDEMO_D" }
+      },
+      serviceProjection: { name: "ZC_DEMO" },
+      businessService: {
+        serviceDefinition: { name: "ZUI_DEMO" },
+        serviceBinding: { name: "ZUI_DEMO_O4", bindingType: "OData V4 - UI" }
+      }
+    }
+  }
+  async validateRapGeneratorContent(): Promise<any> { return { severity: "ok", shortText: "OK" } }
+  async previewRapGenerator(): Promise<any[]> {
+    return [{ uri: "/sap/bc/adt/ddic/ddl/sources/zi_demo", type: "DDLS/DF", name: "ZI_DEMO", description: "CREATE" }]
+  }
+  async generateRapObjects(): Promise<any[]> { return this.previewRapGenerator() }
+  async publishRapService(): Promise<any> { return { severity: "ok", shortText: "Published" } }
+  async unpublishServiceBinding(): Promise<any> { return { severity: "I", shortText: "Unpublished", longText: "" } }
+  async getServiceBindingDetails(): Promise<any> {
+    return {
+      binding: {
+        releaseSupported: true,
+        published: true,
+        repair: false,
+        bindingCreated: true,
+        responsible: "DEVELOPER",
+        masterLanguage: "EN",
+        masterSystem: "DEV",
+        name: "ZUI_DEMO_O4",
+        type: "SRVB/SVB",
+        changedAt: "2026-07-13T00:00:00Z",
+        version: "active",
+        createdAt: "2026-07-13T00:00:00Z",
+        changedBy: "DEVELOPER",
+        createdBy: "DEVELOPER",
+        description: "Demo service",
+        language: "EN",
+        packageRef: { uri: "/sap/bc/adt/packages/z_demo", type: "DEVC/K", name: "Z_DEMO" },
+        links: [],
+        services: [{
+          name: "ZUI_DEMO",
+          version: 1,
+          releaseState: "released",
+          serviceDefinition: { uri: "/service", type: "SRVD/SRV", name: "ZUI_DEMO" }
+        }],
+        binding: { type: "ODATA", version: this.serviceBindingProtocol, category: 0,
+          implementation: { name: "" } }
+      }
+    }
   }
 
   async getNodeContents(): Promise<any> {
@@ -726,7 +1016,8 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
   )
 })
 
-test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => {
+test("mutation plans reject stale SAP state and transport writes reject production", async () => {
+  object.packageName = "Z_DEMO"
   const profile: SapProfile = {
     id: "DEV100",
     url: "https://sap.example.test",
@@ -738,6 +1029,149 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     allowedPackages: ["Z_DEMO"]
   }
   const fake = new FakeSapClient(profile)
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { return fake }
+  })
+  const preview = await service.refactorCode({
+    action: "preview_format",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    transport: "DEVK900123",
+    activate: false
+  }) as { planId: string; confirmation: string }
+  fake.currentSource = `${source}\n" changed after preview`
+  await assert.rejects(
+    service.refactorCode({
+      action: "execute",
+      planId: preview.planId,
+      confirmation: preview.confirmation
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "REFACTORING_CHANGED"
+  )
+
+  fake.currentSource = source.replace("result = 42", "result = 43")
+  const restore = await service.manageVersions({
+    action: "preview_restore",
+    connectionId: "DEV100",
+    objectName: object.name,
+    objectType: object.type,
+    versionNumber: 2,
+    transport: "DEVK900123",
+    activate: false,
+    startIndex: 0,
+    maxResults: 20,
+    startLine: 1,
+    lineCount: 100
+  }) as { planId: string; confirmation: string }
+  fake.currentSource = `${fake.currentSource}\n" changed after restore preview`
+  await assert.rejects(
+    service.manageVersions({
+      action: "execute_restore",
+      connectionId: "DEV100",
+      planId: restore.planId,
+      confirmation: restore.confirmation,
+      activate: false,
+      startIndex: 0,
+      maxResults: 20,
+      startLine: 1,
+      lineCount: 100
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "RESTORE_STATE_CHANGED"
+  )
+
+  const productionFake = new FakeSapClient({ ...profile, id: "PRD100", environment: "production" })
+  const productionService = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { return productionFake }
+  })
+  await assert.rejects(
+    productionService.manageTransportRequests({
+      action: "release_transport",
+      connectionId: "PRD100",
+      transportNumber: "PRDK900123",
+      confirmation: "PRDK900123",
+      startIndex: 0,
+      maxResults: 20,
+      includeObjects: false
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "PRODUCTION_WRITE_BLOCKED"
+  )
+
+  await assert.rejects(
+    service.runSapTransaction({
+      connectionId: "DEV100",
+      transactionCode: "SE38",
+      parameters: { "RS38M-PROGRAMM": "ZSAFE;DYNP_OKCODE=DELETE" },
+      mode: "url"
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "INVALID_TRANSACTION_PARAMETER"
+  )
+})
+
+test("abapGit credentials are selected by repository URL and never cross repositories", async () => {
+  assert.throws(
+    () => normalizeAbapGitRepositoryUrl("https://user:token@example.test/repo.git"),
+    /Do not embed credentials/
+  )
+  const profile: SapProfile = {
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    language: "EN",
+    environment: "development",
+    authType: "basic",
+    username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO"]
+  }
+  const fake = new FakeSapClient(profile)
+  const secrets = new MemorySecretStore()
+  await secrets.set(abapGitCredentialKey(profile.id), encodeAbapGitCredentials([
+    {
+      repositoryUrl: "https://example.test/repo.git",
+      username: "repo-user",
+      password: "repo-token"
+    },
+    {
+      repositoryUrl: "https://other.example.test/repo.git",
+      username: "other-user",
+      password: "other-token"
+    }
+  ]))
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { return fake }
+  }, secrets)
+
+  await service.manageAbapGit({
+    action: "remote_info",
+    connectionId: profile.id,
+    repositoryUrl: "https://example.test/repo.git",
+    startIndex: 0,
+    maxResults: 20
+  })
+  assert.deepEqual(fake.gitAuthCalls, [{
+    url: "https://example.test/repo.git",
+    user: "repo-user",
+    password: "repo-token"
+  }])
+})
+
+test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => {
+  const profile: SapProfile = {
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    language: "EN",
+    environment: "development",
+    authType: "basic",
+    username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO", "Z_OTHER"]
+  }
+  const fake = new FakeSapClient(profile)
   const summary: ConnectionSummary = {
     id: profile.id,
     url: profile.url,
@@ -747,6 +1181,12 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     username: "DEVELOPER",
     credentialAvailable: true
   }
+  const gitSecrets = new MemorySecretStore()
+  await gitSecrets.set(abapGitCredentialKey(profile.id), encodeAbapGitCredentials([{
+    repositoryUrl: "https://example.test/repo.git",
+    username: "repo-user",
+    password: "repo-token"
+  }]))
   const service = new AbapToolService({
     async listConnections() {
       return [summary]
@@ -754,7 +1194,7 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     async getClient() {
       return fake
     }
-  })
+  }, gitSecrets)
   const server = createMcpServer(service)
   const client = new Client({ name: "test-client", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -769,6 +1209,10 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   assert.deepEqual(
     listed.tools.map(tool => tool.name).sort(),
     [...IMPLEMENTED_TOOL_NAMES].sort()
+  )
+  assert.ok(
+    Buffer.byteLength(JSON.stringify(listed.tools), "utf8") < 64 * 1024,
+    "full MCP tool schemas must stay below the 64 KiB token-budget guardrail"
   )
   const filteredServer = createMcpServer(service, {
     enabledTools: new Set(["get_connected_systems"])
@@ -1261,6 +1705,323 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   const discovery = await callJson("adt_discovery_export", { connectionId: "DEV100" })
   assert.equal(discovery.summary.services, 1)
   assert.equal(discovery.discovery, undefined)
+
+  const completion = await callJson("inspect_abap_code", {
+    action: "completion",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    line: 3,
+    column: 4
+  })
+  assert.equal(completion.proposals[0].identifier, "WRITE")
+
+  const transportRelease = await callJson("manage_transport_requests", {
+    action: "release_transport",
+    connectionId: "DEV100",
+    transportNumber: "DEVK900123",
+    confirmation: "DEVK900123"
+  })
+  assert.equal(transportRelease.released, true)
+  const createdTransport = await callJson("manage_transport_requests", {
+    action: "create_transport",
+    connectionId: "DEV100",
+    packageName: "Z_DEMO",
+    description: "Integration transport"
+  })
+  assert.equal(createdTransport.transportNumber, "DEVK900001")
+  const transportUsers = await callJson("manage_transport_requests", {
+    action: "list_system_users",
+    connectionId: "DEV100"
+  })
+  assert.equal(transportUsers.users[0].id, "DEVELOPER")
+  const transportReference = await callJson("manage_transport_requests", {
+    action: "resolve_object",
+    connectionId: "DEV100",
+    pgmid: "R3TR",
+    objectType: "CLAS",
+    objectName: "ZCL_DEMO",
+    transportNumber: "DEVK900123"
+  })
+  assert.equal(transportReference.transportReference, object.uri)
+  const ownerChanged = await callJson("manage_transport_requests", {
+    action: "set_owner",
+    connectionId: "DEV100",
+    transportNumber: "DEVK900123",
+    targetUser: "OTHER_USER",
+    confirmation: "DEVK900123:OTHER_USER"
+  })
+  assert.equal(ownerChanged.targetUser, "OTHER_USER")
+  const userAdded = await callJson("manage_transport_requests", {
+    action: "add_user",
+    connectionId: "DEV100",
+    transportNumber: "DEVK900123",
+    targetUser: "OTHER_USER",
+    confirmation: "DEVK900123:OTHER_USER"
+  })
+  assert.equal(userAdded.result["tm:useraction"], "ADD")
+
+  const gitCreated = await callJson("manage_abapgit", {
+    action: "create_repository",
+    connectionId: "DEV100",
+    repositoryUrl: "https://public.example.test/repo.git",
+    packageName: "Z_DEMO",
+    branch: "main",
+    transport: "DEVK900123",
+    confirmation: "Z_DEMO:https://public.example.test/repo.git"
+  })
+  assert.equal(gitCreated.created, true)
+  const repositories = await callJson("manage_abapgit", {
+    action: "list_repositories",
+    connectionId: "DEV100"
+  })
+  assert.equal(repositories.repositories[0].id, "REPO-1")
+  const staging = await callJson("manage_abapgit", {
+    action: "stage_repository",
+    connectionId: "DEV100",
+    repositoryId: "REPO-1"
+  })
+  const pushed = await callJson("manage_abapgit", {
+    action: "push_repository",
+    connectionId: "DEV100",
+    repositoryId: "REPO-1",
+    stageId: staging.stageId,
+    objectKeys: ["R3TR CLAS ZCL_DEMO"],
+    comment: "Integration test",
+    confirmation: "REPO-1"
+  })
+  assert.equal(pushed.pushed, true)
+  const pulled = await callJson("manage_abapgit", {
+    action: "pull_repository",
+    connectionId: "DEV100",
+    repositoryId: "REPO-1",
+    transport: "DEVK900123",
+    confirmation: "REPO-1"
+  })
+  assert.equal(pulled.pulled, true)
+  const checked = await callJson("manage_abapgit", {
+    action: "check_repository",
+    connectionId: "DEV100",
+    repositoryId: "REPO-1"
+  })
+  assert.equal(checked.checked, true)
+  const switched = await callJson("manage_abapgit", {
+    action: "switch_branch",
+    connectionId: "DEV100",
+    repositoryId: "REPO-1",
+    branch: "feature/integration",
+    createBranch: true,
+    confirmation: "REPO-1"
+  })
+  assert.equal(switched.switched, true)
+  const unlinked = await callJson("manage_abapgit", {
+    action: "unlink_repository",
+    connectionId: "DEV100",
+    repositoryId: "REPO-1",
+    confirmation: "REPO-1"
+  })
+  assert.equal(unlinked.unlinked, true)
+
+  fake.getRapGeneratorSchema = async () => "X".repeat(30_000)
+  const rapSchema = await callJson("manage_rap_generator", {
+    action: "get_schema",
+    connectionId: "DEV100",
+    generatorId: "uiservice",
+    referenceObjectName: "ZCL_DEMO",
+    referenceObjectType: "CLAS/OC",
+    packageName: "Z_DEMO",
+    contentLength: 1000
+  })
+  assert.equal(rapSchema.returnedCharacters, 1000)
+  assert.equal(rapSchema.truncated, true)
+  assert.equal(rapSchema.nextContentOffset, 1000)
+  const rapDefaults = await callJson("manage_rap_generator", {
+    action: "get_defaults",
+    connectionId: "DEV100",
+    generatorId: "uiservice",
+    referenceObjectName: "ZCL_DEMO",
+    referenceObjectType: "CLAS/OC",
+    packageName: "Z_DEMO"
+  })
+  assert.equal(rapDefaults.content.businessService.serviceBinding.name, "ZUI_DEMO_O4")
+  const rapPreview = await callJson("manage_rap_generator", {
+    action: "preview",
+    connectionId: "DEV100",
+    generatorId: "uiservice",
+    referenceObjectName: "ZCL_DEMO",
+    referenceObjectType: "CLAS/OC",
+    packageName: "Z_DEMO",
+    content: rapDefaults.content
+  })
+  assert.equal(rapPreview.objectCount, 1)
+  const rapGenerated = await callJson("manage_rap_generator", {
+    action: "generate",
+    connectionId: "DEV100",
+    generatorId: "uiservice",
+    referenceObjectName: "ZCL_DEMO",
+    referenceObjectType: "CLAS/OC",
+    packageName: "Z_DEMO",
+    transport: "DEVK900123",
+    confirmation: "uiservice:ZUI_DEMO_O4",
+    content: rapDefaults.content
+  })
+  assert.equal(rapGenerated.generated, true)
+  const published = await callJson("manage_rap_generator", {
+    action: "publish",
+    connectionId: "DEV100",
+    serviceBindingName: "ZUI_DEMO_O4",
+    confirmation: "ZUI_DEMO_O4"
+  })
+  assert.equal(published.published, true)
+  fake.serviceBindingProtocol = "V2"
+  const unpublished = await callJson("manage_rap_generator", {
+    action: "unpublish",
+    connectionId: "DEV100",
+    serviceBindingName: "ZUI_DEMO_O4",
+    serviceName: "ZUI_DEMO",
+    serviceVersion: "1",
+    confirmation: "ZUI_DEMO_O4:ZUI_DEMO:1"
+  })
+  assert.equal(unpublished.published, false)
+  fake.serviceBindingProtocol = "V4"
+
+  const inactive = await callJson("manage_abap_versions", {
+    action: "get_inactive_source",
+    connectionId: "DEV100",
+    objectName: "ZCL_DEMO",
+    objectType: "CLAS/OC",
+    lineCount: 2
+  })
+  assert.equal(inactive.object.name, "ZCL_DEMO")
+  const restorePreview = await callJson("manage_abap_versions", {
+    action: "preview_restore",
+    connectionId: "DEV100",
+    objectName: "ZCL_DEMO",
+    objectType: "CLAS/OC",
+    versionNumber: 2,
+    transport: "DEVK900123"
+  })
+  const restored = await callJson("manage_abap_versions", {
+    action: "execute_restore",
+    connectionId: "DEV100",
+    planId: restorePreview.planId,
+    confirmation: restorePreview.confirmation
+  })
+  assert.equal(restored.restored, true)
+  assert.match(fake.currentSource, /result = 41/)
+
+  const formatPreview = await callJson("refactor_abap_code", {
+    action: "preview_format",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    transport: "DEVK900123"
+  })
+  const formatted = await callJson("refactor_abap_code", {
+    action: "execute",
+    planId: formatPreview.planId,
+    confirmation: formatPreview.confirmation
+  })
+  assert.equal(formatted.executed, true)
+  assert.match(fake.currentSource, /result = 41\. /)
+
+  const quickFixPreview = await callJson("refactor_abap_code", {
+    action: "preview_quick_fix",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    line: 3,
+    column: 13,
+    proposalIndex: 0,
+    transport: "DEVK900123"
+  })
+  const quickFixed = await callJson("refactor_abap_code", {
+    action: "execute",
+    planId: quickFixPreview.planId,
+    confirmation: quickFixPreview.confirmation
+  })
+  assert.equal(quickFixed.executed, true)
+  assert.match(fake.currentSource, /result = 43/)
+
+  const extractPreview = await callJson("refactor_abap_code", {
+    action: "preview_extract_method",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    line: 3,
+    column: 4,
+    endLine: 3,
+    endColumn: 16,
+    methodName: "CALCULATE_RESULT",
+    transport: "DEVK900123"
+  })
+  const extracted = await callJson("refactor_abap_code", {
+    action: "execute",
+    planId: extractPreview.planId,
+    confirmation: extractPreview.confirmation
+  })
+  assert.equal(extracted.executed, true)
+
+  const renamePreview = await callJson("refactor_abap_code", {
+    action: "preview_rename",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    line: 3,
+    column: 4,
+    newName: "renamed_result",
+    transport: "DEVK900123"
+  })
+  const renamed = await callJson("refactor_abap_code", {
+    action: "execute",
+    planId: renamePreview.planId,
+    confirmation: renamePreview.confirmation
+  })
+  assert.equal(renamed.executed, true)
+  assert.match(fake.currentSource, /renamed_result = 43/)
+
+  const packagePreview = await callJson("refactor_abap_code", {
+    action: "preview_change_package",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    newPackage: "Z_OTHER",
+    transport: "DEVK900123"
+  })
+  const packageChanged = await callJson("refactor_abap_code", {
+    action: "execute",
+    planId: packagePreview.planId,
+    confirmation: packagePreview.confirmation
+  })
+  assert.equal(packageChanged.executed, true)
+  assert.equal(object.packageName, "Z_OTHER")
+
+  const systemComparison = await callJson("compare_abap_systems", {
+    objectName: "ZCL_DEMO",
+    objectType: "CLAS/OC",
+    sourceConnectionId: "DEV100",
+    targetConnectionId: "QAS200"
+  })
+  assert.equal(systemComparison.changed, false)
+  const graph = await callJson("get_abap_dependency_graph", {
+    objectName: "ZCL_DEMO",
+    objectType: "CLAS/OC",
+    connectionId: "DEV100"
+  })
+  assert.equal(graph.nodeCount, 2)
+  assert.deepEqual(graph.edges[0], {
+    source: "ZREP_CALLER::PROG/P",
+    target: "ZCL_DEMO::CLAS/OC",
+    usageType: "method call"
+  })
+  const transaction = await callJson("run_sap_transaction", {
+    connectionId: "DEV100",
+    transactionCode: "SE38",
+    parameters: { "RS38M-PROGRAMM": "ZREP_DEMO" }
+  })
+  assert.equal(transaction.launched, false)
+  assert.match(transaction.url, /webgui/)
+
+  const deletePreview = await callJson("refactor_abap_code", {
+    action: "preview_delete",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    transport: "DEVK900123"
+  })
+  const deleted = await callJson("refactor_abap_code", {
+    action: "execute",
+    planId: deletePreview.planId,
+    confirmation: deletePreview.confirmation
+  })
+  assert.equal(deleted.executed, true)
+  assert.equal(fake.deletedObject, true)
 
   const debugStopped = await callJson("abap_debug_session", {
     connectionId: "DEV100",

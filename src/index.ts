@@ -14,6 +14,12 @@ import {
 import { ProfileStore, type SapProfile } from "./profile-store.js"
 import { createDefaultSecretStore, type SecretStore } from "./secret-store.js"
 import { AbapToolService } from "./tool-service.js"
+import {
+  abapGitCredentialKey,
+  decodeAbapGitCredentials,
+  encodeAbapGitCredentials,
+  normalizeAbapGitRepositoryUrl
+} from "./abapgit-credentials.js"
 
 const HELP = `sap-abap-mcp
 
@@ -26,6 +32,9 @@ Commands:
   auth login <id> [--username <user>] [--password-stdin]
   auth status <id>
   auth logout <id>
+  abapgit auth login <id> --repository-url <url> --username <user> [--password-stdin]
+  abapgit auth status <id> --repository-url <url>
+  abapgit auth logout <id> --repository-url <url>
   doctor <id> [--include-components]
   serve [--profile <id>] [--toolsets core,write,analysis,debug,operations,artifacts|all]
 `
@@ -93,7 +102,7 @@ async function readAllStdin(): Promise<string> {
   return value.replace(/[\r\n]+$/, "")
 }
 
-async function promptPassword(): Promise<string> {
+async function promptSecret(prompt: string): Promise<string> {
   if (!stdin.isTTY || typeof stdin.setRawMode !== "function") {
     throw new AppError(
       "PASSWORD_INPUT_REQUIRED",
@@ -133,7 +142,7 @@ async function promptPassword(): Promise<string> {
       }
     }
 
-    stderr.write("SAP password: ")
+    stderr.write(prompt)
     stdin.setRawMode(true)
     stdin.resume()
     stdin.on("data", onData)
@@ -176,6 +185,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     const id = requiredPosition(parsed, 2, "profile id")
     const removed = await profiles.remove(id)
     await secrets.delete(id)
+    await secrets.delete(abapGitCredentialKey(id))
     writeJson({ id: id.toUpperCase(), removed })
     return
   }
@@ -212,7 +222,9 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
     }
 
     const profile = withUsername(storedProfile, username)
-    const password = parsed.options.has("password-stdin") ? await readAllStdin() : await promptPassword()
+    const password = parsed.options.has("password-stdin")
+      ? await readAllStdin()
+      : await promptSecret("SAP password: ")
     if (!password) throw new AppError("PASSWORD_REQUIRED", "SAP password cannot be empty")
 
     const manager = new ConnectionManager(profiles, secrets)
@@ -224,6 +236,58 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
   }
 
   throw new AppError("UNKNOWN_COMMAND", `Unknown auth action: ${action}`)
+}
+
+async function abapGitCommand(
+  parsed: ParsedArguments,
+  profiles: ProfileStore,
+  secrets: SecretStore
+) {
+  const group = requiredPosition(parsed, 1, "abapgit command")
+  if (group !== "auth") {
+    throw new AppError("UNKNOWN_COMMAND", `Unknown abapgit command: ${group}`)
+  }
+  const action = requiredPosition(parsed, 2, "abapgit auth action")
+  const id = requiredPosition(parsed, 3, "profile id")
+  const profile = await profiles.get(id)
+  const repositoryUrl = normalizeAbapGitRepositoryUrl(
+    requiredOption(parsed, "repository-url")
+  )
+  const key = abapGitCredentialKey(profile.id)
+  const stored = await secrets.get(key)
+  const credentials = stored ? decodeAbapGitCredentials(stored) : []
+  const existing = credentials.find(item => item.repositoryUrl === repositoryUrl)
+  if (action === "status") {
+    writeJson({
+      profileId: profile.id,
+      repositoryUrl,
+      username: existing?.username ?? null,
+      credentialAvailable: Boolean(existing)
+    })
+    return
+  }
+  if (action === "logout") {
+    const remaining = credentials.filter(item => item.repositoryUrl !== repositoryUrl)
+    if (remaining.length > 0) await secrets.set(key, encodeAbapGitCredentials(remaining))
+    else await secrets.delete(key)
+    writeJson({ profileId: profile.id, repositoryUrl, credentialAvailable: false })
+    return
+  }
+  if (action === "login") {
+    const username = requiredOption(parsed, "username").trim()
+    const password = parsed.options.has("password-stdin")
+      ? await readAllStdin()
+      : await promptSecret("abapGit password or token: ")
+    if (!password) {
+      throw new AppError("PASSWORD_REQUIRED", "abapGit password or token cannot be empty")
+    }
+    const next = credentials.filter(item => item.repositoryUrl !== repositoryUrl)
+    next.push({ repositoryUrl, username, password })
+    await secrets.set(key, encodeAbapGitCredentials(next))
+    writeJson({ profileId: profile.id, repositoryUrl, username, credentialStored: true })
+    return
+  }
+  throw new AppError("UNKNOWN_COMMAND", `Unknown abapgit auth action: ${action}`)
 }
 
 async function doctorCommand(parsed: ParsedArguments, profiles: ProfileStore, secrets: SecretStore) {
@@ -260,7 +324,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
 
   const manager = new ConnectionManager(profiles, secrets, undefined, profileId)
   const server = createMcpServer(
-    new AbapToolService(manager),
+    new AbapToolService(manager, secrets),
     enabledTools ? { enabledTools } : {}
   )
   let closing = false
@@ -288,6 +352,7 @@ export async function runCli(args = process.argv.slice(2)): Promise<void> {
   const secrets = createDefaultSecretStore()
   if (command === "profile") return profileCommand(parsed, profiles, secrets)
   if (command === "auth") return authCommand(parsed, profiles, secrets)
+  if (command === "abapgit") return abapGitCommand(parsed, profiles, secrets)
   if (command === "doctor") return doctorCommand(parsed, profiles, secrets)
   if (command === "serve") return serveCommand(parsed, profiles, secrets)
   throw new AppError("UNKNOWN_COMMAND", `Unknown command: ${command}`)

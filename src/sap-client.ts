@@ -1,9 +1,10 @@
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import {
   ADTClient,
   isDebuggee,
   isDebuggerBreakpoint,
   isDebugListenerError,
+  parseServiceBinding,
   session_types,
   type AbapObjectStructure,
   type ActivationResult,
@@ -18,16 +19,35 @@ import {
   type DebugStackInfo,
   type DebugStep,
   type DebugVariable,
+  type DefinitionLocation,
+  type Delta,
   type DumpsFeed,
+  type ExtractMethodProposal,
+  type FixProposal,
+  type GenericRefactoring,
+  type GitExternalInfo,
+  type GitRepo,
+  type GitStaging,
+  type InactiveObjectRecord,
   type MainInclude,
   type NewBindingOptions,
   type NewObjectOptions,
   type NewPackageOptions,
   type NodeParents,
   type NodeStructure,
+  type ObjectVersion,
   type QueryResult,
+  type Range,
+  type RapGeneratorContent,
+  type RapGeneratorId,
+  type RapGeneratorPreviewObject,
+  type RapGeneratorValidationResult,
+  type RenameRefactoring,
+  type RenameRefactoringProposal,
   type Revision,
   type SearchResult,
+  type ServiceBinding,
+  type BindingServiceResult,
   type SyntaxCheckResult,
   type TextElement,
   type TextElementCategory,
@@ -36,6 +56,9 @@ import {
   type TraceRequestList,
   type TraceResults,
   type TraceStatementResponse,
+  type TransportAddUserResponse,
+  type TransportOwnerResponse,
+  type TransportReleaseReport,
   type TransportRequest,
   type TransportsOfUser,
   type UnitTestClass,
@@ -44,6 +67,7 @@ import {
   type ValidateOptions,
   type ValidationResult
 } from "abap-adt-api"
+import type { ChangePackageRefactoring } from "abap-adt-api/build/api/refactor.js"
 import { AppError } from "./errors.js"
 import type { SapProfile } from "./profile-store.js"
 
@@ -64,6 +88,20 @@ export interface SapObjectSource {
 export interface SapSourceByUri {
   source: string
   sourceUri: string
+}
+
+export interface SapObjectFingerprint {
+  fingerprint: string
+  name: string
+  type: string
+  version: string
+  changedAt: number
+  sourceUri?: string
+}
+
+export interface SapServiceBindingDetails {
+  binding: ServiceBinding
+  details?: BindingServiceResult
 }
 
 export interface SapSourceMutationResult {
@@ -136,8 +174,9 @@ export interface SapClient {
   logout(): Promise<void>
   searchObjects(query: string, objectType?: string, maxResults?: number): Promise<SapObjectReference[]>
   readObject(object: SapObjectReference): Promise<SapObjectSource>
-  readSourceByUri(uri: string): Promise<SapSourceByUri>
-  getObjectStructure(uri: string): Promise<AbapObjectStructure>
+  readSourceByUri(uri: string, version?: ObjectVersion): Promise<SapSourceByUri>
+  getObjectStructure(uri: string, version?: ObjectVersion): Promise<AbapObjectStructure>
+  getObjectFingerprint(uri: string): Promise<SapObjectFingerprint>
   getObjectEnhancements(uri: string, includeSource?: boolean): Promise<SapObjectEnhancements>
   findUsageReferences(uri: string, line?: number, column?: number): Promise<UsageReference[]>
   getUsageReferenceSnippets(references: UsageReference[]): Promise<UsageReferenceSnippet[]>
@@ -193,7 +232,140 @@ export interface SapClient {
   ): Promise<ActivationResult>
   getUserTransports(user: string): Promise<TransportsOfUser>
   getTransportDetails(transportNumber: string): Promise<TransportRequest>
+  releaseTransport(
+    transportNumber: string,
+    ignoreLocks?: boolean,
+    ignoreAtc?: boolean
+  ): Promise<TransportReleaseReport[]>
+  deleteTransport(transportNumber: string): Promise<void>
+  setTransportOwner(transportNumber: string, user: string): Promise<TransportOwnerResponse>
+  addTransportUser(transportNumber: string, user: string): Promise<TransportAddUserResponse>
+  listSystemUsers(): Promise<Array<{ id: string; title: string }>>
+  resolveTransportObject(
+    pgmid: string,
+    objectType: string,
+    objectName: string,
+    transportNumber?: string
+  ): Promise<string>
   getRevisions(objectUri: string): Promise<Revision[]>
+  getInactiveObjects(): Promise<InactiveObjectRecord[]>
+  getCodeCompletions(
+    sourceUri: string,
+    source: string,
+    line: number,
+    column: number
+  ): Promise<import("abap-adt-api").CompletionProposal[]>
+  findDefinition(
+    sourceUri: string,
+    source: string,
+    line: number,
+    startColumn: number,
+    endColumn: number,
+    implementation?: boolean,
+    mainProgram?: string
+  ): Promise<DefinitionLocation>
+  getQuickFixes(
+    sourceUri: string,
+    source: string,
+    line: number,
+    column: number
+  ): Promise<FixProposal[]>
+  getQuickFixEdits(proposal: FixProposal, source: string): Promise<Delta[]>
+  formatSource(source: string): Promise<string>
+  evaluateRename(
+    sourceUri: string,
+    line: number,
+    startColumn: number,
+    endColumn: number
+  ): Promise<RenameRefactoringProposal>
+  previewRename(
+    proposal: RenameRefactoringProposal,
+    transport?: string
+  ): Promise<RenameRefactoring>
+  executeRename(refactoring: RenameRefactoring): Promise<RenameRefactoring>
+  previewPackageChange(
+    refactoring: ChangePackageRefactoring,
+    transport?: string
+  ): Promise<ChangePackageRefactoring>
+  executePackageChange(
+    refactoring: ChangePackageRefactoring
+  ): Promise<ChangePackageRefactoring>
+  evaluateExtractMethod(sourceUri: string, range: Range): Promise<ExtractMethodProposal>
+  previewExtractMethod(proposal: ExtractMethodProposal): Promise<GenericRefactoring>
+  executeExtractMethod(refactoring: GenericRefactoring): Promise<GenericRefactoring>
+  deleteObject(objectUri: string, expectedFingerprint: string, transport?: string): Promise<void>
+  listGitRepositories(): Promise<GitRepo[]>
+  getGitRemoteInfo(url: string, user?: string, password?: string): Promise<GitExternalInfo>
+  createGitRepository(
+    packageName: string,
+    url: string,
+    branch?: string,
+    transport?: string,
+    user?: string,
+    password?: string
+  ): Promise<void[]>
+  pullGitRepository(
+    repositoryId: string,
+    branch?: string,
+    transport?: string,
+    user?: string,
+    password?: string
+  ): Promise<void[]>
+  unlinkGitRepository(repositoryId: string): Promise<void>
+  stageGitRepository(repository: GitRepo, user?: string, password?: string): Promise<GitStaging>
+  pushGitRepository(
+    repository: GitRepo,
+    staging: GitStaging,
+    user?: string,
+    password?: string
+  ): Promise<void>
+  checkGitRepository(repository: GitRepo, user?: string, password?: string): Promise<void>
+  switchGitBranch(
+    repository: GitRepo,
+    branch: string,
+    create?: boolean,
+    user?: string,
+    password?: string
+  ): Promise<void>
+  isRapGeneratorAvailable(generatorId?: RapGeneratorId): Promise<boolean>
+  validateRapGeneratorInitial(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    packageName: string
+  ): Promise<RapGeneratorValidationResult>
+  getRapGeneratorSchema(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    packageName: string
+  ): Promise<string>
+  getRapGeneratorContent(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    packageName: string
+  ): Promise<RapGeneratorContent>
+  validateRapGeneratorContent(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    content: RapGeneratorContent
+  ): Promise<RapGeneratorValidationResult>
+  previewRapGenerator(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    content: RapGeneratorContent
+  ): Promise<RapGeneratorPreviewObject[]>
+  generateRapObjects(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    transport: string,
+    content: RapGeneratorContent
+  ): Promise<RapGeneratorPreviewObject[]>
+  publishRapService(serviceBindingName: string): Promise<RapGeneratorValidationResult>
+  unpublishServiceBinding(name: string, version: string): Promise<{
+    severity: string
+    shortText: string
+    longText: string
+  }>
+  getServiceBindingDetails(name: string): Promise<SapServiceBindingDetails>
   getNodeContents(parentType: NodeParents, parentName: string): Promise<NodeStructure>
   startDebugSession(debugUser?: string, terminalMode?: boolean): Promise<SapDebugStatus>
   stopDebugSession(): Promise<SapDebugStatus>
@@ -238,6 +410,17 @@ function mapSearchResult(result: SearchResult): SapObjectReference {
       : {}),
     ...(result["adtcore:packageName"] ? { packageName: result["adtcore:packageName"] } : {})
   }
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(",")}}`
+  }
+  return JSON.stringify(value)
 }
 
 function detectSystemType(components: SapSoftwareComponent[]): SapSystemInfo["systemType"] {
@@ -299,11 +482,11 @@ export class AdtSapClient implements SapClient {
     return { ...result, object }
   }
 
-  async readSourceByUri(uri: string): Promise<SapSourceByUri> {
+  async readSourceByUri(uri: string, version?: ObjectVersion): Promise<SapSourceByUri> {
     const candidates: string[] = []
 
     try {
-      const structure = await this.client.objectStructure(uri)
+      const structure = await this.client.objectStructure(uri, version)
       candidates.push(ADTClient.mainInclude(structure))
     } catch {
       // Older backends can reject object structure for some object types.
@@ -315,7 +498,10 @@ export class AdtSapClient implements SapClient {
     let lastError: unknown
     for (const sourceUri of [...new Set(candidates)]) {
       try {
-        const source = await this.client.getObjectSource(sourceUri)
+        const source = await this.client.getObjectSource(
+          sourceUri,
+          version ? { version } : undefined
+        )
         return { source, sourceUri }
       } catch (error) {
         lastError = error
@@ -328,8 +514,32 @@ export class AdtSapClient implements SapClient {
     })
   }
 
-  async getObjectStructure(uri: string): Promise<AbapObjectStructure> {
-    return this.client.objectStructure(uri)
+  async getObjectStructure(uri: string, version?: ObjectVersion): Promise<AbapObjectStructure> {
+    return this.client.objectStructure(uri, version)
+  }
+
+  async getObjectFingerprint(uri: string): Promise<SapObjectFingerprint> {
+    const structure = await this.client.objectStructure(uri)
+    let source = ""
+    let sourceUri: string | undefined
+    try {
+      const result = await this.readSourceByUri(uri)
+      source = result.source
+      sourceUri = result.sourceUri
+    } catch {
+      // Some repository objects have structured metadata but no text source.
+    }
+    const fingerprint = createHash("sha256")
+      .update(stableJson({ metaData: structure.metaData, links: structure.links ?? [], source }))
+      .digest("hex")
+    return {
+      fingerprint,
+      name: structure.metaData["adtcore:name"],
+      type: structure.metaData["adtcore:type"],
+      version: structure.metaData["adtcore:version"],
+      changedAt: structure.metaData["adtcore:changedAt"],
+      ...(sourceUri ? { sourceUri } : {})
+    }
   }
 
   async getObjectEnhancements(
@@ -552,8 +762,326 @@ export class AdtSapClient implements SapClient {
     return this.client.transportDetails(transportNumber)
   }
 
+  async releaseTransport(
+    transportNumber: string,
+    ignoreLocks = false,
+    ignoreAtc = false
+  ): Promise<TransportReleaseReport[]> {
+    return this.serializeMutation(() =>
+      this.client.transportRelease(transportNumber, ignoreLocks, ignoreAtc)
+    )
+  }
+
+  async deleteTransport(transportNumber: string): Promise<void> {
+    await this.serializeMutation(() => this.client.transportDelete(transportNumber))
+  }
+
+  async setTransportOwner(transportNumber: string, user: string): Promise<TransportOwnerResponse> {
+    return this.serializeMutation(() => this.client.transportSetOwner(transportNumber, user))
+  }
+
+  async addTransportUser(transportNumber: string, user: string): Promise<TransportAddUserResponse> {
+    return this.serializeMutation(() => this.client.transportAddUser(transportNumber, user))
+  }
+
+  async listSystemUsers(): Promise<Array<{ id: string; title: string }>> {
+    return this.client.systemUsers()
+  }
+
+  async resolveTransportObject(
+    pgmid: string,
+    objectType: string,
+    objectName: string,
+    transportNumber?: string
+  ): Promise<string> {
+    return this.client.transportReference(pgmid, objectType, objectName, transportNumber)
+  }
+
   async getRevisions(objectUri: string): Promise<Revision[]> {
     return this.client.revisions(objectUri)
+  }
+
+  async getInactiveObjects(): Promise<InactiveObjectRecord[]> {
+    return this.client.inactiveObjects()
+  }
+
+  async getCodeCompletions(
+    sourceUri: string,
+    source: string,
+    line: number,
+    column: number
+  ) {
+    return this.client.statelessClone.codeCompletion(sourceUri, source, line, column)
+  }
+
+  async findDefinition(
+    sourceUri: string,
+    source: string,
+    line: number,
+    startColumn: number,
+    endColumn: number,
+    implementation = false,
+    mainProgram = ""
+  ): Promise<DefinitionLocation> {
+    return this.client.statelessClone.findDefinition(
+      sourceUri,
+      source,
+      line,
+      startColumn,
+      endColumn,
+      implementation,
+      mainProgram
+    )
+  }
+
+  async getQuickFixes(
+    sourceUri: string,
+    source: string,
+    line: number,
+    column: number
+  ): Promise<FixProposal[]> {
+    return this.client.statelessClone.fixProposals(sourceUri, source, line, column)
+  }
+
+  async getQuickFixEdits(proposal: FixProposal, source: string): Promise<Delta[]> {
+    return this.client.statelessClone.fixEdits(proposal, source)
+  }
+
+  async formatSource(source: string): Promise<string> {
+    return this.client.statelessClone.prettyPrinter(source)
+  }
+
+  async evaluateRename(
+    sourceUri: string,
+    line: number,
+    startColumn: number,
+    endColumn: number
+  ): Promise<RenameRefactoringProposal> {
+    return this.client.statelessClone.renameEvaluate(sourceUri, line, startColumn, endColumn)
+  }
+
+  async previewRename(
+    proposal: RenameRefactoringProposal,
+    transport?: string
+  ): Promise<RenameRefactoring> {
+    return this.client.statelessClone.renamePreview(proposal, transport)
+  }
+
+  async executeRename(refactoring: RenameRefactoring): Promise<RenameRefactoring> {
+    return this.serializeMutation(() => this.client.statelessClone.renameExecute(refactoring))
+  }
+
+  async previewPackageChange(
+    refactoring: ChangePackageRefactoring,
+    transport?: string
+  ): Promise<ChangePackageRefactoring> {
+    return this.client.statelessClone.changePackagePreview(refactoring, transport)
+  }
+
+  async executePackageChange(
+    refactoring: ChangePackageRefactoring
+  ): Promise<ChangePackageRefactoring> {
+    return this.serializeMutation(() =>
+      this.client.statelessClone.changePackageExecute(refactoring)
+    )
+  }
+
+  async evaluateExtractMethod(sourceUri: string, range: Range): Promise<ExtractMethodProposal> {
+    return this.client.statelessClone.extractMethodEvaluate(sourceUri, range)
+  }
+
+  async previewExtractMethod(proposal: ExtractMethodProposal): Promise<GenericRefactoring> {
+    return this.client.statelessClone.extractMethodPreview(proposal)
+  }
+
+  async executeExtractMethod(refactoring: GenericRefactoring): Promise<GenericRefactoring> {
+    return this.serializeMutation(() =>
+      this.client.statelessClone.extractMethodExecute(refactoring)
+    )
+  }
+
+  async deleteObject(
+    objectUri: string,
+    expectedFingerprint: string,
+    transport?: string
+  ): Promise<void> {
+    await this.serializeMutation(async () => {
+      const previousSessionType = this.client.stateful
+      this.client.stateful = session_types.stateful
+      let lockHandle: string | undefined
+      let deleted = false
+      try {
+        const lock = await this.client.lock(objectUri)
+        lockHandle = lock.LOCK_HANDLE
+        const current = await this.getObjectFingerprint(objectUri)
+        if (current.fingerprint !== expectedFingerprint) {
+          throw new AppError(
+            "OBJECT_CHANGED",
+            `ABAP object changed after delete preview; refusing to delete ${objectUri}`
+          )
+        }
+        await this.client.deleteObject(objectUri, lockHandle, transport)
+        deleted = true
+      } finally {
+        try {
+          if (lockHandle) {
+            const unlock = this.client.unLock(objectUri, lockHandle)
+            if (deleted) await unlock.catch(() => undefined)
+            else await unlock
+          }
+        } finally {
+          this.client.stateful = previousSessionType
+        }
+      }
+    })
+  }
+
+  async listGitRepositories(): Promise<GitRepo[]> {
+    return this.client.gitRepos()
+  }
+
+  async getGitRemoteInfo(url: string, user?: string, password?: string): Promise<GitExternalInfo> {
+    return this.client.gitExternalRepoInfo(url, user, password)
+  }
+
+  async createGitRepository(
+    packageName: string,
+    url: string,
+    branch?: string,
+    transport?: string,
+    user?: string,
+    password?: string
+  ): Promise<void[]> {
+    return this.serializeMutation(() =>
+      this.client.gitCreateRepo(packageName, url, branch, transport, user, password)
+    )
+  }
+
+  async pullGitRepository(
+    repositoryId: string,
+    branch?: string,
+    transport?: string,
+    user?: string,
+    password?: string
+  ): Promise<void[]> {
+    return this.serializeMutation(() =>
+      this.client.gitPullRepo(repositoryId, branch, transport, user, password)
+    )
+  }
+
+  async unlinkGitRepository(repositoryId: string): Promise<void> {
+    await this.serializeMutation(() => this.client.gitUnlinkRepo(repositoryId))
+  }
+
+  async stageGitRepository(
+    repository: GitRepo,
+    user?: string,
+    password?: string
+  ): Promise<GitStaging> {
+    return this.client.stageRepo(repository, user, password)
+  }
+
+  async pushGitRepository(
+    repository: GitRepo,
+    staging: GitStaging,
+    user?: string,
+    password?: string
+  ): Promise<void> {
+    await this.serializeMutation(() => this.client.pushRepo(repository, staging, user, password))
+  }
+
+  async checkGitRepository(
+    repository: GitRepo,
+    user?: string,
+    password?: string
+  ): Promise<void> {
+    await this.client.checkRepo(repository, user, password)
+  }
+
+  async switchGitBranch(
+    repository: GitRepo,
+    branch: string,
+    create = false,
+    user?: string,
+    password?: string
+  ): Promise<void> {
+    await this.serializeMutation(() =>
+      this.client.switchRepoBranch(repository, branch, create, user, password)
+    )
+  }
+
+  async isRapGeneratorAvailable(generatorId?: RapGeneratorId): Promise<boolean> {
+    return this.client.rapGenIsAvailable(generatorId)
+  }
+
+  async validateRapGeneratorInitial(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    packageName: string
+  ): Promise<RapGeneratorValidationResult> {
+    return this.client.rapGenValidateInitial(generatorId, referenceObjectUri, packageName)
+  }
+
+  async getRapGeneratorSchema(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    packageName: string
+  ): Promise<string> {
+    return this.client.rapGenGetSchema(generatorId, referenceObjectUri, packageName)
+  }
+
+  async getRapGeneratorContent(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    packageName: string
+  ): Promise<RapGeneratorContent> {
+    return this.client.rapGenGetContent(generatorId, referenceObjectUri, packageName)
+  }
+
+  async validateRapGeneratorContent(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    content: RapGeneratorContent
+  ): Promise<RapGeneratorValidationResult> {
+    return this.client.rapGenValidateContent(generatorId, referenceObjectUri, content)
+  }
+
+  async previewRapGenerator(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    content: RapGeneratorContent
+  ): Promise<RapGeneratorPreviewObject[]> {
+    return this.client.rapGenPreview(generatorId, referenceObjectUri, content)
+  }
+
+  async generateRapObjects(
+    generatorId: RapGeneratorId,
+    referenceObjectUri: string,
+    transport: string,
+    content: RapGeneratorContent
+  ): Promise<RapGeneratorPreviewObject[]> {
+    return this.serializeMutation(() =>
+      this.client.rapGenGenerate(generatorId, referenceObjectUri, transport, content)
+    )
+  }
+
+  async publishRapService(serviceBindingName: string): Promise<RapGeneratorValidationResult> {
+    return this.serializeMutation(() => this.client.rapGenPublishService(serviceBindingName))
+  }
+
+  async unpublishServiceBinding(name: string, version: string) {
+    return this.serializeMutation(() => this.client.unPublishServiceBinding(name, version))
+  }
+
+  async getServiceBindingDetails(name: string): Promise<SapServiceBindingDetails> {
+    const bindingUrl = `/sap/bc/adt/businessservices/bindings/${encodeURIComponent(name.toLowerCase())}`
+    const response = await this.client.httpClient.request(bindingUrl, {
+      method: "GET",
+      headers: { Accept: "application/*" }
+    })
+    const binding = parseServiceBinding(response.body)
+    if (binding.services.length === 0) return { binding }
+    return { binding, details: await this.client.bindingDetails(binding) }
   }
 
   async getNodeContents(parentType: NodeParents, parentName: string): Promise<NodeStructure> {

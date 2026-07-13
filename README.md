@@ -1,238 +1,322 @@
 # sap-abap-mcp
 
-Codex나 Claude가 SAP ADT를 통해 ABAP 저장소를 읽고 수정하며 품질 검사와 운영 분석까지 수행하게 해 주는 로컬 MCP 서버입니다.
+A local Model Context Protocol server that lets Codex and Claude work with SAP ABAP through the official ABAP Development Tools (ADT) HTTP services.
 
-처음 한 번만 SAP 접속 정보를 등록하고 로그인하면 됩니다. 별도 서버, SAP GUI, VS Code, 수동 `serve` 실행은 필요하지 않습니다.
+It can inspect and edit ABAP source, run quality checks, manage transports, use abapGit and the RAP generator, inspect runtime data, compare systems, and perform repository refactorings without VS Code, SAP GUI, or an ABAP FS virtual workspace.
 
-## 가장 쉬운 시작 방법
+## Release status
 
-아래 설명은 **Windows에서 Codex 또는 Claude로 SAP 시스템 1개를 연결하는 경우**를 기준으로 합니다. 명령은 PowerShell에 한 줄씩 복사해서 실행하세요.
+- Package: `@coaspe/sap-abap-mcp`
+- Current release: `0.3.0`
+- Runtime: Node.js 20 or later
+- Transport: local MCP over stdio
+- Authentication: SAP Basic Auth
+- Secret storage: macOS Keychain or Windows DPAPI
+- SAP API client: `abap-adt-api` 8.4.1
+- ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
-### 0. 먼저 준비할 것
+The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 50 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
 
-SAP 관리자에게 아래 3가지만 받으세요.
+## What it supports
 
-| 필요한 값 | 예시 | 뜻 |
-|---|---|---|
-| SAP 주소 | `https://sap-dev.company.com` | SAP 서버의 HTTPS 기본 주소 |
-| 클라이언트 번호 | `100` | 숫자 3자리 |
-| 사용자명 | `DEV_USER` | SAP 로그인 ID |
+The server preserves all 42 MCP tools exposed by ABAP FS 2.6.5 and adds eight grouped tools for extension capabilities that were not available through the ABAP FS MCP surface.
 
-이 사용자에게 ADT 개발 권한이 있고, SAP 서버에서 `/sap/bc/adt`와 Basic Auth를 사용할 수 있어야 합니다. 잘 모르겠다면 이 문장을 그대로 SAP 관리자에게 보여 주세요.
+| Area | Capabilities |
+|---|---|
+| Connections | Multiple SAP profiles, lazy login, system metadata, ADT discovery export |
+| Repository reads | Search, metadata, source ranges, batch reads, URI reads, source search, enhancements |
+| Semantic services | Completion, definition lookup, quick-fix discovery, SAP formatter preview |
+| Source writes | Exact source replacement, syntax diagnostics, activation, text elements |
+| Refactoring | Rename, package move, extract method, quick-fix application, formatting, deletion |
+| Quality | ABAP Unit, ATC, diagnostics, test-include creation |
+| Transports | List, details, objects, compare, create, release, delete, owner/user management, object resolution |
+| Versions | Active revision history, revision comparison, inactive source, guarded revision restore |
+| abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch |
+| RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details and publication |
+| Runtime | Debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
+| Cross-system | Source comparison across configured SAP systems |
+| Dependency analysis | Bounded where-used dependency graph |
+| SAP GUI integration | Validated WebGUI transaction URL generation and optional local launch |
+| Data | Read-only ADT SQL queries with bounded or file-based output |
+| Artifacts | Mermaid validation/viewer and DOCX test documentation |
 
-컴퓨터에는 다음 프로그램이 필요합니다.
+The eight grouped extension tools are:
 
-- [Node.js](https://nodejs.org/en/download) 20 이상
-- Codex 또는 Claude Code
-- 회사 SAP에 접속하기 위한 사내망 또는 VPN
+- `inspect_abap_code`
+- `refactor_abap_code`
+- `manage_abapgit`
+- `manage_rap_generator`
+- `manage_abap_versions`
+- `compare_abap_systems`
+- `get_abap_dependency_graph`
+- `run_sap_transaction`
 
-Node.js가 준비됐는지 확인합니다.
+Grouping related actions keeps the tool-schema footprint lower than exposing every operation as a separate MCP tool.
+
+## Prerequisites
+
+Ask your SAP administrator for:
+
+- The SAP HTTPS base URL, for example `https://sap-dev.company.com`
+- The three-digit SAP client number
+- Your SAP user name
+- ADT development permissions required by the operations you intend to use
+- Confirmation that `/sap/bc/adt` and Basic Auth are enabled
+
+Your machine needs:
+
+- Node.js 20 or later
+- Codex or Claude Code
+- Network or VPN access to SAP
+- npm registry access to install the public package
+
+Verify Node.js first:
 
 ```powershell
 node --version
 ```
 
-`v20` 이상의 숫자가 나오면 준비 완료입니다. `node`를 찾을 수 없다는 메시지가 나오면 Node.js를 설치한 뒤 PowerShell을 다시 여세요.
+## Quick start on Windows
 
-### 1. SAP를 등록하세요
+### 1. Add an SAP profile
 
-아래 명령에서 SAP 주소, 클라이언트 번호, 사용자명만 자신의 값으로 바꾸세요.
-
-```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 profile add DEV100 --url "https://sap-dev.company.com" --client 100 --username "DEV_USER"
-```
-
-`DEV100`은 이 SAP에 붙인 별명입니다. 그대로 사용해도 됩니다.
-
-성공하면 화면에 `"id": "DEV100"`이 표시됩니다.
-
-### 2. SAP에 로그인하세요
+The following profile permits writes only to two dedicated packages. Use your real values and keep production profiles read-only.
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 auth login DEV100
+npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 profile add DEV100 `
+  --url "https://sap-dev.company.com" `
+  --client 100 `
+  --username "DEV_USER" `
+  --environment development `
+  --packages "Z_MCP_TEST,Z_MCP_TEST2"
 ```
 
-`SAP password:`가 나오면 SAP 암호를 입력하고 Enter를 누르세요. 입력하는 동안 글자가 보이지 않는 것이 정상입니다.
+PowerShell also accepts the command on one line. The profile ID `DEV100` is a local alias.
 
-성공하면 `"credentialStored": true`가 표시됩니다.
+Omit `--packages` for a read-only profile. An empty package allowlist denies every repository write.
 
-### 3. 연결을 확인하세요
+### 2. Store the SAP password
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 doctor DEV100
+npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 auth login DEV100
 ```
 
-`"ok": true`가 나오면 SAP 연결은 끝났습니다.
+The password is entered without echo and stored with Windows DPAPI. It is never written to the profile file.
 
-### 4. Codex 또는 Claude에 연결하세요
-
-둘 중 자신이 사용하는 프로그램 하나만 선택하면 됩니다.
-
-#### Codex
+### 3. Verify ADT connectivity
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 serve --profile DEV100
+npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 doctor DEV100
 ```
 
-등록됐는지 확인합니다.
+A successful response contains `"ok": true`.
+
+### 4. Register the MCP server
+
+Codex CLI:
 
 ```powershell
-codex mcp list
+codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 serve --profile DEV100
 ```
 
-목록에 `sap-abap`이 보이면 Codex를 다시 시작하세요. Codex 안에서 `/mcp`를 입력해 연결 상태를 볼 수도 있습니다.
+Claude Code:
 
-`codex` 명령을 사용할 수 없다면 Codex 앱에서 직접 등록할 수 있습니다.
+```powershell
+claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 serve --profile DEV100
+```
 
-1. **Settings → MCP servers → Add server**를 엽니다.
-2. 이름은 `sap-abap`, 종류는 **STDIO**를 선택합니다.
-3. Command에는 `npx.cmd`를 입력합니다.
-4. Arguments에는 아래 값을 순서대로 추가합니다.
+Restart the client after registration. Use `codex mcp list`, `claude mcp get sap-abap`, or the client's `/mcp` command to verify the connection.
+
+### 5. Start with read-only requests
+
+```text
+List the configured SAP systems and verify DEV100.
+Find class ZCL_DEMO in DEV100 and read its RUN method.
+Run syntax diagnostics and show a formatter preview without changing the source.
+Build a depth-1 dependency graph for ZCL_DEMO.
+```
+
+## Quick start on macOS
+
+Use `npx` instead of `npx.cmd`:
+
+```bash
+npx -y @coaspe/sap-abap-mcp@0.3.0 profile add DEV100 \
+  --url "https://sap-dev.company.com" \
+  --client 100 \
+  --username "DEV_USER" \
+  --environment development \
+  --packages "Z_MCP_TEST,Z_MCP_TEST2"
+
+npx -y @coaspe/sap-abap-mcp@0.3.0 auth login DEV100
+npx -y @coaspe/sap-abap-mcp@0.3.0 doctor DEV100
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@0.3.0 serve --profile DEV100
+```
+
+SAP passwords are stored in macOS Keychain.
+
+## Codex desktop setup
+
+If the `codex` command is not available, add a stdio MCP server in Codex settings:
+
+- Name: `sap-abap`
+- Command on Windows: `npx.cmd`
+- Command on macOS: `npx`
+- Arguments:
 
 ```text
 -y
-@coaspe/sap-abap-mcp@0.2.0
+@coaspe/sap-abap-mcp@0.3.0
 serve
 --profile
 DEV100
 ```
 
-5. 저장한 뒤 Codex를 다시 시작합니다.
+## Multiple SAP systems
 
-#### Claude Code
-
-```powershell
-claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 serve --profile DEV100
-```
-
-등록됐는지 확인합니다.
+Create one profile per SAP client, for example `DEV100`, `QAS200`, and `PRD100`. To expose all profiles through one MCP server, register `serve` without `--profile`:
 
 ```powershell
-claude mcp get sap-abap
+codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 serve
 ```
 
-등록 정보가 나오면 Claude Code를 다시 시작하세요. Claude Code 안에서 `/mcp`를 입력해 연결 상태를 볼 수도 있습니다.
+Every SAP-facing tool requires an explicit `connectionId`, which prevents accidental cross-system routing. Cross-system comparison requires the same object to exist in both selected profiles.
 
-### 5. 이제 말로 요청하세요
+## abapGit credentials
 
-Codex 또는 Claude에 다음처럼 물어보세요.
-
-```text
-DEV100에 연결됐는지 확인해줘.
-DEV100에서 ZCL_DEMO 클래스를 찾아줘.
-ZCL_DEMO의 RUN 메서드 소스를 읽고 쉽게 설명해줘.
-```
-
-여기까지가 전부입니다. MCP 서버는 Codex나 Claude가 필요할 때 자동으로 실행하므로 사용자가 `serve` 명령을 직접 실행할 필요가 없습니다.
-
-## 막혔을 때
-
-| 화면에 보이는 문제 | 먼저 해 볼 것 |
-|---|---|
-| `node`를 찾을 수 없음 | Node.js 20 이상을 설치하고 PowerShell을 다시 엽니다. |
-| npm 패키지를 내려받지 못함 | 인터넷, 회사 프록시, npm registry 접근 여부를 확인합니다. |
-| `PROFILE_NOT_FOUND` | 1단계의 `profile add` 명령을 다시 실행합니다. |
-| 로그인이 실패함 | SAP 주소, 클라이언트 번호, 사용자명, 암호가 맞는지 확인합니다. |
-| `doctor`가 인증서 또는 연결 오류를 표시함 | VPN 연결 후 다시 시도하고, 계속 실패하면 사내 CA·프록시·ADT 활성화 여부를 SAP 관리자에게 문의합니다. |
-| Codex 또는 Claude에서 도구가 보이지 않음 | `/mcp`에서 연결 상태를 확인하고 프로그램을 완전히 종료했다가 다시 실행합니다. |
-
-현재 인증 방식은 Basic Auth입니다. 회사 SAP가 SSO나 MFA만 허용한다면 현재 버전으로는 로그인할 수 없으므로 SAP 관리자에게 Basic Auth 사용 가능 여부를 확인하세요.
-
-## macOS에서 사용하기
-
-위 명령의 `npx.cmd`를 모두 `npx`로 바꾸면 됩니다. Codex 등록 명령은 다음과 같습니다.
-
-```bash
-codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@0.2.0 serve --profile DEV100
-```
-
-## macOS에서 Claude Code 사용하기
-
-macOS에서는 다음 명령으로 등록합니다.
-
-```bash
-claude mcp add --transport stdio --scope user sap-abap -- npx -y @coaspe/sap-abap-mcp@0.2.0 serve --profile DEV100
-```
-
-등록 확인:
-
-```bash
-claude mcp get sap-abap
-```
-
-## SAP 시스템이 여러 개인 경우
-
-각 SAP에 서로 다른 별명을 붙여 1~3단계를 반복합니다. 예를 들어 개발기는 `DEV100`, 품질기는 `QAS200`, 운영기는 `PRD100`으로 등록할 수 있습니다.
-
-여러 SAP를 하나의 MCP에서 함께 사용하려면 기존 등록을 지우고 `--profile DEV100` 없이 다시 등록하세요.
+Public repositories require no additional setup. Store credentials for each private repository URL separately:
 
 ```powershell
-codex mcp remove sap-abap
-codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 serve
+npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth login DEV100 `
+  --repository-url "https://github.example.com/team/repo.git" `
+  --username "GIT_USER"
 ```
 
-Windows 다중 시스템 설정과 운영 시 주의사항은 [상세 가이드](docs/localhost-mcp-end-to-end.md)를 참고하세요.
-
-## 암호는 어디에 저장되나요?
-
-- macOS: Keychain
-- Windows: 현재 사용자만 복호화할 수 있는 DPAPI 암호화 파일
-
-프로필 파일에는 SAP 주소, 클라이언트 번호, 사용자명만 저장되며 암호는 저장하지 않습니다.
-
-로그인 상태 확인과 삭제:
+Status and removal:
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 auth status DEV100
-npx.cmd -y @coaspe/sap-abap-mcp@0.2.0 auth logout DEV100
+npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth status DEV100 `
+  --repository-url "https://github.example.com/team/repo.git"
+
+npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth logout DEV100 `
+  --repository-url "https://github.example.com/team/repo.git"
 ```
 
-## 현재 저장소에서 할 수 있는 일
+Credentials are selected by canonical repository URL so credentials for one remote cannot be sent to another. Passwords and tokens are not accepted as MCP tool arguments, and credentials embedded in a repository URL are rejected.
 
-현재 소스는 ABAP FS 2.6.5의 MCP 도구 42개를 모두 구현합니다.
+## Write-safety model
 
-- 연결·discovery 3개: 시스템 목록/정보, ADT discovery export
-- 저장소 읽기·탐색 10개: 객체/소스 검색, 구간·배치 읽기, where-used, URL/URI 탐색
-- 저장소 쓰기 6개: 객체·테스트 include 생성, 정확 일치 소스 교체, 진단, 활성화, 텍스트 요소
-- 품질·수명주기 6개: ABAP Unit, ATC, 전송 요청, 버전 이력, 다운로드
-- 데이터·참조 3개: read-only SQL, SQL 문법, 호환성 문서 검색
-- 런타임 운영 9개: 디버거, dump/trace 분석, heartbeat
-- 산출물 5개: Mermaid 검증·문서·HTML viewer, DOCX 테스트 문서
+Repository-changing operations enforce these rules:
 
-쓰기 안전 정책은 다음과 같습니다.
+- Profiles marked `production` reject writes.
+- The target package must be present in the profile's `allowedPackages` list.
+- Packages other than `$TMP` require a transport request.
+- Exact source replacement reads the current source, obtains an SAP lock, rechecks it under the lock, writes, runs syntax diagnostics, optionally activates, and unlocks.
+- Rename, package move, method extraction, quick-fix application, formatting, deletion, and revision restore use a preview plan.
+- Preview plans expire after ten minutes and require the exact returned confirmation value.
+- Execution re-runs the SAP preview or source-state check and rejects stale plans.
+- Multi-object quick-fixes perform syntax preflight and attempt rollback if a later write fails.
+- RAP generation performs initial validation, content validation, and dry-run preview immediately before generation.
+- abapGit push accepts only a fresh SAP staging snapshot and requires explicit object selection or `stageAll=true`.
+- SAP transaction parameters use a restricted character set and are passed to the OS launcher as argument-array values rather than shell text.
+- ADT SQL accepts only `SELECT` and `WITH` statements.
 
-- `production` 프로필에서는 저장소 쓰기를 거부합니다.
-- `allowedPackages`에 없는 패키지는 수정하지 않습니다. 빈 목록은 쓰기 전면 금지입니다.
-- `$TMP`가 아닌 패키지는 transport request가 필수입니다.
-- 소스 교체는 현재 소스에서 정확히 한 곳만 일치해야 하며 lock → 재확인 → write → syntax check → 선택적 activate 순서를 사용합니다.
-- SQL은 `SELECT`와 `WITH`만 허용합니다.
+Transport release and deletion can be irreversible. Use a dedicated transport and verify the exact confirmation value before executing either action.
 
-## 토큰 사용량이 많은 환경
+## Token-efficient operation
 
-`0.2.0`부터 MCP 응답은 compact JSON이며, 대형 소스·검색·SQL·ATC·dump·trace·transport·version 결과는 기본적으로 페이지 또는 요약을 반환합니다. 응답의 `nextStartIndex`, `nextLine`, `nextRowStart`를 다음 호출에 사용하면 전체 데이터를 이어서 읽을 수 있습니다. discovery와 대형 다운로드 목록은 로컬 파일로 내보낼 수 있습니다.
+The server is designed to keep model context usage bounded without removing useful data:
 
-Claude Code는 기본 Tool Search를 사용할 수 있으므로 일반적으로 42개 전체를 등록하는 것이 편합니다. Tool Search가 없는 호스트에서 도구 스키마 토큰도 줄이려면 `--toolsets`를 사용하세요.
+- Related operations are grouped into action-based tools.
+- The complete 50-tool schema is kept below a 64 KiB automated guardrail.
+- Source, search, SQL, ATC, dump, trace, transport, version, Git, and RAP schema responses are paged or summarized.
+- Unified diffs are limited by both line count and byte size.
+- Large source responses are bounded by an inline byte budget.
+- Discovery data and large download manifests can be exported to local files.
+- Compact JSON is returned without pretty-print whitespace.
+
+Continue paged responses with fields such as `nextStartIndex`, `nextLine`, `nextRowStart`, and `nextContentOffset`.
+
+Hosts without automatic tool search can register only selected toolsets:
 
 ```bash
 sap-abap-mcp serve --profile DEV100 --toolsets core,write,analysis
 ```
 
-사용 가능한 값은 `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, `all`입니다. 기본값은 `all`이라 기존 설정과 기능은 그대로 유지됩니다.
+Available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, and `all`. The default is `all`.
 
-## 개발자용: 저장소에서 실행하기
+## Real SAP acceptance testing
 
-일반 사용자는 이 과정이 필요 없습니다. 소스를 수정하거나 테스트할 때만 실행하세요.
+Run acceptance tests first against a development system and dedicated packages, objects, transports, repositories, and RAP artifacts.
+
+Recommended order:
+
+1. Connection, discovery, repository reads, semantic reads, versions, transports, and URL-only transaction generation.
+2. Create a dedicated test class and verify source write, diagnostics, activation, formatter, quick-fix, rename, extract method, inactive source, restore, package move, and guarded deletion.
+3. Test transport mutations only with a disposable transport.
+4. Test abapGit only with a disposable remote repository.
+5. Run RAP validation and preview before approving generation or service publication.
+
+When reporting a failure, preserve the MCP error code, HTTP status, ADT endpoint, and SAP response text. Do not retry failed ADT operations with guessed parameter variants.
+
+## CLI reference
+
+```text
+profile add <id> --url <url> --client <nnn> [--language EN]
+    [--environment development|quality|production]
+    [--username <user>] [--packages ZPKG1,ZPKG2]
+profile list
+profile remove <id>
+
+auth login <id> [--username <user>] [--password-stdin]
+auth status <id>
+auth logout <id>
+
+abapgit auth login <id> --repository-url <url> --username <user> [--password-stdin]
+abapgit auth status <id> --repository-url <url>
+abapgit auth logout <id> --repository-url <url>
+
+doctor <id> [--include-components]
+serve [--profile <id>] [--toolsets core,write,analysis,debug,operations,artifacts|all]
+```
+
+Removing a profile also removes its SAP password and stored abapGit credential vault.
+
+## Troubleshooting
+
+| Problem | Check |
+|---|---|
+| `node` is not found | Install Node.js 20 or later and reopen the terminal. |
+| npm cannot download the package | Check internet access, proxy configuration, and npm registry policy. |
+| `PROFILE_NOT_FOUND` | Run `profile add` again and verify the profile ID. |
+| SAP login fails | Verify URL, client, username, password, VPN, Basic Auth, and ADT activation. |
+| Certificate or connection error | Check the corporate CA, proxy, VPN, and SAP HTTPS endpoint. |
+| Tools are missing | Confirm that the MCP client uses version `0.3.0`, restart it, and inspect `/mcp`. |
+| Writes return `PACKAGE_NOT_ALLOWED` | Add only the dedicated development package to `--packages`. |
+| Writes return `TRANSPORT_REQUIRED` | Supply an open transport for non-local packages. |
+| RAP generator is unavailable | The SAP release or installed components may not expose the RAP generator endpoints. |
+| Private Git access fails | Store credentials for the exact canonical repository URL. |
+
+SSO-only or MFA-only SAP systems are not supported by this release. Ask the SAP administrator whether Basic Auth can be enabled for the ADT endpoint.
+
+## Local development
 
 ```bash
 npm install
-npm run build
-npm test
+npm run check
+npm audit --omit=dev
+npm pack --dry-run
 ```
 
-로컬 빌드로 Codex에 등록하는 예시는 다음과 같습니다.
+Register the current local build for pre-release testing:
 
 ```bash
+npm run build
 codex mcp add sap-abap-local -- node "/absolute/path/to/sap-abap-mcp/dist/src/index.js" serve --profile DEV100
 ```
 
-ABAP FS 호환 도구 기준 목록은 `src/compat/abap-fs-tools.ts`에 있습니다. 기준 버전은 ABAP FS 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`입니다.
+The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tools.ts`. ADT wrapper contract tests are in `test/sap-client-contract.test.ts`, and end-to-end in-memory MCP tests are in `test/integration.test.ts`.
+
+## Detailed Windows guide
+
+See [`docs/localhost-mcp-end-to-end.md`](docs/localhost-mcp-end-to-end.md) for the multi-system Windows setup, lifecycle, security model, and operational checklist.
