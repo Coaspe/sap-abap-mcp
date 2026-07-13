@@ -10,6 +10,7 @@ import type {
 } from "@modelcontextprotocol/sdk/server/zod-compat.js"
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
+import type { RapGeneratorContent } from "abap-adt-api"
 import { errorPayload } from "./errors.js"
 import { MERMAID_DIAGRAM_TYPES } from "./mermaid-tools.js"
 import type { AbapToolService } from "./tool-service.js"
@@ -86,7 +87,7 @@ export function createMcpServer(
   options: McpServerOptions = {}
 ): McpServer {
   const server = new McpServer(
-    { name: "sap-abap-mcp", version: "0.2.0" },
+    { name: "sap-abap-mcp", version: "0.3.0" },
     {
       instructions:
         "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Writes are blocked for production profiles and restricted to each profile's allowedPackages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
@@ -110,6 +111,35 @@ export function createMcpServer(
     idempotentHint: false,
     openWorldHint: true
   }
+  const rapContentSchema = z.object({
+    metadata: z.object({
+      package: z.string().min(1),
+      masterLanguage: z.string().min(1).optional()
+    }).optional(),
+    general: z.object({
+      referenceObjectName: z.string().min(1).optional(),
+      description: z.string()
+    }),
+    businessObject: z.object({
+      dataModelEntity: z.object({
+        cdsName: z.string().min(1),
+        entityName: z.string().min(1).optional()
+      }),
+      behavior: z.object({
+        implementationType: z.string().min(1),
+        implementationClass: z.string().min(1),
+        draftTable: z.string()
+      })
+    }),
+    serviceProjection: z.object({ name: z.string().min(1) }),
+    businessService: z.object({
+      serviceDefinition: z.object({ name: z.string().min(1) }),
+      serviceBinding: z.object({
+        name: z.string().min(1),
+        bindingType: z.string().min(1)
+      })
+    })
+  })
   const registerTool = <
     OutputArgs extends ZodRawShapeCompat | AnySchema,
     InputArgs extends undefined | ZodRawShapeCompat | AnySchema = undefined
@@ -821,23 +851,40 @@ export function createMcpServer(
     {
       title: "Manage Transport Requests",
       description:
-        "List a user's transports, retrieve details/objects, or compare object membership across transports.",
+        "List, inspect, compare, create, release, delete, reassign, and resolve SAP transports. release/delete confirmation is the request number; owner/user confirmation is NUMBER:USER.",
       inputSchema: {
         action: z.enum([
           "get_user_transports",
           "get_transport_details",
           "get_transport_objects",
-          "compare_transports"
+          "compare_transports",
+          "create_transport",
+          "release_transport",
+          "delete_transport",
+          "set_owner",
+          "add_user",
+          "list_system_users",
+          "resolve_object"
         ]),
         connectionId: z.string().min(1),
         transportNumber: z.string().min(1).optional(),
-        transportNumbers: z.array(z.string().min(1)).min(2).optional(),
+        transportNumbers: z.array(z.string().min(1)).min(2).max(10).optional(),
         user: z.string().min(1).optional(),
+        targetUser: z.string().min(1).optional(),
+        description: z.string().min(1).optional(),
+        packageName: z.string().min(1).optional(),
+        transportLayer: z.string().optional(),
+        pgmid: z.string().min(1).optional(),
+        objectType: z.string().min(1).optional(),
+        objectName: z.string().min(1).optional(),
+        ignoreLocks: z.boolean().default(false),
+        ignoreAtc: z.boolean().default(false),
+        confirmation: z.string().min(1).optional(),
         startIndex: z.number().int().min(0).default(0),
         maxResults: z.number().int().min(1).max(500).default(50),
         includeObjects: z.boolean().default(false)
       },
-      annotations: readOnlyAnnotations
+      annotations: writeAnnotations
     },
     async input =>
       runTool(() =>
@@ -849,7 +896,17 @@ export function createMcpServer(
           includeObjects: input.includeObjects,
           ...(input.transportNumber ? { transportNumber: input.transportNumber } : {}),
           ...(input.transportNumbers ? { transportNumbers: input.transportNumbers } : {}),
-          ...(input.user ? { user: input.user } : {})
+          ...(input.user ? { user: input.user } : {}),
+          ...(input.targetUser ? { targetUser: input.targetUser } : {}),
+          ...(input.description ? { description: input.description } : {}),
+          ...(input.packageName ? { packageName: input.packageName } : {}),
+          ...(input.transportLayer !== undefined ? { transportLayer: input.transportLayer } : {}),
+          ...(input.pgmid ? { pgmid: input.pgmid } : {}),
+          ...(input.objectType ? { objectType: input.objectType } : {}),
+          ...(input.objectName ? { objectName: input.objectName } : {}),
+          ...(input.ignoreLocks !== undefined ? { ignoreLocks: input.ignoreLocks } : {}),
+          ...(input.ignoreAtc !== undefined ? { ignoreAtc: input.ignoreAtc } : {}),
+          ...(input.confirmation ? { confirmation: input.confirmation } : {})
         })
       )
   )
@@ -1274,6 +1331,315 @@ export function createMcpServer(
           ...(input.severity ? { severity: input.severity } : {})
         })
       )
+  )
+
+  registerTool(
+    "inspect_abap_code",
+    {
+      title: "Inspect ABAP Code",
+      description:
+        "Use SAP ADT semantic services for completion, definition, safe quick-fix discovery, or formatter preview. line is one-based and column is zero-based.",
+      inputSchema: {
+        action: z.enum(["completion", "definition", "quick_fixes", "format_preview"]),
+        fileUri: z.string().min(1),
+        connectionId: z.string().min(1).optional(),
+        line: z.number().int().min(1).default(1),
+        column: z.number().int().min(0).default(0),
+        endColumn: z.number().int().min(0).optional(),
+        implementation: z.boolean().default(false),
+        startIndex: z.number().int().min(0).default(0),
+        maxResults: z.number().int().min(1).max(500).default(50)
+      },
+      annotations: readOnlyAnnotations
+    },
+    async input => runTool(() => tools.inspectCode({
+      action: input.action,
+      fileUri: input.fileUri,
+      line: input.line,
+      column: input.column,
+      implementation: input.implementation,
+      startIndex: input.startIndex,
+      maxResults: input.maxResults,
+      ...(input.connectionId ? { connectionId: input.connectionId } : {}),
+      ...(input.endColumn !== undefined ? { endColumn: input.endColumn } : {})
+    }))
+  )
+
+  registerTool(
+    "refactor_abap_code",
+    {
+      title: "Refactor ABAP Code",
+      description:
+        "Preview or execute SAP rename, package move, method extraction, quick-fix, formatting, or deletion. Execute only a fresh plan and copy its exact confirmation value.",
+      inputSchema: {
+        action: z.enum([
+          "preview_rename",
+          "preview_change_package",
+          "preview_extract_method",
+          "preview_quick_fix",
+          "preview_format",
+          "preview_delete",
+          "execute"
+        ]),
+        fileUri: z.string().min(1).optional(),
+        connectionId: z.string().min(1).optional(),
+        line: z.number().int().min(1).optional(),
+        column: z.number().int().min(0).optional(),
+        endLine: z.number().int().min(1).optional(),
+        endColumn: z.number().int().min(0).optional(),
+        newName: z.string().min(1).optional(),
+        newPackage: z.string().min(1).optional(),
+        methodName: z.string().min(1).optional(),
+        proposalIndex: z.number().int().min(0).optional(),
+        transport: z.string().min(1).optional(),
+        activate: z.boolean().default(false),
+        planId: z.string().min(1).optional(),
+        confirmation: z.string().min(1).optional()
+      },
+      annotations: writeAnnotations
+    },
+    async input => runTool(() => {
+      if (input.action === "execute") {
+        return tools.refactorCode({
+          action: "execute",
+          planId: input.planId ?? "",
+          confirmation: input.confirmation ?? ""
+        })
+      }
+      return tools.refactorCode({
+        action: input.action,
+        fileUri: input.fileUri ?? "",
+        activate: input.activate,
+        ...(input.connectionId ? { connectionId: input.connectionId } : {}),
+        ...(input.line !== undefined ? { line: input.line } : {}),
+        ...(input.column !== undefined ? { column: input.column } : {}),
+        ...(input.endLine !== undefined ? { endLine: input.endLine } : {}),
+        ...(input.endColumn !== undefined ? { endColumn: input.endColumn } : {}),
+        ...(input.newName ? { newName: input.newName } : {}),
+        ...(input.newPackage ? { newPackage: input.newPackage } : {}),
+        ...(input.methodName ? { methodName: input.methodName } : {}),
+        ...(input.proposalIndex !== undefined ? { proposalIndex: input.proposalIndex } : {}),
+        ...(input.transport ? { transport: input.transport } : {})
+      })
+    })
+  )
+
+  registerTool(
+    "manage_abapgit",
+    {
+      title: "Manage abapGit",
+      description:
+        "List, inspect, create, pull, unlink, stage, push, check, or switch abapGit repositories. Credentials come only from the secret store. Create confirmation is PACKAGE:CANONICAL_URL; other mutations use repositoryId.",
+      inputSchema: {
+        action: z.enum([
+          "list_repositories", "remote_info", "create_repository", "pull_repository",
+          "unlink_repository", "stage_repository", "push_repository", "check_repository",
+          "switch_branch"
+        ]),
+        connectionId: z.string().min(1),
+        repositoryId: z.string().min(1).optional(),
+        repositoryUrl: z.url().optional(),
+        packageName: z.string().min(1).optional(),
+        branch: z.string().min(1).optional(),
+        createBranch: z.boolean().default(false),
+        transport: z.string().min(1).optional(),
+        stageId: z.string().min(1).optional(),
+        objectKeys: z.array(z.string().min(1)).max(1000).optional(),
+        stageAll: z.boolean().default(false),
+        comment: z.string().min(1).optional(),
+        authorName: z.string().min(1).optional(),
+        authorEmail: z.email().optional(),
+        committerName: z.string().min(1).optional(),
+        committerEmail: z.email().optional(),
+        confirmation: z.string().min(1).optional(),
+        startIndex: z.number().int().min(0).default(0),
+        maxResults: z.number().int().min(1).max(500).default(50)
+      },
+      annotations: writeAnnotations
+    },
+    async input => runTool(() => tools.manageAbapGit({
+      action: input.action,
+      connectionId: input.connectionId,
+      createBranch: input.createBranch,
+      stageAll: input.stageAll,
+      startIndex: input.startIndex,
+      maxResults: input.maxResults,
+      ...(input.repositoryId ? { repositoryId: input.repositoryId } : {}),
+      ...(input.repositoryUrl ? { repositoryUrl: input.repositoryUrl } : {}),
+      ...(input.packageName ? { packageName: input.packageName } : {}),
+      ...(input.branch ? { branch: input.branch } : {}),
+      ...(input.transport ? { transport: input.transport } : {}),
+      ...(input.stageId ? { stageId: input.stageId } : {}),
+      ...(input.objectKeys ? { objectKeys: input.objectKeys } : {}),
+      ...(input.comment ? { comment: input.comment } : {}),
+      ...(input.authorName ? { authorName: input.authorName } : {}),
+      ...(input.authorEmail ? { authorEmail: input.authorEmail } : {}),
+      ...(input.committerName ? { committerName: input.committerName } : {}),
+      ...(input.committerEmail ? { committerEmail: input.committerEmail } : {}),
+      ...(input.confirmation ? { confirmation: input.confirmation } : {})
+    }))
+  )
+
+  registerTool(
+    "manage_rap_generator",
+    {
+      title: "Manage RAP Generator",
+      description:
+        "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION.",
+      inputSchema: {
+        action: z.enum([
+          "availability", "get_schema", "get_defaults", "validate", "preview", "generate",
+          "publish", "unpublish", "service_details"
+        ]),
+        connectionId: z.string().min(1),
+        generatorId: z.enum(["uiservice", "webapiservice"]).optional(),
+        referenceObjectName: z.string().min(1).optional(),
+        referenceObjectType: z.string().min(1).optional(),
+        packageName: z.string().min(1).optional(),
+        content: rapContentSchema.optional(),
+        transport: z.string().min(1).optional(),
+        serviceBindingName: z.string().min(1).optional(),
+        serviceName: z.string().min(1).optional(),
+        serviceVersion: z.string().min(1).optional(),
+        confirmation: z.string().min(1).optional(),
+        contentOffset: z.number().int().min(0).default(0),
+        contentLength: z.number().int().min(1).max(50000).default(10000)
+      },
+      annotations: writeAnnotations
+    },
+    async input => runTool(() => tools.manageRap({
+      action: input.action,
+      connectionId: input.connectionId,
+      contentOffset: input.contentOffset,
+      contentLength: input.contentLength,
+      ...(input.generatorId ? { generatorId: input.generatorId } : {}),
+      ...(input.referenceObjectName ? { referenceObjectName: input.referenceObjectName } : {}),
+      ...(input.referenceObjectType ? { referenceObjectType: input.referenceObjectType } : {}),
+      ...(input.packageName ? { packageName: input.packageName } : {}),
+      ...(input.content ? { content: input.content as RapGeneratorContent } : {}),
+      ...(input.transport ? { transport: input.transport } : {}),
+      ...(input.serviceBindingName ? { serviceBindingName: input.serviceBindingName } : {}),
+      ...(input.serviceName ? { serviceName: input.serviceName } : {}),
+      ...(input.serviceVersion ? { serviceVersion: input.serviceVersion } : {}),
+      ...(input.confirmation ? { confirmation: input.confirmation } : {})
+    }))
+  )
+
+  registerTool(
+    "manage_abap_versions",
+    {
+      title: "Manage ABAP Inactive and Version Source",
+      description:
+        "List inactive objects, read inactive source, or preview and execute restoration of a historical source revision.",
+      inputSchema: {
+        action: z.enum(["list_inactive", "get_inactive_source", "preview_restore", "execute_restore"]),
+        connectionId: z.string().min(1),
+        objectName: z.string().min(1).optional(),
+        objectType: z.string().min(1).optional(),
+        versionNumber: z.number().int().min(1).optional(),
+        planId: z.string().min(1).optional(),
+        confirmation: z.string().min(1).optional(),
+        transport: z.string().min(1).optional(),
+        activate: z.boolean().default(false),
+        startIndex: z.number().int().min(0).default(0),
+        maxResults: z.number().int().min(1).max(500).default(50),
+        startLine: z.number().int().min(1).default(1),
+        lineCount: z.number().int().min(1).max(5000).default(200)
+      },
+      annotations: writeAnnotations
+    },
+    async input => runTool(() => tools.manageVersions({
+      action: input.action,
+      connectionId: input.connectionId,
+      activate: input.activate,
+      startIndex: input.startIndex,
+      maxResults: input.maxResults,
+      startLine: input.startLine,
+      lineCount: input.lineCount,
+      ...(input.objectName ? { objectName: input.objectName } : {}),
+      ...(input.objectType ? { objectType: input.objectType } : {}),
+      ...(input.versionNumber !== undefined ? { versionNumber: input.versionNumber } : {}),
+      ...(input.planId ? { planId: input.planId } : {}),
+      ...(input.confirmation ? { confirmation: input.confirmation } : {}),
+      ...(input.transport ? { transport: input.transport } : {})
+    }))
+  )
+
+  registerTool(
+    "compare_abap_systems",
+    {
+      title: "Compare ABAP Across Systems",
+      description: "Compare the same active ABAP object on two configured SAP systems with a bounded unified diff.",
+      inputSchema: {
+        objectName: z.string().min(1),
+        objectType: z.string().min(1).optional(),
+        sourceConnectionId: z.string().min(1),
+        targetConnectionId: z.string().min(1),
+        ignoreWhitespace: z.boolean().default(false),
+        maxPatchLines: z.number().int().min(1).max(2000).default(200)
+      },
+      annotations: readOnlyAnnotations
+    },
+    async input => runTool(() => tools.compareSystems({
+      objectName: input.objectName,
+      sourceConnectionId: input.sourceConnectionId,
+      targetConnectionId: input.targetConnectionId,
+      ignoreWhitespace: input.ignoreWhitespace,
+      maxPatchLines: input.maxPatchLines,
+      ...(input.objectType ? { objectType: input.objectType } : {})
+    }))
+  )
+
+  registerTool(
+    "get_abap_dependency_graph",
+    {
+      title: "Get ABAP Dependency Graph",
+      description:
+        "Build a bounded where-used dependency graph. Edges point from each dependent object to the object it uses.",
+      inputSchema: {
+        objectName: z.string().min(1),
+        objectType: z.string().min(1).optional(),
+        connectionId: z.string().min(1),
+        line: z.number().int().min(1).optional(),
+        column: z.number().int().min(0).optional(),
+        depth: z.number().int().min(1).max(5).default(1),
+        maxNodes: z.number().int().min(2).max(500).default(100),
+        customOnly: z.boolean().default(false)
+      },
+      annotations: readOnlyAnnotations
+    },
+    async input => runTool(() => tools.dependencyGraph({
+      objectName: input.objectName,
+      connectionId: input.connectionId,
+      depth: input.depth,
+      maxNodes: input.maxNodes,
+      customOnly: input.customOnly,
+      ...(input.objectType ? { objectType: input.objectType } : {}),
+      ...(input.line !== undefined ? { line: input.line } : {}),
+      ...(input.column !== undefined ? { column: input.column } : {})
+    }))
+  )
+
+  registerTool(
+    "run_sap_transaction",
+    {
+      title: "Run SAP Transaction",
+      description:
+        "Build a validated SAP WebGUI transaction URL, or launch it with the local default browser. Parameter values use a restricted injection-safe character set.",
+      inputSchema: {
+        connectionId: z.string().min(1),
+        transactionCode: z.string().min(2),
+        parameters: z.record(z.string(), z.string()).optional(),
+        mode: z.enum(["url", "launch"]).default("url")
+      },
+      annotations: analysisAnnotations
+    },
+    async input => runTool(() => tools.runSapTransaction({
+      connectionId: input.connectionId,
+      transactionCode: input.transactionCode,
+      mode: input.mode,
+      ...(input.parameters ? { parameters: input.parameters } : {})
+    }))
   )
 
   return server

@@ -1,6 +1,6 @@
 {
   "name": "@coaspe/sap-abap-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Headless MCP server for SAP ABAP Development Tools",
   "type": "module",
   "bin": {
@@ -27,6 +27,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
     "abap-adt-api": "8.4.1",
+    "diff": "9.0.0",
     "docx": "9.5.1",
     "dompurify": "3.4.12",
     "exceljs": "^4.4.0",

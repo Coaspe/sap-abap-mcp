@@ -7,15 +7,12 @@ import {
   toolsForToolsets
 } from "../src/compat/abap-fs-tools.js"
 
-test("ABAP FS compatibility manifest tracks 42 unique MCP tools", () => {
+test("implementation preserves all 42 ABAP FS MCP tools and adds extension capabilities", () => {
   assert.equal(ABAP_FS_MCP_TOOL_NAMES.length, 42)
   assert.equal(new Set(ABAP_FS_MCP_TOOL_NAMES).size, 42)
-  assert.equal(IMPLEMENTED_TOOL_NAMES.length, 42)
-  assert.equal(new Set(IMPLEMENTED_TOOL_NAMES).size, 42)
-  assert.deepEqual(
-    [...IMPLEMENTED_TOOL_NAMES].sort(),
-    [...ABAP_FS_MCP_TOOL_NAMES].sort()
-  )
+  assert.equal(IMPLEMENTED_TOOL_NAMES.length, 50)
+  assert.equal(new Set(IMPLEMENTED_TOOL_NAMES).size, 50)
+  assert.ok(ABAP_FS_MCP_TOOL_NAMES.every(name => IMPLEMENTED_TOOL_NAMES.includes(name)))
 })
 
 test("static toolsets cover the full tool surface without changing all", () => {
@@ -25,5 +22,5 @@ test("static toolsets cover the full tool surface without changing all", () => {
     [...toolsForToolsets(["core"])].sort(),
     [...ABAP_MCP_TOOLSETS.core].sort()
   )
-  assert.equal(toolsForToolsets(["all"]).size, 42)
+  assert.equal(toolsForToolsets(["all"]).size, 50)
 })
