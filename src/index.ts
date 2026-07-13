@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url"
 import { AppError, errorPayload } from "./errors.js"
 import { ConnectionManager } from "./connection-manager.js"
 import { createMcpServer, startStdioServer } from "./mcp-server.js"
+import {
+  TOOLSET_NAMES,
+  toolsForToolsets,
+  type ToolsetName
+} from "./compat/abap-fs-tools.js"
 import { ProfileStore, type SapProfile } from "./profile-store.js"
 import { createDefaultSecretStore, type SecretStore } from "./secret-store.js"
 import { AbapToolService } from "./tool-service.js"
@@ -22,7 +27,7 @@ Commands:
   auth status <id>
   auth logout <id>
   doctor <id> [--include-components]
-  serve [--profile <id>]
+  serve [--profile <id>] [--toolsets core,write,analysis,debug,operations,artifacts|all]
 `
 
 interface ParsedArguments {
@@ -236,9 +241,28 @@ async function doctorCommand(parsed: ParsedArguments, profiles: ProfileStore, se
 async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, secrets: SecretStore) {
   const profileId = option(parsed, "profile")
   if (profileId) await profiles.get(profileId)
+  const toolsetsValue = option(parsed, "toolsets")
+  let enabledTools: ReadonlySet<string> | undefined
+  if (toolsetsValue) {
+    const toolsets = toolsetsValue.split(",").map(value => value.trim()).filter(Boolean)
+    const invalid = toolsets.filter(value =>
+      !TOOLSET_NAMES.includes(value as ToolsetName)
+    )
+    if (invalid.length > 0) {
+      throw new AppError(
+        "INVALID_TOOLSET",
+        `Unknown toolsets: ${invalid.join(", ")}`,
+        { available: TOOLSET_NAMES }
+      )
+    }
+    enabledTools = toolsForToolsets(toolsets as ToolsetName[])
+  }
 
   const manager = new ConnectionManager(profiles, secrets, undefined, profileId)
-  const server = createMcpServer(new AbapToolService(manager))
+  const server = createMcpServer(
+    new AbapToolService(manager),
+    enabledTools ? { enabledTools } : {}
+  )
   let closing = false
   const close = async () => {
     if (closing) return
