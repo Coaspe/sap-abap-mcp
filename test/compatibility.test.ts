@@ -135,6 +135,21 @@ test("published guides preserve current counts and live acceptance safety bounda
   assert.match(acceptance, /The execute response's `capabilityStatusAtExecution` is the pre-call status/)
   assert.match(acceptance, /`success` is `true`, `error` is empty, and output contains `MCP_REPL_OK`/)
 
+  const replSection = acceptance.split("## 5. Check and run the fixed ABAP REPL contract")[1]
+    ?.split("## 6. Inspect detailed semantic information")[0] ?? ""
+  assert.doesNotMatch(
+    replSection,
+    /`capabilityStatusAtExecution` is the pre-call status and may be `unverified`/
+  )
+  assert.match(
+    replSection,
+    /a successful execute should report `capabilityStatusAtExecution` as `supported`/
+  )
+  assert.match(
+    replSection,
+    /fresh `get_sap_capabilities` read remains the authoritative recorded evidence/
+  )
+
   const classesCleanup = acceptance.indexOf("Delete the three classes first")
   const bdefCleanup = acceptance.indexOf("Next, delete the `BDEF/BDO` behavior definition")
   const ddlsCleanup = acceptance.indexOf("Only after the behavior definition is gone, delete the `DDLS`")
