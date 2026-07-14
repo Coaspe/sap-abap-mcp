@@ -5,8 +5,8 @@ Use this canonical copy for directory submissions. Do not describe the server as
 ## Listing metadata
 
 - Name: SAP ABAP MCP
-- Official registry name: `io.github.coaspe/sap-abap-mcp`
-- Version: `0.4.1`
+- Official registry name: `io.github.Coaspe/sap-abap-mcp`
+- Version: `0.4.2`
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT

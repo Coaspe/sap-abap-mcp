@@ -2,13 +2,13 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import test from "node:test"
 
-const registryName = "io.github.coaspe/sap-abap-mcp"
+const registryName = "io.github.Coaspe/sap-abap-mcp"
 
 test("distribution metadata stays consistent across npm and the official MCP Registry", () => {
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
   const serverJson = JSON.parse(readFileSync("server.json", "utf8"))
 
-  assert.equal(packageJson.version, "0.4.1")
+  assert.equal(packageJson.version, "0.4.2")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
@@ -91,7 +91,7 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
 test("README explains registry installation without claiming live SAP verification", () => {
   const readme = readFileSync("README.md", "utf8")
   assert.match(readme, /## MCP directories and registries/)
-  assert.match(readme, /io\.github\.coaspe\/sap-abap-mcp/)
+  assert.match(readme, /io\.github\.Coaspe\/sap-abap-mcp/)
   assert.match(readme, /local `stdio` server/)
   assert.match(readme, /remain `unverified`/)
 })
