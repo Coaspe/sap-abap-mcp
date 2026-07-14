@@ -13,7 +13,7 @@ import { z } from "zod"
 import type { RapGeneratorContent } from "abap-adt-api"
 import { errorPayload } from "./errors.js"
 import { MERMAID_DIAGRAM_TYPES } from "./mermaid-tools.js"
-import type { AbapToolService } from "./tool-service.js"
+import type { AbapToolService, ActivateObjectInput } from "./tool-service.js"
 
 export const ABAP_OBJECT_TYPES = [
   "FUNC",
@@ -1288,25 +1288,26 @@ export function createMcpServer(
     async input => runTool(() => tools.exportAdtDiscovery(input.connectionId, input.mode))
   )
 
+  const activationInputSchema = z.union([
+    z.object({
+      url: z.string().min(1),
+      connectionId: z.string().min(1).optional()
+    }).strict(),
+    z.object({
+      urls: z.array(z.string().min(1)).min(1).max(100),
+      connectionId: z.string().min(1).optional()
+    }).strict()
+  ])
+
   registerTool(
     "abap_activate",
     {
-      title: "Activate ABAP Object",
-      description:
-        "Activate the ABAP object identified by an adt:// workspace URI or an ADT path plus connectionId.",
-      inputSchema: {
-        url: z.string().min(1),
-        connectionId: z.string().min(1).optional()
-      },
+      title: "Activate ABAP Object(s)",
+      description: "Activate one legacy object or one same-connection batch of 1 through 100 ABAP objects.",
+      inputSchema: activationInputSchema,
       annotations: writeAnnotations
     },
-    async input =>
-      runTool(() =>
-        tools.activateObject({
-          url: input.url,
-          ...(input.connectionId ? { connectionId: input.connectionId } : {})
-        })
-      )
+    async input => runTool(() => tools.activateObject(input as ActivateObjectInput))
   )
 
   registerTool(

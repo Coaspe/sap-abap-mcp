@@ -26,7 +26,8 @@ import type {
 import {
   AbapToolService,
   extractAbapMethod,
-  replaceExactlyOnce
+  replaceExactlyOnce,
+  type ActivateObjectInput
 } from "../src/tool-service.js"
 import { DEVELOPMENT_PARITY_FIXTURES } from "./fixtures/development-parity.js"
 
@@ -45,6 +46,17 @@ const source = [
   "  ENDMETHOD.",
   "ENDCLASS."
 ].join("\n")
+
+function inactiveClass(name: string): import("abap-adt-api").InactiveObjectRecord {
+  return { object: {
+    "adtcore:uri": `/sap/bc/adt/oo/classes/${name.toLowerCase()}`,
+    "adtcore:type": "CLAS/OC",
+    "adtcore:name": name,
+    "adtcore:parentUri": "",
+    user: "DEVELOPER",
+    deleted: false
+  } }
+}
 
 function systemInfo(profile: SapProfile): SapSystemInfo {
   return {
@@ -103,6 +115,12 @@ class FakeSapClient implements SapClient {
     messages: [],
     inactive: []
   }
+  batchActivationError?: Error
+  inactiveObjects: import("abap-adt-api").InactiveObjectRecord[] = [
+    inactiveClass("ZCL_FIRST"),
+    inactiveClass("ZCL_SECOND")
+  ]
+  inactiveObjectCalls = 0
   classRunCalls = 0
   replHealthCalls = 0
   replExecuteCalls = 0
@@ -122,7 +140,8 @@ class FakeSapClient implements SapClient {
     objectType?: string,
     _maxResults?: number
   ): Promise<SapObjectReference[]> {
-    if (query.toUpperCase() === "Z_DEMO" && (!objectType || objectType.startsWith("DEVC"))) {
+    const normalizedQuery = query.trim().toUpperCase()
+    if (normalizedQuery === "Z_DEMO" && (!objectType || objectType.startsWith("DEVC"))) {
       return [{
         name: "Z_DEMO",
         type: "DEVC/K",
@@ -131,7 +150,17 @@ class FakeSapClient implements SapClient {
         packageName: "Z_DEMO"
       }]
     }
-    if (!query.toUpperCase().includes("ZCL_DEMO")) return []
+    if (["ZCL_FIRST", "ZCL_SECOND"].includes(normalizedQuery)) {
+      if (objectType && objectType.replace(/\/.*$/, "") !== "CLAS") return []
+      return [{
+        name: normalizedQuery,
+        type: "CLAS/OC",
+        uri: `/sap/bc/adt/oo/classes/${normalizedQuery.toLowerCase()}`,
+        description: normalizedQuery,
+        packageName: "Z_DEMO"
+      }]
+    }
+    if (!normalizedQuery.includes("ZCL_DEMO")) return []
     if (objectType && objectType.replace(/\/.*$/, "") !== "CLAS") return []
     return [object]
   }
@@ -157,11 +186,13 @@ class FakeSapClient implements SapClient {
   }
 
   async getObjectStructure(uri: string): Promise<any> {
+    const className = uri.match(/\/sap\/bc\/adt\/oo\/classes\/([^/]+)$/i)?.[1]
+    const name = className?.toUpperCase() ?? object.name
     return {
       objectUrl: uri,
       metaData: {
-        "adtcore:name": object.name,
-        "adtcore:type": object.type,
+        "adtcore:name": name,
+        "adtcore:type": className ? "CLAS/OC" : object.type,
         "adtcore:changedAt": 0,
         "adtcore:changedBy": "DEVELOPER",
         "adtcore:createdAt": 0,
@@ -279,6 +310,7 @@ class FakeSapClient implements SapClient {
   ): Promise<import("abap-adt-api").ActivationResult> {
     this.batchActivationCalls += 1
     this.lastBatchActivation = objects
+    if (this.batchActivationError) throw this.batchActivationError
     return this.batchActivationResult
   }
 
@@ -490,14 +522,8 @@ class FakeSapClient implements SapClient {
   }
 
   async getInactiveObjects(): Promise<any[]> {
-    return [{ object: {
-      "adtcore:uri": object.uri,
-      "adtcore:type": object.type,
-      "adtcore:name": object.name,
-      "adtcore:parentUri": "",
-      user: "DEVELOPER",
-      deleted: false
-    } }]
+    this.inactiveObjectCalls += 1
+    return this.inactiveObjects
   }
 
   async getCodeCompletions(): Promise<any[]> {
@@ -1000,6 +1026,157 @@ function createBdefHarness() {
   })
   return { fake, service }
 }
+
+function createActivationHarness() {
+  const profile: SapProfile = {
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    language: "EN",
+    environment: "development",
+    authType: "basic",
+    username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO"]
+  }
+  const fake = new FakeSapClient(profile)
+  let getClientCalls = 0
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() {
+      getClientCalls += 1
+      return fake
+    }
+  })
+  return { fake, service, getClientCalls: () => getClientCalls }
+}
+
+test("activateObject validates batches and classifies one SAP activation response conservatively", async () => {
+  const firstUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main"
+  const secondUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_second/source/main"
+  const expectValidation = async (
+    operation: Promise<unknown>,
+    message: string,
+    reason: string
+  ) => assert.rejects(operation, (error: unknown) => {
+    assert.ok(error instanceof AppError)
+    assert.equal(error.code, "SAP_VALIDATION_FAILED")
+    assert.equal(error.message, message)
+    assert.deepEqual(error.details, { reason })
+    return true
+  })
+
+  const ambiguous = createActivationHarness()
+  await expectValidation(
+    ambiguous.service.activateObject({
+      url: firstUrl,
+      urls: [firstUrl]
+    } as unknown as ActivateObjectInput),
+    "Provide exactly one of url or urls",
+    "ACTIVATION_INPUT_AMBIGUOUS"
+  )
+  assert.equal(ambiguous.getClientCalls(), 0)
+  assert.equal(ambiguous.fake.batchActivationCalls, 0)
+
+  const empty = createActivationHarness()
+  await expectValidation(
+    empty.service.activateObject({ urls: [] }),
+    "Batch activation requires 1 through 100 URLs",
+    "ACTIVATION_CARDINALITY_INVALID"
+  )
+  assert.equal(empty.fake.batchActivationCalls, 0)
+  assert.equal(empty.getClientCalls(), 0)
+
+  const oversized = createActivationHarness()
+  await expectValidation(
+    oversized.service.activateObject({ urls: Array.from({ length: 101 }, () => firstUrl) }),
+    "Batch activation requires 1 through 100 URLs",
+    "ACTIVATION_CARDINALITY_INVALID"
+  )
+  assert.equal(oversized.fake.batchActivationCalls, 0)
+  assert.equal(oversized.getClientCalls(), 0)
+
+  const crossConnection = createActivationHarness()
+  await expectValidation(
+    crossConnection.service.activateObject({
+      urls: [firstUrl, "adt://qas200/sap/bc/adt/oo/classes/zcl_second/source/main"]
+    }),
+    "Batch activation requires exactly one connection",
+    "CROSS_CONNECTION_BATCH"
+  )
+  assert.equal(crossConnection.getClientCalls(), 0)
+  assert.equal(crossConnection.fake.batchActivationCalls, 0)
+
+  const legacy = createActivationHarness()
+  assert.deepEqual(
+    await legacy.service.activateObject({
+      url: `adt://dev100${object.uri}/source/main`
+    }),
+    {
+      connectionId: "DEV100",
+      object,
+      success: true,
+      messages: [],
+      inactive: []
+    }
+  )
+  assert.equal(legacy.fake.batchActivationCalls, 0)
+
+  const complete = createActivationHarness()
+  const completeResult = await complete.service.activateObject({
+    urls: [firstUrl, secondUrl]
+  }) as unknown as {
+    status: string
+    requested: SapObjectReference[]
+    objectResults: Array<{ outcome: string }>
+  }
+  assert.equal(completeResult.status, "complete")
+  assert.deepEqual(completeResult.requested.map(item => item.name), ["ZCL_FIRST", "ZCL_SECOND"])
+  assert.deepEqual(completeResult.objectResults.map(item => item.outcome), ["activated", "activated"])
+  assert.equal(complete.getClientCalls(), 1)
+  assert.equal(complete.fake.inactiveObjectCalls, 1)
+  assert.equal(complete.fake.batchActivationCalls, 1)
+  assert.deepEqual(
+    complete.fake.lastBatchActivation.map(item => item["adtcore:name"]),
+    ["ZCL_FIRST", "ZCL_SECOND"]
+  )
+
+  const noInactive = createActivationHarness()
+  noInactive.fake.inactiveObjects = []
+  const noInactiveResult = await noInactive.service.activateObject({ urls: [firstUrl] }) as unknown as {
+    status: string
+    objectResults: Array<{ outcome: string }>
+  }
+  assert.equal(noInactiveResult.status, "partial")
+  assert.deepEqual(noInactiveResult.objectResults.map(item => item.outcome), ["unknown"])
+  assert.equal(noInactive.fake.batchActivationCalls, 0)
+
+  const partial = createActivationHarness()
+  partial.fake.batchActivationResult = {
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.activationPartial),
+    inactive: [inactiveClass("ZCL_SECOND")]
+  }
+  const partialResult = await partial.service.activateObject({
+    urls: [firstUrl, secondUrl]
+  }) as unknown as {
+    status: string
+    objectResults: Array<{ outcome: string }>
+  }
+  assert.equal(partialResult.status, "partial")
+  assert.deepEqual(partialResult.objectResults.map(item => item.outcome), ["unknown", "failed"])
+  assert.equal(partial.fake.batchActivationCalls, 1)
+
+  const executionFailure = createActivationHarness()
+  executionFailure.fake.batchActivationError = new Error("SAP activation failed")
+  await assert.rejects(
+    executionFailure.service.activateObject({ urls: [firstUrl, secondUrl] }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_OPERATION_FAILED")
+      return true
+    }
+  )
+  assert.equal(executionFailure.fake.batchActivationCalls, 1)
+})
 
 test("ConnectionManager logs in once, caches the client, and logs out", async t => {
   const directory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-connection-"))
@@ -2040,6 +2217,12 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     idempotentHint: true,
     openWorldHint: true
   })
+  const activationTool = listed.tools.find(tool => tool.name === "abap_activate")
+  assert.equal(activationTool?.title, "Activate ABAP Object(s)")
+  assert.equal(
+    activationTool?.description,
+    "Activate one legacy object or one same-connection batch of 1 through 100 ABAP objects."
+  )
   const filteredServer = createMcpServer(service, {
     enabledTools: new Set(["get_connected_systems"])
   })
@@ -2371,6 +2554,43 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     url: `adt://dev100${object.uri}/source/main`
   })
   assert.equal(activated.success, true)
+  assert.equal(fake.batchActivationCalls, 0)
+  const batchActivated = await callJson("abap_activate", {
+    urls: [
+      "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main",
+      "adt://dev100/sap/bc/adt/oo/classes/zcl_second/source/main"
+    ]
+  })
+  assert.equal(batchActivated.status, "complete")
+  assert.deepEqual(
+    batchActivated.objectResults.map((item: { outcome: string }) => item.outcome),
+    ["activated", "activated"]
+  )
+  assert.equal(fake.batchActivationCalls, 1)
+  const ambiguousActivation = await client.callTool({
+    name: "abap_activate",
+    arguments: {
+      url: `adt://dev100${object.uri}/source/main`,
+      urls: [`adt://dev100${object.uri}/source/main`]
+    }
+  })
+  assert.equal(ambiguousActivation.isError, true)
+  assert.match(
+    ((ambiguousActivation as { content: Array<{ type: "text"; text: string }> })
+      .content[0] as { type: "text"; text: string }).text,
+    /Invalid arguments/
+  )
+  const emptyActivation = await client.callTool({
+    name: "abap_activate",
+    arguments: { urls: [] }
+  })
+  assert.equal(emptyActivation.isError, true)
+  assert.match(
+    ((emptyActivation as { content: Array<{ type: "text"; text: string }> })
+      .content[0] as { type: "text"; text: string }).text,
+    /Invalid arguments/
+  )
+  assert.equal(fake.batchActivationCalls, 1)
 
   const created = await callJson("create_object_programmatically", {
     objectType: "CLAS/OC",
@@ -2812,11 +3032,11 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   const inactive = await callJson("manage_abap_versions", {
     action: "get_inactive_source",
     connectionId: "DEV100",
-    objectName: "ZCL_DEMO",
+    objectName: "ZCL_FIRST",
     objectType: "CLAS/OC",
     lineCount: 2
   })
-  assert.equal(inactive.object.name, "ZCL_DEMO")
+  assert.equal(inactive.object.name, "ZCL_FIRST")
   const restorePreview = await callJson("manage_abap_versions", {
     action: "preview_restore",
     connectionId: "DEV100",
