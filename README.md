@@ -15,11 +15,19 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 - SAP API client: `abap-adt-api` 8.4.1
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
-The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 50 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
+The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 52 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
+
+## ABAP FS parity status
+
+The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless extensions, this server advertises 52 tools in total.
+
+The first development-parity slice implements BDEF source creation, one-request batch activation, class-runner execution, the ABAP FS REPL contract, and detailed semantic inspection. These SAP-dependent capabilities remain `unverified` until they succeed against the selected live connection; call `get_sap_capabilities` for per-connection evidence.
+
+Snippet execution requires `ZCL_ABAP_REPL` and an active SICF service at `/sap/bc/z_abap_repl`. Generic report/program-console execution is not implemented.
 
 ## What it supports
 
-The server preserves all 42 MCP tools exposed by ABAP FS 2.6.5 and adds eight grouped tools for extension capabilities that were not available through the ABAP FS MCP surface.
+The server provides all 42 strict-compatible headless tools from the pinned ABAP FS baseline and adds ten grouped extension tools.
 
 | Area | Capabilities |
 |---|---|
@@ -40,7 +48,7 @@ The server preserves all 42 MCP tools exposed by ABAP FS 2.6.5 and adds eight gr
 | Data | Read-only ADT SQL queries with bounded or file-based output |
 | Artifacts | Mermaid validation/viewer and DOCX test documentation |
 
-The eight grouped extension tools are:
+The ten grouped extension tools are:
 
 - `inspect_abap_code`
 - `refactor_abap_code`
@@ -50,6 +58,8 @@ The eight grouped extension tools are:
 - `compare_abap_systems`
 - `get_abap_dependency_graph`
 - `run_sap_transaction`
+- `get_sap_capabilities`
+- `run_abap_application`
 
 Grouping related actions keeps the tool-schema footprint lower than exposing every operation as a separate MCP tool.
 
