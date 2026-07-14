@@ -1,7 +1,27 @@
 {
   "name": "@coaspe/sap-abap-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Headless MCP server for SAP ABAP Development Tools",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "sap",
+    "abap",
+    "adt",
+    "claude",
+    "codex",
+    "developer-tools"
+  ],
+  "homepage": "https://github.com/Coaspe/sap-abap-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Coaspe/sap-abap-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Coaspe/sap-abap-mcp.git"
+  },
+  "license": "MIT",
+  "mcpName": "io.github.coaspe/sap-abap-mcp",
   "type": "module",
   "bin": {
     "sap-abap-mcp": "dist/src/index.js"
@@ -9,7 +29,11 @@
   "files": [
     "dist/src",
     "docs",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "server.json",
+    "llms-install.md",
+    "assets"
   ],
   "publishConfig": {
     "access": "public",
@@ -17,6 +41,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:mcpb": "bash scripts/build-mcpb.sh",
     "test": "npm run build && node --test dist/test/*.test.js",
     "start": "node dist/src/index.js",
     "check": "npm run build && npm test"
