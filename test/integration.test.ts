@@ -2532,6 +2532,33 @@ test("semantic inspect actions use one SapClient call, paginate, and bound inlin
     components: harness.fake.classComponentsCalls
   })
 
+  const existingAction = createBdefHarness()
+  const existingCompletion = await existingAction.service.inspectCode({
+    action: "completion",
+    fileUri,
+    line: 3,
+    column: 8,
+    implementation: false,
+    startIndex: 0,
+    maxResults: 10
+  }) as any
+  assert.equal(existingCompletion.proposals[0].identifier, "WRITE")
+
+  const omittedHierarchy = createBdefHarness()
+  await omittedHierarchy.service.inspectCode({
+    action: "type_hierarchy",
+    fileUri,
+    line: 1,
+    column: 0,
+    implementation: false,
+    startIndex: 0,
+    maxResults: 10
+  })
+  assert.deepEqual(
+    omittedHierarchy.fake.typeHierarchyArgs.map(call => call.superTypes),
+    [false]
+  )
+
   harness.fake.completionElementResult = {
     ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.completionElement),
     components: [
@@ -2676,6 +2703,22 @@ test("semantic inspect actions use one SapClient call, paginate, and bound inlin
     components: 1
   })
 
+  const inlineLimit = 96 * 1024
+  harness.fake.completionElementResult = {
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.completionElement),
+    doc: "🙂".repeat(inlineLimit / 4 + 1)
+  }
+  const boundedStructured = await harness.service.inspectCode({
+    ...baseInput,
+    action: "completion_element"
+  }) as any
+  assert.equal(boundedStructured.format, "structured")
+  assert.equal(boundedStructured.element.docTruncated, true)
+  assert.ok(Buffer.byteLength(boundedStructured.element.doc, "utf8") <= inlineLimit)
+  assert.equal(boundedStructured.element.doc.includes("�"), false)
+  assert.equal(boundedStructured.element.doc.endsWith("🙂"), true)
+  assert.equal(/[\uD800-\uDBFF]$/.test(boundedStructured.element.doc), false)
+
   harness.fake.completionElementResult = "legacy completion"
   const legacy = await harness.service.inspectCode({
     ...baseInput,
@@ -2687,7 +2730,6 @@ test("semantic inspect actions use one SapClient call, paginate, and bound inlin
   assert.equal(legacy.returnedBytes, legacy.originalBytes)
   assert.equal(legacy.truncated, false)
 
-  const inlineLimit = 96 * 1024
   harness.fake.completionElementResult = "🙂".repeat(inlineLimit / 4 + 1)
   const bounded = await harness.service.inspectCode({
     ...baseInput,

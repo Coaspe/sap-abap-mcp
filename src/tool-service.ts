@@ -293,7 +293,7 @@ export interface InspectCodeInput extends WorkspaceFileInput {
   column: number
   endColumn?: number
   implementation: boolean
-  superTypes: boolean
+  superTypes?: boolean
   startIndex: number
   maxResults: number
 }
@@ -723,22 +723,18 @@ function boundInlineText(value: string, byteLimit = INLINE_TEXT_BYTE_LIMIT) {
   if (originalBytes <= byteLimit) {
     return { content: value, originalBytes, returnedBytes: originalBytes, truncated: false }
   }
-  const characters = [...value]
-  let low = 0
-  let high = characters.length
-  while (low < high) {
-    const middle = Math.ceil((low + high) / 2)
-    if (Buffer.byteLength(characters.slice(0, middle).join(""), "utf8") <= byteLimit) {
-      low = middle
-    } else {
-      high = middle - 1
-    }
+  let content = ""
+  let returnedBytes = 0
+  for (const character of value) {
+    const characterBytes = Buffer.byteLength(character, "utf8")
+    if (returnedBytes + characterBytes > byteLimit) break
+    content += character
+    returnedBytes += characterBytes
   }
-  const content = characters.slice(0, low).join("")
   return {
     content,
     originalBytes,
-    returnedBytes: Buffer.byteLength(content, "utf8"),
+    returnedBytes,
     truncated: true
   }
 }
@@ -1449,7 +1445,7 @@ export class AbapToolService {
           target.source,
           input.line,
           input.column,
-          input.superTypes
+          input.superTypes ?? false
         )
       )
       const page = pageItems(result, input.startIndex, input.maxResults)
