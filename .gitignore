@@ -5,3 +5,4 @@ dist/
 .sap-abap/
 .sap-abap-mcp.json
 .worktrees/
+artifacts/
