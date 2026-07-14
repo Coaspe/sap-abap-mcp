@@ -90,7 +90,7 @@ export function createMcpServer(
     { name: "sap-abap-mcp", version: "0.3.0" },
     {
       instructions:
-        "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Writes are blocked for production profiles and restricted to each profile's allowedPackages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
+        "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
   )
   const readOnlyAnnotations = {
@@ -431,7 +431,7 @@ export function createMcpServer(
     {
       title: "Create ABAP Object Programmatically",
       description:
-        "Validate and create an ADT repository object. Non-local packages require an existing or new transport request; the package must be in the profile write allowlist.",
+        "Validate and create an ADT repository object. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package.",
       inputSchema: {
         objectType: z.string().min(1).describe("Creatable ADT type such as PROG/P or CLAS/OC"),
         name: z.string().min(1),
@@ -828,7 +828,7 @@ export function createMcpServer(
     {
       title: "Create ABAP Test Include",
       description:
-        "Create a class test include under an allowlisted package. A transport is required outside $TMP.",
+        "Create a class test include under a package permitted by the profile's optional allowlist. A transport is required outside $TMP.",
       inputSchema: {
         className: z.string().min(1),
         connectionId: z.string().min(1),

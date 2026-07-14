@@ -41,7 +41,7 @@ function defaultConfigDirectory(): string {
   return join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "sap-abap-mcp")
 }
 
-function normalizeProfile(input: SapProfileInput): SapProfile {
+export function normalizeProfile(input: SapProfileInput): SapProfile {
   return profileSchema.parse({
     id: input.id.trim().toUpperCase(),
     url: input.url.trim().replace(/\/+$/, ""),

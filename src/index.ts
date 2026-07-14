@@ -11,7 +11,12 @@ import {
   toolsForToolsets,
   type ToolsetName
 } from "./compat/abap-fs-tools.js"
-import { ProfileStore, type SapProfile } from "./profile-store.js"
+import {
+  normalizeProfile,
+  ProfileStore,
+  type SapProfile,
+  type SapProfileInput
+} from "./profile-store.js"
 import { createDefaultSecretStore, type SecretStore } from "./secret-store.js"
 import { AbapToolService } from "./tool-service.js"
 import {
@@ -26,7 +31,7 @@ const HELP = `sap-abap-mcp
 Commands:
   profile add <id> --url <url> --client <nnn> [--language EN]
       [--environment development|quality|production] [--username <user>]
-      [--packages ZPKG1,ZPKG2]
+      [--packages ZPKG1,ZPKG2] [--login [--password-stdin]]
   profile list
   profile remove <id>
   auth login <id> [--username <user>] [--password-stdin]
@@ -153,6 +158,34 @@ function withUsername(profile: SapProfile, username: string): SapProfile & { use
   return { ...profile, username: username.trim() }
 }
 
+export interface ProfileLoginOptions {
+  password: string
+  validateCredentials: (profile: SapProfile, password: string) => Promise<void>
+}
+
+export async function addProfile(
+  input: SapProfileInput,
+  profiles: ProfileStore,
+  secrets: SecretStore,
+  login?: ProfileLoginOptions
+): Promise<{ profile: SapProfile; credentialStored?: true }> {
+  const profile = normalizeProfile(input)
+  if (!login) {
+    await profiles.upsert(input)
+    return { profile }
+  }
+  if (!profile.username) {
+    throw new AppError("USERNAME_REQUIRED", "Provide --username when using --login")
+  }
+  if (!login.password) {
+    throw new AppError("PASSWORD_REQUIRED", "SAP password cannot be empty")
+  }
+  await login.validateCredentials(profile, login.password)
+  await profiles.upsert(input)
+  await secrets.set(profile.id, login.password)
+  return { profile, credentialStored: true }
+}
+
 async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, secrets: SecretStore) {
   const action = requiredPosition(parsed, 1, "profile action")
 
@@ -168,7 +201,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     const environment = option(parsed, "environment")
     const username = option(parsed, "username")
     const packages = option(parsed, "packages")
-    const profile = await profiles.upsert({
+    const input: SapProfileInput = {
       id,
       url: requiredOption(parsed, "url"),
       client: requiredOption(parsed, "client"),
@@ -176,8 +209,24 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
       ...(environment ? { environment: environment as SapProfile["environment"] } : {}),
       ...(username ? { username } : {}),
       ...(packages ? { allowedPackages: packages.split(",") } : {})
-    })
-    writeJson({ profile })
+    }
+    if (!parsed.options.has("login")) {
+      writeJson(await addProfile(input, profiles, secrets))
+      return
+    }
+
+    const candidate = normalizeProfile(input)
+    if (!candidate.username) {
+      throw new AppError("USERNAME_REQUIRED", "Provide --username when using --login")
+    }
+    const password = parsed.options.has("password-stdin")
+      ? await readAllStdin()
+      : await promptSecret("SAP password: ")
+    const manager = new ConnectionManager(profiles, secrets)
+    writeJson(await addProfile(input, profiles, secrets, {
+      password,
+      validateCredentials: (profile, value) => manager.validateCredentials(profile, value)
+    }))
     return
   }
 
