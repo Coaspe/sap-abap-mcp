@@ -26,6 +26,7 @@ import {
   extractAbapMethod,
   replaceExactlyOnce
 } from "../src/tool-service.js"
+import { DEVELOPMENT_PARITY_FIXTURES } from "./fixtures/development-parity.js"
 
 const object: SapObjectReference = {
   name: "ZCL_DEMO",
@@ -73,6 +74,16 @@ class FakeSapClient implements SapClient {
   transportMutations: string[] = []
   gitAuthCalls: Array<{ url: string; user?: string; password?: string }> = []
   serviceBindingProtocol = "V4"
+  batchActivationCalls = 0
+  lastBatchActivation: import("abap-adt-api").InactiveObject[] = []
+  batchActivationResult: import("abap-adt-api").ActivationResult = {
+    success: true,
+    messages: [],
+    inactive: []
+  }
+  classRunCalls = 0
+  replHealthCalls = 0
+  replExecuteCalls = 0
 
   constructor(readonly profile: SapProfile) {}
 
@@ -225,6 +236,14 @@ class FakeSapClient implements SapClient {
 
   async activateObject(): Promise<any> {
     return { success: true, messages: [], inactive: [] }
+  }
+
+  async activateObjects(
+    objects: import("abap-adt-api").InactiveObject[]
+  ): Promise<import("abap-adt-api").ActivationResult> {
+    this.batchActivationCalls += 1
+    this.lastBatchActivation = objects
+    return this.batchActivationResult
   }
 
   async validateNewObject(): Promise<any> {
@@ -442,6 +461,44 @@ class FakeSapClient implements SapClient {
       QUICKINFO_EVENT: 0, INSERT_EVENT: 0, IS_META: 0, PREFIXLENGTH: 0, ROLE: 0,
       LOCATION: 0, GRADE: 1, VISIBILITY: 0, IS_INHERITED: 0, PROP1: 0, PROP2: 0,
       PROP3: 0, SYNTCNTXT: 0 }]
+  }
+
+  async getCodeCompletionElement(): Promise<string | import("abap-adt-api").CompletionElementInfo> {
+    return structuredClone(DEVELOPMENT_PARITY_FIXTURES.completionElement)
+  }
+
+  async getAbapDocumentation(): Promise<string> {
+    return DEVELOPMENT_PARITY_FIXTURES.documentation
+  }
+
+  async getTypeHierarchy(): Promise<import("abap-adt-api").HierarchyNode[]> {
+    return structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy)
+  }
+
+  async getClassComponents(): Promise<import("abap-adt-api").ClassComponent> {
+    return structuredClone(DEVELOPMENT_PARITY_FIXTURES.components)
+  }
+
+  async runClass(className: string): Promise<string> {
+    this.classRunCalls += 1
+    return `runner output: ${className}`
+  }
+
+  async checkReplAvailability() {
+    this.replHealthCalls += 1
+    return {
+      status: "ok",
+      version: "1",
+      user: "DEVELOPER",
+      system: "DEV",
+      client: "100",
+      production: false
+    }
+  }
+
+  async executeAbapCode(code: string) {
+    this.replExecuteCalls += 1
+    return { success: true, output: code, error: "", runtime_ms: 1 }
   }
 
   async findDefinition(): Promise<any> {
