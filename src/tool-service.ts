@@ -2080,7 +2080,6 @@ export class AbapToolService {
         error instanceof AppError ? error.code : normalized.code,
         normalized.message,
         {
-          ...(error instanceof AppError && error.details ? error.details : {}),
           ...normalized.details,
           stage,
           created: true,
