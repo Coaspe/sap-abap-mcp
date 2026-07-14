@@ -234,7 +234,7 @@ Transport release and deletion can be irreversible. Use a dedicated transport an
 The server is designed to keep model context usage bounded without removing useful data:
 
 - Related operations are grouped into action-based tools.
-- The complete 50-tool schema is kept below a 64 KiB automated guardrail.
+- The complete 52-tool schema is kept below a 64 KiB automated guardrail.
 - Source, search, SQL, ATC, dump, trace, transport, version, Git, and RAP schema responses are paged or summarized.
 - Unified diffs are limited by both line count and byte size.
 - Large source responses are bounded by an inline byte budget.
