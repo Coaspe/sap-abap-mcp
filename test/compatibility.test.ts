@@ -10,8 +10,8 @@ import {
 test("implementation preserves all 42 ABAP FS MCP tools and adds extension capabilities", () => {
   assert.equal(ABAP_FS_MCP_TOOL_NAMES.length, 42)
   assert.equal(new Set(ABAP_FS_MCP_TOOL_NAMES).size, 42)
-  assert.equal(IMPLEMENTED_TOOL_NAMES.length, 51)
-  assert.equal(new Set(IMPLEMENTED_TOOL_NAMES).size, 51)
+  assert.equal(IMPLEMENTED_TOOL_NAMES.length, 52)
+  assert.equal(new Set(IMPLEMENTED_TOOL_NAMES).size, 52)
   assert.ok(ABAP_FS_MCP_TOOL_NAMES.every(name => IMPLEMENTED_TOOL_NAMES.includes(name)))
 })
 
@@ -24,9 +24,13 @@ test("static toolsets cover the full tool surface without changing all", () => {
     ).length,
     1
   )
+  assert.equal(
+    ABAP_MCP_TOOLSETS.write.filter(name => name === "run_abap_application").length,
+    1
+  )
   assert.deepEqual(
     [...toolsForToolsets(["core"])].sort(),
     [...ABAP_MCP_TOOLSETS.core].sort()
   )
-  assert.equal(toolsForToolsets(["all"]).size, 51)
+  assert.equal(toolsForToolsets(["all"]).size, 52)
 })

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { createHash } from "node:crypto"
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -128,8 +129,15 @@ class FakeSapClient implements SapClient {
   ]
   inactiveObjectCalls = 0
   classRunCalls = 0
+  classRunResult?: string
+  classRunError?: Error
   replHealthCalls = 0
+  replProduction = false
+  replHealthResult?: Awaited<ReturnType<SapClient["checkReplAvailability"]>>
+  replHealthError?: Error
   replExecuteCalls = 0
+  replExecutionResult?: Awaited<ReturnType<SapClient["executeAbapCode"]>>
+  replExecutionError?: Error
   codeCompletionCalls = 0
   completionElementCalls = 0
   completionElementArgs: Array<{
@@ -623,24 +631,27 @@ class FakeSapClient implements SapClient {
 
   async runClass(className: string): Promise<string> {
     this.classRunCalls += 1
-    return `runner output: ${className}`
+    if (this.classRunError) throw this.classRunError
+    return this.classRunResult ?? `runner output: ${className}`
   }
 
   async checkReplAvailability() {
     this.replHealthCalls += 1
-    return {
+    if (this.replHealthError) throw this.replHealthError
+    return this.replHealthResult ?? {
       status: "ok",
       version: "1",
       user: "DEVELOPER",
       system: "DEV",
       client: "100",
-      production: false
+      production: this.replProduction
     }
   }
 
   async executeAbapCode(code: string) {
     this.replExecuteCalls += 1
-    return { success: true, output: code, error: "", runtime_ms: 1 }
+    if (this.replExecutionError) throw this.replExecutionError
+    return this.replExecutionResult ?? { success: true, output: code, error: "", runtime_ms: 1 }
   }
 
   async findDefinition(): Promise<any> {
@@ -1121,6 +1132,407 @@ function createActivationHarness() {
   })
   return { fake, service, getClientCalls: () => getClientCalls }
 }
+
+function createApplicationHarness() {
+  const profile: SapProfile = {
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    language: "EN",
+    environment: "development",
+    authType: "basic",
+    username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO"]
+  }
+  const fake = new FakeSapClient(profile)
+  const other = new FakeSapClient({ ...profile, id: "QAS200", client: "200" })
+  const clients = new Map<string, FakeSapClient>([
+    [profile.id, fake],
+    [other.profile.id, other]
+  ])
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient(connectionId) {
+      const client = clients.get(connectionId.trim().toUpperCase())
+      if (!client) throw new Error(`Unknown test connection ${connectionId}`)
+      return client
+    }
+  })
+  return { fake, other, service }
+}
+
+function expectApplicationValidation(reason: string, message?: string) {
+  return (error: unknown) => {
+    assert.ok(error instanceof AppError)
+    assert.equal(error.code, "SAP_VALIDATION_FAILED")
+    assert.equal(error.details?.reason, reason)
+    if (message !== undefined) assert.equal(error.message, message)
+    return true
+  }
+}
+
+test("ABAP application plans enforce exact confirmations, connection binding, expiry, and validation", {
+  concurrency: false
+}, async () => {
+  const harness = createApplicationHarness()
+  const classPreview = await harness.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: " dev100 ",
+    className: " ZCL_RUNNER "
+  }) as Record<string, any>
+  assert.equal(classPreview.confirmation, "RUN_CLASS:DEV100:ZCL_RUNNER")
+  assert.equal(classPreview.action, "preview_class")
+  assert.equal(classPreview.capabilityStatus, "unverified")
+  const planMaps = harness.service as unknown as {
+    executionPlans: Map<string, unknown>
+    refactorPlans: Map<string, unknown>
+  }
+  assert.equal(planMaps.executionPlans.has(classPreview.planId), true)
+  assert.equal(planMaps.refactorPlans.has(classPreview.planId), false)
+
+  await assert.rejects(
+    harness.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: classPreview.planId,
+      confirmation: `${classPreview.confirmation}:WRONG`
+    }),
+    expectApplicationValidation("CONFIRMATION_MISMATCH")
+  )
+  assert.equal(harness.fake.classRunCalls, 0)
+  const classResult = await harness.service.runAbapApplication({
+    action: "execute",
+    connectionId: " dev100 ",
+    planId: classPreview.planId,
+    confirmation: classPreview.confirmation
+  }) as Record<string, any>
+  assert.equal(classResult.kind, "class")
+  assert.match(classResult.output, /runner output: ZCL_RUNNER/)
+  assert.equal(harness.fake.classRunCalls, 1)
+  assert.equal(harness.fake.replHealthCalls, 0)
+  assert.equal(harness.fake.replExecuteCalls, 0)
+  await assert.rejects(
+    harness.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: classPreview.planId,
+      confirmation: classPreview.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED")
+  )
+
+  const connectionPreview = await harness.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "/ACME/Z_RUN"
+  }) as Record<string, any>
+  await assert.rejects(
+    harness.service.runAbapApplication({
+      action: "execute",
+      connectionId: " qas200 ",
+      planId: connectionPreview.planId,
+      confirmation: connectionPreview.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_CONNECTION_MISMATCH")
+  )
+  await harness.service.runAbapApplication({
+    action: "execute",
+    connectionId: " dev100 ",
+    planId: connectionPreview.planId,
+    confirmation: connectionPreview.confirmation
+  })
+  assert.equal(harness.fake.classRunCalls, 2)
+  assert.equal(harness.other.classRunCalls, 0)
+
+  const code = "WRITE 42."
+  const snippetPreview = await harness.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code
+  }) as Record<string, any>
+  const digest = createHash("sha256").update(code).digest("hex").slice(0, 12)
+  assert.equal(snippetPreview.confirmation, `RUN_SNIPPET:DEV100:${digest}`)
+  assert.equal(snippetPreview.confirmation.includes(code), false)
+  assert.equal(snippetPreview.codeBytes, Buffer.byteLength(code, "utf8"))
+
+  for (const className of ["zcl_lower", "ZCL-BAD", `Z${"A".repeat(30)}`]) {
+    await assert.rejects(
+      harness.service.runAbapApplication({
+        action: "preview_class",
+        connectionId: "DEV100",
+        className
+      }),
+      expectApplicationValidation("CLASS_NAME_INVALID")
+    )
+  }
+  for (const invalidCode of [" \t ", "한".repeat(32_769)]) {
+    await assert.rejects(
+      harness.service.runAbapApplication({
+        action: "preview_snippet",
+        connectionId: "DEV100",
+        code: invalidCode
+      }),
+      (error: unknown) => {
+        assert.ok(expectApplicationValidation("SNIPPET_SIZE_INVALID")(error))
+        assert.equal((error as AppError).details?.bytes, Buffer.byteLength(invalidCode, "utf8"))
+        return true
+      }
+    )
+  }
+  const boundary = "한".repeat(32_768)
+  const boundaryPreview = await harness.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: boundary
+  }) as Record<string, any>
+  assert.equal(boundaryPreview.codeBytes, 98_304)
+
+  const originalNow = Date.now
+  let now = originalNow()
+  Date.now = () => now
+  try {
+    const expiring = await harness.service.runAbapApplication({
+      action: "preview_class",
+      connectionId: "DEV100",
+      className: "ZCL_EXPIRES"
+    }) as Record<string, any>
+    now += 10 * 60 * 1000 + 1
+    await assert.rejects(
+      harness.service.runAbapApplication({
+        action: "execute",
+        connectionId: "DEV100",
+        planId: expiring.planId,
+        confirmation: expiring.confirmation
+      }),
+      expectApplicationValidation("EXECUTION_PLAN_EXPIRED")
+    )
+  } finally {
+    Date.now = originalNow
+  }
+})
+
+test("ABAP application execution blocks production and consumes each execution attempt once", async () => {
+  const production = createApplicationHarness()
+  production.fake.profile.environment = "production"
+  for (const input of [
+    { action: "preview_class" as const, connectionId: "DEV100", className: "ZCL_RUNNER" },
+    { action: "preview_snippet" as const, connectionId: "DEV100", code: "WRITE 42." }
+  ]) {
+    await assert.rejects(
+      production.service.runAbapApplication(input),
+      (error: unknown) => {
+        assert.ok(error instanceof AppError)
+        assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+        assert.equal(error.message, "ABAP execution is disabled on production")
+        assert.deepEqual(error.details, {
+          reason: "PRODUCTION_EXECUTION_BLOCKED",
+          profileId: "DEV100"
+        })
+        return true
+      }
+    )
+  }
+  assert.deepEqual({
+    class: production.fake.classRunCalls,
+    health: production.fake.replHealthCalls,
+    execute: production.fake.replExecuteCalls
+  }, { class: 0, health: 0, execute: 0 })
+  const productionHealth = await production.service.runAbapApplication({
+    action: "repl_health",
+    connectionId: "DEV100"
+  }) as Record<string, any>
+  assert.equal(productionHealth.health.production, false)
+  assert.equal(production.fake.replHealthCalls, 1)
+
+  const rechecked = createApplicationHarness()
+  const preview = await rechecked.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_RECHECK"
+  }) as Record<string, any>
+  rechecked.fake.profile.environment = "production"
+  await assert.rejects(
+    rechecked.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: preview.planId,
+      confirmation: preview.confirmation
+    }),
+    (error: unknown) => error instanceof AppError &&
+      error.details?.reason === "PRODUCTION_EXECUTION_BLOCKED"
+  )
+  assert.equal(rechecked.fake.classRunCalls, 0)
+  rechecked.fake.profile.environment = "development"
+  await assert.rejects(
+    rechecked.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: preview.planId,
+      confirmation: preview.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED")
+  )
+
+  const replProduction = createApplicationHarness()
+  replProduction.fake.replProduction = true
+  const snippet = await replProduction.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 42."
+  }) as Record<string, any>
+  await assert.rejects(
+    replProduction.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: snippet.planId,
+      confirmation: snippet.confirmation
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.equal(error.message, "ABAP REPL is disabled on production")
+      return true
+    }
+  )
+  assert.equal(replProduction.fake.replHealthCalls, 1)
+  assert.equal(replProduction.fake.replExecuteCalls, 0)
+  assert.equal(replProduction.fake.classRunCalls, 0)
+  await assert.rejects(
+    replProduction.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: snippet.planId,
+      confirmation: snippet.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED")
+  )
+})
+
+test("ABAP application execution normalizes one SAP attempt and bounds Unicode output", async () => {
+  const inlineLimit = 96 * 1024
+  const bounded = createApplicationHarness()
+  bounded.fake.classRunResult = `${"C".repeat(inlineLimit - 1)}😀TAIL`
+  const classPreview = await bounded.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_BOUNDED"
+  }) as Record<string, any>
+  const classResult = await bounded.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: classPreview.planId,
+    confirmation: classPreview.confirmation
+  }) as Record<string, any>
+  assert.equal(classResult.truncated, true)
+  assert.equal(classResult.originalBytes, inlineLimit + 7)
+  assert.ok(classResult.returnedBytes <= inlineLimit)
+  assert.equal(Buffer.byteLength(classResult.output, "utf8"), classResult.returnedBytes)
+  assert.equal(classResult.output.includes("�"), false)
+
+  bounded.fake.replExecutionResult = {
+    success: false,
+    output: `${"O".repeat(inlineLimit - 1)}😀`,
+    error: "ERROR-TEXT",
+    runtime_ms: 7
+  }
+  const snippetPreview = await bounded.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 42."
+  }) as Record<string, any>
+  const snippetResult = await bounded.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: snippetPreview.planId,
+    confirmation: snippetPreview.confirmation
+  }) as Record<string, any>
+  assert.equal(snippetResult.output, "O".repeat(inlineLimit - 1))
+  assert.equal(snippetResult.error, "E")
+  assert.equal(snippetResult.originalBytes, inlineLimit + 3 + 10)
+  assert.equal(snippetResult.returnedBytes, inlineLimit)
+  assert.equal(snippetResult.truncated, true)
+  assert.ok(
+    Buffer.byteLength(snippetResult.output + snippetResult.error, "utf8") <= inlineLimit
+  )
+  assert.equal(snippetResult.output.includes("�"), false)
+  assert.equal(bounded.fake.replHealthCalls, 1)
+  assert.equal(bounded.fake.replExecuteCalls, 1)
+
+  const operationCases = [
+    {
+      capabilityId: "execution.class_runner",
+      endpoint: "/sap/bc/adt/oo/classrun/ZCL_FAIL",
+      counter: (fake: FakeSapClient) => fake.classRunCalls,
+      prepare(fake: FakeSapClient) {
+        fake.classRunError = Object.assign(new Error("Authorization: Bearer class-secret"), {
+          status: 503
+        })
+      },
+      async invoke(service: AbapToolService) {
+        const plan = await service.runAbapApplication({
+          action: "preview_class", connectionId: "DEV100", className: "ZCL_FAIL"
+        }) as Record<string, any>
+        return service.runAbapApplication({
+          action: "execute", connectionId: "DEV100",
+          planId: plan.planId, confirmation: plan.confirmation
+        })
+      }
+    },
+    {
+      capabilityId: "execution.abap_repl",
+      endpoint: "/sap/bc/z_abap_repl",
+      counter: (fake: FakeSapClient) => fake.replHealthCalls,
+      prepare(fake: FakeSapClient) {
+        fake.replHealthError = Object.assign(new Error("Cookie: health-secret"), { status: 503 })
+      },
+      async invoke(service: AbapToolService) {
+        return service.runAbapApplication({ action: "repl_health", connectionId: "DEV100" })
+      }
+    },
+    {
+      capabilityId: "execution.abap_repl",
+      endpoint: "/sap/bc/z_abap_repl",
+      counter: (fake: FakeSapClient) => fake.replExecuteCalls,
+      prepare(fake: FakeSapClient) {
+        fake.replExecutionError = Object.assign(
+          new Error("X-CSRF-Token: execute-secret"),
+          { status: 503 }
+        )
+      },
+      async invoke(service: AbapToolService) {
+        const plan = await service.runAbapApplication({
+          action: "preview_snippet", connectionId: "DEV100", code: "WRITE 42."
+        }) as Record<string, any>
+        return service.runAbapApplication({
+          action: "execute", connectionId: "DEV100",
+          planId: plan.planId, confirmation: plan.confirmation
+        })
+      }
+    }
+  ]
+  for (const operationCase of operationCases) {
+    const failed = createApplicationHarness()
+    operationCase.prepare(failed.fake)
+    await assert.rejects(operationCase.invoke(failed.service), (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_OPERATION_FAILED")
+      assert.deepEqual(error.details, {
+        capabilityId: operationCase.capabilityId,
+        endpoint: operationCase.endpoint,
+        httpStatus: 503
+      })
+      assert.equal(/class-secret|health-secret|execute-secret/.test(error.message), false)
+      return true
+    })
+    assert.equal(operationCase.counter(failed.fake), 1)
+    const capability = (
+      failed.service as unknown as { capabilities: SapCapabilityRegistry }
+    ).capabilities.list("DEV100", "", "execution").find(
+      item => item.id === operationCase.capabilityId
+    )
+    assert.ok(capability?.evidence.includes(`http:503:${operationCase.endpoint}`))
+  }
+})
 
 test("activateObject validates batches and classifies one SAP activation response conservatively", async () => {
   const firstUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main"
@@ -2879,6 +3291,94 @@ test("MCP semantic inspect actions expose fixtures and default superTypes to fal
     harness.fake.typeHierarchyArgs.map(call => call.superTypes),
     [true, false]
   )
+})
+
+test("MCP run_abap_application exposes strict health, class, and snippet actions", async t => {
+  const harness = createApplicationHarness()
+  const server = createMcpServer(harness.service)
+  const client = new Client({ name: "application-test-client", version: "1.0.0" })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  t.after(async () => {
+    await client.close()
+    await server.close()
+  })
+  await server.connect(serverTransport)
+  await client.connect(clientTransport)
+
+  const listed = await client.listTools()
+  const applicationTool = listed.tools.find(tool => tool.name === "run_abap_application")
+  assert.equal(applicationTool?.title, "Run ABAP Application")
+  assert.equal(
+    applicationTool?.description,
+    "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan."
+  )
+  assert.deepEqual(applicationTool?.annotations, {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: true
+  })
+
+  const callRaw = (arguments_: Record<string, unknown>) => client.callTool({
+    name: "run_abap_application",
+    arguments: arguments_
+  })
+  const callJson = async (arguments_: Record<string, unknown>) => {
+    const response = await callRaw(arguments_)
+    const text = (
+      (response as { content: Array<{ type: "text"; text: string }> }).content[0] as {
+        type: "text"
+        text: string
+      }
+    ).text
+    return JSON.parse(text)
+  }
+
+  const health = await callJson({ action: "repl_health", connectionId: "DEV100" })
+  assert.equal(health.health.status, "ok")
+  assert.equal(harness.fake.replHealthCalls, 1)
+  assert.equal(harness.fake.replExecuteCalls, 0)
+
+  const classPreview = await callJson({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_RUNNER"
+  })
+  const classResult = await callJson({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: classPreview.planId,
+    confirmation: classPreview.confirmation
+  })
+  assert.equal(classResult.kind, "class")
+  assert.match(classResult.output, /runner output: ZCL_RUNNER/)
+  assert.equal(harness.fake.classRunCalls, 1)
+
+  harness.fake.replHealthCalls = 0
+  const snippetPreview = await callJson({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 42."
+  })
+  const snippetResult = await callJson({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: snippetPreview.planId,
+    confirmation: snippetPreview.confirmation
+  })
+  assert.equal(snippetResult.kind, "snippet")
+  assert.match(snippetResult.output, /WRITE 42\./)
+  assert.equal(harness.fake.replHealthCalls, 1)
+  assert.equal(harness.fake.replExecuteCalls, 1)
+  assert.equal(harness.fake.classRunCalls, 1)
+
+  const mixedAction = await callRaw({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_RUNNER",
+    code: "WRITE 42."
+  }) as { isError?: boolean }
+  assert.equal(mixedAction.isError, true)
 })
 
 test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => {

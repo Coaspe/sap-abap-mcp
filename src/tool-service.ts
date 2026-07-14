@@ -584,6 +584,28 @@ interface RefactorPlan {
   payload: unknown
 }
 
+export type RunAbapApplicationInput =
+  | { action: "repl_health"; connectionId: string }
+  | { action: "preview_class"; connectionId: string; className: string }
+  | { action: "preview_snippet"; connectionId: string; code: string }
+  | { action: "execute"; connectionId: string; planId: string; confirmation: string }
+
+type ExecutionPlanPayload =
+  | { kind: "class"; className: string; code?: never }
+  | { kind: "snippet"; code: string; className?: never }
+
+type ExecutionPlan = {
+  id: string
+  connectionId: string
+  confirmation: string
+  expiresAt: number
+} & ExecutionPlanPayload
+
+type ExecutionPlanDraft = {
+  connectionId: string
+  confirmation: string
+} & ExecutionPlanPayload
+
 interface GitStageState {
   connectionId: string
   repository: GitRepo
@@ -994,6 +1016,16 @@ function requireNonProduction(client: SapClient): void {
   }
 }
 
+function requireExecutableProfile(client: SapClient): void {
+  if (client.profile.environment === "production") {
+    throw new AppError(
+      "SAP_CAPABILITY_UNAVAILABLE",
+      "ABAP execution is disabled on production",
+      { reason: "PRODUCTION_EXECUTION_BLOCKED", profileId: client.profile.id }
+    )
+  }
+}
+
 function requireExactConfirmation(actual: string | undefined, expected: string): void {
   if (actual !== expected) {
     throw new AppError("CONFIRMATION_MISMATCH", `Confirmation must exactly equal ${expected}`)
@@ -1084,6 +1116,7 @@ export class AbapToolService {
   private readonly capabilities = new SapCapabilityRegistry()
   private readonly dataViews = new Map<string, DataViewState>()
   private readonly refactorPlans = new Map<string, RefactorPlan>()
+  private readonly executionPlans = new Map<string, ExecutionPlan>()
   private readonly gitStages = new Map<string, GitStageState>()
   private readonly heartbeatTasks = new Map<string, HeartbeatTask>()
   private readonly heartbeatHistory: Array<Record<string, unknown>> = []
@@ -1153,6 +1186,57 @@ export class AbapToolService {
       )
     }
     this.refactorPlans.delete(planId)
+    return plan
+  }
+
+  private cacheExecutionPlan(plan: ExecutionPlanDraft): ExecutionPlan {
+    const now = Date.now()
+    for (const [id, cached] of this.executionPlans) {
+      if (cached.expiresAt <= now) this.executionPlans.delete(id)
+    }
+    while (this.executionPlans.size >= MAX_CACHED_PLANS) {
+      const oldest = this.executionPlans.keys().next().value as string | undefined
+      if (!oldest) break
+      this.executionPlans.delete(oldest)
+    }
+    const cached: ExecutionPlan = {
+      ...plan,
+      id: randomUUID(),
+      expiresAt: now + PLAN_TTL_MS
+    }
+    this.executionPlans.set(cached.id, cached)
+    return cached
+  }
+
+  private takeExecutionPlan(
+    planId: string,
+    connectionId: string,
+    confirmation: string
+  ): ExecutionPlan {
+    const plan = this.executionPlans.get(planId)
+    if (!plan || plan.expiresAt <= Date.now()) {
+      this.executionPlans.delete(planId)
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "The execution plan is missing or expired; create a new preview",
+        { reason: "EXECUTION_PLAN_EXPIRED" }
+      )
+    }
+    if (connectionId !== plan.connectionId) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "The execution plan belongs to a different SAP connection",
+        { reason: "EXECUTION_PLAN_CONNECTION_MISMATCH" }
+      )
+    }
+    if (confirmation !== plan.confirmation) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        `Confirmation must exactly equal ${plan.confirmation}`,
+        { reason: "CONFIRMATION_MISMATCH" }
+      )
+    }
+    this.executionPlans.delete(planId)
     return plan
   }
 
@@ -5099,6 +5183,140 @@ export class AbapToolService {
       truncated: limited,
       nodes: [...nodes.values()],
       edges: [...edges.values()]
+    }
+  }
+
+  async runAbapApplication(input: RunAbapApplicationInput) {
+    const connectionId = input.connectionId.trim().toUpperCase()
+    const client = await this.connections.getClient(connectionId)
+    const replEndpoint = "/sap/bc/z_abap_repl"
+
+    if (input.action === "repl_health") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        connectionId,
+        "execution.abap_repl",
+        replEndpoint,
+        () => client.checkReplAvailability()
+      )
+      return {
+        connectionId,
+        health: result,
+        capabilityStatusAtExecution
+      }
+    }
+
+    if (input.action === "preview_class") {
+      requireExecutableProfile(client)
+      const className = input.className.trim()
+      if (
+        className !== className.toUpperCase() ||
+        className.length > 30 ||
+        !/^(?:\/[A-Z0-9_]+\/)?[A-Z][A-Z0-9_]*$/.test(className)
+      ) {
+        throw new AppError(
+          "SAP_VALIDATION_FAILED",
+          "Class name must be an uppercase ABAP identifier of at most 30 characters",
+          { reason: "CLASS_NAME_INVALID", className }
+        )
+      }
+      const plan = this.cacheExecutionPlan({
+        kind: "class",
+        connectionId,
+        className,
+        confirmation: `RUN_CLASS:${connectionId}:${className}`
+      })
+      return {
+        action: input.action,
+        connectionId,
+        planId: plan.id,
+        confirmation: plan.confirmation,
+        expiresAt: new Date(plan.expiresAt).toISOString(),
+        capabilityStatus: this.capabilities.status(connectionId, "execution.class_runner")
+      }
+    }
+
+    if (input.action === "preview_snippet") {
+      requireExecutableProfile(client)
+      const codeBytes = Buffer.byteLength(input.code, "utf8")
+      if (!input.code.trim() || codeBytes < 1 || codeBytes > INLINE_TEXT_BYTE_LIMIT) {
+        throw new AppError(
+          "SAP_VALIDATION_FAILED",
+          `ABAP snippet must contain 1 through ${INLINE_TEXT_BYTE_LIMIT} UTF-8 bytes`,
+          { reason: "SNIPPET_SIZE_INVALID", bytes: codeBytes }
+        )
+      }
+      const digest = createHash("sha256").update(input.code).digest("hex").slice(0, 12)
+      const plan = this.cacheExecutionPlan({
+        kind: "snippet",
+        connectionId,
+        code: input.code,
+        confirmation: `RUN_SNIPPET:${connectionId}:${digest}`
+      })
+      return {
+        action: input.action,
+        connectionId,
+        planId: plan.id,
+        confirmation: plan.confirmation,
+        expiresAt: new Date(plan.expiresAt).toISOString(),
+        codeBytes,
+        capabilityStatus: this.capabilities.status(connectionId, "execution.abap_repl")
+      }
+    }
+
+    const plan = this.takeExecutionPlan(input.planId, connectionId, input.confirmation)
+    requireExecutableProfile(client)
+    if (plan.kind === "class") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        connectionId,
+        "execution.class_runner",
+        `/sap/bc/adt/oo/classrun/${plan.className}`,
+        () => client.runClass(plan.className)
+      )
+      const output = boundInlineText(result)
+      return {
+        connectionId,
+        kind: plan.kind,
+        className: plan.className,
+        output: output.content,
+        originalBytes: output.originalBytes,
+        returnedBytes: output.returnedBytes,
+        truncated: output.truncated,
+        capabilityStatusAtExecution
+      }
+    }
+
+    const health = await this.executeCapability(
+      connectionId,
+      "execution.abap_repl",
+      replEndpoint,
+      () => client.checkReplAvailability()
+    )
+    if (health.result.production) {
+      throw new AppError(
+        "SAP_CAPABILITY_UNAVAILABLE",
+        "ABAP REPL is disabled on production",
+        { capabilityId: "execution.abap_repl", endpoint: replEndpoint }
+      )
+    }
+    const { result, capabilityStatusAtExecution } = await this.executeCapability(
+      connectionId,
+      "execution.abap_repl",
+      replEndpoint,
+      () => client.executeAbapCode(plan.code)
+    )
+    const output = boundInlineText(result.output)
+    const error = boundInlineText(result.error, INLINE_TEXT_BYTE_LIMIT - output.returnedBytes)
+    return {
+      connectionId,
+      kind: plan.kind,
+      success: result.success,
+      output: output.content,
+      error: error.content,
+      runtime_ms: result.runtime_ms,
+      originalBytes: output.originalBytes + error.originalBytes,
+      returnedBytes: output.returnedBytes + error.returnedBytes,
+      truncated: output.truncated || error.truncated,
+      capabilityStatusAtExecution
     }
   }
 

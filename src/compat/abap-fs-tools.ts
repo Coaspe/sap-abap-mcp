@@ -58,7 +58,8 @@ export const EXTENDED_TOOL_NAMES = [
   "compare_abap_systems",
   "get_abap_dependency_graph",
   "run_sap_transaction",
-  "get_sap_capabilities"
+  "get_sap_capabilities",
+  "run_abap_application"
 ] as const
 
 export const IMPLEMENTED_TOOL_NAMES = [
@@ -110,7 +111,8 @@ export const ABAP_MCP_TOOLSETS: Record<
     "refactor_abap_code",
     "manage_abapgit",
     "manage_rap_generator",
-    "manage_abap_versions"
+    "manage_abap_versions",
+    "run_abap_application"
   ],
   analysis: [
     "execute_data_query",
