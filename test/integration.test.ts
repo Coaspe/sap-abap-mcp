@@ -116,6 +116,12 @@ class FakeSapClient implements SapClient {
     inactive: []
   }
   batchActivationError?: Error
+  objectPackages = new Map([
+    ["ZCL_FIRST", "Z_DEMO"],
+    ["ZCL_SECOND", "Z_DEMO"],
+    ["ZCL_A", "Z_DEMO"],
+    ["ZCL_AB", "Z_DEMO"]
+  ])
   inactiveObjects: import("abap-adt-api").InactiveObjectRecord[] = [
     inactiveClass("ZCL_FIRST"),
     inactiveClass("ZCL_SECOND")
@@ -150,14 +156,14 @@ class FakeSapClient implements SapClient {
         packageName: "Z_DEMO"
       }]
     }
-    if (["ZCL_FIRST", "ZCL_SECOND"].includes(normalizedQuery)) {
+    if (this.objectPackages.has(normalizedQuery)) {
       if (objectType && objectType.replace(/\/.*$/, "") !== "CLAS") return []
       return [{
         name: normalizedQuery,
         type: "CLAS/OC",
         uri: `/sap/bc/adt/oo/classes/${normalizedQuery.toLowerCase()}`,
         description: normalizedQuery,
-        packageName: "Z_DEMO"
+        packageName: this.objectPackages.get(normalizedQuery)!
       }]
     }
     if (!normalizedQuery.includes("ZCL_DEMO")) return []
@@ -1176,6 +1182,251 @@ test("activateObject validates batches and classifies one SAP activation respons
     }
   )
   assert.equal(executionFailure.fake.batchActivationCalls, 1)
+})
+
+test("activateObject canonicalizes SAP evidence and tolerates malformed result fields", async () => {
+  const firstUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main"
+  const shortNameUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_a/source/main"
+
+  const caseDifferent = createActivationHarness()
+  const uppercaseInactive = inactiveClass("ZCL_FIRST")
+  uppercaseInactive.object!["adtcore:uri"] =
+    "/SAP/BC/ADT/OO/CLASSES/ZCL_FIRST/SOURCE/MAIN?version=inactive#result"
+  const uppercaseRemaining = inactiveClass("ZCL_FIRST")
+  uppercaseRemaining.object!["adtcore:uri"] = "/SAP/BC/ADT/OO/CLASSES/ZCL_FIRST/"
+  caseDifferent.fake.inactiveObjects = [uppercaseInactive]
+  caseDifferent.fake.batchActivationResult = {
+    success: false,
+    messages: [],
+    inactive: [uppercaseRemaining]
+  }
+  const caseResult = await caseDifferent.service.activateObject({
+    urls: [firstUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string }> }
+  assert.equal(caseDifferent.fake.batchActivationCalls, 1)
+  assert.deepEqual(caseResult.objectResults.map(item => item.outcome), ["failed"])
+
+  const boundary = createActivationHarness()
+  boundary.fake.inactiveObjects = [inactiveClass("ZCL_A")]
+  boundary.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Activation failed for ZCL_AB",
+      type: "E",
+      line: 1,
+      href: "",
+      forceSupported: false,
+      shortText: "Wrong object"
+    }],
+    inactive: []
+  }
+  const boundaryResult = await boundary.service.activateObject({
+    urls: [shortNameUrl]
+  }) as unknown as {
+    objectResults: Array<{ outcome: string; messages: unknown[] }>
+  }
+  assert.deepEqual(boundaryResult.objectResults, [{
+    object: {
+      name: "ZCL_A",
+      type: "CLAS/OC",
+      uri: "/sap/bc/adt/oo/classes/zcl_a",
+      description: "ZCL_A",
+      packageName: "Z_DEMO"
+    },
+    outcome: "unknown",
+    messages: []
+  }])
+
+  const exactFallback = createActivationHarness()
+  exactFallback.fake.inactiveObjects = [inactiveClass("ZCL_A")]
+  exactFallback.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Activation failed for ZCL_A",
+      type: "E",
+      line: 1,
+      href: "",
+      forceSupported: false,
+      shortText: "Exact object"
+    }],
+    inactive: []
+  }
+  const exactFallbackResult = await exactFallback.service.activateObject({
+    urls: [shortNameUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string }> }
+  assert.deepEqual(exactFallbackResult.objectResults.map(item => item.outcome), ["failed"])
+
+  const malformed = createActivationHarness()
+  malformed.fake.inactiveObjects = [
+    null as any,
+    { object: { ...inactiveClass("ZCL_A").object!, "adtcore:uri": undefined } } as any,
+    inactiveClass("ZCL_A")
+  ]
+  const malformedMessage = {
+    line: 1,
+    forceSupported: false,
+    shortText: "Malformed SAP message"
+  }
+  malformed.fake.batchActivationResult = {
+    success: false,
+    messages: [null as any, malformedMessage as any],
+    inactive: [
+      null as any,
+      { object: { ...inactiveClass("ZCL_AB").object!, "adtcore:uri": null } } as any
+    ]
+  }
+  const malformedResult = await malformed.service.activateObject({
+    urls: [shortNameUrl]
+  }) as unknown as {
+    objectResults: Array<{ outcome: string; messages: unknown[] }>
+    messages: unknown[]
+  }
+  assert.equal(malformed.fake.batchActivationCalls, 1)
+  assert.deepEqual(malformedResult.objectResults.map(item => item.outcome), ["unknown"])
+  assert.deepEqual(malformedResult.objectResults[0]!.messages, [])
+  assert.equal(malformedResult.messages[1], malformedMessage)
+
+  const hrefPrecedence = createActivationHarness()
+  hrefPrecedence.fake.inactiveObjects = [inactiveClass("ZCL_A")]
+  hrefPrecedence.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Activation failed for ZCL_A",
+      type: "E",
+      line: 1,
+      href: "/sap/bc/adt/oo/classes/zcl_ab",
+      forceSupported: false,
+      shortText: "Different href"
+    }],
+    inactive: []
+  }
+  const precedenceResult = await hrefPrecedence.service.activateObject({
+    urls: [shortNameUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string; messages: unknown[] }> }
+  assert.deepEqual(precedenceResult.objectResults.map(item => item.outcome), ["unknown"])
+  assert.deepEqual(precedenceResult.objectResults[0]!.messages, [])
+})
+
+test("activateObject deduplicates SAP submission without dropping requested results", async () => {
+  const duplicate = createActivationHarness()
+  const result = await duplicate.service.activateObject({
+    urls: [
+      "adt://dev100/sap/bc/adt/oo/classes/zcl_first",
+      "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main"
+    ]
+  }) as unknown as {
+    requested: SapObjectReference[]
+    objectResults: Array<{ outcome: string }>
+  }
+
+  assert.equal(duplicate.fake.batchActivationCalls, 1)
+  assert.equal(duplicate.fake.lastBatchActivation.length, 1)
+  assert.equal(result.requested.length, 2)
+  assert.equal(result.objectResults.length, 2)
+  assert.deepEqual(result.objectResults.map(item => item.outcome), ["activated", "activated"])
+})
+
+test("activateObject rejects malformed unions and enforces package and capability safety", async () => {
+  const firstUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main"
+  const secondUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_second/source/main"
+  const expectAmbiguous = async (harness: ReturnType<typeof createActivationHarness>, input: unknown) => {
+    await assert.rejects(
+      harness.service.activateObject(input as ActivateObjectInput),
+      (error: unknown) => {
+        assert.ok(error instanceof AppError)
+        assert.equal(error.code, "SAP_VALIDATION_FAILED")
+        assert.equal(error.message, "Provide exactly one of url or urls")
+        assert.deepEqual(error.details, { reason: "ACTIVATION_INPUT_AMBIGUOUS" })
+        return true
+      }
+    )
+    assert.equal(harness.getClientCalls(), 0)
+    assert.equal(harness.fake.batchActivationCalls, 0)
+  }
+  await expectAmbiguous(createActivationHarness(), { url: 123 })
+  await expectAmbiguous(createActivationHarness(), { url: 123, urls: [firstUrl] })
+  await expectAmbiguous(createActivationHarness(), { urls: [123] })
+  await expectAmbiguous(createActivationHarness(), { url: firstUrl, connectionId: 123 })
+
+  const packageBlocked = createActivationHarness()
+  packageBlocked.fake.objectPackages.set("ZCL_SECOND", "Z_OTHER")
+  await assert.rejects(
+    packageBlocked.service.activateObject({ urls: [firstUrl, secondUrl] }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "PACKAGE_NOT_ALLOWED")
+      return true
+    }
+  )
+  assert.equal(packageBlocked.fake.inactiveObjectCalls, 0)
+  assert.equal(packageBlocked.fake.batchActivationCalls, 0)
+
+  const unsupported = createActivationHarness()
+  const unsupportedRegistry = (unsupported.service as unknown as {
+    capabilities: SapCapabilityRegistry
+  }).capabilities
+  unsupportedRegistry.observeHttpFailure(
+    "DEV100",
+    "repository.activate.batch",
+    404,
+    "/sap/bc/adt/activation"
+  )
+  await assert.rejects(
+    unsupported.service.activateObject({ urls: [firstUrl] }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      return true
+    }
+  )
+  assert.equal(unsupported.fake.batchActivationCalls, 0)
+
+  const success = createActivationHarness()
+  const successRegistry = (success.service as unknown as {
+    capabilities: SapCapabilityRegistry
+  }).capabilities
+  const successResult = await success.service.activateObject({
+    urls: [firstUrl]
+  }) as unknown as { capabilityStatusAtExecution: string }
+  assert.equal(successResult.capabilityStatusAtExecution, "unverified")
+  assert.equal(success.fake.batchActivationCalls, 1)
+  const successCapability = successRegistry.list("DEV100", "").find(
+    item => item.id === "repository.activate.batch"
+  )!
+  assert.equal(successCapability.status, "supported")
+  assert.equal(successCapability.authorization, "allowed")
+  assert.ok(successCapability.evidence.includes("success:/sap/bc/adt/activation"))
+
+  const missingEndpoint = createActivationHarness()
+  const secret = "activation-secret"
+  missingEndpoint.fake.batchActivationError = Object.assign(
+    new Error(`Authorization: Bearer ${secret}`),
+    { response: { status: 404 } }
+  )
+  await assert.rejects(
+    missingEndpoint.service.activateObject({ urls: [firstUrl] }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.activate.batch",
+        endpoint: "/sap/bc/adt/activation",
+        httpStatus: 404
+      })
+      assert.equal(error.message.includes(secret), false)
+      return true
+    }
+  )
+  assert.equal(missingEndpoint.fake.batchActivationCalls, 1)
+  const missingRegistry = (missingEndpoint.service as unknown as {
+    capabilities: SapCapabilityRegistry
+  }).capabilities
+  const missingCapability = missingRegistry.list("DEV100", "").find(
+    item => item.id === "repository.activate.batch"
+  )!
+  assert.equal(missingCapability.system, "not_advertised")
+  assert.equal(missingCapability.status, "unsupported")
+  assert.ok(missingCapability.evidence.includes("http:404:/sap/bc/adt/activation"))
 })
 
 test("ConnectionManager logs in once, caches the client, and logs out", async t => {

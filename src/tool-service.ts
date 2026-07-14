@@ -854,6 +854,16 @@ function objectUriFromSourceUri(sourceUri: string): string {
   return withoutQuery.replace(/\/source\/[^/]+$/i, "")
 }
 
+function canonicalActivationUri(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined
+  const normalized = objectUriFromSourceUri(value.trim()).replace(/\/+$/, "")
+  const adtIndex = normalized.toLowerCase().indexOf("/sap/bc/adt/")
+  if (adtIndex < 0) return undefined
+  const adtPath = normalized.slice(adtIndex)
+  if (adtPath.toLowerCase() === "/sap/bc/adt") return undefined
+  return adtPath.toLowerCase()
+}
+
 export function replaceExactlyOnce(content: string, oldString: string, newString: string): string {
   if (!oldString) {
     if (content.length === 0) return newString
@@ -4223,9 +4233,17 @@ export class AbapToolService {
   }
 
   async activateObject(input: ActivateObjectInput) {
-    const hasUrl = typeof (input as { url?: unknown }).url === "string"
-    const hasUrls = Array.isArray((input as { urls?: unknown }).urls)
-    if (hasUrl === hasUrls) {
+    const candidate = typeof input === "object" && input !== null
+      ? input as { url?: unknown; urls?: unknown; connectionId?: unknown }
+      : {}
+    const urlPresent = Object.prototype.hasOwnProperty.call(candidate, "url")
+    const urlsPresent = Object.prototype.hasOwnProperty.call(candidate, "urls")
+    const connectionIdPresent = Object.prototype.hasOwnProperty.call(candidate, "connectionId")
+    const hasUrl = urlPresent && typeof candidate.url === "string"
+    const hasUrls = urlsPresent && Array.isArray(candidate.urls) &&
+      candidate.urls.every(url => typeof url === "string")
+    const connectionIdValid = !connectionIdPresent || typeof candidate.connectionId === "string"
+    if (!connectionIdValid || urlPresent !== hasUrl || urlsPresent !== hasUrls || hasUrl === hasUrls) {
       throw new AppError(
         "SAP_VALIDATION_FAILED",
         "Provide exactly one of url or urls",
@@ -4233,10 +4251,11 @@ export class AbapToolService {
       )
     }
 
-    if ("url" in input) {
+    const explicitConnectionId = candidate.connectionId as string | undefined
+    if (hasUrl) {
       const target = await this.resolveEditableTarget({
-        fileUri: input.url,
-        ...(input.connectionId ? { connectionId: input.connectionId } : {})
+        fileUri: candidate.url as string,
+        ...(explicitConnectionId ? { connectionId: explicitConnectionId } : {})
       })
       requireWritablePackage(target.client, target.object.packageName)
       const result = await target.client.activateObject(
@@ -4253,7 +4272,8 @@ export class AbapToolService {
       }
     }
 
-    if (input.urls.length < 1 || input.urls.length > 100) {
+    const urls = candidate.urls as string[]
+    if (urls.length < 1 || urls.length > 100) {
       throw new AppError(
         "SAP_VALIDATION_FAILED",
         "Batch activation requires 1 through 100 URLs",
@@ -4261,7 +4281,7 @@ export class AbapToolService {
       )
     }
 
-    const locations = input.urls.map(url => parseAdtLocation(url, input.connectionId))
+    const locations = urls.map(url => parseAdtLocation(url, explicitConnectionId))
     const connectionIds = new Set(locations.map(location => location.connectionId))
     if (connectionIds.size !== 1) {
       throw new AppError(
@@ -4284,26 +4304,24 @@ export class AbapToolService {
     }
 
     const inactiveRecords = await client.getInactiveObjects()
-    const inactiveByUri = new Map(
-      inactiveRecords
-        .map(record => record.object)
-        .filter(record => record !== undefined)
-        .map(record => [
-          objectUriFromSourceUri(record["adtcore:uri"]).replace(/\/+$/, ""),
-          record
-        ] as const)
-    )
-    const submitted = targets.flatMap(target => {
-      const inactive = inactiveByUri.get(
-        objectUriFromSourceUri(target.objectUri).replace(/\/+$/, "")
-      )
-      return inactive ? [{ target, inactive }] : []
-    })
-    const submittedUris = new Set(
-      submitted.map(item =>
-        objectUriFromSourceUri(item.target.objectUri).replace(/\/+$/, "")
-      )
-    )
+    const inactiveByUri = new Map(inactiveRecords.flatMap(record => {
+      const inactive = record?.object
+      const uri = canonicalActivationUri(inactive?.["adtcore:uri"])
+      return inactive && uri ? [[uri, inactive] as const] : []
+    }))
+    const submittedByUri = new Map<string, {
+      target: EditableTarget
+      inactive: NonNullable<(typeof inactiveRecords)[number]["object"]>
+    }>()
+    for (const target of targets) {
+      const uri = canonicalActivationUri(target.objectUri)
+      const inactive = uri ? inactiveByUri.get(uri) : undefined
+      if (uri && inactive && !submittedByUri.has(uri)) {
+        submittedByUri.set(uri, { target, inactive })
+      }
+    }
+    const submitted = [...submittedByUri.values()]
+    const submittedUris = new Set(submittedByUri.keys())
 
     let capabilityStatusAtExecution = this.capabilities.status(
       connectionId,
@@ -4323,28 +4341,30 @@ export class AbapToolService {
       capabilityStatusAtExecution = executed.capabilityStatusAtExecution
     }
 
-    const remainingUris = new Set(
-      activation.inactive
-        .map(record => record.object)
-        .filter(record => record !== undefined)
-        .map(record =>
-          objectUriFromSourceUri(record["adtcore:uri"]).replace(/\/+$/, "")
-        )
-    )
+    const remainingUris = new Set(activation.inactive.flatMap(record => {
+      const uri = canonicalActivationUri(record?.object?.["adtcore:uri"])
+      return uri ? [uri] : []
+    }))
     const objectResults = targets.map(target => {
-      const uri = objectUriFromSourceUri(target.objectUri).replace(/\/+$/, "")
-      const messages = activation.messages.filter(message =>
-        objectUriFromSourceUri(message.href).replace(/\/+$/, "") === uri ||
-        message.objDescr.toUpperCase().includes(target.object.name.toUpperCase())
+      const uri = canonicalActivationUri(target.objectUri)
+      const escapedName = target.object.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      const namePattern = new RegExp(
+        `(?<![A-Z0-9_/])${escapedName}(?![A-Z0-9_/])`,
+        "i"
       )
-      const failed = remainingUris.has(uri) || messages.some(message =>
-        /^(E|A|X|ERROR)$/i.test(message.type.trim())
+      const messages = uri === undefined ? [] : activation.messages.filter(message => {
+        const href = canonicalActivationUri(message?.href)
+        if (href !== undefined) return href === uri
+        return typeof message?.objDescr === "string" && namePattern.test(message.objDescr)
+      })
+      const failed = (uri !== undefined && remainingUris.has(uri)) || messages.some(message =>
+        typeof message?.type === "string" && /^(E|A|X|ERROR)$/i.test(message.type.trim())
       )
       return {
         object: target.object,
         outcome: failed
           ? "failed"
-          : submittedUris.has(uri) && activation.success
+          : uri !== undefined && submittedUris.has(uri) && activation.success
             ? "activated"
             : "unknown",
         messages
