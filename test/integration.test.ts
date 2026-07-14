@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { createHash } from "node:crypto"
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -8,7 +9,9 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ConnectionManager, type ConnectionSummary } from "../src/connection-manager.js"
 import { IMPLEMENTED_TOOL_NAMES } from "../src/compat/abap-fs-tools.js"
 import { createMcpServer } from "../src/mcp-server.js"
+import { AppError } from "../src/errors.js"
 import { ProfileStore, type SapProfile } from "../src/profile-store.js"
+import { SapCapabilityRegistry } from "../src/sap-capabilities.js"
 import { MemorySecretStore } from "../src/secret-store.js"
 import {
   abapGitCredentialKey,
@@ -24,8 +27,10 @@ import type {
 import {
   AbapToolService,
   extractAbapMethod,
-  replaceExactlyOnce
+  replaceExactlyOnce,
+  type ActivateObjectInput
 } from "../src/tool-service.js"
+import { DEVELOPMENT_PARITY_FIXTURES } from "./fixtures/development-parity.js"
 
 const object: SapObjectReference = {
   name: "ZCL_DEMO",
@@ -42,6 +47,17 @@ const source = [
   "  ENDMETHOD.",
   "ENDCLASS."
 ].join("\n")
+
+function inactiveClass(name: string): import("abap-adt-api").InactiveObjectRecord {
+  return { object: {
+    "adtcore:uri": `/sap/bc/adt/oo/classes/${name.toLowerCase()}`,
+    "adtcore:type": "CLAS/OC",
+    "adtcore:name": name,
+    "adtcore:parentUri": "",
+    user: "DEVELOPER",
+    deleted: false
+  } }
+}
 
 function systemInfo(profile: SapProfile): SapSystemInfo {
   return {
@@ -68,11 +84,97 @@ class FakeSapClient implements SapClient {
   logoutCount = 0
   currentSource = source
   createdObject: unknown
+  createObjectCalls = 0
+  validateNewObjectCalls = 0
+  createTransportCalls = 0
+  readSourceCalls: string[] = []
+  replaceSourceCalls: Array<{
+    objectName: string
+    objectUri: string
+    sourceUri: string
+    expectedSource: string
+    nextSource: string
+    transport?: string
+    activate: boolean
+  }> = []
+  deleteObjectCalls = 0
+  objectCreationOperations: string[] = []
+  validationResult: any = { success: true }
+  validationError?: Error
+  createObjectError?: Error
+  readSourceError?: Error
+  replaceSourceError?: Error
   debugActive = false
   deletedObject = false
   transportMutations: string[] = []
   gitAuthCalls: Array<{ url: string; user?: string; password?: string }> = []
   serviceBindingProtocol = "V4"
+  batchActivationCalls = 0
+  lastBatchActivation: import("abap-adt-api").InactiveObject[] = []
+  batchActivationResult: import("abap-adt-api").ActivationResult = {
+    success: true,
+    messages: [],
+    inactive: []
+  }
+  batchActivationError?: Error
+  objectPackages = new Map([
+    ["ZCL_FIRST", "Z_DEMO"],
+    ["ZCL_SECOND", "Z_DEMO"],
+    ["ZCL_A", "Z_DEMO"],
+    ["ZCL_AB", "Z_DEMO"]
+  ])
+  inactiveObjects: import("abap-adt-api").InactiveObjectRecord[] = [
+    inactiveClass("ZCL_FIRST"),
+    inactiveClass("ZCL_SECOND")
+  ]
+  inactiveObjectCalls = 0
+  classRunCalls = 0
+  classRunResult?: string
+  classRunError?: Error
+  replHealthCalls = 0
+  replProduction = false
+  replHealthResult?: Awaited<ReturnType<SapClient["checkReplAvailability"]>>
+  replHealthError?: Error
+  replExecuteCalls = 0
+  replExecutionResult?: Awaited<ReturnType<SapClient["executeAbapCode"]>>
+  replExecutionError?: Error
+  codeCompletionCalls = 0
+  completionElementCalls = 0
+  completionElementArgs: Array<{
+    sourceUri: string
+    source: string
+    line: number
+    column: number
+  }> = []
+  completionElementResult: string | import("abap-adt-api").CompletionElementInfo =
+    structuredClone(DEVELOPMENT_PARITY_FIXTURES.completionElement)
+  completionElementError?: Error
+  documentationCalls = 0
+  documentationArgs: Array<{
+    objectUri: string
+    source: string
+    line: number
+    column: number
+  }> = []
+  documentationResult = DEVELOPMENT_PARITY_FIXTURES.documentation
+  documentationError?: Error
+  typeHierarchyCalls = 0
+  typeHierarchyArgs: Array<{
+    sourceUri: string
+    source: string
+    line: number
+    column: number
+    superTypes: boolean
+  }> = []
+  typeHierarchyResult: import("abap-adt-api").HierarchyNode[] =
+    structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy)
+  typeHierarchyError?: Error
+  classComponentsCalls = 0
+  classComponentsArgs: string[] = []
+  classComponentsResult: import("abap-adt-api").ClassComponent =
+    structuredClone(DEVELOPMENT_PARITY_FIXTURES.components)
+  classComponentsError?: Error
+  objectStructureType = object.type
 
   constructor(readonly profile: SapProfile) {}
 
@@ -89,7 +191,8 @@ class FakeSapClient implements SapClient {
     objectType?: string,
     _maxResults?: number
   ): Promise<SapObjectReference[]> {
-    if (query.toUpperCase() === "Z_DEMO" && (!objectType || objectType.startsWith("DEVC"))) {
+    const normalizedQuery = query.trim().toUpperCase()
+    if (normalizedQuery === "Z_DEMO" && (!objectType || objectType.startsWith("DEVC"))) {
       return [{
         name: "Z_DEMO",
         type: "DEVC/K",
@@ -98,7 +201,17 @@ class FakeSapClient implements SapClient {
         packageName: "Z_DEMO"
       }]
     }
-    if (!query.toUpperCase().includes("ZCL_DEMO")) return []
+    if (this.objectPackages.has(normalizedQuery)) {
+      if (objectType && objectType.replace(/\/.*$/, "") !== "CLAS") return []
+      return [{
+        name: normalizedQuery,
+        type: "CLAS/OC",
+        uri: `/sap/bc/adt/oo/classes/${normalizedQuery.toLowerCase()}`,
+        description: normalizedQuery,
+        packageName: this.objectPackages.get(normalizedQuery)!
+      }]
+    }
+    if (!normalizedQuery.includes("ZCL_DEMO")) return []
     if (objectType && objectType.replace(/\/.*$/, "") !== "CLAS") return []
     return [object]
   }
@@ -108,6 +221,9 @@ class FakeSapClient implements SapClient {
   }
 
   async readSourceByUri(uri: string) {
+    this.readSourceCalls.push(uri)
+    this.objectCreationOperations.push("read_source")
+    if (this.readSourceError) throw this.readSourceError
     if (uri.endsWith("/revisions/1")) {
       return { source: this.currentSource, sourceUri: uri }
     }
@@ -121,11 +237,13 @@ class FakeSapClient implements SapClient {
   }
 
   async getObjectStructure(uri: string): Promise<any> {
+    const className = uri.match(/\/sap\/bc\/adt\/oo\/classes\/([^/]+)$/i)?.[1]
+    const name = className?.toUpperCase() ?? object.name
     return {
       objectUrl: uri,
       metaData: {
-        "adtcore:name": object.name,
-        "adtcore:type": object.type,
+        "adtcore:name": name,
+        "adtcore:type": className ? "CLAS/OC" : this.objectStructureType,
         "adtcore:changedAt": 0,
         "adtcore:changedBy": "DEVELOPER",
         "adtcore:createdAt": 0,
@@ -203,14 +321,25 @@ class FakeSapClient implements SapClient {
   }
 
   async replaceSource(
-    _objectName: string,
-    _objectUri: string,
+    objectName: string,
+    objectUri: string,
     sourceUri: string,
     expectedSource: string,
     nextSource: string,
     _transport?: string,
     activate = false
   ): Promise<any> {
+    this.replaceSourceCalls.push({
+      objectName,
+      objectUri,
+      sourceUri,
+      expectedSource,
+      nextSource,
+      ...(_transport === undefined ? {} : { transport: _transport }),
+      activate
+    })
+    this.objectCreationOperations.push("replace_source")
+    if (this.replaceSourceError) throw this.replaceSourceError
     assert.equal(this.currentSource, expectedSource)
     this.currentSource = nextSource
     const diagnostics = await this.checkSyntax("", sourceUri, nextSource)
@@ -227,15 +356,32 @@ class FakeSapClient implements SapClient {
     return { success: true, messages: [], inactive: [] }
   }
 
+  async activateObjects(
+    objects: import("abap-adt-api").InactiveObject[]
+  ): Promise<import("abap-adt-api").ActivationResult> {
+    this.batchActivationCalls += 1
+    this.lastBatchActivation = objects
+    if (this.batchActivationError) throw this.batchActivationError
+    return this.batchActivationResult
+  }
+
   async validateNewObject(): Promise<any> {
-    return { success: true }
+    this.validateNewObjectCalls += 1
+    this.objectCreationOperations.push("validate")
+    if (this.validationError) throw this.validationError
+    return this.validationResult
   }
 
   async createObject(options: unknown): Promise<void> {
+    this.createObjectCalls += 1
+    this.objectCreationOperations.push("create")
+    if (this.createObjectError) throw this.createObjectError
     this.createdObject = options
   }
 
   async createTransport(): Promise<string> {
+    this.createTransportCalls += 1
+    this.objectCreationOperations.push("create_transport")
     return "DEVK900001"
   }
 
@@ -427,21 +573,85 @@ class FakeSapClient implements SapClient {
   }
 
   async getInactiveObjects(): Promise<any[]> {
-    return [{ object: {
-      "adtcore:uri": object.uri,
-      "adtcore:type": object.type,
-      "adtcore:name": object.name,
-      "adtcore:parentUri": "",
-      user: "DEVELOPER",
-      deleted: false
-    } }]
+    this.inactiveObjectCalls += 1
+    return this.inactiveObjects
   }
 
   async getCodeCompletions(): Promise<any[]> {
+    this.codeCompletionCalls += 1
     return [{ IDENTIFIER: "WRITE", KIND: 1, ICON: 0, SUBICON: 0, BOLD: 0, COLOR: 0,
       QUICKINFO_EVENT: 0, INSERT_EVENT: 0, IS_META: 0, PREFIXLENGTH: 0, ROLE: 0,
       LOCATION: 0, GRADE: 1, VISIBILITY: 0, IS_INHERITED: 0, PROP1: 0, PROP2: 0,
       PROP3: 0, SYNTCNTXT: 0 }]
+  }
+
+  async getCodeCompletionElement(
+    sourceUri: string,
+    sourceText: string,
+    line: number,
+    column: number
+  ): Promise<string | import("abap-adt-api").CompletionElementInfo> {
+    this.completionElementCalls += 1
+    this.completionElementArgs.push({ sourceUri, source: sourceText, line, column })
+    if (this.completionElementError) throw this.completionElementError
+    return structuredClone(this.completionElementResult)
+  }
+
+  async getAbapDocumentation(
+    objectUri: string,
+    sourceText: string,
+    line: number,
+    column: number
+  ): Promise<string> {
+    this.documentationCalls += 1
+    this.documentationArgs.push({ objectUri, source: sourceText, line, column })
+    if (this.documentationError) throw this.documentationError
+    return this.documentationResult
+  }
+
+  async getTypeHierarchy(
+    sourceUri: string,
+    sourceText: string,
+    line: number,
+    column: number,
+    superTypes: boolean
+  ): Promise<import("abap-adt-api").HierarchyNode[]> {
+    this.typeHierarchyCalls += 1
+    this.typeHierarchyArgs.push({ sourceUri, source: sourceText, line, column, superTypes })
+    if (this.typeHierarchyError) throw this.typeHierarchyError
+    return structuredClone(this.typeHierarchyResult)
+  }
+
+  async getClassComponents(objectUri: string): Promise<import("abap-adt-api").ClassComponent> {
+    this.classComponentsCalls += 1
+    this.classComponentsArgs.push(objectUri)
+    if (this.classComponentsError) throw this.classComponentsError
+    return structuredClone(this.classComponentsResult)
+  }
+
+  async runClass(className: string): Promise<string> {
+    this.classRunCalls += 1
+    if (this.classRunError) throw this.classRunError
+    return this.classRunResult ?? `runner output: ${className}`
+  }
+
+  async checkReplAvailability() {
+    this.replHealthCalls += 1
+    if (this.replHealthError) throw this.replHealthError
+    return this.replHealthResult ?? {
+      status: "ok",
+      version: "1",
+      user: "DEVELOPER",
+      system: "DEV",
+      client: "100",
+      production: this.replProduction
+    }
+  }
+
+  async executeAbapCode(code: string) {
+    this.replExecuteCalls += 1
+    if (this.replExecutionError) throw this.replExecutionError
+    return this.replExecutionResult ?? { success: true, output: code, error: "", runtime_ms: 1 }
   }
 
   async findDefinition(): Promise<any> {
@@ -569,6 +779,7 @@ class FakeSapClient implements SapClient {
   }
 
   async deleteObject(_uri: string, expectedFingerprint: string): Promise<void> {
+    this.deleteObjectCalls += 1
     assert.equal(expectedFingerprint, `fingerprint:${this.currentSource}`)
     this.deletedObject = true
   }
@@ -856,7 +1067,10 @@ class FakeSapClient implements SapClient {
       discovery: [
         {
           title: "Repository",
-          collection: [{ href: "/sap/bc/adt/repository", templateLinks: [] }]
+          collection: [
+            { href: "/sap/bc/adt/repository", templateLinks: [] },
+            { href: "/sap/bc/adt/activation", templateLinks: [] }
+          ]
         }
       ],
       core: [
@@ -876,6 +1090,1126 @@ class FakeSapClient implements SapClient {
     return systemInfo(this.profile)
   }
 }
+
+function createBdefHarness() {
+  const profile: SapProfile = {
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    language: "EN",
+    environment: "development",
+    authType: "basic",
+    username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO"]
+  }
+  const fake = new FakeSapClient(profile)
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { return fake }
+  })
+  return { fake, service }
+}
+
+function createActivationHarness() {
+  const profile: SapProfile = {
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    language: "EN",
+    environment: "development",
+    authType: "basic",
+    username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO"]
+  }
+  const fake = new FakeSapClient(profile)
+  let getClientCalls = 0
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() {
+      getClientCalls += 1
+      return fake
+    }
+  })
+  return { fake, service, getClientCalls: () => getClientCalls }
+}
+
+function createApplicationHarness() {
+  const profile: SapProfile = {
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    language: "EN",
+    environment: "development",
+    authType: "basic",
+    username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO"]
+  }
+  const fake = new FakeSapClient(profile)
+  const other = new FakeSapClient({ ...profile, id: "QAS200", client: "200" })
+  const clients = new Map<string, FakeSapClient>([
+    [profile.id, fake],
+    [other.profile.id, other]
+  ])
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient(connectionId) {
+      const client = clients.get(connectionId.trim().toUpperCase())
+      if (!client) throw new Error(`Unknown test connection ${connectionId}`)
+      return client
+    }
+  })
+  return { fake, other, service }
+}
+
+function expectApplicationValidation(reason: string, message?: string) {
+  return (error: unknown) => {
+    assert.ok(error instanceof AppError)
+    assert.equal(error.code, "SAP_VALIDATION_FAILED")
+    assert.equal(error.details?.reason, reason)
+    if (message !== undefined) assert.equal(error.message, message)
+    return true
+  }
+}
+
+test("ABAP application plans enforce exact confirmations, connection binding, expiry, and validation", {
+  concurrency: false
+}, async () => {
+  const harness = createApplicationHarness()
+  const classPreview = await harness.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: " dev100 ",
+    className: " ZCL_RUNNER "
+  }) as Record<string, any>
+  assert.equal(classPreview.confirmation, "RUN_CLASS:DEV100:ZCL_RUNNER")
+  assert.equal(classPreview.action, "preview_class")
+  assert.equal(classPreview.capabilityStatusAtExecution, "unverified")
+  assert.equal("capabilityStatus" in classPreview, false)
+  assert.equal("connectionId" in classPreview, false)
+  const planMaps = harness.service as unknown as {
+    executionPlans: Map<string, unknown>
+    refactorPlans: Map<string, unknown>
+  }
+  assert.equal(planMaps.executionPlans.has(classPreview.planId), true)
+  assert.equal(planMaps.refactorPlans.has(classPreview.planId), false)
+
+  await assert.rejects(
+    harness.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: classPreview.planId,
+      confirmation: `${classPreview.confirmation}:WRONG`
+    }),
+    expectApplicationValidation("CONFIRMATION_MISMATCH", "Execution confirmation does not match")
+  )
+  assert.equal(harness.fake.classRunCalls, 0)
+  const classResult = await harness.service.runAbapApplication({
+    action: "execute",
+    connectionId: " dev100 ",
+    planId: classPreview.planId,
+    confirmation: classPreview.confirmation
+  }) as Record<string, any>
+  assert.equal(classResult.kind, "class")
+  assert.match(classResult.output, /runner output: ZCL_RUNNER/)
+  assert.equal("className" in classResult, false)
+  assert.equal(harness.fake.classRunCalls, 1)
+  assert.equal(harness.fake.replHealthCalls, 0)
+  assert.equal(harness.fake.replExecuteCalls, 0)
+  await assert.rejects(
+    harness.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: classPreview.planId,
+      confirmation: classPreview.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+
+  const connectionPreview = await harness.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "/ACME/Z_RUN"
+  }) as Record<string, any>
+  await assert.rejects(
+    harness.service.runAbapApplication({
+      action: "execute",
+      connectionId: " qas200 ",
+      planId: connectionPreview.planId,
+      confirmation: connectionPreview.confirmation
+    }),
+    expectApplicationValidation(
+      "EXECUTION_PLAN_CONNECTION_MISMATCH",
+      "Execution plan belongs to another connection"
+    )
+  )
+  await harness.service.runAbapApplication({
+    action: "execute",
+    connectionId: " dev100 ",
+    planId: connectionPreview.planId,
+    confirmation: connectionPreview.confirmation
+  })
+  assert.equal(harness.fake.classRunCalls, 2)
+  assert.equal(harness.other.classRunCalls, 0)
+
+  const code = "WRITE 42."
+  const snippetPreview = await harness.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code
+  }) as Record<string, any>
+  const digest = createHash("sha256").update(code).digest("hex").slice(0, 12)
+  assert.equal(snippetPreview.confirmation, `RUN_SNIPPET:DEV100:${digest}`)
+  assert.equal(snippetPreview.confirmation.includes(code), false)
+  assert.equal(snippetPreview.codeBytes, Buffer.byteLength(code, "utf8"))
+  assert.equal(snippetPreview.capabilityStatusAtExecution, "unverified")
+  assert.equal("capabilityStatus" in snippetPreview, false)
+  assert.equal("connectionId" in snippetPreview, false)
+
+  for (const className of ["zcl_lower", "ZCL-BAD", `Z${"A".repeat(30)}`]) {
+    await assert.rejects(
+      harness.service.runAbapApplication({
+        action: "preview_class",
+        connectionId: "DEV100",
+        className
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof AppError)
+        assert.equal(error.code, "SAP_VALIDATION_FAILED")
+        assert.equal(error.message, "className must be an uppercase ABAP class name")
+        assert.deepEqual(error.details, { reason: "CLASS_NAME_INVALID" })
+        return true
+      }
+    )
+  }
+  for (const invalidCode of [" \t ", "한".repeat(32_769)]) {
+    await assert.rejects(
+      harness.service.runAbapApplication({
+        action: "preview_snippet",
+        connectionId: "DEV100",
+        code: invalidCode
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof AppError)
+        assert.equal(error.code, "SAP_VALIDATION_FAILED")
+        assert.equal(error.message, "code must contain 1 through 98304 UTF-8 bytes")
+        assert.deepEqual(error.details, {
+          reason: "SNIPPET_SIZE_INVALID",
+          bytes: Buffer.byteLength(invalidCode, "utf8")
+        })
+        return true
+      }
+    )
+  }
+  const boundary = "한".repeat(32_768)
+  const boundaryPreview = await harness.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: boundary
+  }) as Record<string, any>
+  assert.equal(boundaryPreview.codeBytes, 98_304)
+
+  const originalNow = Date.now
+  let now = originalNow()
+  Date.now = () => now
+  try {
+    const expiring = await harness.service.runAbapApplication({
+      action: "preview_class",
+      connectionId: "DEV100",
+      className: "ZCL_EXPIRES"
+    }) as Record<string, any>
+    now += 10 * 60 * 1000 + 1
+    await assert.rejects(
+      harness.service.runAbapApplication({
+        action: "execute",
+        connectionId: "DEV100",
+        planId: expiring.planId,
+        confirmation: expiring.confirmation
+      }),
+      expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+    )
+  } finally {
+    Date.now = originalNow
+  }
+})
+
+test("ABAP application execution blocks production and consumes each execution attempt once", async () => {
+  const production = createApplicationHarness()
+  production.fake.profile.environment = "production"
+  for (const input of [
+    { action: "preview_class" as const, connectionId: "DEV100", className: "ZCL_RUNNER" },
+    { action: "preview_snippet" as const, connectionId: "DEV100", code: "WRITE 42." }
+  ]) {
+    await assert.rejects(
+      production.service.runAbapApplication(input),
+      (error: unknown) => {
+        assert.ok(error instanceof AppError)
+        assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+        assert.equal(error.message, "ABAP execution is disabled on production")
+        assert.deepEqual(error.details, {
+          reason: "PRODUCTION_EXECUTION_BLOCKED",
+          connectionId: "DEV100"
+        })
+        return true
+      }
+    )
+  }
+  assert.deepEqual({
+    class: production.fake.classRunCalls,
+    health: production.fake.replHealthCalls,
+    execute: production.fake.replExecuteCalls
+  }, { class: 0, health: 0, execute: 0 })
+  const productionHealth = await production.service.runAbapApplication({
+    action: "repl_health",
+    connectionId: "DEV100"
+  }) as Record<string, any>
+  assert.equal(productionHealth.health.production, false)
+  assert.equal(production.fake.replHealthCalls, 1)
+
+  const rechecked = createApplicationHarness()
+  const preview = await rechecked.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_RECHECK"
+  }) as Record<string, any>
+  rechecked.fake.profile.environment = "production"
+  await assert.rejects(
+    rechecked.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: preview.planId,
+      confirmation: preview.confirmation
+    }),
+    (error: unknown) => error instanceof AppError &&
+      error.details?.reason === "PRODUCTION_EXECUTION_BLOCKED"
+  )
+  assert.equal(rechecked.fake.classRunCalls, 0)
+  rechecked.fake.profile.environment = "development"
+  await assert.rejects(
+    rechecked.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: preview.planId,
+      confirmation: preview.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+
+  const replProduction = createApplicationHarness()
+  replProduction.fake.replProduction = true
+  const snippet = await replProduction.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 42."
+  }) as Record<string, any>
+  await assert.rejects(
+    replProduction.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: snippet.planId,
+      confirmation: snippet.confirmation
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.equal(error.message, "ABAP REPL is disabled on production")
+      return true
+    }
+  )
+  assert.equal(replProduction.fake.replHealthCalls, 1)
+  assert.equal(replProduction.fake.replExecuteCalls, 0)
+  assert.equal(replProduction.fake.classRunCalls, 0)
+  await assert.rejects(
+    replProduction.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: snippet.planId,
+      confirmation: snippet.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+  assert.equal(replProduction.fake.replHealthCalls, 1)
+  assert.equal(replProduction.fake.replExecuteCalls, 0)
+})
+
+test("ABAP application execution normalizes one SAP attempt and bounds Unicode output", async () => {
+  const inlineLimit = 96 * 1024
+  const bounded = createApplicationHarness()
+  bounded.fake.classRunResult = `${"C".repeat(inlineLimit - 1)}😀TAIL`
+  const classPreview = await bounded.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_BOUNDED"
+  }) as Record<string, any>
+  const classResult = await bounded.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: classPreview.planId,
+    confirmation: classPreview.confirmation
+  }) as Record<string, any>
+  assert.equal(classResult.truncated, true)
+  assert.equal(classResult.originalBytes, inlineLimit + 7)
+  assert.ok(classResult.returnedBytes <= inlineLimit)
+  assert.equal(Buffer.byteLength(classResult.output, "utf8"), classResult.returnedBytes)
+  assert.equal(classResult.output.includes("�"), false)
+
+  bounded.fake.replExecutionResult = {
+    success: false,
+    output: `${"O".repeat(inlineLimit - 1)}😀`,
+    error: "ERROR-TEXT",
+    runtime_ms: 7
+  }
+  const snippetPreview = await bounded.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 42."
+  }) as Record<string, any>
+  const snippetResult = await bounded.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: snippetPreview.planId,
+    confirmation: snippetPreview.confirmation
+  }) as Record<string, any>
+  assert.equal(snippetResult.output, "O".repeat(inlineLimit - 1))
+  assert.equal(snippetResult.error, "E")
+  assert.equal(snippetResult.originalBytes, inlineLimit + 3 + 10)
+  assert.equal(snippetResult.returnedBytes, inlineLimit)
+  assert.equal(snippetResult.truncated, true)
+  assert.ok(
+    Buffer.byteLength(snippetResult.output + snippetResult.error, "utf8") <= inlineLimit
+  )
+  assert.equal(snippetResult.output.includes("�"), false)
+  assert.equal(bounded.fake.replHealthCalls, 1)
+  assert.equal(bounded.fake.replExecuteCalls, 1)
+
+  const operationCases = [
+    {
+      capabilityId: "execution.class_runner",
+      endpoint: "/sap/bc/adt/oo/classrun/ZCL_FAIL",
+      counter: (fake: FakeSapClient) => fake.classRunCalls,
+      prepare(fake: FakeSapClient) {
+        fake.classRunError = Object.assign(new Error("Authorization: Bearer class-secret"), {
+          status: 503
+        })
+      },
+      async invoke(service: AbapToolService) {
+        const plan = await service.runAbapApplication({
+          action: "preview_class", connectionId: "DEV100", className: "ZCL_FAIL"
+        }) as Record<string, any>
+        return service.runAbapApplication({
+          action: "execute", connectionId: "DEV100",
+          planId: plan.planId, confirmation: plan.confirmation
+        })
+      }
+    },
+    {
+      capabilityId: "execution.abap_repl",
+      endpoint: "/sap/bc/z_abap_repl",
+      counter: (fake: FakeSapClient) => fake.replHealthCalls,
+      prepare(fake: FakeSapClient) {
+        fake.replHealthError = Object.assign(new Error("Cookie: health-secret"), { status: 503 })
+      },
+      async invoke(service: AbapToolService) {
+        return service.runAbapApplication({ action: "repl_health", connectionId: "DEV100" })
+      }
+    },
+    {
+      capabilityId: "execution.abap_repl",
+      endpoint: "/sap/bc/z_abap_repl",
+      counter: (fake: FakeSapClient) => fake.replExecuteCalls,
+      prepare(fake: FakeSapClient) {
+        fake.replExecutionError = Object.assign(
+          new Error("X-CSRF-Token: execute-secret"),
+          { status: 503 }
+        )
+      },
+      async invoke(service: AbapToolService) {
+        const plan = await service.runAbapApplication({
+          action: "preview_snippet", connectionId: "DEV100", code: "WRITE 42."
+        }) as Record<string, any>
+        return service.runAbapApplication({
+          action: "execute", connectionId: "DEV100",
+          planId: plan.planId, confirmation: plan.confirmation
+        })
+      }
+    }
+  ]
+  for (const operationCase of operationCases) {
+    const failed = createApplicationHarness()
+    operationCase.prepare(failed.fake)
+    await assert.rejects(operationCase.invoke(failed.service), (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_OPERATION_FAILED")
+      assert.deepEqual(error.details, {
+        capabilityId: operationCase.capabilityId,
+        endpoint: operationCase.endpoint,
+        httpStatus: 503
+      })
+      assert.equal(/class-secret|health-secret|execute-secret/.test(error.message), false)
+      return true
+    })
+    assert.equal(operationCase.counter(failed.fake), 1)
+    const capability = (
+      failed.service as unknown as { capabilities: SapCapabilityRegistry }
+    ).capabilities.list("DEV100", "", "execution").find(
+      item => item.id === operationCase.capabilityId
+    )
+    assert.ok(capability?.evidence.includes(`http:503:${operationCase.endpoint}`))
+  }
+})
+
+test("ABAP application execution plans stay one-use across concurrency and operation failures", async () => {
+  const concurrent = createApplicationHarness()
+  const concurrentPlan = await concurrent.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_CONCURRENT"
+  }) as Record<string, any>
+  const concurrentExecutions = await Promise.allSettled([
+    concurrent.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: concurrentPlan.planId,
+      confirmation: concurrentPlan.confirmation
+    }),
+    concurrent.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: concurrentPlan.planId,
+      confirmation: concurrentPlan.confirmation
+    })
+  ])
+  const fulfilled = concurrentExecutions.filter(result => result.status === "fulfilled")
+  const rejected = concurrentExecutions.filter(result => result.status === "rejected")
+  assert.equal(fulfilled.length, 1)
+  assert.equal(rejected.length, 1)
+  assert.equal(
+    (fulfilled[0] as PromiseFulfilledResult<Record<string, any>>).value
+      .capabilityStatusAtExecution,
+    "unverified"
+  )
+  assert.ok((rejected[0] as PromiseRejectedResult).reason instanceof AppError)
+  assert.equal(
+    (rejected[0] as PromiseRejectedResult).reason.details?.reason,
+    "EXECUTION_PLAN_EXPIRED"
+  )
+  assert.equal(concurrent.fake.classRunCalls, 1)
+
+  const failedClass = createApplicationHarness()
+  const failedClassPlan = await failedClass.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_FAIL_ONCE"
+  }) as Record<string, any>
+  failedClass.fake.classRunError = Object.assign(new Error("class failed"), { status: 503 })
+  await assert.rejects(
+    failedClass.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: failedClassPlan.planId,
+      confirmation: failedClassPlan.confirmation
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "SAP_OPERATION_FAILED"
+  )
+  await assert.rejects(
+    failedClass.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: failedClassPlan.planId,
+      confirmation: failedClassPlan.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+  assert.equal(failedClass.fake.classRunCalls, 1)
+
+  const failedSnippet = createApplicationHarness()
+  const failedSnippetPlan = await failedSnippet.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 'FAIL ONCE'."
+  }) as Record<string, any>
+  failedSnippet.fake.replExecutionError = Object.assign(new Error("snippet failed"), {
+    status: 503
+  })
+  await assert.rejects(
+    failedSnippet.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: failedSnippetPlan.planId,
+      confirmation: failedSnippetPlan.confirmation
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "SAP_OPERATION_FAILED"
+  )
+  assert.equal(failedSnippet.fake.replHealthCalls, 1)
+  assert.equal(failedSnippet.fake.replExecuteCalls, 1)
+  await assert.rejects(
+    failedSnippet.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: failedSnippetPlan.planId,
+      confirmation: failedSnippetPlan.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+  assert.equal(failedSnippet.fake.replHealthCalls, 1)
+  assert.equal(failedSnippet.fake.replExecuteCalls, 1)
+})
+
+test("ABAP application execution plan cache evicts and purges bounded entries", async () => {
+  const bounded = createApplicationHarness()
+  const previews: Array<Record<string, any>> = []
+  for (let index = 0; index < 101; index += 1) {
+    previews.push(await bounded.service.runAbapApplication({
+      action: "preview_class",
+      connectionId: "DEV100",
+      className: `ZCL_CACHE_${String(index).padStart(3, "0")}`
+    }) as Record<string, any>)
+  }
+  const boundedPlans = (
+    bounded.service as unknown as { executionPlans: Map<string, { expiresAt: number }> }
+  ).executionPlans
+  assert.equal(boundedPlans.size, 100)
+  const oldest = previews[0]!
+  await assert.rejects(
+    bounded.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: oldest.planId,
+      confirmation: oldest.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+  const latest = previews.at(-1)!
+  const latestResult = await bounded.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: latest.planId,
+    confirmation: latest.confirmation
+  }) as Record<string, any>
+  assert.equal(latestResult.kind, "class")
+  assert.equal(bounded.fake.classRunCalls, 1)
+
+  const purged = createApplicationHarness()
+  const expired = await purged.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_PURGE_OLD"
+  }) as Record<string, any>
+  const purgedPlans = (
+    purged.service as unknown as { executionPlans: Map<string, { expiresAt: number }> }
+  ).executionPlans
+  purgedPlans.get(expired.planId)!.expiresAt = 0
+  const live = await purged.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_PURGE_LIVE"
+  }) as Record<string, any>
+  assert.equal(purgedPlans.size, 1)
+  assert.equal(purgedPlans.has(expired.planId), false)
+  assert.equal(purgedPlans.has(live.planId), true)
+  await assert.rejects(
+    purged.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: expired.planId,
+      confirmation: expired.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+})
+
+test("ABAP application capability guards preserve status, privacy, and zero-call rejection", async () => {
+  const snippet = createApplicationHarness()
+  const rawCode = "WRITE 'UNIQUE_RAW_SNIPPET_MARKER_8173'."
+  const snippetPlan = await snippet.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: rawCode
+  }) as Record<string, any>
+  assert.equal(JSON.stringify(snippetPlan).includes(rawCode), false)
+  assert.match(snippetPlan.confirmation, /^RUN_SNIPPET:DEV100:[0-9a-f]{12}$/)
+  const snippetResult = await snippet.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: snippetPlan.planId,
+    confirmation: snippetPlan.confirmation
+  }) as Record<string, any>
+  assert.equal(snippetResult.capabilityStatusAtExecution, "supported")
+  assert.equal(snippet.fake.replHealthCalls, 1)
+  assert.equal(snippet.fake.replExecuteCalls, 1)
+
+  const unsupportedClass = createApplicationHarness()
+  const unsupportedClassPlan = await unsupportedClass.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_UNSUPPORTED"
+  }) as Record<string, any>
+  ;(
+    unsupportedClass.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.observeHttpFailure(
+    "DEV100",
+    "execution.class_runner",
+    404,
+    "/sap/bc/adt/oo/classrun/ZCL_UNSUPPORTED"
+  )
+  await assert.rejects(
+    unsupportedClass.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: unsupportedClassPlan.planId,
+      confirmation: unsupportedClassPlan.confirmation
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "SAP_CAPABILITY_UNAVAILABLE"
+  )
+  assert.equal(unsupportedClass.fake.classRunCalls, 0)
+  await assert.rejects(
+    unsupportedClass.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: unsupportedClassPlan.planId,
+      confirmation: unsupportedClassPlan.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+  assert.equal(unsupportedClass.fake.classRunCalls, 0)
+
+  const unsupportedRepl = createApplicationHarness()
+  const unsupportedReplPlan = await unsupportedRepl.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 'UNSUPPORTED'."
+  }) as Record<string, any>
+  ;(
+    unsupportedRepl.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.observeHttpFailure(
+    "DEV100",
+    "execution.abap_repl",
+    404,
+    "/sap/bc/z_abap_repl"
+  )
+  await assert.rejects(
+    unsupportedRepl.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: unsupportedReplPlan.planId,
+      confirmation: unsupportedReplPlan.confirmation
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "SAP_CAPABILITY_UNAVAILABLE"
+  )
+  assert.equal(unsupportedRepl.fake.replHealthCalls, 0)
+  assert.equal(unsupportedRepl.fake.replExecuteCalls, 0)
+})
+
+test("activateObject validates batches and classifies one SAP activation response conservatively", async () => {
+  const firstUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main"
+  const secondUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_second/source/main"
+  const expectValidation = async (
+    operation: Promise<unknown>,
+    message: string,
+    reason: string
+  ) => assert.rejects(operation, (error: unknown) => {
+    assert.ok(error instanceof AppError)
+    assert.equal(error.code, "SAP_VALIDATION_FAILED")
+    assert.equal(error.message, message)
+    assert.deepEqual(error.details, { reason })
+    return true
+  })
+
+  const ambiguous = createActivationHarness()
+  await expectValidation(
+    ambiguous.service.activateObject({
+      url: firstUrl,
+      urls: [firstUrl]
+    } as unknown as ActivateObjectInput),
+    "Provide exactly one of url or urls",
+    "ACTIVATION_INPUT_AMBIGUOUS"
+  )
+  assert.equal(ambiguous.getClientCalls(), 0)
+  assert.equal(ambiguous.fake.batchActivationCalls, 0)
+
+  const empty = createActivationHarness()
+  await expectValidation(
+    empty.service.activateObject({ urls: [] }),
+    "Batch activation requires 1 through 100 URLs",
+    "ACTIVATION_CARDINALITY_INVALID"
+  )
+  assert.equal(empty.fake.batchActivationCalls, 0)
+  assert.equal(empty.getClientCalls(), 0)
+
+  const oversized = createActivationHarness()
+  await expectValidation(
+    oversized.service.activateObject({ urls: Array.from({ length: 101 }, () => firstUrl) }),
+    "Batch activation requires 1 through 100 URLs",
+    "ACTIVATION_CARDINALITY_INVALID"
+  )
+  assert.equal(oversized.fake.batchActivationCalls, 0)
+  assert.equal(oversized.getClientCalls(), 0)
+
+  const crossConnection = createActivationHarness()
+  await expectValidation(
+    crossConnection.service.activateObject({
+      urls: [firstUrl, "adt://qas200/sap/bc/adt/oo/classes/zcl_second/source/main"]
+    }),
+    "Batch activation requires exactly one connection",
+    "CROSS_CONNECTION_BATCH"
+  )
+  assert.equal(crossConnection.getClientCalls(), 0)
+  assert.equal(crossConnection.fake.batchActivationCalls, 0)
+
+  const legacy = createActivationHarness()
+  assert.deepEqual(
+    await legacy.service.activateObject({
+      url: `adt://dev100${object.uri}/source/main`
+    }),
+    {
+      connectionId: "DEV100",
+      object,
+      success: true,
+      messages: [],
+      inactive: []
+    }
+  )
+  assert.equal(legacy.fake.batchActivationCalls, 0)
+
+  const complete = createActivationHarness()
+  const completeResult = await complete.service.activateObject({
+    urls: [firstUrl, secondUrl]
+  }) as unknown as {
+    status: string
+    requested: SapObjectReference[]
+    objectResults: Array<{ outcome: string }>
+  }
+  assert.equal(completeResult.status, "complete")
+  assert.deepEqual(completeResult.requested.map(item => item.name), ["ZCL_FIRST", "ZCL_SECOND"])
+  assert.deepEqual(completeResult.objectResults.map(item => item.outcome), ["activated", "activated"])
+  assert.equal(complete.getClientCalls(), 1)
+  assert.equal(complete.fake.inactiveObjectCalls, 1)
+  assert.equal(complete.fake.batchActivationCalls, 1)
+  assert.deepEqual(
+    complete.fake.lastBatchActivation.map(item => item["adtcore:name"]),
+    ["ZCL_FIRST", "ZCL_SECOND"]
+  )
+
+  const noInactive = createActivationHarness()
+  noInactive.fake.inactiveObjects = []
+  const noInactiveResult = await noInactive.service.activateObject({ urls: [firstUrl] }) as unknown as {
+    status: string
+    objectResults: Array<{ outcome: string }>
+  }
+  assert.equal(noInactiveResult.status, "partial")
+  assert.deepEqual(noInactiveResult.objectResults.map(item => item.outcome), ["unknown"])
+  assert.equal(noInactive.fake.batchActivationCalls, 0)
+
+  const partial = createActivationHarness()
+  partial.fake.batchActivationResult = {
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.activationPartial),
+    inactive: [inactiveClass("ZCL_SECOND")]
+  }
+  const partialResult = await partial.service.activateObject({
+    urls: [firstUrl, secondUrl]
+  }) as unknown as {
+    status: string
+    objectResults: Array<{ outcome: string }>
+  }
+  assert.equal(partialResult.status, "partial")
+  assert.deepEqual(partialResult.objectResults.map(item => item.outcome), ["unknown", "failed"])
+  assert.equal(partial.fake.batchActivationCalls, 1)
+
+  const executionFailure = createActivationHarness()
+  executionFailure.fake.batchActivationError = new Error("SAP activation failed")
+  await assert.rejects(
+    executionFailure.service.activateObject({ urls: [firstUrl, secondUrl] }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_OPERATION_FAILED")
+      return true
+    }
+  )
+  assert.equal(executionFailure.fake.batchActivationCalls, 1)
+})
+
+test("activateObject canonicalizes SAP evidence and tolerates malformed result fields", async () => {
+  const firstUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main"
+  const shortNameUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_a/source/main"
+
+  const caseDifferent = createActivationHarness()
+  const uppercaseInactive = inactiveClass("ZCL_FIRST")
+  uppercaseInactive.object!["adtcore:uri"] =
+    "/SAP/BC/ADT/OO/CLASSES/ZCL_FIRST/SOURCE/MAIN?version=inactive#result"
+  const uppercaseRemaining = inactiveClass("ZCL_FIRST")
+  uppercaseRemaining.object!["adtcore:uri"] = "/SAP/BC/ADT/OO/CLASSES/ZCL_FIRST/"
+  caseDifferent.fake.inactiveObjects = [uppercaseInactive]
+  caseDifferent.fake.batchActivationResult = {
+    success: false,
+    messages: [],
+    inactive: [uppercaseRemaining]
+  }
+  const caseResult = await caseDifferent.service.activateObject({
+    urls: [firstUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string }> }
+  assert.equal(caseDifferent.fake.batchActivationCalls, 1)
+  assert.deepEqual(caseResult.objectResults.map(item => item.outcome), ["failed"])
+
+  const boundary = createActivationHarness()
+  boundary.fake.inactiveObjects = [inactiveClass("ZCL_A")]
+  boundary.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Activation failed for ZCL_AB",
+      type: "E",
+      line: 1,
+      href: "",
+      forceSupported: false,
+      shortText: "Wrong object"
+    }],
+    inactive: []
+  }
+  const boundaryResult = await boundary.service.activateObject({
+    urls: [shortNameUrl]
+  }) as unknown as {
+    objectResults: Array<{ outcome: string; messages: unknown[] }>
+  }
+  assert.deepEqual(boundaryResult.objectResults, [{
+    object: {
+      name: "ZCL_A",
+      type: "CLAS/OC",
+      uri: "/sap/bc/adt/oo/classes/zcl_a",
+      description: "ZCL_A",
+      packageName: "Z_DEMO"
+    },
+    outcome: "unknown",
+    messages: []
+  }])
+
+  const exactFallback = createActivationHarness()
+  exactFallback.fake.inactiveObjects = [inactiveClass("ZCL_A")]
+  exactFallback.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Activation failed for ZCL_A",
+      type: "E",
+      line: 1,
+      href: "",
+      forceSupported: false,
+      shortText: "Exact object"
+    }],
+    inactive: []
+  }
+  const exactFallbackResult = await exactFallback.service.activateObject({
+    urls: [shortNameUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string }> }
+  assert.deepEqual(exactFallbackResult.objectResults.map(item => item.outcome), ["failed"])
+
+  const malformed = createActivationHarness()
+  malformed.fake.inactiveObjects = [
+    null as any,
+    { object: { ...inactiveClass("ZCL_A").object!, "adtcore:uri": undefined } } as any,
+    inactiveClass("ZCL_A")
+  ]
+  const malformedMessage = {
+    line: 1,
+    forceSupported: false,
+    shortText: "Malformed SAP message"
+  }
+  malformed.fake.batchActivationResult = {
+    success: false,
+    messages: [null as any, malformedMessage as any],
+    inactive: [
+      null as any,
+      { object: { ...inactiveClass("ZCL_AB").object!, "adtcore:uri": null } } as any
+    ]
+  }
+  const malformedResult = await malformed.service.activateObject({
+    urls: [shortNameUrl]
+  }) as unknown as {
+    objectResults: Array<{ outcome: string; messages: unknown[] }>
+    messages: unknown[]
+  }
+  assert.equal(malformed.fake.batchActivationCalls, 1)
+  assert.deepEqual(malformedResult.objectResults.map(item => item.outcome), ["unknown"])
+  assert.deepEqual(malformedResult.objectResults[0]!.messages, [])
+  assert.equal(malformedResult.messages[1], malformedMessage)
+
+  const hrefPrecedence = createActivationHarness()
+  hrefPrecedence.fake.inactiveObjects = [inactiveClass("ZCL_A")]
+  hrefPrecedence.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Activation failed for ZCL_A",
+      type: "E",
+      line: 1,
+      href: "/sap/bc/adt/oo/classes/zcl_ab",
+      forceSupported: false,
+      shortText: "Different href"
+    }],
+    inactive: []
+  }
+  const precedenceResult = await hrefPrecedence.service.activateObject({
+    urls: [shortNameUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string; messages: unknown[] }> }
+  assert.deepEqual(precedenceResult.objectResults.map(item => item.outcome), ["unknown"])
+  assert.deepEqual(precedenceResult.objectResults[0]!.messages, [])
+
+  const invalidPrefix = createActivationHarness()
+  invalidPrefix.fake.inactiveObjects = [inactiveClass("ZCL_FIRST")]
+  invalidPrefix.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Unrelated object",
+      type: "E",
+      line: 1,
+      href: "garbage/sap/bc/adt/oo/classes/zcl_first",
+      forceSupported: false,
+      shortText: "Malformed href"
+    }],
+    inactive: []
+  }
+  const invalidPrefixResult = await invalidPrefix.service.activateObject({
+    urls: [firstUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string; messages: unknown[] }> }
+  assert.deepEqual(invalidPrefixResult.objectResults.map(item => item.outcome), ["unknown"])
+  assert.deepEqual(invalidPrefixResult.objectResults[0]!.messages, [])
+
+  const absoluteHttp = createActivationHarness()
+  absoluteHttp.fake.inactiveObjects = [inactiveClass("ZCL_FIRST")]
+  absoluteHttp.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Unrelated object",
+      type: "E",
+      line: 1,
+      href: "https://sap.example.test/sap/bc/adt/oo/classes/zcl_first/source/main?x=1#fragment",
+      forceSupported: false,
+      shortText: "Absolute href"
+    }],
+    inactive: []
+  }
+  const absoluteHttpResult = await absoluteHttp.service.activateObject({
+    urls: [firstUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string; messages: unknown[] }> }
+  assert.deepEqual(absoluteHttpResult.objectResults.map(item => item.outcome), ["failed"])
+  assert.equal(absoluteHttpResult.objectResults[0]!.messages.length, 1)
+})
+
+test("activateObject deduplicates SAP submission without dropping requested results", async () => {
+  const duplicate = createActivationHarness()
+  const result = await duplicate.service.activateObject({
+    urls: [
+      "adt://dev100/sap/bc/adt/oo/classes/zcl_first",
+      "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main"
+    ]
+  }) as unknown as {
+    requested: SapObjectReference[]
+    objectResults: Array<{ outcome: string }>
+  }
+
+  assert.equal(duplicate.fake.batchActivationCalls, 1)
+  assert.equal(duplicate.fake.lastBatchActivation.length, 1)
+  assert.equal(result.requested.length, 2)
+  assert.equal(result.objectResults.length, 2)
+  assert.deepEqual(result.objectResults.map(item => item.outcome), ["activated", "activated"])
+})
+
+test("activateObject rejects malformed unions and enforces package and capability safety", async () => {
+  const firstUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main"
+  const secondUrl = "adt://dev100/sap/bc/adt/oo/classes/zcl_second/source/main"
+  const expectAmbiguous = async (harness: ReturnType<typeof createActivationHarness>, input: unknown) => {
+    await assert.rejects(
+      harness.service.activateObject(input as ActivateObjectInput),
+      (error: unknown) => {
+        assert.ok(error instanceof AppError)
+        assert.equal(error.code, "SAP_VALIDATION_FAILED")
+        assert.equal(error.message, "Provide exactly one of url or urls")
+        assert.deepEqual(error.details, { reason: "ACTIVATION_INPUT_AMBIGUOUS" })
+        return true
+      }
+    )
+    assert.equal(harness.getClientCalls(), 0)
+    assert.equal(harness.fake.batchActivationCalls, 0)
+  }
+  await expectAmbiguous(createActivationHarness(), { url: 123 })
+  await expectAmbiguous(createActivationHarness(), { url: 123, urls: [firstUrl] })
+  await expectAmbiguous(createActivationHarness(), { urls: [123] })
+  await expectAmbiguous(createActivationHarness(), { url: firstUrl, connectionId: 123 })
+
+  const packageBlocked = createActivationHarness()
+  packageBlocked.fake.objectPackages.set("ZCL_SECOND", "Z_OTHER")
+  await assert.rejects(
+    packageBlocked.service.activateObject({ urls: [firstUrl, secondUrl] }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "PACKAGE_NOT_ALLOWED")
+      return true
+    }
+  )
+  assert.equal(packageBlocked.fake.inactiveObjectCalls, 0)
+  assert.equal(packageBlocked.fake.batchActivationCalls, 0)
+
+  const unsupported = createActivationHarness()
+  const unsupportedRegistry = (unsupported.service as unknown as {
+    capabilities: SapCapabilityRegistry
+  }).capabilities
+  unsupportedRegistry.observeHttpFailure(
+    "DEV100",
+    "repository.activate.batch",
+    404,
+    "/sap/bc/adt/activation"
+  )
+  await assert.rejects(
+    unsupported.service.activateObject({ urls: [firstUrl] }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      return true
+    }
+  )
+  assert.equal(unsupported.fake.batchActivationCalls, 0)
+
+  const success = createActivationHarness()
+  const successRegistry = (success.service as unknown as {
+    capabilities: SapCapabilityRegistry
+  }).capabilities
+  const successResult = await success.service.activateObject({
+    urls: [firstUrl]
+  }) as unknown as { capabilityStatusAtExecution: string }
+  assert.equal(successResult.capabilityStatusAtExecution, "unverified")
+  assert.equal(success.fake.batchActivationCalls, 1)
+  const successCapability = successRegistry.list("DEV100", "").find(
+    item => item.id === "repository.activate.batch"
+  )!
+  assert.equal(successCapability.status, "supported")
+  assert.equal(successCapability.authorization, "allowed")
+  assert.ok(successCapability.evidence.includes("success:/sap/bc/adt/activation"))
+
+  const missingEndpoint = createActivationHarness()
+  const secret = "activation-secret"
+  missingEndpoint.fake.batchActivationError = Object.assign(
+    new Error(`Authorization: Bearer ${secret}`),
+    { response: { status: 404 } }
+  )
+  await assert.rejects(
+    missingEndpoint.service.activateObject({ urls: [firstUrl] }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.activate.batch",
+        endpoint: "/sap/bc/adt/activation",
+        httpStatus: 404
+      })
+      assert.equal(error.message.includes(secret), false)
+      return true
+    }
+  )
+  assert.equal(missingEndpoint.fake.batchActivationCalls, 1)
+  const missingRegistry = (missingEndpoint.service as unknown as {
+    capabilities: SapCapabilityRegistry
+  }).capabilities
+  const missingCapability = missingRegistry.list("DEV100", "").find(
+    item => item.id === "repository.activate.batch"
+  )!
+  assert.equal(missingCapability.system, "not_advertised")
+  assert.equal(missingCapability.status, "unsupported")
+  assert.ok(missingCapability.evidence.includes("http:404:/sap/bc/adt/activation"))
+})
 
 test("ConnectionManager logs in once, caches the client, and logs out", async t => {
   const directory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-connection-"))
@@ -958,6 +2292,550 @@ test("ABAP source replacement requires one exact match", () => {
   )
 })
 
+test("BDEF create object writes exact source and activates after creation", async () => {
+  const { fake, service } = createBdefHarness()
+  const bdefSource = "managed implementation in class zbp_i_demo unique;"
+  const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_DEMO"
+
+  const created = await service.createObjectProgrammatically({
+    objectType: "BDEF/BDO",
+    name: "ZI_DEMO",
+    description: "Demo behavior",
+    packageName: "Z_DEMO",
+    connectionId: "DEV100",
+    source: bdefSource,
+    activate: true,
+    additionalOptions: {
+      transportRequest: { type: "existing", number: "DEVK900123" }
+    }
+  }) as Record<string, any>
+
+  assert.deepEqual(created, {
+    connectionId: "DEV100",
+    success: true,
+    object: {
+      name: "ZI_DEMO",
+      type: "BDEF/BDO",
+      uri: objectUri,
+      packageName: "Z_DEMO"
+    },
+    transport: "DEVK900123",
+    capabilityStatusAtExecution: "unverified",
+    sourceUri: `${objectUri}/source/main`,
+    diagnostics: [],
+    activation: { success: true, messages: [], inactive: [] },
+    activationSkipped: false
+  })
+  assert.equal(fake.createObjectCalls, 1)
+  assert.equal(fake.createdObject && (fake.createdObject as { objtype: string }).objtype, "BDEF/BDO")
+  assert.equal((fake.createdObject as { transport: string }).transport, "DEVK900123")
+  assert.deepEqual(fake.objectCreationOperations, [
+    "validate",
+    "create",
+    "read_source",
+    "replace_source"
+  ])
+  assert.deepEqual(fake.replaceSourceCalls, [{
+    objectName: "ZI_DEMO",
+    objectUri,
+    sourceUri: `${objectUri}/source/main`,
+    expectedSource: source,
+    nextSource: bdefSource,
+    transport: "DEVK900123",
+    activate: true
+  }])
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
+test("BDEF create object rejects known unsupported capability before SAP calls", async () => {
+  const { fake, service } = createBdefHarness()
+  const capabilities = (
+    service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities
+  capabilities.observeHttpFailure(
+    "DEV100",
+    "repository.create.bdef",
+    404,
+    "bo/behaviordefinitions"
+  )
+
+  await assert.rejects(
+    service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_UNSUPPORTED",
+      description: "Unsupported behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      activate: false,
+      additionalOptions: {
+        transportRequest: { type: "new", description: "Must not be created" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.equal(error.message, "BDEF creation is unavailable")
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "bo/behaviordefinitions"
+      })
+      return true
+    }
+  )
+  assert.equal(fake.validateNewObjectCalls, 0)
+  assert.equal(fake.createTransportCalls, 0)
+  assert.equal(fake.createObjectCalls, 0)
+  assert.deepEqual(fake.readSourceCalls, [])
+  assert.deepEqual(fake.replaceSourceCalls, [])
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
+test("create object direct callers may omit source and activate", async () => {
+  const { fake, service } = createBdefHarness()
+
+  const created = await service.createObjectProgrammatically({
+    objectType: "CLAS/OC",
+    name: "ZCL_LEGACY",
+    description: "Legacy direct caller",
+    packageName: "Z_DEMO",
+    connectionId: "DEV100",
+    additionalOptions: {
+      transportRequest: { type: "existing", number: "DEVK900123" }
+    }
+  })
+
+  assert.deepEqual(created, {
+    connectionId: "DEV100",
+    success: true,
+    object: {
+      name: "ZCL_LEGACY",
+      type: "CLAS/OC",
+      uri: "/sap/bc/adt/oo/classes/ZCL_LEGACY",
+      packageName: "Z_DEMO"
+    },
+    transport: "DEVK900123"
+  })
+  assert.deepEqual(fake.objectCreationOperations, ["validate", "create"])
+  assert.equal((fake.createdObject as { transport: string }).transport, "DEVK900123")
+  assert.deepEqual(fake.readSourceCalls, [])
+  assert.deepEqual(fake.replaceSourceCalls, [])
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
+test("BDEF create object validation rejects invalid source combinations before SAP mutation", async () => {
+  const missingSource = createBdefHarness()
+  await assert.rejects(
+    missingSource.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_DEMO",
+      description: "Demo behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_VALIDATION_FAILED")
+      assert.equal(error.message, "activate=true requires source")
+      assert.deepEqual(error.details, { reason: "SOURCE_REQUIRED_FOR_ACTIVATION" })
+      return true
+    }
+  )
+  assert.equal(missingSource.fake.validateNewObjectCalls, 0)
+  assert.equal(missingSource.fake.createObjectCalls, 0)
+  assert.equal(missingSource.fake.createTransportCalls, 0)
+  assert.deepEqual(missingSource.fake.readSourceCalls, [])
+  assert.deepEqual(missingSource.fake.replaceSourceCalls, [])
+
+  const unsupportedSource = createBdefHarness()
+  await assert.rejects(
+    unsupportedSource.service.createObjectProgrammatically({
+      objectType: "CLAS/OC",
+      name: "ZCL_DEMO",
+      description: "Demo class",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "CLASS zcl_demo DEFINITION PUBLIC FINAL CREATE PUBLIC. ENDCLASS.",
+      activate: false,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_VALIDATION_FAILED")
+      assert.deepEqual(error.details, { reason: "CREATE_SOURCE_UNSUPPORTED" })
+      return true
+    }
+  )
+  assert.equal(unsupportedSource.fake.validateNewObjectCalls, 0)
+  assert.equal(unsupportedSource.fake.createObjectCalls, 0)
+  assert.equal(unsupportedSource.fake.createTransportCalls, 0)
+  assert.deepEqual(unsupportedSource.fake.readSourceCalls, [])
+  assert.deepEqual(unsupportedSource.fake.replaceSourceCalls, [])
+})
+
+test("BDEF create object normalizes thrown validation and create failures", async () => {
+  const validationFailure = createBdefHarness()
+  validationFailure.fake.validationError = Object.assign(
+    new Error("Authorization: Bearer validation-secret"),
+    { response: { status: 403 } }
+  )
+  await assert.rejects(
+    validationFailure.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_VALIDATION_FAILURE",
+      description: "Validation failure",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      activate: false,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.equal(
+        error.message,
+        "SAP capability repository.create.bdef failed: Authorization: [REDACTED]"
+      )
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "bo/behaviordefinitions/validation",
+        httpStatus: 403
+      })
+      return true
+    }
+  )
+  assert.equal(validationFailure.fake.validateNewObjectCalls, 1)
+  assert.equal(validationFailure.fake.createTransportCalls, 0)
+  assert.equal(validationFailure.fake.createObjectCalls, 0)
+  assert.deepEqual(validationFailure.fake.readSourceCalls, [])
+  assert.deepEqual(validationFailure.fake.replaceSourceCalls, [])
+  const validationCapability = (
+    validationFailure.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.list("DEV100", "").find(item => item.id === "repository.create.bdef")
+  assert.equal(validationCapability?.authorization, "denied")
+  assert.deepEqual(validationCapability?.evidence, [
+    "http:403:bo/behaviordefinitions/validation"
+  ])
+
+  const negativeValidation = createBdefHarness()
+  negativeValidation.fake.validationResult = {
+    success: false,
+    SHORT_TEXT: "Behavior definition rejected"
+  }
+  await assert.rejects(
+    negativeValidation.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_REJECTED",
+      description: "Rejected behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      activate: false,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_VALIDATION_FAILED")
+      assert.equal(error.message, "Behavior definition rejected")
+      assert.deepEqual(error.details, {
+        validation: {
+          success: false,
+          SHORT_TEXT: "Behavior definition rejected"
+        }
+      })
+      return true
+    }
+  )
+  assert.equal(negativeValidation.fake.createObjectCalls, 0)
+  assert.deepEqual(negativeValidation.fake.readSourceCalls, [])
+
+  const createFailure = createBdefHarness()
+  createFailure.fake.createObjectError = Object.assign(
+    new Error("missing BDEF endpoint token=create-secret"),
+    { status: 404 }
+  )
+  await assert.rejects(
+    createFailure.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_CREATE_FAILURE",
+      description: "Create failure",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_create_failure unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.ok(!error.message.includes("create-secret"))
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "bo/behaviordefinitions",
+        httpStatus: 404
+      })
+      return true
+    }
+  )
+  assert.equal(createFailure.fake.createObjectCalls, 1)
+  assert.deepEqual(createFailure.fake.readSourceCalls, [])
+  assert.deepEqual(createFailure.fake.replaceSourceCalls, [])
+  assert.equal(createFailure.fake.deleteObjectCalls, 0)
+  const createCapability = (
+    createFailure.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.list("DEV100", "").find(item => item.id === "repository.create.bdef")
+  assert.equal(createCapability?.system, "not_advertised")
+  assert.equal(createCapability?.status, "unsupported")
+  assert.deepEqual(createCapability?.evidence, [
+    "http:404:bo/behaviordefinitions"
+  ])
+})
+
+test("BDEF create object reports manual cleanup after post-create source failure", async () => {
+  const { fake, service } = createBdefHarness()
+  const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_DEMO"
+  fake.replaceSourceError = new Error("source write failed")
+
+  await assert.rejects(
+    service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_DEMO",
+      description: "Demo behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_demo unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_OPERATION_FAILED")
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "write_source",
+        stage: "write_source",
+        created: true,
+        objectUri,
+        transport: "DEVK900123",
+        manualCleanupRequired: true
+      })
+      return true
+    }
+  )
+  assert.equal(fake.createObjectCalls, 1)
+  assert.deepEqual(fake.objectCreationOperations, [
+    "validate",
+    "create",
+    "read_source",
+    "replace_source"
+  ])
+  assert.equal(fake.deleteObjectCalls, 0)
+  assert.equal(fake.deletedObject, false)
+})
+
+test("BDEF create object preserves source safety codes with normalized recovery details", async () => {
+  const { fake, service } = createBdefHarness()
+  const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_SOURCE_CHANGED"
+  fake.replaceSourceError = new AppError(
+    "SOURCE_CHANGED",
+    "Authorization: Bearer source-secret",
+    {
+      password: "details-secret",
+      nested: { authorization: "Bearer nested-secret" },
+      capabilityId: "spoofed.capability",
+      endpoint: "spoofed_endpoint",
+      httpStatus: 200
+    }
+  )
+
+  await assert.rejects(
+    service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_SOURCE_CHANGED",
+      description: "Changed behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_source_changed unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SOURCE_CHANGED")
+      assert.equal(
+        error.message,
+        "SAP capability repository.create.bdef failed: Authorization: [REDACTED]"
+      )
+      assert.ok(error.details)
+      assert.equal("password" in error.details, false)
+      assert.equal("nested" in error.details, false)
+      assert.equal("httpStatus" in error.details, false)
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "write_source",
+        stage: "write_source",
+        created: true,
+        objectUri,
+        transport: "DEVK900123",
+        manualCleanupRequired: true
+      })
+      return true
+    }
+  )
+  assert.equal(fake.createObjectCalls, 1)
+  assert.equal(fake.replaceSourceCalls.length, 1)
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
+test("BDEF create object observes authorization failures at read and write stages", async () => {
+  const readFailure = createBdefHarness()
+  readFailure.fake.readSourceError = Object.assign(
+    new Error("Authorization: Bearer read-secret"),
+    { response: { status: 403 } }
+  )
+  await assert.rejects(
+    readFailure.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_READ_FAILURE",
+      description: "Read failure",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_read_failure unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.equal(
+        error.message,
+        "SAP capability repository.create.bdef failed: Authorization: [REDACTED]"
+      )
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "read_source",
+        httpStatus: 403,
+        stage: "read_source",
+        created: true,
+        objectUri: "/sap/bc/adt/bo/behaviordefinitions/ZI_READ_FAILURE",
+        transport: "DEVK900123",
+        manualCleanupRequired: true
+      })
+      return true
+    }
+  )
+  assert.equal(readFailure.fake.readSourceCalls.length, 1)
+  assert.equal(readFailure.fake.replaceSourceCalls.length, 0)
+  assert.equal(readFailure.fake.deleteObjectCalls, 0)
+  const readCapability = (
+    readFailure.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.list("DEV100", "").find(item => item.id === "repository.create.bdef")
+  assert.equal(readCapability?.status, "supported")
+  assert.equal(readCapability?.authorization, "denied")
+  assert.deepEqual(readCapability?.evidence, [
+    "success:bo/behaviordefinitions",
+    "http:403:read_source"
+  ])
+
+  const writeFailure = createBdefHarness()
+  writeFailure.fake.replaceSourceError = Object.assign(
+    new Error("Authorization: Bearer write-secret"),
+    { status: 403 }
+  )
+  await assert.rejects(
+    writeFailure.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_WRITE_FAILURE",
+      description: "Write failure",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_write_failure unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.equal(
+        error.message,
+        "SAP capability repository.create.bdef failed: Authorization: [REDACTED]"
+      )
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "write_source",
+        httpStatus: 403,
+        stage: "write_source",
+        created: true,
+        objectUri: "/sap/bc/adt/bo/behaviordefinitions/ZI_WRITE_FAILURE",
+        transport: "DEVK900123",
+        manualCleanupRequired: true
+      })
+      return true
+    }
+  )
+  assert.equal(writeFailure.fake.readSourceCalls.length, 1)
+  assert.equal(writeFailure.fake.replaceSourceCalls.length, 1)
+  assert.equal(writeFailure.fake.deleteObjectCalls, 0)
+  const writeCapability = (
+    writeFailure.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.list("DEV100", "").find(item => item.id === "repository.create.bdef")
+  assert.equal(writeCapability?.status, "supported")
+  assert.equal(writeCapability?.authorization, "denied")
+  assert.deepEqual(writeCapability?.evidence, [
+    "success:bo/behaviordefinitions",
+    "http:403:write_source"
+  ])
+})
+
+test("BDEF create object returns syntax diagnostics and skips activation", async () => {
+  const { fake, service } = createBdefHarness()
+  const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_SYNTAX_ERROR"
+
+  const created = await service.createObjectProgrammatically({
+    objectType: "BDEF/BDO",
+    name: "ZI_SYNTAX_ERROR",
+    description: "Syntax error behavior",
+    packageName: "Z_DEMO",
+    connectionId: "DEV100",
+    source: "SYNTAX_ERROR",
+    activate: true,
+    additionalOptions: {
+      transportRequest: { type: "existing", number: "DEVK900123" }
+    }
+  }) as Record<string, any>
+
+  assert.deepEqual(created.diagnostics, [{
+    uri: `${objectUri}/source/main`,
+    line: 3,
+    offset: 4,
+    severity: "E",
+    text: "Syntax error"
+  }])
+  assert.equal(created.activation, null)
+  assert.equal(created.activationSkipped, true)
+  assert.equal(fake.createObjectCalls, 1)
+  assert.equal(fake.replaceSourceCalls.length, 1)
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
 test("write allowlists, production blocking, transports, and read-only SQL are enforced", async () => {
   const makeService = (profile: SapProfile) => {
     const fake = new FakeSapClient(profile)
@@ -992,6 +2870,14 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
       id: "DEV100", url: "https://sap.example.test", client: "100", language: "EN",
       environment: "development", authType: "basic", username: "DEVELOPER",
       allowedPackages: []
+    }).createObjectProgrammatically(objectInput),
+    "TRANSPORT_REQUIRED"
+  )
+  await rejectsCode(
+    makeService({
+      id: "DEV100", url: "https://sap.example.test", client: "100", language: "EN",
+      environment: "development", authType: "basic", username: "DEVELOPER",
+      allowedPackages: ["Z_OTHER"]
     }).createObjectProgrammatically(objectInput),
     "PACKAGE_NOT_ALLOWED"
   )
@@ -1160,6 +3046,605 @@ test("abapGit credentials are selected by repository URL and never cross reposit
   }])
 })
 
+test("capability execution preserves pre-call status and normalizes observations and errors", async () => {
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { throw new Error("not used") }
+  })
+  const harness = service as unknown as {
+    capabilities: SapCapabilityRegistry
+    executeCapability<T>(
+      connectionId: string,
+      capabilityId: string,
+      endpoint: string,
+      operation: () => Promise<T>
+    ): Promise<{ result: T; capabilityStatusAtExecution: string }>
+  }
+
+  harness.capabilities.observeHttpFailure(
+    "UNSUPPORTED100",
+    "semantic.documentation",
+    404,
+    "/documentation"
+  )
+  let unsupportedCalls = 0
+  await assert.rejects(
+    harness.executeCapability(
+      "UNSUPPORTED100",
+      "semantic.documentation",
+      "/documentation",
+      async () => {
+        unsupportedCalls += 1
+        return "never"
+      }
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.deepEqual(error.details, {
+        capabilityId: "semantic.documentation",
+        endpoint: "/documentation"
+      })
+      return true
+    }
+  )
+  assert.equal(unsupportedCalls, 0)
+
+  let unverifiedCalls = 0
+  const unverified = await harness.executeCapability(
+    "UNVERIFIED100",
+    "semantic.completion_element",
+    "/completion",
+    async () => {
+      unverifiedCalls += 1
+      return "completion"
+    }
+  )
+  assert.deepEqual(unverified, {
+    result: "completion",
+    capabilityStatusAtExecution: "unverified"
+  })
+  assert.equal(unverifiedCalls, 1)
+  assert.equal(
+    harness.capabilities.status("UNVERIFIED100", "semantic.completion_element"),
+    "supported"
+  )
+
+  harness.capabilities.observeSuccess(
+    "SUPPORTED100",
+    "semantic.type_hierarchy",
+    "/hierarchy"
+  )
+  let supportedCalls = 0
+  const supported = await harness.executeCapability(
+    "SUPPORTED100",
+    "semantic.type_hierarchy",
+    "/hierarchy",
+    async () => {
+      supportedCalls += 1
+      return ["parent"]
+    }
+  )
+  assert.deepEqual(supported, {
+    result: ["parent"],
+    capabilityStatusAtExecution: "supported"
+  })
+  assert.equal(supportedCalls, 1)
+
+  let normalizedCalls = 0
+  const normalized = await harness.executeCapability(
+    " dev100 ",
+    "semantic.components",
+    "/components",
+    async () => {
+      normalizedCalls += 1
+      return "components"
+    }
+  )
+  assert.equal(normalized.capabilityStatusAtExecution, "unverified")
+  assert.equal(normalizedCalls, 1)
+  assert.equal(harness.capabilities.status("DEV100", "semantic.components"), "supported")
+  assert.equal(harness.capabilities.status("QAS100", "semantic.components"), "unverified")
+
+  const secret = "super-secret"
+  const endpoint = `/sap/bc/adt/oo/classrun?token=${secret}`
+  let failureCalls = 0
+  const authFailure = Object.assign(new Error(`Authorization: Bearer ${secret}`), {
+    response: { status: 403 }
+  })
+  await assert.rejects(
+    harness.executeCapability(
+      "AUTH100",
+      "execution.class_runner",
+      endpoint,
+      async () => {
+        failureCalls += 1
+        throw authFailure
+      }
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.deepEqual(error.details, {
+        capabilityId: "execution.class_runner",
+        endpoint: "/sap/bc/adt/oo/classrun?token=[REDACTED]",
+        httpStatus: 403
+      })
+      assert.equal(error.message.includes(secret), false)
+      assert.equal(
+        (error.message.match(/SAP capability execution\.class_runner failed:/g) ?? []).length,
+        1
+      )
+      return true
+    }
+  )
+  assert.equal(failureCalls, 1)
+  const failureRecord = harness.capabilities
+    .list("AUTH100", "", "execution")
+    .find(item => item.id === "execution.class_runner")
+  assert.equal(failureRecord?.authorization, "denied")
+  assert.deepEqual(failureRecord?.evidence, [
+    "http:403:/sap/bc/adt/oo/classrun?token=[REDACTED]"
+  ])
+})
+
+test("semantic inspect actions use one SapClient call, paginate, and bound inline text", async () => {
+  const harness = createBdefHarness()
+  const fileUri = "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main"
+  const baseInput = {
+    fileUri,
+    line: 3,
+    column: 8,
+    implementation: false,
+    startIndex: 0,
+    maxResults: 10,
+    superTypes: false
+  }
+  const semanticCallCounts = () => ({
+    completion: harness.fake.codeCompletionCalls,
+    completionElement: harness.fake.completionElementCalls,
+    documentation: harness.fake.documentationCalls,
+    typeHierarchy: harness.fake.typeHierarchyCalls,
+    components: harness.fake.classComponentsCalls
+  })
+
+  const existingAction = createBdefHarness()
+  const existingCompletion = await existingAction.service.inspectCode({
+    action: "completion",
+    fileUri,
+    line: 3,
+    column: 8,
+    implementation: false,
+    startIndex: 0,
+    maxResults: 10
+  }) as any
+  assert.equal(existingCompletion.proposals[0].identifier, "WRITE")
+
+  const omittedHierarchy = createBdefHarness()
+  await omittedHierarchy.service.inspectCode({
+    action: "type_hierarchy",
+    fileUri,
+    line: 1,
+    column: 0,
+    implementation: false,
+    startIndex: 0,
+    maxResults: 10
+  })
+  assert.deepEqual(
+    omittedHierarchy.fake.typeHierarchyArgs.map(call => call.superTypes),
+    [false]
+  )
+
+  harness.fake.completionElementResult = {
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.completionElement),
+    components: [
+      { "adtcore:type": "CLAS/OM", "adtcore:name": "FIRST", entries: [] },
+      { "adtcore:type": "CLAS/OM", "adtcore:name": "SECOND", entries: [] },
+      { "adtcore:type": "CLAS/OM", "adtcore:name": "THIRD", entries: [] }
+    ]
+  }
+  const completionElement = await harness.service.inspectCode({
+    ...baseInput,
+    action: "completion_element",
+    startIndex: 1,
+    maxResults: 1
+  }) as any
+  assert.equal(completionElement.format, "structured")
+  assert.equal(completionElement.element.name, "WRITE")
+  assert.equal(completionElement.element.doc, "Writes output")
+  assert.equal(completionElement.element.docTruncated, false)
+  assert.equal(completionElement.element.componentTotal, 3)
+  assert.equal(completionElement.element.componentStartIndex, 1)
+  assert.equal(completionElement.element.componentsReturned, 1)
+  assert.equal(completionElement.element.componentsTruncated, true)
+  assert.equal(completionElement.element.componentsNextStartIndex, 2)
+  assert.equal(completionElement.element.components[0]["adtcore:name"], "SECOND")
+  assert.equal(completionElement.capabilityStatusAtExecution, "unverified")
+  assert.deepEqual(semanticCallCounts(), {
+    completion: 0,
+    completionElement: 1,
+    documentation: 0,
+    typeHierarchy: 0,
+    components: 0
+  })
+  assert.deepEqual(harness.fake.completionElementArgs, [{
+    sourceUri: "/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    source,
+    line: 3,
+    column: 8
+  }])
+
+  const documentation = await harness.service.inspectCode({
+    ...baseInput,
+    action: "documentation"
+  }) as any
+  assert.equal(documentation.format, "html")
+  assert.match(documentation.content, /WRITE documentation/)
+  assert.equal(documentation.truncated, false)
+  assert.equal(documentation.capabilityStatusAtExecution, "unverified")
+  assert.deepEqual(harness.fake.documentationArgs, [{
+    objectUri: object.uri,
+    source,
+    line: 3,
+    column: 8
+  }])
+  assert.deepEqual(semanticCallCounts(), {
+    completion: 0,
+    completionElement: 1,
+    documentation: 1,
+    typeHierarchy: 0,
+    components: 0
+  })
+
+  harness.fake.typeHierarchyResult = [
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy),
+    { ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy[0]!), name: "ZCL_SECOND" },
+    { ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy[0]!), name: "ZCL_THIRD" }
+  ]
+  const hierarchy = await harness.service.inspectCode({
+    ...baseInput,
+    action: "type_hierarchy",
+    line: 1,
+    column: 0,
+    superTypes: true,
+    startIndex: 1,
+    maxResults: 1
+  }) as any
+  assert.equal(hierarchy.total, 3)
+  assert.equal(hierarchy.startIndex, 1)
+  assert.equal(hierarchy.returned, 1)
+  assert.equal(hierarchy.truncated, true)
+  assert.equal(hierarchy.nextStartIndex, 2)
+  assert.equal(hierarchy.nodes[0].name, "ZCL_SECOND")
+  assert.equal(hierarchy.capabilityStatusAtExecution, "unverified")
+  assert.deepEqual(harness.fake.typeHierarchyArgs, [{
+    sourceUri: "/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    source,
+    line: 1,
+    column: 0,
+    superTypes: true
+  }])
+  assert.deepEqual(semanticCallCounts(), {
+    completion: 0,
+    completionElement: 1,
+    documentation: 1,
+    typeHierarchy: 1,
+    components: 0
+  })
+
+  harness.fake.classComponentsResult = {
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.components),
+    components: [
+      ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.components.components),
+      {
+        ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.components.components[0]!),
+        "adtcore:name": "SECOND",
+        constant: true,
+        readOnly: true,
+        components: [structuredClone(DEVELOPMENT_PARITY_FIXTURES.components.components[0]!)]
+      },
+      {
+        ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.components.components[0]!),
+        "adtcore:name": "THIRD"
+      }
+    ]
+  }
+  const components = await harness.service.inspectCode({
+    ...baseInput,
+    action: "components",
+    startIndex: 1,
+    maxResults: 1
+  }) as any
+  assert.equal(components.root.name, "ZCL_DEMO")
+  assert.equal(components.total, 3)
+  assert.equal(components.startIndex, 1)
+  assert.equal(components.returned, 1)
+  assert.equal(components.truncated, true)
+  assert.equal(components.nextStartIndex, 2)
+  assert.deepEqual(components.components[0], {
+    name: "SECOND",
+    type: "CLAS/OM",
+    visibility: "public",
+    constant: true,
+    readOnly: true,
+    childCount: 1
+  })
+  assert.equal(components.capabilityStatusAtExecution, "unverified")
+  assert.deepEqual(harness.fake.classComponentsArgs, [object.uri])
+  assert.deepEqual(semanticCallCounts(), {
+    completion: 0,
+    completionElement: 1,
+    documentation: 1,
+    typeHierarchy: 1,
+    components: 1
+  })
+
+  const inlineLimit = 96 * 1024
+  harness.fake.completionElementResult = {
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.completionElement),
+    doc: "🙂".repeat(inlineLimit / 4 + 1)
+  }
+  const boundedStructured = await harness.service.inspectCode({
+    ...baseInput,
+    action: "completion_element"
+  }) as any
+  assert.equal(boundedStructured.format, "structured")
+  assert.equal(boundedStructured.element.docTruncated, true)
+  assert.ok(Buffer.byteLength(boundedStructured.element.doc, "utf8") <= inlineLimit)
+  assert.equal(boundedStructured.element.doc.includes("�"), false)
+  assert.equal(boundedStructured.element.doc.endsWith("🙂"), true)
+  assert.equal(/[\uD800-\uDBFF]$/.test(boundedStructured.element.doc), false)
+
+  harness.fake.completionElementResult = "legacy completion"
+  const legacy = await harness.service.inspectCode({
+    ...baseInput,
+    action: "completion_element"
+  }) as any
+  assert.equal(legacy.format, "legacy")
+  assert.equal(legacy.content, "legacy completion")
+  assert.equal(legacy.originalBytes, Buffer.byteLength("legacy completion", "utf8"))
+  assert.equal(legacy.returnedBytes, legacy.originalBytes)
+  assert.equal(legacy.truncated, false)
+
+  harness.fake.completionElementResult = "🙂".repeat(inlineLimit / 4 + 1)
+  const bounded = await harness.service.inspectCode({
+    ...baseInput,
+    action: "completion_element"
+  }) as any
+  assert.equal(bounded.format, "legacy")
+  assert.equal(bounded.originalBytes, inlineLimit + 4)
+  assert.ok(bounded.returnedBytes <= inlineLimit)
+  assert.equal(bounded.returnedBytes, Buffer.byteLength(bounded.content, "utf8"))
+  assert.equal(bounded.truncated, true)
+  assert.equal(bounded.content.includes("�"), false)
+  assert.equal(bounded.content.endsWith("🙂"), true)
+  assert.equal(/[\uD800-\uDBFF]$/.test(bounded.content), false)
+
+  harness.fake.documentationResult = "Plain documentation"
+  const plainDocumentation = await harness.service.inspectCode({
+    ...baseInput,
+    action: "documentation"
+  }) as any
+  assert.equal(plainDocumentation.format, "text")
+
+  const invalidComponents = createBdefHarness()
+  invalidComponents.fake.objectStructureType = "PROG/P"
+  await assert.rejects(
+    invalidComponents.service.inspectCode({
+      ...baseInput,
+      fileUri: "adt://dev100/sap/bc/adt/programs/programs/zrep/source/main",
+      action: "components"
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_VALIDATION_FAILED")
+      assert.equal(error.message, "components requires a class or interface")
+      assert.deepEqual(error.details, {
+        reason: "COMPONENTS_OBJECT_TYPE_INVALID",
+        objectType: "PROG/P"
+      })
+      return true
+    }
+  )
+  assert.equal(invalidComponents.fake.classComponentsCalls, 0)
+
+  const failed = createBdefHarness()
+  const secret = "semantic-secret"
+  failed.fake.documentationError = Object.assign(
+    new Error(`Authorization: Bearer ${secret}`),
+    { response: { status: 403 } }
+  )
+  await assert.rejects(
+    failed.service.inspectCode({ ...baseInput, action: "documentation" }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.equal(error.message.includes(secret), false)
+      assert.deepEqual(error.details, {
+        capabilityId: "semantic.documentation",
+        endpoint: "/sap/bc/adt/docu/abap/langu",
+        httpStatus: 403
+      })
+      return true
+    }
+  )
+  assert.equal(failed.fake.documentationCalls, 1)
+  assert.equal(failed.fake.completionElementCalls, 0)
+  assert.equal(failed.fake.typeHierarchyCalls, 0)
+  assert.equal(failed.fake.classComponentsCalls, 0)
+  const failedCapability = (failed.service as unknown as {
+    capabilities: SapCapabilityRegistry
+  }).capabilities.list("DEV100", "", "semantic").find(
+    item => item.id === "semantic.documentation"
+  )
+  assert.equal(failedCapability?.authorization, "denied")
+  assert.equal(failedCapability?.status, "unverified")
+  assert.deepEqual(failedCapability?.evidence, [
+    "http:403:/sap/bc/adt/docu/abap/langu"
+  ])
+})
+
+test("MCP semantic inspect actions expose fixtures and default superTypes to false", async t => {
+  const harness = createBdefHarness()
+  const server = createMcpServer(harness.service)
+  const client = new Client({ name: "semantic-test-client", version: "1.0.0" })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  t.after(async () => {
+    await client.close()
+    await server.close()
+  })
+  await server.connect(serverTransport)
+  await client.connect(clientTransport)
+  const callJson = async (args: Record<string, unknown>) => {
+    const response = await client.callTool({ name: "inspect_abap_code", arguments: args })
+    const text = (
+      (response as { content: Array<{ type: "text"; text: string }> }).content[0] as {
+        type: "text"
+        text: string
+      }
+    ).text
+    return JSON.parse(text)
+  }
+  const fileUri = "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main"
+
+  const completion = await callJson({
+    action: "completion_element",
+    fileUri,
+    line: 3,
+    column: 8
+  })
+  assert.equal(completion.format, "structured")
+  assert.equal(completion.element.name, "WRITE")
+
+  const documentation = await callJson({
+    action: "documentation",
+    fileUri,
+    line: 3,
+    column: 8
+  })
+  assert.equal(documentation.format, "html")
+  assert.match(documentation.content, /WRITE documentation/)
+  assert.equal(documentation.truncated, false)
+
+  const hierarchy = await callJson({
+    action: "type_hierarchy",
+    fileUri,
+    line: 1,
+    column: 0,
+    superTypes: true,
+    startIndex: 0,
+    maxResults: 10
+  })
+  assert.equal(hierarchy.nodes[0].name, "ZCL_PARENT")
+
+  const components = await callJson({
+    action: "components",
+    fileUri,
+    startIndex: 0,
+    maxResults: 10
+  })
+  assert.equal(components.components[0].name, "RUN")
+
+  await callJson({
+    action: "type_hierarchy",
+    fileUri,
+    line: 1,
+    column: 0
+  })
+  assert.deepEqual(
+    harness.fake.typeHierarchyArgs.map(call => call.superTypes),
+    [true, false]
+  )
+})
+
+test("MCP run_abap_application exposes strict health, class, and snippet actions", async t => {
+  const harness = createApplicationHarness()
+  const server = createMcpServer(harness.service)
+  const client = new Client({ name: "application-test-client", version: "1.0.0" })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  t.after(async () => {
+    await client.close()
+    await server.close()
+  })
+  await server.connect(serverTransport)
+  await client.connect(clientTransport)
+
+  const listed = await client.listTools()
+  const applicationTool = listed.tools.find(tool => tool.name === "run_abap_application")
+  assert.equal(applicationTool?.title, "Run ABAP Application")
+  assert.equal(
+    applicationTool?.description,
+    "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan."
+  )
+  assert.deepEqual(applicationTool?.annotations, {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: true
+  })
+
+  const callRaw = (arguments_: Record<string, unknown>) => client.callTool({
+    name: "run_abap_application",
+    arguments: arguments_
+  })
+  const callJson = async (arguments_: Record<string, unknown>) => {
+    const response = await callRaw(arguments_)
+    const text = (
+      (response as { content: Array<{ type: "text"; text: string }> }).content[0] as {
+        type: "text"
+        text: string
+      }
+    ).text
+    return JSON.parse(text)
+  }
+
+  const health = await callJson({ action: "repl_health", connectionId: "DEV100" })
+  assert.equal(health.health.status, "ok")
+  assert.equal(harness.fake.replHealthCalls, 1)
+  assert.equal(harness.fake.replExecuteCalls, 0)
+
+  const classPreview = await callJson({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_RUNNER"
+  })
+  const classResult = await callJson({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: classPreview.planId,
+    confirmation: classPreview.confirmation
+  })
+  assert.equal(classResult.kind, "class")
+  assert.match(classResult.output, /runner output: ZCL_RUNNER/)
+  assert.equal(harness.fake.classRunCalls, 1)
+
+  harness.fake.replHealthCalls = 0
+  const snippetPreview = await callJson({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 42."
+  })
+  const snippetResult = await callJson({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: snippetPreview.planId,
+    confirmation: snippetPreview.confirmation
+  })
+  assert.equal(snippetResult.kind, "snippet")
+  assert.match(snippetResult.output, /WRITE 42\./)
+  assert.equal(harness.fake.replHealthCalls, 1)
+  assert.equal(harness.fake.replExecuteCalls, 1)
+  assert.equal(harness.fake.classRunCalls, 1)
+
+  const mixedAction = await callRaw({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_RUNNER",
+    code: "WRITE 42."
+  }) as { isError?: boolean }
+  assert.equal(mixedAction.isError, true)
+})
+
 test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => {
   const profile: SapProfile = {
     id: "DEV100",
@@ -1214,6 +3699,20 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     Buffer.byteLength(JSON.stringify(listed.tools), "utf8") < 64 * 1024,
     "full MCP tool schemas must stay below the 64 KiB token-budget guardrail"
   )
+  const capabilityTool = listed.tools.find(tool => tool.name === "get_sap_capabilities")
+  assert.ok(capabilityTool)
+  assert.deepEqual(capabilityTool.annotations, {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true
+  })
+  const activationTool = listed.tools.find(tool => tool.name === "abap_activate")
+  assert.equal(activationTool?.title, "Activate ABAP Object(s)")
+  assert.equal(
+    activationTool?.description,
+    "Activate one legacy object or one same-connection batch of 1 through 100 ABAP objects."
+  )
   const filteredServer = createMcpServer(service, {
     enabledTools: new Set(["get_connected_systems"])
   })
@@ -1247,6 +3746,79 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     includeComponents: false
   })
   assert.equal(sapInfo.sapRelease, "758")
+  const serviceCapabilities = (
+    service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities
+  serviceCapabilities.observeSuccess(
+    "DEV100",
+    "repository.activate.batch",
+    "batch-activation-observed"
+  )
+  const mutationsBeforeCapabilities = {
+    batchActivationCalls: fake.batchActivationCalls,
+    classRunCalls: fake.classRunCalls,
+    createdObject: fake.createdObject,
+    currentSource: fake.currentSource,
+    debugActive: fake.debugActive,
+    deletedObject: fake.deletedObject,
+    replExecuteCalls: fake.replExecuteCalls,
+    transportMutations: [...fake.transportMutations]
+  }
+  const capabilities = await callJson("get_sap_capabilities", {
+    connectionId: "DEV100",
+    category: "repository"
+  })
+  assert.equal(capabilities.connectionId, "DEV100")
+  const repositoryCapabilities = capabilities.capabilities as Array<{
+    id: string
+    category: string
+    evidence: string[]
+    status: string
+    system: string
+  }>
+  assert.equal(
+    repositoryCapabilities.find(item => item.id === "repository.create.bdef")?.status,
+    "unverified"
+  )
+  assert.ok(repositoryCapabilities.every(item => item.category === "repository"))
+  const activationCapability = repositoryCapabilities.find(
+    item => item.id === "repository.activate.batch"
+  )
+  assert.equal(activationCapability?.system, "advertised")
+  assert.equal(activationCapability?.status, "supported")
+  assert.ok(
+    activationCapability?.evidence.includes("discovery:/sap/bc/adt/activation")
+  )
+  const activationEvidence = [...(activationCapability?.evidence ?? [])]
+  const compactCapabilities = await callJson("get_sap_capabilities", {
+    connectionId: " dev100 ",
+    category: "repository",
+    includeEvidence: false
+  })
+  assert.equal(compactCapabilities.connectionId, "DEV100")
+  assert.equal("evidence" in compactCapabilities.capabilities[0], false)
+  const capabilitiesAfterCompact = await callJson("get_sap_capabilities", {
+    connectionId: "DEV100",
+    category: "repository",
+    includeEvidence: true
+  })
+  const activationAfterCompact = capabilitiesAfterCompact.capabilities.find(
+    (item: { id: string }) => item.id === "repository.activate.batch"
+  )
+  assert.deepEqual(activationAfterCompact.evidence, activationEvidence)
+  assert.deepEqual(
+    {
+      batchActivationCalls: fake.batchActivationCalls,
+      classRunCalls: fake.classRunCalls,
+      createdObject: fake.createdObject,
+      currentSource: fake.currentSource,
+      debugActive: fake.debugActive,
+      deletedObject: fake.deletedObject,
+      replExecuteCalls: fake.replExecuteCalls,
+      transportMutations: fake.transportMutations
+    },
+    mutationsBeforeCapabilities
+  )
 
   const search = await client.callTool({
     name: "search_abap_objects",
@@ -1472,6 +4044,43 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     url: `adt://dev100${object.uri}/source/main`
   })
   assert.equal(activated.success, true)
+  assert.equal(fake.batchActivationCalls, 0)
+  const batchActivated = await callJson("abap_activate", {
+    urls: [
+      "adt://dev100/sap/bc/adt/oo/classes/zcl_first/source/main",
+      "adt://dev100/sap/bc/adt/oo/classes/zcl_second/source/main"
+    ]
+  })
+  assert.equal(batchActivated.status, "complete")
+  assert.deepEqual(
+    batchActivated.objectResults.map((item: { outcome: string }) => item.outcome),
+    ["activated", "activated"]
+  )
+  assert.equal(fake.batchActivationCalls, 1)
+  const ambiguousActivation = await client.callTool({
+    name: "abap_activate",
+    arguments: {
+      url: `adt://dev100${object.uri}/source/main`,
+      urls: [`adt://dev100${object.uri}/source/main`]
+    }
+  })
+  assert.equal(ambiguousActivation.isError, true)
+  assert.match(
+    ((ambiguousActivation as { content: Array<{ type: "text"; text: string }> })
+      .content[0] as { type: "text"; text: string }).text,
+    /Invalid arguments/
+  )
+  const emptyActivation = await client.callTool({
+    name: "abap_activate",
+    arguments: { urls: [] }
+  })
+  assert.equal(emptyActivation.isError, true)
+  assert.match(
+    ((emptyActivation as { content: Array<{ type: "text"; text: string }> })
+      .content[0] as { type: "text"; text: string }).text,
+    /Invalid arguments/
+  )
+  assert.equal(fake.batchActivationCalls, 1)
 
   const created = await callJson("create_object_programmatically", {
     objectType: "CLAS/OC",
@@ -1486,6 +4095,33 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   assert.equal(created.success, true)
   assert.equal(created.object.name, "ZCL_CREATED")
   assert.equal((fake.createdObject as { transport: string }).transport, "DEVK900123")
+
+  const sourceBeforeBdefCreate = fake.currentSource
+  const bdefCreated = await callJson("create_object_programmatically", {
+    objectType: "BDEF/BDO",
+    name: "ZI_MCP_DEMO",
+    description: "MCP behavior definition",
+    packageName: "Z_DEMO",
+    connectionId: "DEV100",
+    source: "managed implementation in class zbp_i_mcp_demo unique;",
+    activate: true,
+    additionalOptions: {
+      transportRequest: { type: "existing", number: "DEVK900123" }
+    }
+  })
+  assert.equal(bdefCreated.success, true)
+  assert.equal(bdefCreated.object.type, "BDEF/BDO")
+  assert.equal(bdefCreated.activation.success, true)
+  assert.deepEqual(fake.replaceSourceCalls.at(-1), {
+    objectName: "ZI_MCP_DEMO",
+    objectUri: "/sap/bc/adt/bo/behaviordefinitions/ZI_MCP_DEMO",
+    sourceUri: "/sap/bc/adt/bo/behaviordefinitions/ZI_MCP_DEMO/source/main",
+    expectedSource: sourceBeforeBdefCreate,
+    nextSource: "managed implementation in class zbp_i_mcp_demo unique;",
+    transport: "DEVK900123",
+    activate: true
+  })
+  fake.currentSource = sourceBeforeBdefCreate
 
   const query = await callJson("execute_data_query", {
     sql: "SELECT MATNR FROM MARA",
@@ -1886,11 +4522,11 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   const inactive = await callJson("manage_abap_versions", {
     action: "get_inactive_source",
     connectionId: "DEV100",
-    objectName: "ZCL_DEMO",
+    objectName: "ZCL_FIRST",
     objectType: "CLAS/OC",
     lineCount: 2
   })
-  assert.equal(inactive.object.name, "ZCL_DEMO")
+  assert.equal(inactive.object.name, "ZCL_FIRST")
   const restorePreview = await callJson("manage_abap_versions", {
     action: "preview_restore",
     connectionId: "DEV100",

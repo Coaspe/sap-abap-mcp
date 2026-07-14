@@ -20,6 +20,36 @@ function clientWithAdt(fakeAdt: Record<string, unknown>): AdtSapClient {
   return client
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
+const firstInactiveObject: import("abap-adt-api").InactiveObject = {
+  "adtcore:uri": "/first",
+  "adtcore:type": "CLAS/OC",
+  "adtcore:name": "ZCL_FIRST",
+  "adtcore:parentUri": ""
+}
+
+const secondInactiveObject: import("abap-adt-api").InactiveObject = {
+  "adtcore:uri": "/second",
+  "adtcore:type": "CLAS/OC",
+  "adtcore:name": "ZCL_SECOND",
+  "adtcore:parentUri": ""
+}
+
+const activationResult: import("abap-adt-api").ActivationResult = {
+  success: true,
+  messages: [],
+  inactive: []
+}
+
 test("semantic and refactoring wrappers preserve ADT 1-based line and 0-based columns", async () => {
   const calls: Array<{ method: string; args: unknown[] }> = []
   const fakeAdt: any = {
@@ -292,4 +322,129 @@ test("transport, abapGit, and RAP wrappers preserve upstream argument order", as
     { method: "rapGenPublishService", args: ["ZUI_DEMO_O4"] },
     { method: "unPublishServiceBinding", args: ["ZUI_DEMO", "1"] }
   ])
+})
+
+test("activation, semantic detail, and class execution wrappers preserve ADT contracts", async () => {
+  const calls: Array<{ method: string; args: unknown[] }> = []
+  const statelessAdt: any = {
+    codeCompletionElement: async (...args: unknown[]) => {
+      calls.push({ method: "codeCompletionElement", args })
+      return ""
+    },
+    abapDocumentation: async (...args: unknown[]) => {
+      calls.push({ method: "abapDocumentation", args })
+      return ""
+    },
+    typeHierarchy: async (...args: unknown[]) => {
+      calls.push({ method: "typeHierarchy", args })
+      return []
+    },
+    classComponents: async (...args: unknown[]) => {
+      calls.push({ method: "classComponents", args })
+      return {
+        "adtcore:name": "ZCL_RUNNER",
+        "adtcore:type": "CLAS/OC",
+        links: [],
+        visibility: "public",
+        "xml:base": "",
+        components: []
+      }
+    }
+  }
+  const fakeAdt: any = {
+    activate: async (...args: unknown[]) => {
+      calls.push({ method: "activate", args })
+      return { success: true, messages: [], inactive: [] }
+    },
+    runClass: async (...args: unknown[]) => {
+      calls.push({ method: "runClass", args })
+      return ""
+    },
+    statelessClone: statelessAdt
+  }
+  const client = clientWithAdt(fakeAdt)
+  const inactiveObject = {
+    "adtcore:uri": "/object",
+    "adtcore:type": "CLAS/OC",
+    "adtcore:name": "ZCL_RUNNER",
+    "adtcore:parentUri": ""
+  }
+
+  await client.activateObjects([inactiveObject])
+  await client.getCodeCompletionElement("/source", "WRITE x.", 7, 3)
+  await client.getAbapDocumentation("/object", "WRITE x.", 7, 3)
+  await client.getTypeHierarchy("/source", "WRITE x.", 7, 3, true)
+  await client.getClassComponents("/object")
+  await client.runClass("zcl_runner")
+
+  assert.deepEqual(calls, [
+    { method: "activate", args: [[inactiveObject], true] },
+    { method: "codeCompletionElement", args: ["/source", "WRITE x.", 7, 3] },
+    { method: "abapDocumentation", args: ["/object", "WRITE x.", 7, 3, "EN"] },
+    { method: "typeHierarchy", args: ["/source", "WRITE x.", 7, 3, true] },
+    { method: "classComponents", args: ["/object"] },
+    { method: "runClass", args: ["ZCL_RUNNER"] }
+  ])
+})
+
+test("batch activations execute one at a time", async () => {
+  const firstActivation = deferred<import("abap-adt-api").ActivationResult>()
+  const secondActivation = deferred<import("abap-adt-api").ActivationResult>()
+  const calls: unknown[][] = []
+  const fakeAdt: any = {
+    activate: async (...args: unknown[]) => {
+      calls.push(args)
+      return calls.length === 1 ? firstActivation.promise : secondActivation.promise
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  const firstCall = client.activateObjects([firstInactiveObject])
+  const secondCall = client.activateObjects([secondInactiveObject])
+  await Promise.resolve()
+  const callsBeforeFirstSettles = calls.slice()
+
+  firstActivation.resolve(activationResult)
+  await firstCall
+  await Promise.resolve()
+  const callsAfterFirstSettles = calls.slice()
+
+  secondActivation.resolve(activationResult)
+  await secondCall
+
+  assert.deepEqual(callsBeforeFirstSettles, [[[firstInactiveObject], true]])
+  assert.deepEqual(callsAfterFirstSettles, [
+    [[firstInactiveObject], true],
+    [[secondInactiveObject], true]
+  ])
+})
+
+test("a rejected batch activation releases the queue", async () => {
+  const firstActivation = deferred<import("abap-adt-api").ActivationResult>()
+  const calls: unknown[][] = []
+  const fakeAdt: any = {
+    activate: async (...args: unknown[]) => {
+      calls.push(args)
+      if (calls.length === 1) return firstActivation.promise
+      return activationResult
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  const firstCall = client.activateObjects([firstInactiveObject])
+  const firstRejection = assert.rejects(firstCall, { message: "first activation failed" })
+  const secondCall = client.activateObjects([secondInactiveObject])
+  await Promise.resolve()
+  const callsBeforeRejection = calls.slice()
+
+  firstActivation.reject(new Error("first activation failed"))
+  await firstRejection
+  const result = await secondCall
+
+  assert.deepEqual(callsBeforeRejection, [[[firstInactiveObject], true]])
+  assert.deepEqual(calls, [
+    [[firstInactiveObject], true],
+    [[secondInactiveObject], true]
+  ])
+  assert.strictEqual(result, activationResult)
 })

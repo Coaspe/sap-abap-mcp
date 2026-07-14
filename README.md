@@ -7,7 +7,8 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current release: `0.3.0`
+- Current version: `0.4.0`
+- Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
 - Authentication: SAP Basic Auth
@@ -15,32 +16,40 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 - SAP API client: `abap-adt-api` 8.4.1
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
-The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 50 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
+The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 52 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
+
+## ABAP FS parity status
+
+The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless extensions, this server advertises 52 tools in total.
+
+The first development-parity slice implements BDEF source creation, one-request batch activation, class-runner execution, the ABAP FS REPL contract, and detailed semantic inspection. These SAP-dependent capabilities remain `unverified` until they succeed against the selected live connection; call `get_sap_capabilities` for per-connection evidence.
+
+Snippet execution requires `ZCL_ABAP_REPL` and an active SICF service at `/sap/bc/z_abap_repl`. Generic report/program-console execution is not implemented.
 
 ## What it supports
 
-The server preserves all 42 MCP tools exposed by ABAP FS 2.6.5 and adds eight grouped tools for extension capabilities that were not available through the ABAP FS MCP surface.
+The server provides all 42 strict-compatible headless tools from the pinned ABAP FS baseline and adds ten grouped extension tools.
 
 | Area | Capabilities |
 |---|---|
 | Connections | Multiple SAP profiles, lazy login, system metadata, ADT discovery export |
 | Repository reads | Search, metadata, source ranges, batch reads, URI reads, source search, enhancements |
-| Semantic services | Completion, definition lookup, quick-fix discovery, SAP formatter preview |
-| Source writes | Exact source replacement, syntax diagnostics, activation, text elements |
+| Semantic services | Completion details, definition lookup, documentation, type hierarchy, components, quick-fix discovery, SAP formatter preview |
+| Source writes | Exact source replacement, BDEF source creation, syntax diagnostics, single- and one-request batch activation, text elements |
 | Refactoring | Rename, package move, extract method, quick-fix application, formatting, deletion |
 | Quality | ABAP Unit, ATC, diagnostics, test-include creation |
 | Transports | List, details, objects, compare, create, release, delete, owner/user management, object resolution |
 | Versions | Active revision history, revision comparison, inactive source, guarded revision restore |
 | abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch |
 | RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details and publication |
-| Runtime | Debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
+| Runtime | Guarded class-runner and fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
 | Cross-system | Source comparison across configured SAP systems |
 | Dependency analysis | Bounded where-used dependency graph |
 | SAP GUI integration | Validated WebGUI transaction URL generation and optional local launch |
 | Data | Read-only ADT SQL queries with bounded or file-based output |
 | Artifacts | Mermaid validation/viewer and DOCX test documentation |
 
-The eight grouped extension tools are:
+The ten grouped extension tools are:
 
 - `inspect_abap_code`
 - `refactor_abap_code`
@@ -50,6 +59,8 @@ The eight grouped extension tools are:
 - `compare_abap_systems`
 - `get_abap_dependency_graph`
 - `run_sap_transaction`
+- `get_sap_capabilities`
+- `run_abap_application`
 
 Grouping related actions keeps the tool-schema footprint lower than exposing every operation as a separate MCP tool.
 
@@ -78,56 +89,52 @@ node --version
 
 ## Quick start on Windows
 
-### 1. Add an SAP profile
+### 1. Add an SAP profile and log in
 
-The following profile permits writes only to two dedicated packages. Use your real values and keep production profiles read-only.
+Use your real values and keep production profiles read-only. Omitting `--packages` allows writes to all packages; add it only when you want to restrict writes to specific packages.
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 profile add DEV100 `
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 `
   --url "https://sap-dev.company.com" `
   --client 100 `
   --username "DEV_USER" `
   --environment development `
-  --packages "Z_MCP_TEST,Z_MCP_TEST2"
+  --login
 ```
 
-PowerShell also accepts the command on one line. The profile ID `DEV100` is a local alias.
+PowerShell also accepts the command on one line. The profile ID `DEV100` is a local alias. When `SAP password:` appears, enter the password and press Enter; the input remains hidden. The profile and password are stored only after the MCP validates the credentials against SAP.
 
-Omit `--packages` for a read-only profile. An empty package allowlist denies every repository write.
+To restrict writes, add a comma-separated allowlist such as `--packages "Z_MCP_TEST,Z_MCP_TEST2"`. An empty allowlist permits every package, while production profiles still reject writes.
 
-### 2. Store the SAP password
+The password is stored with Windows DPAPI and is never written to the profile file. For non-interactive environments, pipe the password and add `--password-stdin` after `--login`.
 
-```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 auth login DEV100
-```
-
-The password is entered without echo and stored with Windows DPAPI. It is never written to the profile file.
-
-### 3. Verify ADT connectivity
+### 2. Verify ADT connectivity
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 doctor DEV100
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest doctor DEV100
 ```
 
 A successful response contains `"ok": true`.
 
-### 4. Register the MCP server
+### 3. Register the MCP server
 
 Codex CLI:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 serve --profile DEV100
+codex mcp add sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
 ```
 
 Claude Code:
 
 ```powershell
-claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 serve --profile DEV100
+claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
 ```
 
 Restart the client after registration. Use `codex mcp list`, `claude mcp get sap-abap`, or the client's `/mcp` command to verify the connection.
 
-### 5. Start with read-only requests
+The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.3.0` will automatically run `0.4.0` after `0.4.0` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
+
+### 4. Start with read-only requests
 
 ```text
 List the configured SAP systems and verify DEV100.
@@ -141,16 +148,15 @@ Build a depth-1 dependency graph for ZCL_DEMO.
 Use `npx` instead of `npx.cmd`:
 
 ```bash
-npx -y @coaspe/sap-abap-mcp@0.3.0 profile add DEV100 \
+npx --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 \
   --url "https://sap-dev.company.com" \
   --client 100 \
   --username "DEV_USER" \
   --environment development \
-  --packages "Z_MCP_TEST,Z_MCP_TEST2"
+  --login
 
-npx -y @coaspe/sap-abap-mcp@0.3.0 auth login DEV100
-npx -y @coaspe/sap-abap-mcp@0.3.0 doctor DEV100
-codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@0.3.0 serve --profile DEV100
+npx --yes --prefer-online @coaspe/sap-abap-mcp@latest doctor DEV100
+codex mcp add sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
 ```
 
 SAP passwords are stored in macOS Keychain.
@@ -165,8 +171,9 @@ If the `codex` command is not available, add a stdio MCP server in Codex setting
 - Arguments:
 
 ```text
--y
-@coaspe/sap-abap-mcp@0.3.0
+--yes
+--prefer-online
+@coaspe/sap-abap-mcp@latest
 serve
 --profile
 DEV100
@@ -177,7 +184,7 @@ DEV100
 Create one profile per SAP client, for example `DEV100`, `QAS200`, and `PRD100`. To expose all profiles through one MCP server, register `serve` without `--profile`:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 serve
+codex mcp add sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve
 ```
 
 Every SAP-facing tool requires an explicit `connectionId`, which prevents accidental cross-system routing. Cross-system comparison requires the same object to exist in both selected profiles.
@@ -187,7 +194,7 @@ Every SAP-facing tool requires an explicit `connectionId`, which prevents accide
 Public repositories require no additional setup. Store credentials for each private repository URL separately:
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth login DEV100 `
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest abapgit auth login DEV100 `
   --repository-url "https://github.example.com/team/repo.git" `
   --username "GIT_USER"
 ```
@@ -195,10 +202,10 @@ npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth login DEV100 `
 Status and removal:
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth status DEV100 `
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest abapgit auth status DEV100 `
   --repository-url "https://github.example.com/team/repo.git"
 
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth logout DEV100 `
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest abapgit auth logout DEV100 `
   --repository-url "https://github.example.com/team/repo.git"
 ```
 
@@ -209,7 +216,7 @@ Credentials are selected by canonical repository URL so credentials for one remo
 Repository-changing operations enforce these rules:
 
 - Profiles marked `production` reject writes.
-- The target package must be present in the profile's `allowedPackages` list.
+- A non-empty `allowedPackages` list restricts writes to those packages; an empty list allows all packages.
 - Packages other than `$TMP` require a transport request.
 - Exact source replacement reads the current source, obtains an SAP lock, rechecks it under the lock, writes, runs syntax diagnostics, optionally activates, and unlocks.
 - Rename, package move, method extraction, quick-fix application, formatting, deletion, and revision restore use a preview plan.
@@ -228,7 +235,7 @@ Transport release and deletion can be irreversible. Use a dedicated transport an
 The server is designed to keep model context usage bounded without removing useful data:
 
 - Related operations are grouped into action-based tools.
-- The complete 50-tool schema is kept below a 64 KiB automated guardrail.
+- The complete 52-tool schema is kept below a 64 KiB automated guardrail.
 - Source, search, SQL, ATC, dump, trace, transport, version, Git, and RAP schema responses are paged or summarized.
 - Unified diffs are limited by both line count and byte size.
 - Large source responses are bounded by an inline byte budget.
@@ -249,6 +256,8 @@ Available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `arti
 
 Run acceptance tests first against a development system and dedicated packages, objects, transports, repositories, and RAP artifacts.
 
+For BDEF creation, batch activation, class execution, the fixed ABAP REPL contract, and detailed semantic inspection, follow the evidence and cleanup procedure in [`docs/live-sap-acceptance.md`](docs/live-sap-acceptance.md). Until those checks succeed on a selected connection, the capabilities remain `unverified`.
+
 Recommended order:
 
 1. Connection, discovery, repository reads, semantic reads, versions, transports, and URL-only transaction generation.
@@ -265,6 +274,7 @@ When reporting a failure, preserve the MCP error code, HTTP status, ADT endpoint
 profile add <id> --url <url> --client <nnn> [--language EN]
     [--environment development|quality|production]
     [--username <user>] [--packages ZPKG1,ZPKG2]
+    [--login [--password-stdin]]
 profile list
 profile remove <id>
 
@@ -291,8 +301,8 @@ Removing a profile also removes its SAP password and stored abapGit credential v
 | `PROFILE_NOT_FOUND` | Run `profile add` again and verify the profile ID. |
 | SAP login fails | Verify URL, client, username, password, VPN, Basic Auth, and ADT activation. |
 | Certificate or connection error | Check the corporate CA, proxy, VPN, and SAP HTTPS endpoint. |
-| Tools are missing | Confirm that the MCP client uses version `0.3.0`, restart it, and inspect `/mcp`. |
-| Writes return `PACKAGE_NOT_ALLOWED` | Add only the dedicated development package to `--packages`. |
+| Tools are missing | Confirm that the MCP command contains `@latest` and `--prefer-online`, restart it, and inspect `/mcp`. |
+| Writes return `PACKAGE_NOT_ALLOWED` | The profile has a non-empty `--packages` restriction; add the target package or remove the restriction. |
 | Writes return `TRANSPORT_REQUIRED` | Supply an open transport for non-local packages. |
 | RAP generator is unavailable | The SAP release or installed components may not expose the RAP generator endpoints. |
 | Private Git access fails | Store credentials for the exact canonical repository URL. |

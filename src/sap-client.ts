@@ -11,6 +11,8 @@ import {
   type AtcCustomizing,
   type AtcRunResult,
   type AtcWorkList,
+  type ClassComponent,
+  type CompletionElementInfo,
   type DebugBreakpoint,
   type DebugBreakpointError,
   type DebugChildVariablesInfo,
@@ -28,6 +30,8 @@ import {
   type GitExternalInfo,
   type GitRepo,
   type GitStaging,
+  type HierarchyNode,
+  type InactiveObject,
   type InactiveObjectRecord,
   type MainInclude,
   type NewBindingOptions,
@@ -70,6 +74,12 @@ import {
 import type { ChangePackageRefactoring } from "abap-adt-api/build/api/refactor.js"
 import { AppError } from "./errors.js"
 import type { SapProfile } from "./profile-store.js"
+import {
+  checkReplAvailability as checkReplService,
+  executeAbapCode as executeReplCode,
+  type ReplHealthCheck,
+  type ReplResponse
+} from "./repl-client.js"
 
 export interface SapObjectReference {
   name: string
@@ -202,6 +212,7 @@ export interface SapClient {
     objectUri: string,
     mainProgram?: string
   ): Promise<ActivationResult>
+  activateObjects(objects: InactiveObject[]): Promise<ActivationResult>
   validateNewObject(options: ValidateOptions): Promise<ValidationResult>
   createObject(options: SapNewObjectOptions): Promise<void>
   createTransport(
@@ -255,6 +266,29 @@ export interface SapClient {
     line: number,
     column: number
   ): Promise<import("abap-adt-api").CompletionProposal[]>
+  getCodeCompletionElement(
+    sourceUri: string,
+    source: string,
+    line: number,
+    column: number
+  ): Promise<string | CompletionElementInfo>
+  getAbapDocumentation(
+    objectUri: string,
+    source: string,
+    line: number,
+    column: number
+  ): Promise<string>
+  getTypeHierarchy(
+    sourceUri: string,
+    source: string,
+    line: number,
+    column: number,
+    superTypes: boolean
+  ): Promise<HierarchyNode[]>
+  getClassComponents(objectUri: string): Promise<ClassComponent>
+  runClass(className: string): Promise<string>
+  checkReplAvailability(): Promise<ReplHealthCheck>
+  executeAbapCode(code: string): Promise<ReplResponse>
   findDefinition(
     sourceUri: string,
     source: string,
@@ -638,6 +672,10 @@ export class AdtSapClient implements SapClient {
     )
   }
 
+  async activateObjects(objects: InactiveObject[]): Promise<ActivationResult> {
+    return this.serializeMutation(() => this.client.activate(objects, true))
+  }
+
   async validateNewObject(options: ValidateOptions): Promise<ValidationResult> {
     return this.client.validateNewObject(options)
   }
@@ -812,6 +850,62 @@ export class AdtSapClient implements SapClient {
     column: number
   ) {
     return this.client.statelessClone.codeCompletion(sourceUri, source, line, column)
+  }
+
+  async getCodeCompletionElement(
+    sourceUri: string,
+    source: string,
+    line: number,
+    column: number
+  ): Promise<string | CompletionElementInfo> {
+    return this.client.statelessClone.codeCompletionElement(sourceUri, source, line, column)
+  }
+
+  async getAbapDocumentation(
+    objectUri: string,
+    source: string,
+    line: number,
+    column: number
+  ): Promise<string> {
+    return this.client.statelessClone.abapDocumentation(
+      objectUri,
+      source,
+      line,
+      column,
+      this.profile.language
+    )
+  }
+
+  async getTypeHierarchy(
+    sourceUri: string,
+    source: string,
+    line: number,
+    column: number,
+    superTypes: boolean
+  ): Promise<HierarchyNode[]> {
+    return this.client.statelessClone.typeHierarchy(
+      sourceUri,
+      source,
+      line,
+      column,
+      superTypes
+    )
+  }
+
+  async getClassComponents(objectUri: string): Promise<ClassComponent> {
+    return this.client.statelessClone.classComponents(objectUri)
+  }
+
+  async runClass(className: string): Promise<string> {
+    return this.client.runClass(className.trim().toUpperCase())
+  }
+
+  async checkReplAvailability(): Promise<ReplHealthCheck> {
+    return checkReplService(this.client.httpClient)
+  }
+
+  async executeAbapCode(code: string): Promise<ReplResponse> {
+    return executeReplCode(this.client.httpClient, code)
   }
 
   async findDefinition(
