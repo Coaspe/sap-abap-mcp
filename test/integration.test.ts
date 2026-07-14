@@ -1426,6 +1426,8 @@ test("ABAP application execution blocks production and consumes each execution a
     }),
     expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
   )
+  assert.equal(replProduction.fake.replHealthCalls, 1)
+  assert.equal(replProduction.fake.replExecuteCalls, 0)
 })
 
 test("ABAP application execution normalizes one SAP attempt and bounds Unicode output", async () => {
@@ -1552,6 +1554,248 @@ test("ABAP application execution normalizes one SAP attempt and bounds Unicode o
     )
     assert.ok(capability?.evidence.includes(`http:503:${operationCase.endpoint}`))
   }
+})
+
+test("ABAP application execution plans stay one-use across concurrency and operation failures", async () => {
+  const concurrent = createApplicationHarness()
+  const concurrentPlan = await concurrent.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_CONCURRENT"
+  }) as Record<string, any>
+  const concurrentExecutions = await Promise.allSettled([
+    concurrent.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: concurrentPlan.planId,
+      confirmation: concurrentPlan.confirmation
+    }),
+    concurrent.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: concurrentPlan.planId,
+      confirmation: concurrentPlan.confirmation
+    })
+  ])
+  const fulfilled = concurrentExecutions.filter(result => result.status === "fulfilled")
+  const rejected = concurrentExecutions.filter(result => result.status === "rejected")
+  assert.equal(fulfilled.length, 1)
+  assert.equal(rejected.length, 1)
+  assert.equal(
+    (fulfilled[0] as PromiseFulfilledResult<Record<string, any>>).value
+      .capabilityStatusAtExecution,
+    "unverified"
+  )
+  assert.ok((rejected[0] as PromiseRejectedResult).reason instanceof AppError)
+  assert.equal(
+    (rejected[0] as PromiseRejectedResult).reason.details?.reason,
+    "EXECUTION_PLAN_EXPIRED"
+  )
+  assert.equal(concurrent.fake.classRunCalls, 1)
+
+  const failedClass = createApplicationHarness()
+  const failedClassPlan = await failedClass.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_FAIL_ONCE"
+  }) as Record<string, any>
+  failedClass.fake.classRunError = Object.assign(new Error("class failed"), { status: 503 })
+  await assert.rejects(
+    failedClass.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: failedClassPlan.planId,
+      confirmation: failedClassPlan.confirmation
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "SAP_OPERATION_FAILED"
+  )
+  await assert.rejects(
+    failedClass.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: failedClassPlan.planId,
+      confirmation: failedClassPlan.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+  assert.equal(failedClass.fake.classRunCalls, 1)
+
+  const failedSnippet = createApplicationHarness()
+  const failedSnippetPlan = await failedSnippet.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 'FAIL ONCE'."
+  }) as Record<string, any>
+  failedSnippet.fake.replExecutionError = Object.assign(new Error("snippet failed"), {
+    status: 503
+  })
+  await assert.rejects(
+    failedSnippet.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: failedSnippetPlan.planId,
+      confirmation: failedSnippetPlan.confirmation
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "SAP_OPERATION_FAILED"
+  )
+  assert.equal(failedSnippet.fake.replHealthCalls, 1)
+  assert.equal(failedSnippet.fake.replExecuteCalls, 1)
+  await assert.rejects(
+    failedSnippet.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: failedSnippetPlan.planId,
+      confirmation: failedSnippetPlan.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+  assert.equal(failedSnippet.fake.replHealthCalls, 1)
+  assert.equal(failedSnippet.fake.replExecuteCalls, 1)
+})
+
+test("ABAP application execution plan cache evicts and purges bounded entries", async () => {
+  const bounded = createApplicationHarness()
+  const previews: Array<Record<string, any>> = []
+  for (let index = 0; index < 101; index += 1) {
+    previews.push(await bounded.service.runAbapApplication({
+      action: "preview_class",
+      connectionId: "DEV100",
+      className: `ZCL_CACHE_${String(index).padStart(3, "0")}`
+    }) as Record<string, any>)
+  }
+  const boundedPlans = (
+    bounded.service as unknown as { executionPlans: Map<string, { expiresAt: number }> }
+  ).executionPlans
+  assert.equal(boundedPlans.size, 100)
+  const oldest = previews[0]!
+  await assert.rejects(
+    bounded.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: oldest.planId,
+      confirmation: oldest.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+  const latest = previews.at(-1)!
+  const latestResult = await bounded.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: latest.planId,
+    confirmation: latest.confirmation
+  }) as Record<string, any>
+  assert.equal(latestResult.kind, "class")
+  assert.equal(bounded.fake.classRunCalls, 1)
+
+  const purged = createApplicationHarness()
+  const expired = await purged.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_PURGE_OLD"
+  }) as Record<string, any>
+  const purgedPlans = (
+    purged.service as unknown as { executionPlans: Map<string, { expiresAt: number }> }
+  ).executionPlans
+  purgedPlans.get(expired.planId)!.expiresAt = 0
+  const live = await purged.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_PURGE_LIVE"
+  }) as Record<string, any>
+  assert.equal(purgedPlans.size, 1)
+  assert.equal(purgedPlans.has(expired.planId), false)
+  assert.equal(purgedPlans.has(live.planId), true)
+  await assert.rejects(
+    purged.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: expired.planId,
+      confirmation: expired.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+})
+
+test("ABAP application capability guards preserve status, privacy, and zero-call rejection", async () => {
+  const snippet = createApplicationHarness()
+  const rawCode = "WRITE 'UNIQUE_RAW_SNIPPET_MARKER_8173'."
+  const snippetPlan = await snippet.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: rawCode
+  }) as Record<string, any>
+  assert.equal(JSON.stringify(snippetPlan).includes(rawCode), false)
+  assert.match(snippetPlan.confirmation, /^RUN_SNIPPET:DEV100:[0-9a-f]{12}$/)
+  const snippetResult = await snippet.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: snippetPlan.planId,
+    confirmation: snippetPlan.confirmation
+  }) as Record<string, any>
+  assert.equal(snippetResult.capabilityStatusAtExecution, "supported")
+  assert.equal(snippet.fake.replHealthCalls, 1)
+  assert.equal(snippet.fake.replExecuteCalls, 1)
+
+  const unsupportedClass = createApplicationHarness()
+  const unsupportedClassPlan = await unsupportedClass.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_UNSUPPORTED"
+  }) as Record<string, any>
+  ;(
+    unsupportedClass.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.observeHttpFailure(
+    "DEV100",
+    "execution.class_runner",
+    404,
+    "/sap/bc/adt/oo/classrun/ZCL_UNSUPPORTED"
+  )
+  await assert.rejects(
+    unsupportedClass.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: unsupportedClassPlan.planId,
+      confirmation: unsupportedClassPlan.confirmation
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "SAP_CAPABILITY_UNAVAILABLE"
+  )
+  assert.equal(unsupportedClass.fake.classRunCalls, 0)
+  await assert.rejects(
+    unsupportedClass.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: unsupportedClassPlan.planId,
+      confirmation: unsupportedClassPlan.confirmation
+    }),
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
+  )
+  assert.equal(unsupportedClass.fake.classRunCalls, 0)
+
+  const unsupportedRepl = createApplicationHarness()
+  const unsupportedReplPlan = await unsupportedRepl.service.runAbapApplication({
+    action: "preview_snippet",
+    connectionId: "DEV100",
+    code: "WRITE 'UNSUPPORTED'."
+  }) as Record<string, any>
+  ;(
+    unsupportedRepl.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.observeHttpFailure(
+    "DEV100",
+    "execution.abap_repl",
+    404,
+    "/sap/bc/z_abap_repl"
+  )
+  await assert.rejects(
+    unsupportedRepl.service.runAbapApplication({
+      action: "execute",
+      connectionId: "DEV100",
+      planId: unsupportedReplPlan.planId,
+      confirmation: unsupportedReplPlan.confirmation
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "SAP_CAPABILITY_UNAVAILABLE"
+  )
+  assert.equal(unsupportedRepl.fake.replHealthCalls, 0)
+  assert.equal(unsupportedRepl.fake.replExecuteCalls, 0)
 })
 
 test("activateObject validates batches and classifies one SAP activation response conservatively", async () => {
