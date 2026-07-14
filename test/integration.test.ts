@@ -1182,7 +1182,9 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
   }) as Record<string, any>
   assert.equal(classPreview.confirmation, "RUN_CLASS:DEV100:ZCL_RUNNER")
   assert.equal(classPreview.action, "preview_class")
-  assert.equal(classPreview.capabilityStatus, "unverified")
+  assert.equal(classPreview.capabilityStatusAtExecution, "unverified")
+  assert.equal("capabilityStatus" in classPreview, false)
+  assert.equal("connectionId" in classPreview, false)
   const planMaps = harness.service as unknown as {
     executionPlans: Map<string, unknown>
     refactorPlans: Map<string, unknown>
@@ -1197,7 +1199,7 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
       planId: classPreview.planId,
       confirmation: `${classPreview.confirmation}:WRONG`
     }),
-    expectApplicationValidation("CONFIRMATION_MISMATCH")
+    expectApplicationValidation("CONFIRMATION_MISMATCH", "Execution confirmation does not match")
   )
   assert.equal(harness.fake.classRunCalls, 0)
   const classResult = await harness.service.runAbapApplication({
@@ -1208,6 +1210,7 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
   }) as Record<string, any>
   assert.equal(classResult.kind, "class")
   assert.match(classResult.output, /runner output: ZCL_RUNNER/)
+  assert.equal("className" in classResult, false)
   assert.equal(harness.fake.classRunCalls, 1)
   assert.equal(harness.fake.replHealthCalls, 0)
   assert.equal(harness.fake.replExecuteCalls, 0)
@@ -1218,7 +1221,7 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
       planId: classPreview.planId,
       confirmation: classPreview.confirmation
     }),
-    expectApplicationValidation("EXECUTION_PLAN_EXPIRED")
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
   )
 
   const connectionPreview = await harness.service.runAbapApplication({
@@ -1233,7 +1236,10 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
       planId: connectionPreview.planId,
       confirmation: connectionPreview.confirmation
     }),
-    expectApplicationValidation("EXECUTION_PLAN_CONNECTION_MISMATCH")
+    expectApplicationValidation(
+      "EXECUTION_PLAN_CONNECTION_MISMATCH",
+      "Execution plan belongs to another connection"
+    )
   )
   await harness.service.runAbapApplication({
     action: "execute",
@@ -1254,6 +1260,9 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
   assert.equal(snippetPreview.confirmation, `RUN_SNIPPET:DEV100:${digest}`)
   assert.equal(snippetPreview.confirmation.includes(code), false)
   assert.equal(snippetPreview.codeBytes, Buffer.byteLength(code, "utf8"))
+  assert.equal(snippetPreview.capabilityStatusAtExecution, "unverified")
+  assert.equal("capabilityStatus" in snippetPreview, false)
+  assert.equal("connectionId" in snippetPreview, false)
 
   for (const className of ["zcl_lower", "ZCL-BAD", `Z${"A".repeat(30)}`]) {
     await assert.rejects(
@@ -1262,7 +1271,13 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
         connectionId: "DEV100",
         className
       }),
-      expectApplicationValidation("CLASS_NAME_INVALID")
+      (error: unknown) => {
+        assert.ok(error instanceof AppError)
+        assert.equal(error.code, "SAP_VALIDATION_FAILED")
+        assert.equal(error.message, "className must be an uppercase ABAP class name")
+        assert.deepEqual(error.details, { reason: "CLASS_NAME_INVALID" })
+        return true
+      }
     )
   }
   for (const invalidCode of [" \t ", "한".repeat(32_769)]) {
@@ -1273,8 +1288,13 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
         code: invalidCode
       }),
       (error: unknown) => {
-        assert.ok(expectApplicationValidation("SNIPPET_SIZE_INVALID")(error))
-        assert.equal((error as AppError).details?.bytes, Buffer.byteLength(invalidCode, "utf8"))
+        assert.ok(error instanceof AppError)
+        assert.equal(error.code, "SAP_VALIDATION_FAILED")
+        assert.equal(error.message, "code must contain 1 through 98304 UTF-8 bytes")
+        assert.deepEqual(error.details, {
+          reason: "SNIPPET_SIZE_INVALID",
+          bytes: Buffer.byteLength(invalidCode, "utf8")
+        })
         return true
       }
     )
@@ -1304,7 +1324,7 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
         planId: expiring.planId,
         confirmation: expiring.confirmation
       }),
-      expectApplicationValidation("EXECUTION_PLAN_EXPIRED")
+      expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
     )
   } finally {
     Date.now = originalNow
@@ -1326,7 +1346,7 @@ test("ABAP application execution blocks production and consumes each execution a
         assert.equal(error.message, "ABAP execution is disabled on production")
         assert.deepEqual(error.details, {
           reason: "PRODUCTION_EXECUTION_BLOCKED",
-          profileId: "DEV100"
+          connectionId: "DEV100"
         })
         return true
       }
@@ -1370,7 +1390,7 @@ test("ABAP application execution blocks production and consumes each execution a
       planId: preview.planId,
       confirmation: preview.confirmation
     }),
-    expectApplicationValidation("EXECUTION_PLAN_EXPIRED")
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
   )
 
   const replProduction = createApplicationHarness()
@@ -1404,7 +1424,7 @@ test("ABAP application execution blocks production and consumes each execution a
       planId: snippet.planId,
       confirmation: snippet.confirmation
     }),
-    expectApplicationValidation("EXECUTION_PLAN_EXPIRED")
+    expectApplicationValidation("EXECUTION_PLAN_EXPIRED", "Execution plan is missing or expired")
   )
 })
 
