@@ -72,17 +72,80 @@ test("ABAP REPL sanitizes raw controls and never retries malformed or missing en
   assert.equal(sanitized.output, "first\nsecond\tvalue")
   assert.equal(callCount, 1)
 
-  await assert.rejects(
-    executeAbapCode(http, "WRITE 42."),
-    { message: "ABAP REPL field success must be boolean" }
-  )
+  await assert.rejects(executeAbapCode(http, "WRITE 42."), error => {
+    assert.ok(error instanceof AppError)
+    assert.equal(error.code, "SAP_OPERATION_FAILED")
+    assert.equal(error.message, "ABAP REPL field success must be boolean")
+    assert.deepEqual(error.details, { endpoint: "/sap/bc/z_abap_repl" })
+    return true
+  })
   assert.equal(callCount, 2)
 
-  await assert.rejects(
-    checkReplAvailability(http),
-    { message: "ABAP REPL returned HTTP 404" }
-  )
+  await assert.rejects(checkReplAvailability(http), error => {
+    assert.ok(error instanceof Error)
+    assert.equal(error.message, "ABAP REPL returned HTTP 404")
+    assert.equal((error as Error & { status?: number }).status, 404)
+    return true
+  })
   assert.equal(callCount, 3)
+})
+
+test("ABAP REPL sanitizer preserves every raw string control and JSON escape parity", async () => {
+  const cases = Array.from({ length: 0x20 }, (_, codePoint) => {
+    const control = String.fromCharCode(codePoint)
+    return {
+      name: `raw control 0x${codePoint.toString(16).padStart(2, "0")}`,
+      body: '{"success":true,"output":"before' + control
+        + 'after","error":"","runtime_ms":5}',
+      output: `before${control}after`
+    }
+  })
+  cases.push(
+    {
+      name: "escaped quote",
+      body: String.raw`{"success":true,"output":"say \"hi\"","error":"","runtime_ms":5}`,
+      output: 'say "hi"'
+    },
+    {
+      name: "even backslashes close the output string",
+      body: String.raw`{"success":true,"output":"even\\","error":"","runtime_ms":5}`,
+      output: "even\\"
+    },
+    {
+      name: "odd backslashes keep the following quote escaped",
+      body: String.raw`{"success":true,"output":"odd\\\"quote","error":"","runtime_ms":5}`,
+      output: 'odd\\"quote'
+    }
+  )
+
+  for (const item of cases) {
+    const http: ReplHttpClient = {
+      async request() {
+        return { status: 200, body: item.body }
+      }
+    }
+    const result = await executeAbapCode(http, "WRITE 42.")
+    assert.equal(result.output, item.output, item.name)
+  }
+})
+
+test("ABAP REPL sanitizer does not rewrite raw controls outside JSON strings", async () => {
+  const http: ReplHttpClient = {
+    async request() {
+      return {
+        status: 200,
+        body: '{"success":' + "\0" + 'true,"output":"","error":"","runtime_ms":5}'
+      }
+    }
+  }
+
+  await assert.rejects(executeAbapCode(http, "WRITE 42."), error => {
+    assert.ok(error instanceof AppError)
+    assert.equal(error.code, "SAP_OPERATION_FAILED")
+    assert.equal(error.message, "ABAP REPL returned malformed JSON")
+    assert.equal(error.details?.endpoint, "/sap/bc/z_abap_repl")
+    return true
+  })
 })
 
 test("ABAP REPL rejects a top-level JSON array with stable malformed JSON details", async () => {
