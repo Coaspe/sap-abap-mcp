@@ -130,6 +130,43 @@ class FakeSapClient implements SapClient {
   classRunCalls = 0
   replHealthCalls = 0
   replExecuteCalls = 0
+  codeCompletionCalls = 0
+  completionElementCalls = 0
+  completionElementArgs: Array<{
+    sourceUri: string
+    source: string
+    line: number
+    column: number
+  }> = []
+  completionElementResult: string | import("abap-adt-api").CompletionElementInfo =
+    structuredClone(DEVELOPMENT_PARITY_FIXTURES.completionElement)
+  completionElementError?: Error
+  documentationCalls = 0
+  documentationArgs: Array<{
+    objectUri: string
+    source: string
+    line: number
+    column: number
+  }> = []
+  documentationResult = DEVELOPMENT_PARITY_FIXTURES.documentation
+  documentationError?: Error
+  typeHierarchyCalls = 0
+  typeHierarchyArgs: Array<{
+    sourceUri: string
+    source: string
+    line: number
+    column: number
+    superTypes: boolean
+  }> = []
+  typeHierarchyResult: import("abap-adt-api").HierarchyNode[] =
+    structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy)
+  typeHierarchyError?: Error
+  classComponentsCalls = 0
+  classComponentsArgs: string[] = []
+  classComponentsResult: import("abap-adt-api").ClassComponent =
+    structuredClone(DEVELOPMENT_PARITY_FIXTURES.components)
+  classComponentsError?: Error
+  objectStructureType = object.type
 
   constructor(readonly profile: SapProfile) {}
 
@@ -198,7 +235,7 @@ class FakeSapClient implements SapClient {
       objectUrl: uri,
       metaData: {
         "adtcore:name": name,
-        "adtcore:type": className ? "CLAS/OC" : object.type,
+        "adtcore:type": className ? "CLAS/OC" : this.objectStructureType,
         "adtcore:changedAt": 0,
         "adtcore:changedBy": "DEVELOPER",
         "adtcore:createdAt": 0,
@@ -533,26 +570,55 @@ class FakeSapClient implements SapClient {
   }
 
   async getCodeCompletions(): Promise<any[]> {
+    this.codeCompletionCalls += 1
     return [{ IDENTIFIER: "WRITE", KIND: 1, ICON: 0, SUBICON: 0, BOLD: 0, COLOR: 0,
       QUICKINFO_EVENT: 0, INSERT_EVENT: 0, IS_META: 0, PREFIXLENGTH: 0, ROLE: 0,
       LOCATION: 0, GRADE: 1, VISIBILITY: 0, IS_INHERITED: 0, PROP1: 0, PROP2: 0,
       PROP3: 0, SYNTCNTXT: 0 }]
   }
 
-  async getCodeCompletionElement(): Promise<string | import("abap-adt-api").CompletionElementInfo> {
-    return structuredClone(DEVELOPMENT_PARITY_FIXTURES.completionElement)
+  async getCodeCompletionElement(
+    sourceUri: string,
+    sourceText: string,
+    line: number,
+    column: number
+  ): Promise<string | import("abap-adt-api").CompletionElementInfo> {
+    this.completionElementCalls += 1
+    this.completionElementArgs.push({ sourceUri, source: sourceText, line, column })
+    if (this.completionElementError) throw this.completionElementError
+    return structuredClone(this.completionElementResult)
   }
 
-  async getAbapDocumentation(): Promise<string> {
-    return DEVELOPMENT_PARITY_FIXTURES.documentation
+  async getAbapDocumentation(
+    objectUri: string,
+    sourceText: string,
+    line: number,
+    column: number
+  ): Promise<string> {
+    this.documentationCalls += 1
+    this.documentationArgs.push({ objectUri, source: sourceText, line, column })
+    if (this.documentationError) throw this.documentationError
+    return this.documentationResult
   }
 
-  async getTypeHierarchy(): Promise<import("abap-adt-api").HierarchyNode[]> {
-    return structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy)
+  async getTypeHierarchy(
+    sourceUri: string,
+    sourceText: string,
+    line: number,
+    column: number,
+    superTypes: boolean
+  ): Promise<import("abap-adt-api").HierarchyNode[]> {
+    this.typeHierarchyCalls += 1
+    this.typeHierarchyArgs.push({ sourceUri, source: sourceText, line, column, superTypes })
+    if (this.typeHierarchyError) throw this.typeHierarchyError
+    return structuredClone(this.typeHierarchyResult)
   }
 
-  async getClassComponents(): Promise<import("abap-adt-api").ClassComponent> {
-    return structuredClone(DEVELOPMENT_PARITY_FIXTURES.components)
+  async getClassComponents(objectUri: string): Promise<import("abap-adt-api").ClassComponent> {
+    this.classComponentsCalls += 1
+    this.classComponentsArgs.push(objectUri)
+    if (this.classComponentsError) throw this.classComponentsError
+    return structuredClone(this.classComponentsResult)
   }
 
   async runClass(className: string): Promise<string> {
@@ -2444,6 +2510,333 @@ test("capability execution preserves pre-call status and normalizes observations
   assert.deepEqual(failureRecord?.evidence, [
     "http:403:/sap/bc/adt/oo/classrun?token=[REDACTED]"
   ])
+})
+
+test("semantic inspect actions use one SapClient call, paginate, and bound inline text", async () => {
+  const harness = createBdefHarness()
+  const fileUri = "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main"
+  const baseInput = {
+    fileUri,
+    line: 3,
+    column: 8,
+    implementation: false,
+    startIndex: 0,
+    maxResults: 10,
+    superTypes: false
+  }
+  const semanticCallCounts = () => ({
+    completion: harness.fake.codeCompletionCalls,
+    completionElement: harness.fake.completionElementCalls,
+    documentation: harness.fake.documentationCalls,
+    typeHierarchy: harness.fake.typeHierarchyCalls,
+    components: harness.fake.classComponentsCalls
+  })
+
+  harness.fake.completionElementResult = {
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.completionElement),
+    components: [
+      { "adtcore:type": "CLAS/OM", "adtcore:name": "FIRST", entries: [] },
+      { "adtcore:type": "CLAS/OM", "adtcore:name": "SECOND", entries: [] },
+      { "adtcore:type": "CLAS/OM", "adtcore:name": "THIRD", entries: [] }
+    ]
+  }
+  const completionElement = await harness.service.inspectCode({
+    ...baseInput,
+    action: "completion_element",
+    startIndex: 1,
+    maxResults: 1
+  }) as any
+  assert.equal(completionElement.format, "structured")
+  assert.equal(completionElement.element.name, "WRITE")
+  assert.equal(completionElement.element.doc, "Writes output")
+  assert.equal(completionElement.element.docTruncated, false)
+  assert.equal(completionElement.element.componentTotal, 3)
+  assert.equal(completionElement.element.componentStartIndex, 1)
+  assert.equal(completionElement.element.componentsReturned, 1)
+  assert.equal(completionElement.element.componentsTruncated, true)
+  assert.equal(completionElement.element.componentsNextStartIndex, 2)
+  assert.equal(completionElement.element.components[0]["adtcore:name"], "SECOND")
+  assert.equal(completionElement.capabilityStatusAtExecution, "unverified")
+  assert.deepEqual(semanticCallCounts(), {
+    completion: 0,
+    completionElement: 1,
+    documentation: 0,
+    typeHierarchy: 0,
+    components: 0
+  })
+  assert.deepEqual(harness.fake.completionElementArgs, [{
+    sourceUri: "/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    source,
+    line: 3,
+    column: 8
+  }])
+
+  const documentation = await harness.service.inspectCode({
+    ...baseInput,
+    action: "documentation"
+  }) as any
+  assert.equal(documentation.format, "html")
+  assert.match(documentation.content, /WRITE documentation/)
+  assert.equal(documentation.truncated, false)
+  assert.equal(documentation.capabilityStatusAtExecution, "unverified")
+  assert.deepEqual(harness.fake.documentationArgs, [{
+    objectUri: object.uri,
+    source,
+    line: 3,
+    column: 8
+  }])
+  assert.deepEqual(semanticCallCounts(), {
+    completion: 0,
+    completionElement: 1,
+    documentation: 1,
+    typeHierarchy: 0,
+    components: 0
+  })
+
+  harness.fake.typeHierarchyResult = [
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy),
+    { ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy[0]!), name: "ZCL_SECOND" },
+    { ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.typeHierarchy[0]!), name: "ZCL_THIRD" }
+  ]
+  const hierarchy = await harness.service.inspectCode({
+    ...baseInput,
+    action: "type_hierarchy",
+    line: 1,
+    column: 0,
+    superTypes: true,
+    startIndex: 1,
+    maxResults: 1
+  }) as any
+  assert.equal(hierarchy.total, 3)
+  assert.equal(hierarchy.startIndex, 1)
+  assert.equal(hierarchy.returned, 1)
+  assert.equal(hierarchy.truncated, true)
+  assert.equal(hierarchy.nextStartIndex, 2)
+  assert.equal(hierarchy.nodes[0].name, "ZCL_SECOND")
+  assert.equal(hierarchy.capabilityStatusAtExecution, "unverified")
+  assert.deepEqual(harness.fake.typeHierarchyArgs, [{
+    sourceUri: "/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    source,
+    line: 1,
+    column: 0,
+    superTypes: true
+  }])
+  assert.deepEqual(semanticCallCounts(), {
+    completion: 0,
+    completionElement: 1,
+    documentation: 1,
+    typeHierarchy: 1,
+    components: 0
+  })
+
+  harness.fake.classComponentsResult = {
+    ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.components),
+    components: [
+      ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.components.components),
+      {
+        ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.components.components[0]!),
+        "adtcore:name": "SECOND",
+        constant: true,
+        readOnly: true,
+        components: [structuredClone(DEVELOPMENT_PARITY_FIXTURES.components.components[0]!)]
+      },
+      {
+        ...structuredClone(DEVELOPMENT_PARITY_FIXTURES.components.components[0]!),
+        "adtcore:name": "THIRD"
+      }
+    ]
+  }
+  const components = await harness.service.inspectCode({
+    ...baseInput,
+    action: "components",
+    startIndex: 1,
+    maxResults: 1
+  }) as any
+  assert.equal(components.root.name, "ZCL_DEMO")
+  assert.equal(components.total, 3)
+  assert.equal(components.startIndex, 1)
+  assert.equal(components.returned, 1)
+  assert.equal(components.truncated, true)
+  assert.equal(components.nextStartIndex, 2)
+  assert.deepEqual(components.components[0], {
+    name: "SECOND",
+    type: "CLAS/OM",
+    visibility: "public",
+    constant: true,
+    readOnly: true,
+    childCount: 1
+  })
+  assert.equal(components.capabilityStatusAtExecution, "unverified")
+  assert.deepEqual(harness.fake.classComponentsArgs, [object.uri])
+  assert.deepEqual(semanticCallCounts(), {
+    completion: 0,
+    completionElement: 1,
+    documentation: 1,
+    typeHierarchy: 1,
+    components: 1
+  })
+
+  harness.fake.completionElementResult = "legacy completion"
+  const legacy = await harness.service.inspectCode({
+    ...baseInput,
+    action: "completion_element"
+  }) as any
+  assert.equal(legacy.format, "legacy")
+  assert.equal(legacy.content, "legacy completion")
+  assert.equal(legacy.originalBytes, Buffer.byteLength("legacy completion", "utf8"))
+  assert.equal(legacy.returnedBytes, legacy.originalBytes)
+  assert.equal(legacy.truncated, false)
+
+  const inlineLimit = 96 * 1024
+  harness.fake.completionElementResult = "🙂".repeat(inlineLimit / 4 + 1)
+  const bounded = await harness.service.inspectCode({
+    ...baseInput,
+    action: "completion_element"
+  }) as any
+  assert.equal(bounded.format, "legacy")
+  assert.equal(bounded.originalBytes, inlineLimit + 4)
+  assert.ok(bounded.returnedBytes <= inlineLimit)
+  assert.equal(bounded.returnedBytes, Buffer.byteLength(bounded.content, "utf8"))
+  assert.equal(bounded.truncated, true)
+  assert.equal(bounded.content.includes("�"), false)
+  assert.equal(bounded.content.endsWith("🙂"), true)
+  assert.equal(/[\uD800-\uDBFF]$/.test(bounded.content), false)
+
+  harness.fake.documentationResult = "Plain documentation"
+  const plainDocumentation = await harness.service.inspectCode({
+    ...baseInput,
+    action: "documentation"
+  }) as any
+  assert.equal(plainDocumentation.format, "text")
+
+  const invalidComponents = createBdefHarness()
+  invalidComponents.fake.objectStructureType = "PROG/P"
+  await assert.rejects(
+    invalidComponents.service.inspectCode({
+      ...baseInput,
+      fileUri: "adt://dev100/sap/bc/adt/programs/programs/zrep/source/main",
+      action: "components"
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_VALIDATION_FAILED")
+      assert.equal(error.message, "components requires a class or interface")
+      assert.deepEqual(error.details, {
+        reason: "COMPONENTS_OBJECT_TYPE_INVALID",
+        objectType: "PROG/P"
+      })
+      return true
+    }
+  )
+  assert.equal(invalidComponents.fake.classComponentsCalls, 0)
+
+  const failed = createBdefHarness()
+  const secret = "semantic-secret"
+  failed.fake.documentationError = Object.assign(
+    new Error(`Authorization: Bearer ${secret}`),
+    { response: { status: 403 } }
+  )
+  await assert.rejects(
+    failed.service.inspectCode({ ...baseInput, action: "documentation" }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.equal(error.message.includes(secret), false)
+      assert.deepEqual(error.details, {
+        capabilityId: "semantic.documentation",
+        endpoint: "/sap/bc/adt/docu/abap/langu",
+        httpStatus: 403
+      })
+      return true
+    }
+  )
+  assert.equal(failed.fake.documentationCalls, 1)
+  assert.equal(failed.fake.completionElementCalls, 0)
+  assert.equal(failed.fake.typeHierarchyCalls, 0)
+  assert.equal(failed.fake.classComponentsCalls, 0)
+  const failedCapability = (failed.service as unknown as {
+    capabilities: SapCapabilityRegistry
+  }).capabilities.list("DEV100", "", "semantic").find(
+    item => item.id === "semantic.documentation"
+  )
+  assert.equal(failedCapability?.authorization, "denied")
+  assert.equal(failedCapability?.status, "unverified")
+  assert.deepEqual(failedCapability?.evidence, [
+    "http:403:/sap/bc/adt/docu/abap/langu"
+  ])
+})
+
+test("MCP semantic inspect actions expose fixtures and default superTypes to false", async t => {
+  const harness = createBdefHarness()
+  const server = createMcpServer(harness.service)
+  const client = new Client({ name: "semantic-test-client", version: "1.0.0" })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  t.after(async () => {
+    await client.close()
+    await server.close()
+  })
+  await server.connect(serverTransport)
+  await client.connect(clientTransport)
+  const callJson = async (args: Record<string, unknown>) => {
+    const response = await client.callTool({ name: "inspect_abap_code", arguments: args })
+    const text = (
+      (response as { content: Array<{ type: "text"; text: string }> }).content[0] as {
+        type: "text"
+        text: string
+      }
+    ).text
+    return JSON.parse(text)
+  }
+  const fileUri = "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main"
+
+  const completion = await callJson({
+    action: "completion_element",
+    fileUri,
+    line: 3,
+    column: 8
+  })
+  assert.equal(completion.format, "structured")
+  assert.equal(completion.element.name, "WRITE")
+
+  const documentation = await callJson({
+    action: "documentation",
+    fileUri,
+    line: 3,
+    column: 8
+  })
+  assert.equal(documentation.format, "html")
+  assert.match(documentation.content, /WRITE documentation/)
+  assert.equal(documentation.truncated, false)
+
+  const hierarchy = await callJson({
+    action: "type_hierarchy",
+    fileUri,
+    line: 1,
+    column: 0,
+    superTypes: true,
+    startIndex: 0,
+    maxResults: 10
+  })
+  assert.equal(hierarchy.nodes[0].name, "ZCL_PARENT")
+
+  const components = await callJson({
+    action: "components",
+    fileUri,
+    startIndex: 0,
+    maxResults: 10
+  })
+  assert.equal(components.components[0].name, "RUN")
+
+  await callJson({
+    action: "type_hierarchy",
+    fileUri,
+    line: 1,
+    column: 0
+  })
+  assert.deepEqual(
+    harness.fake.typeHierarchyArgs.map(call => call.superTypes),
+    [true, false]
+  )
 })
 
 test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => {

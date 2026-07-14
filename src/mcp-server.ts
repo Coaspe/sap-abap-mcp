@@ -1371,15 +1371,25 @@ export function createMcpServer(
     {
       title: "Inspect ABAP Code",
       description:
-        "Use SAP ADT semantic services for completion, definition, safe quick-fix discovery, or formatter preview. line is one-based and column is zero-based.",
+        "Use SAP ADT semantic services for completion, documentation, type hierarchy, components, definition, safe quick-fix discovery, or formatter preview. line is one-based and column is zero-based.",
       inputSchema: {
-        action: z.enum(["completion", "definition", "quick_fixes", "format_preview"]),
+        action: z.enum([
+          "completion",
+          "definition",
+          "quick_fixes",
+          "format_preview",
+          "completion_element",
+          "documentation",
+          "type_hierarchy",
+          "components"
+        ]),
         fileUri: z.string().min(1),
         connectionId: z.string().min(1).optional(),
         line: z.number().int().min(1).default(1),
         column: z.number().int().min(0).default(0),
         endColumn: z.number().int().min(0).optional(),
         implementation: z.boolean().default(false),
+        superTypes: z.boolean().default(false),
         startIndex: z.number().int().min(0).default(0),
         maxResults: z.number().int().min(1).max(500).default(50)
       },
@@ -1391,6 +1401,7 @@ export function createMcpServer(
       line: input.line,
       column: input.column,
       implementation: input.implementation,
+      superTypes: input.superTypes,
       startIndex: input.startIndex,
       maxResults: input.maxResults,
       ...(input.connectionId ? { connectionId: input.connectionId } : {}),
