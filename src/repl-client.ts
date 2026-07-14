@@ -88,7 +88,7 @@ function parseRecord(body: string): Record<string, unknown> {
   try {
     const parsed: unknown = JSON.parse(sanitizeJsonBody(body))
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      throw new Error("top-level JSON value is not an object")
+      throw new Error("object expected")
     }
     return parsed as Record<string, unknown>
   } catch (error) {

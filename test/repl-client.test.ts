@@ -5,6 +5,7 @@ import {
   executeAbapCode,
   type ReplHttpClient
 } from "../src/repl-client.js"
+import { AppError } from "../src/errors.js"
 import { DEVELOPMENT_PARITY_FIXTURES } from "./fixtures/development-parity.js"
 
 test("ABAP REPL health check uses the single audited GET route", async () => {
@@ -82,4 +83,23 @@ test("ABAP REPL sanitizes raw controls and never retries malformed or missing en
     { message: "ABAP REPL returned HTTP 404" }
   )
   assert.equal(callCount, 3)
+})
+
+test("ABAP REPL rejects a top-level JSON array with stable malformed JSON details", async () => {
+  const http: ReplHttpClient = {
+    async request() {
+      return { status: 200, body: "[]" }
+    }
+  }
+
+  await assert.rejects(checkReplAvailability(http), error => {
+    assert.ok(error instanceof AppError)
+    assert.equal(error.code, "SAP_OPERATION_FAILED")
+    assert.equal(error.message, "ABAP REPL returned malformed JSON")
+    assert.deepEqual(error.details, {
+      endpoint: "/sap/bc/z_abap_repl",
+      cause: "object expected"
+    })
+    return true
+  })
 })
