@@ -325,6 +325,35 @@ test("capability errors redact complete sensitive header values", () => {
   }
 })
 
+test("capability errors redact quoted JSON header labels", () => {
+  const cases = [
+    {
+      message: '{"X-CSRF-Token":"quoted-csrf-secret"}',
+      secret: "quoted-csrf-secret"
+    },
+    {
+      message: '{"Set-Cookie":"SID=quoted-cookie-secret; Path=/"}',
+      secret: "quoted-cookie-secret"
+    }
+  ]
+
+  for (const entry of cases) {
+    const normalized = normalizeCapabilityError(
+      new Error(entry.message),
+      "semantic.documentation",
+      "/sap/bc/adt/docu/abap/langu"
+    )
+    assert.equal(normalized.message.includes(entry.secret), false)
+  }
+
+  const withUnrelatedField = normalizeCapabilityError(
+    new Error('{"X-CSRF-Token":"secret","message":"json-field-kept"}'),
+    "semantic.documentation",
+    "/sap/bc/adt/docu/abap/langu"
+  )
+  assert.equal(withUnrelatedField.message.includes('"message":"json-field-kept"'), true)
+})
+
 test("capability endpoints and evidence redact sensitive query values", () => {
   const capabilityId = "semantic.documentation"
   const normalized = normalizeCapabilityError(
