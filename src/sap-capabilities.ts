@@ -37,6 +37,10 @@ interface SapCapabilityObservation {
   succeeded: boolean
 }
 
+function normalizeId(value: string): string {
+  return value.trim().toUpperCase()
+}
+
 const CAPABILITY_DEFINITIONS: SapCapabilityDefinition[] = [
   {
     id: "repository.create.bdef",
@@ -123,7 +127,7 @@ const CAPABILITY_DEFINITIONS: SapCapabilityDefinition[] = [
 ]
 
 const DEFINITIONS_BY_ID = new Map(
-  CAPABILITY_DEFINITIONS.map(definition => [definition.id, definition])
+  CAPABILITY_DEFINITIONS.map(definition => [normalizeId(definition.id), definition])
 )
 
 function numericHttpStatus(error: unknown): number | undefined {
@@ -228,7 +232,7 @@ export class SapCapabilityRegistry {
   }
 
   status(connectionId: string, capabilityId: string): SapCapabilityStatus {
-    const definition = DEFINITIONS_BY_ID.get(capabilityId)
+    const definition = DEFINITIONS_BY_ID.get(normalizeId(capabilityId))
     if (!definition) {
       throw new AppError(
         "SAP_CAPABILITY_UNAVAILABLE",
@@ -266,17 +270,18 @@ export class SapCapabilityRegistry {
     capabilityId: string,
     apply: (observation: SapCapabilityObservation) => void
   ): void {
-    const connectionKey = connectionId.trim().toUpperCase()
+    const connectionKey = normalizeId(connectionId)
+    const capabilityKey = normalizeId(capabilityId)
     let connectionObservations = this.observations.get(connectionKey)
     if (!connectionObservations) {
       connectionObservations = new Map()
       this.observations.set(connectionKey, connectionObservations)
     }
 
-    let observation = connectionObservations.get(capabilityId)
+    let observation = connectionObservations.get(capabilityKey)
     if (!observation) {
       observation = { evidence: [], succeeded: false }
-      connectionObservations.set(capabilityId, observation)
+      connectionObservations.set(capabilityKey, observation)
     }
 
     apply(observation)
@@ -297,8 +302,8 @@ export class SapCapabilityRegistry {
     definition: SapCapabilityDefinition
   ): SapCapabilityRecord {
     const observation = this.observations
-      .get(connectionId.trim().toUpperCase())
-      ?.get(definition.id)
+      .get(normalizeId(connectionId))
+      ?.get(normalizeId(definition.id))
     const system = observation?.system ?? "unknown"
     const authorization = observation?.authorization ?? "unknown"
     const status = definition.implementation === "missing" || system === "not_advertised"
