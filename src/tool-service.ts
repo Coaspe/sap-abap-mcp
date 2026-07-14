@@ -280,11 +280,20 @@ export interface VersionHistoryInput extends ObjectLocatorInput {
 }
 
 export interface InspectCodeInput extends WorkspaceFileInput {
-  action: "completion" | "definition" | "quick_fixes" | "format_preview"
+  action:
+    | "completion"
+    | "definition"
+    | "quick_fixes"
+    | "format_preview"
+    | "completion_element"
+    | "documentation"
+    | "type_hierarchy"
+    | "components"
   line: number
   column: number
   endColumn?: number
   implementation: boolean
+  superTypes: boolean
   startIndex: number
   maxResults: number
 }
@@ -706,6 +715,31 @@ function selectLines(
     endIndex,
     truncated: endIndex < requestedEnd,
     nextIndex: endIndex < lines.length ? endIndex : null
+  }
+}
+
+function boundInlineText(value: string, byteLimit = INLINE_TEXT_BYTE_LIMIT) {
+  const originalBytes = Buffer.byteLength(value, "utf8")
+  if (originalBytes <= byteLimit) {
+    return { content: value, originalBytes, returnedBytes: originalBytes, truncated: false }
+  }
+  const characters = [...value]
+  let low = 0
+  let high = characters.length
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2)
+    if (Buffer.byteLength(characters.slice(0, middle).join(""), "utf8") <= byteLimit) {
+      low = middle
+    } else {
+      high = middle - 1
+    }
+  }
+  const content = characters.slice(0, low).join("")
+  return {
+    content,
+    originalBytes,
+    returnedBytes: Buffer.byteLength(content, "utf8"),
+    truncated: true
   }
 }
 
@@ -1337,6 +1371,140 @@ export class AbapToolService {
           grade: proposal.GRADE,
           inherited: Boolean(proposal.IS_INHERITED)
         }))
+      }
+    }
+
+    if (input.action === "completion_element") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        target.connectionId,
+        "semantic.completion_element",
+        "/sap/bc/adt/abapsource/codecompletion/elementinfo",
+        () => target.client.getCodeCompletionElement(
+          target.sourceUri,
+          target.source,
+          input.line,
+          input.column
+        )
+      )
+      if (typeof result === "string") {
+        return {
+          connectionId: target.connectionId,
+          object: target.object,
+          format: "legacy",
+          ...boundInlineText(result),
+          capabilityStatusAtExecution
+        }
+      }
+      const doc = boundInlineText(result.doc)
+      const components = pageItems(result.components, input.startIndex, input.maxResults)
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        format: "structured",
+        element: {
+          name: result.name,
+          type: result.type,
+          href: result.href,
+          doc: doc.content,
+          docTruncated: doc.truncated,
+          componentTotal: components.total,
+          componentStartIndex: components.startIndex,
+          componentsReturned: components.returned,
+          componentsTruncated: components.truncated,
+          componentsNextStartIndex: components.nextStartIndex,
+          components: components.items
+        },
+        capabilityStatusAtExecution
+      }
+    }
+
+    if (input.action === "documentation") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        target.connectionId,
+        "semantic.documentation",
+        "/sap/bc/adt/docu/abap/langu",
+        () => target.client.getAbapDocumentation(
+          target.objectUri,
+          target.source,
+          input.line,
+          input.column
+        )
+      )
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        format: /<[^>]+>/.test(result) ? "html" : "text",
+        ...boundInlineText(result),
+        capabilityStatusAtExecution
+      }
+    }
+
+    if (input.action === "type_hierarchy") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        target.connectionId,
+        "semantic.type_hierarchy",
+        "/sap/bc/adt/abapsource/typehierarchy",
+        () => target.client.getTypeHierarchy(
+          target.sourceUri,
+          target.source,
+          input.line,
+          input.column,
+          input.superTypes
+        )
+      )
+      const page = pageItems(result, input.startIndex, input.maxResults)
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        nodes: page.items,
+        capabilityStatusAtExecution
+      }
+    }
+
+    if (input.action === "components") {
+      const objectType = target.object.type.toUpperCase()
+      const baseObjectType = objectType.split("/")[0]
+      if (baseObjectType !== "CLAS" && baseObjectType !== "INTF") {
+        throw new AppError(
+          "SAP_VALIDATION_FAILED",
+          "components requires a class or interface",
+          { reason: "COMPONENTS_OBJECT_TYPE_INVALID", objectType: target.object.type }
+        )
+      }
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        target.connectionId,
+        "semantic.components",
+        `${target.objectUri}/objectstructure`,
+        () => target.client.getClassComponents(target.objectUri)
+      )
+      const page = pageItems(result.components, input.startIndex, input.maxResults)
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        root: {
+          name: result["adtcore:name"],
+          type: result["adtcore:type"],
+          visibility: result.visibility
+        },
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        components: page.items.map(item => ({
+          name: item["adtcore:name"],
+          type: item["adtcore:type"],
+          visibility: item.visibility,
+          constant: item.constant ?? false,
+          readOnly: item.readOnly ?? false,
+          childCount: item.components.length
+        })),
+        capabilityStatusAtExecution
       }
     }
 
