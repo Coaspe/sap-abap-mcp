@@ -13,7 +13,11 @@ import { z } from "zod"
 import type { RapGeneratorContent } from "abap-adt-api"
 import { errorPayload } from "./errors.js"
 import { MERMAID_DIAGRAM_TYPES } from "./mermaid-tools.js"
-import type { AbapToolService, ActivateObjectInput } from "./tool-service.js"
+import type {
+  AbapToolService,
+  ActivateObjectInput,
+  RunAbapApplicationInput
+} from "./tool-service.js"
 
 export const ABAP_OBJECT_TYPES = [
   "FUNC",
@@ -1607,6 +1611,41 @@ export function createMcpServer(
       ...(input.confirmation ? { confirmation: input.confirmation } : {}),
       ...(input.transport ? { transport: input.transport } : {})
     }))
+  )
+
+  const runAbapApplicationSchema = z.discriminatedUnion("action", [
+    z.object({
+      action: z.literal("repl_health"),
+      connectionId: z.string().min(1)
+    }).strict(),
+    z.object({
+      action: z.literal("preview_class"),
+      connectionId: z.string().min(1),
+      className: z.string().min(1)
+    }).strict(),
+    z.object({
+      action: z.literal("preview_snippet"),
+      connectionId: z.string().min(1),
+      code: z.string().min(1).max(98_304)
+    }).strict(),
+    z.object({
+      action: z.literal("execute"),
+      connectionId: z.string().min(1),
+      planId: z.string().uuid(),
+      confirmation: z.string().min(1)
+    }).strict()
+  ])
+
+  registerTool(
+    "run_abap_application",
+    {
+      title: "Run ABAP Application",
+      description:
+        "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan.",
+      inputSchema: runAbapApplicationSchema,
+      annotations: writeAnnotations
+    },
+    async input => runTool(() => tools.runAbapApplication(input as RunAbapApplicationInput))
   )
 
   registerTool(
