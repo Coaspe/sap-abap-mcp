@@ -1021,7 +1021,7 @@ function requireExecutableProfile(client: SapClient): void {
     throw new AppError(
       "SAP_CAPABILITY_UNAVAILABLE",
       "ABAP execution is disabled on production",
-      { reason: "PRODUCTION_EXECUTION_BLOCKED", profileId: client.profile.id }
+      { reason: "PRODUCTION_EXECUTION_BLOCKED", connectionId: client.profile.id }
     )
   }
 }
@@ -1210,29 +1210,29 @@ export class AbapToolService {
 
   private takeExecutionPlan(
     planId: string,
-    connectionId: string,
-    confirmation: string
+    confirmation: string,
+    connectionId: string
   ): ExecutionPlan {
     const plan = this.executionPlans.get(planId)
     if (!plan || plan.expiresAt <= Date.now()) {
       this.executionPlans.delete(planId)
       throw new AppError(
         "SAP_VALIDATION_FAILED",
-        "The execution plan is missing or expired; create a new preview",
+        "Execution plan is missing or expired",
         { reason: "EXECUTION_PLAN_EXPIRED" }
       )
     }
     if (connectionId !== plan.connectionId) {
       throw new AppError(
         "SAP_VALIDATION_FAILED",
-        "The execution plan belongs to a different SAP connection",
+        "Execution plan belongs to another connection",
         { reason: "EXECUTION_PLAN_CONNECTION_MISMATCH" }
       )
     }
     if (confirmation !== plan.confirmation) {
       throw new AppError(
         "SAP_VALIDATION_FAILED",
-        `Confirmation must exactly equal ${plan.confirmation}`,
+        "Execution confirmation does not match",
         { reason: "CONFIRMATION_MISMATCH" }
       )
     }
@@ -5215,8 +5215,8 @@ export class AbapToolService {
       ) {
         throw new AppError(
           "SAP_VALIDATION_FAILED",
-          "Class name must be an uppercase ABAP identifier of at most 30 characters",
-          { reason: "CLASS_NAME_INVALID", className }
+          "className must be an uppercase ABAP class name",
+          { reason: "CLASS_NAME_INVALID" }
         )
       }
       const plan = this.cacheExecutionPlan({
@@ -5227,11 +5227,13 @@ export class AbapToolService {
       })
       return {
         action: input.action,
-        connectionId,
         planId: plan.id,
         confirmation: plan.confirmation,
         expiresAt: new Date(plan.expiresAt).toISOString(),
-        capabilityStatus: this.capabilities.status(connectionId, "execution.class_runner")
+        capabilityStatusAtExecution: this.capabilities.status(
+          connectionId,
+          "execution.class_runner"
+        )
       }
     }
 
@@ -5241,7 +5243,7 @@ export class AbapToolService {
       if (!input.code.trim() || codeBytes < 1 || codeBytes > INLINE_TEXT_BYTE_LIMIT) {
         throw new AppError(
           "SAP_VALIDATION_FAILED",
-          `ABAP snippet must contain 1 through ${INLINE_TEXT_BYTE_LIMIT} UTF-8 bytes`,
+          `code must contain 1 through ${INLINE_TEXT_BYTE_LIMIT} UTF-8 bytes`,
           { reason: "SNIPPET_SIZE_INVALID", bytes: codeBytes }
         )
       }
@@ -5254,16 +5256,15 @@ export class AbapToolService {
       })
       return {
         action: input.action,
-        connectionId,
         planId: plan.id,
         confirmation: plan.confirmation,
         expiresAt: new Date(plan.expiresAt).toISOString(),
         codeBytes,
-        capabilityStatus: this.capabilities.status(connectionId, "execution.abap_repl")
+        capabilityStatusAtExecution: this.capabilities.status(connectionId, "execution.abap_repl")
       }
     }
 
-    const plan = this.takeExecutionPlan(input.planId, connectionId, input.confirmation)
+    const plan = this.takeExecutionPlan(input.planId, input.confirmation, connectionId)
     requireExecutableProfile(client)
     if (plan.kind === "class") {
       const { result, capabilityStatusAtExecution } = await this.executeCapability(
@@ -5276,7 +5277,6 @@ export class AbapToolService {
       return {
         connectionId,
         kind: plan.kind,
-        className: plan.className,
         output: output.content,
         originalBytes: output.originalBytes,
         returnedBytes: output.returnedBytes,
@@ -5305,7 +5305,10 @@ export class AbapToolService {
       () => client.executeAbapCode(plan.code)
     )
     const output = boundInlineText(result.output)
-    const error = boundInlineText(result.error, INLINE_TEXT_BYTE_LIMIT - output.returnedBytes)
+    const error = boundInlineText(
+      result.error,
+      Math.max(0, INLINE_TEXT_BYTE_LIMIT - output.returnedBytes)
+    )
     return {
       connectionId,
       kind: plan.kind,
