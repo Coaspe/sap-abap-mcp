@@ -49,6 +49,11 @@ export const ABAP_FS_MCP_TOOL_NAMES = [
   "get_abap_diagnostics"
 ] as const
 
+export const ABAP_FS_UPSTREAM_MCP_TOOL_NAMES = [
+  ...ABAP_FS_MCP_TOOL_NAMES,
+  "manage_subagents"
+] as const
+
 export const EXTENDED_TOOL_NAMES = [
   "inspect_abap_code",
   "refactor_abap_code",

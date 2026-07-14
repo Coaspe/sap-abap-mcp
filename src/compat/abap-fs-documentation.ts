@@ -1,5 +1,10 @@
 import { AppError } from "../errors.js"
-import { ABAP_FS_BASELINE, ABAP_FS_MCP_TOOL_NAMES } from "./abap-fs-tools.js"
+import {
+  ABAP_FS_BASELINE,
+  ABAP_FS_MCP_TOOL_NAMES,
+  ABAP_FS_UPSTREAM_MCP_TOOL_NAMES,
+  IMPLEMENTED_TOOL_NAMES
+} from "./abap-fs-tools.js"
 
 export type DocumentationAction =
   | "get_documentation"
@@ -9,12 +14,12 @@ export type DocumentationAction =
 
 const TOOL_GROUPS = {
   "Connection and discovery": [
-    "get_connected_systems", "get_sap_system_info", "adt_discovery_export"
+    "get_connected_systems", "get_sap_system_info", "get_sap_capabilities", "adt_discovery_export"
   ],
   "Repository read and navigation": [
     "search_abap_objects", "get_abap_object_lines", "search_abap_object_lines",
     "get_abap_object_info", "get_batch_lines", "get_object_by_uri", "find_where_used",
-    "get_abap_object_url", "get_abap_object_workspace_uri", "open_object"
+    "get_abap_object_url", "get_abap_object_workspace_uri", "open_object", "inspect_abap_code"
   ],
   "Repository write and activation": [
     "create_object_programmatically", "replace_string_in_abap_object", "get_abap_diagnostics",
@@ -26,9 +31,9 @@ const TOOL_GROUPS = {
   ],
   "Data and reference": ["execute_data_query", "get_abap_sql_syntax", "abap_fs_documentation"],
   "Runtime operations": [
-    "abap_debug_session", "abap_debug_breakpoint", "abap_debug_step", "abap_debug_variable",
-    "abap_debug_stack", "abap_debug_status", "analyze_abap_dumps", "analyze_abap_traces",
-    "manage_heartbeat"
+    "run_abap_application", "abap_debug_session", "abap_debug_breakpoint", "abap_debug_step",
+    "abap_debug_variable", "abap_debug_stack", "abap_debug_status", "analyze_abap_dumps",
+    "analyze_abap_traces", "manage_heartbeat"
   ],
   "Artifacts": [
     "create_mermaid_diagram", "validate_mermaid_syntax", "get_mermaid_documentation",
@@ -41,9 +46,15 @@ const DOCUMENTATION = [
   "",
   `Baseline: ABAP FS ${ABAP_FS_BASELINE.version}, commit ${ABAP_FS_BASELINE.commit}`,
   `Official upstream: ${ABAP_FS_BASELINE.repository}`,
-  `Compatibility tools: ${ABAP_FS_MCP_TOOL_NAMES.length}`,
+  `Pinned upstream MCP tools: ${ABAP_FS_UPSTREAM_MCP_TOOL_NAMES.length}`,
+  `Strict-compatible local tools: ${ABAP_FS_MCP_TOOL_NAMES.length}`,
+  "Omitted upstream tool: manage_subagents (requires the VS Code agent host)",
+  `Total locally advertised tools: ${IMPLEMENTED_TOOL_NAMES.length}`,
+  "SAP-dependent parity features are implemented but remain live-unverified until a selected connection succeeds.",
+  "ABAP REPL requires ZCL_ABAP_REPL and SICF /sap/bc/z_abap_repl.",
+  "Generic report/program-console execution is not implemented.",
   "",
-  "This server exposes the ABAP FS language-model tool surface without requiring VS Code.",
+  "This server exposes the strict-compatible ABAP FS language-model tool surface without requiring VS Code.",
   "SAP work runs through authenticated ADT connections. UI-only actions return a headless artifact or URI.",
   "",
   "## Safety model",
