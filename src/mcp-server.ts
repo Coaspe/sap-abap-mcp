@@ -467,6 +467,8 @@ export function createMcpServer(
         packageName: z.string().min(1).default("$TMP"),
         parentName: z.string().min(1).optional(),
         connectionId: z.string().min(1),
+        source: z.string().optional(),
+        activate: z.boolean().default(false),
         additionalOptions: z.object({
           serviceDefinition: z.string().min(1).optional(),
           bindingType: z.literal("ODATA").optional(),
@@ -490,6 +492,8 @@ export function createMcpServer(
           description: input.description,
           packageName: input.packageName,
           connectionId: input.connectionId,
+          activate: input.activate,
+          ...(input.source !== undefined ? { source: input.source } : {}),
           ...(input.parentName ? { parentName: input.parentName } : {}),
           ...(input.additionalOptions ? {
             additionalOptions: {

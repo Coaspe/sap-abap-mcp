@@ -71,6 +71,22 @@ class FakeSapClient implements SapClient {
   logoutCount = 0
   currentSource = source
   createdObject: unknown
+  createObjectCalls = 0
+  validateNewObjectCalls = 0
+  createTransportCalls = 0
+  readSourceCalls: string[] = []
+  replaceSourceCalls: Array<{
+    objectName: string
+    objectUri: string
+    sourceUri: string
+    expectedSource: string
+    nextSource: string
+    transport?: string
+    activate: boolean
+  }> = []
+  deleteObjectCalls = 0
+  objectCreationOperations: string[] = []
+  replaceSourceError?: Error
   debugActive = false
   deletedObject = false
   transportMutations: string[] = []
@@ -121,6 +137,8 @@ class FakeSapClient implements SapClient {
   }
 
   async readSourceByUri(uri: string) {
+    this.readSourceCalls.push(uri)
+    this.objectCreationOperations.push("read_source")
     if (uri.endsWith("/revisions/1")) {
       return { source: this.currentSource, sourceUri: uri }
     }
@@ -216,14 +234,25 @@ class FakeSapClient implements SapClient {
   }
 
   async replaceSource(
-    _objectName: string,
-    _objectUri: string,
+    objectName: string,
+    objectUri: string,
     sourceUri: string,
     expectedSource: string,
     nextSource: string,
     _transport?: string,
     activate = false
   ): Promise<any> {
+    this.replaceSourceCalls.push({
+      objectName,
+      objectUri,
+      sourceUri,
+      expectedSource,
+      nextSource,
+      ...(_transport === undefined ? {} : { transport: _transport }),
+      activate
+    })
+    this.objectCreationOperations.push("replace_source")
+    if (this.replaceSourceError) throw this.replaceSourceError
     assert.equal(this.currentSource, expectedSource)
     this.currentSource = nextSource
     const diagnostics = await this.checkSyntax("", sourceUri, nextSource)
@@ -249,14 +278,20 @@ class FakeSapClient implements SapClient {
   }
 
   async validateNewObject(): Promise<any> {
+    this.validateNewObjectCalls += 1
+    this.objectCreationOperations.push("validate")
     return { success: true }
   }
 
   async createObject(options: unknown): Promise<void> {
+    this.createObjectCalls += 1
+    this.objectCreationOperations.push("create")
     this.createdObject = options
   }
 
   async createTransport(): Promise<string> {
+    this.createTransportCalls += 1
+    this.objectCreationOperations.push("create_transport")
     return "DEVK900001"
   }
 
@@ -628,6 +663,7 @@ class FakeSapClient implements SapClient {
   }
 
   async deleteObject(_uri: string, expectedFingerprint: string): Promise<void> {
+    this.deleteObjectCalls += 1
     assert.equal(expectedFingerprint, `fingerprint:${this.currentSource}`)
     this.deletedObject = true
   }
@@ -939,6 +975,25 @@ class FakeSapClient implements SapClient {
   }
 }
 
+function createBdefHarness() {
+  const profile: SapProfile = {
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    language: "EN",
+    environment: "development",
+    authType: "basic",
+    username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO"]
+  }
+  const fake = new FakeSapClient(profile)
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { return fake }
+  })
+  return { fake, service }
+}
+
 test("ConnectionManager logs in once, caches the client, and logs out", async t => {
   const directory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-connection-"))
   t.after(() => rm(directory, { recursive: true, force: true }))
@@ -1020,6 +1075,161 @@ test("ABAP source replacement requires one exact match", () => {
   )
 })
 
+test("BDEF create object writes exact source and activates after creation", async () => {
+  const { fake, service } = createBdefHarness()
+  const bdefSource = "managed implementation in class zbp_i_demo unique;"
+  const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_DEMO"
+
+  const created = await service.createObjectProgrammatically({
+    objectType: "BDEF/BDO",
+    name: "ZI_DEMO",
+    description: "Demo behavior",
+    packageName: "Z_DEMO",
+    connectionId: "DEV100",
+    source: bdefSource,
+    activate: true,
+    additionalOptions: {
+      transportRequest: { type: "existing", number: "DEVK900123" }
+    }
+  }) as Record<string, any>
+
+  assert.deepEqual(created, {
+    connectionId: "DEV100",
+    success: true,
+    object: {
+      name: "ZI_DEMO",
+      type: "BDEF/BDO",
+      uri: objectUri,
+      packageName: "Z_DEMO"
+    },
+    transport: "DEVK900123",
+    capabilityStatusAtExecution: "unverified",
+    sourceUri: `${objectUri}/source/main`,
+    diagnostics: [],
+    activation: { success: true, messages: [], inactive: [] },
+    activationSkipped: false
+  })
+  assert.equal(fake.createObjectCalls, 1)
+  assert.equal(fake.createdObject && (fake.createdObject as { objtype: string }).objtype, "BDEF/BDO")
+  assert.equal((fake.createdObject as { transport: string }).transport, "DEVK900123")
+  assert.deepEqual(fake.objectCreationOperations, [
+    "validate",
+    "create",
+    "read_source",
+    "replace_source"
+  ])
+  assert.deepEqual(fake.replaceSourceCalls, [{
+    objectName: "ZI_DEMO",
+    objectUri,
+    sourceUri: `${objectUri}/source/main`,
+    expectedSource: source,
+    nextSource: bdefSource,
+    transport: "DEVK900123",
+    activate: true
+  }])
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
+test("BDEF create object validation rejects invalid source combinations before SAP mutation", async () => {
+  const missingSource = createBdefHarness()
+  await assert.rejects(
+    missingSource.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_DEMO",
+      description: "Demo behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_VALIDATION_FAILED")
+      assert.equal(error.message, "activate=true requires source")
+      assert.deepEqual(error.details, { reason: "SOURCE_REQUIRED_FOR_ACTIVATION" })
+      return true
+    }
+  )
+  assert.equal(missingSource.fake.validateNewObjectCalls, 0)
+  assert.equal(missingSource.fake.createObjectCalls, 0)
+  assert.equal(missingSource.fake.createTransportCalls, 0)
+  assert.deepEqual(missingSource.fake.readSourceCalls, [])
+  assert.deepEqual(missingSource.fake.replaceSourceCalls, [])
+
+  const unsupportedSource = createBdefHarness()
+  await assert.rejects(
+    unsupportedSource.service.createObjectProgrammatically({
+      objectType: "CLAS/OC",
+      name: "ZCL_DEMO",
+      description: "Demo class",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "CLASS zcl_demo DEFINITION PUBLIC FINAL CREATE PUBLIC. ENDCLASS.",
+      activate: false,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_VALIDATION_FAILED")
+      assert.deepEqual(error.details, { reason: "CREATE_SOURCE_UNSUPPORTED" })
+      return true
+    }
+  )
+  assert.equal(unsupportedSource.fake.validateNewObjectCalls, 0)
+  assert.equal(unsupportedSource.fake.createObjectCalls, 0)
+  assert.equal(unsupportedSource.fake.createTransportCalls, 0)
+  assert.deepEqual(unsupportedSource.fake.readSourceCalls, [])
+  assert.deepEqual(unsupportedSource.fake.replaceSourceCalls, [])
+})
+
+test("BDEF create object reports manual cleanup after post-create source failure", async () => {
+  const { fake, service } = createBdefHarness()
+  const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_DEMO"
+  fake.replaceSourceError = new Error("source write failed")
+
+  await assert.rejects(
+    service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_DEMO",
+      description: "Demo behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_demo unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_OPERATION_FAILED")
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "write_source",
+        stage: "write_source",
+        created: true,
+        objectUri,
+        transport: "DEVK900123",
+        manualCleanupRequired: true
+      })
+      return true
+    }
+  )
+  assert.equal(fake.createObjectCalls, 1)
+  assert.deepEqual(fake.objectCreationOperations, [
+    "validate",
+    "create",
+    "read_source",
+    "replace_source"
+  ])
+  assert.equal(fake.deleteObjectCalls, 0)
+  assert.equal(fake.deletedObject, false)
+})
+
 test("write allowlists, production blocking, transports, and read-only SQL are enforced", async () => {
   const makeService = (profile: SapProfile) => {
     const fake = new FakeSapClient(profile)
@@ -1038,7 +1248,8 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
     name: "ZCL_SAFE_TEST",
     description: "Safety policy test",
     packageName: "Z_DEMO",
-    connectionId: "DEV100"
+    connectionId: "DEV100",
+    activate: false
   }
 
   await rejectsCode(
@@ -1779,6 +1990,33 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   assert.equal(created.success, true)
   assert.equal(created.object.name, "ZCL_CREATED")
   assert.equal((fake.createdObject as { transport: string }).transport, "DEVK900123")
+
+  const sourceBeforeBdefCreate = fake.currentSource
+  const bdefCreated = await callJson("create_object_programmatically", {
+    objectType: "BDEF/BDO",
+    name: "ZI_MCP_DEMO",
+    description: "MCP behavior definition",
+    packageName: "Z_DEMO",
+    connectionId: "DEV100",
+    source: "managed implementation in class zbp_i_mcp_demo unique;",
+    activate: true,
+    additionalOptions: {
+      transportRequest: { type: "existing", number: "DEVK900123" }
+    }
+  })
+  assert.equal(bdefCreated.success, true)
+  assert.equal(bdefCreated.object.type, "BDEF/BDO")
+  assert.equal(bdefCreated.activation.success, true)
+  assert.deepEqual(fake.replaceSourceCalls.at(-1), {
+    objectName: "ZI_MCP_DEMO",
+    objectUri: "/sap/bc/adt/bo/behaviordefinitions/ZI_MCP_DEMO",
+    sourceUri: "/sap/bc/adt/bo/behaviordefinitions/ZI_MCP_DEMO/source/main",
+    expectedSource: sourceBeforeBdefCreate,
+    nextSource: "managed implementation in class zbp_i_mcp_demo unique;",
+    transport: "DEVK900123",
+    activate: true
+  })
+  fake.currentSource = sourceBeforeBdefCreate
 
   const query = await callJson("execute_data_query", {
     sql: "SELECT MATNR FROM MARA",
