@@ -8,7 +8,9 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ConnectionManager, type ConnectionSummary } from "../src/connection-manager.js"
 import { IMPLEMENTED_TOOL_NAMES } from "../src/compat/abap-fs-tools.js"
 import { createMcpServer } from "../src/mcp-server.js"
+import { AppError } from "../src/errors.js"
 import { ProfileStore, type SapProfile } from "../src/profile-store.js"
+import { SapCapabilityRegistry } from "../src/sap-capabilities.js"
 import { MemorySecretStore } from "../src/secret-store.js"
 import {
   abapGitCredentialKey,
@@ -913,7 +915,10 @@ class FakeSapClient implements SapClient {
       discovery: [
         {
           title: "Repository",
-          collection: [{ href: "/sap/bc/adt/repository", templateLinks: [] }]
+          collection: [
+            { href: "/sap/bc/adt/repository", templateLinks: [] },
+            { href: "/sap/bc/adt/activation", templateLinks: [] }
+          ]
         }
       ],
       core: [
@@ -1225,6 +1230,148 @@ test("abapGit credentials are selected by repository URL and never cross reposit
   }])
 })
 
+test("capability execution preserves pre-call status and normalizes observations and errors", async () => {
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { throw new Error("not used") }
+  })
+  const harness = service as unknown as {
+    capabilities: SapCapabilityRegistry
+    executeCapability<T>(
+      connectionId: string,
+      capabilityId: string,
+      endpoint: string,
+      operation: () => Promise<T>
+    ): Promise<{ result: T; capabilityStatusAtExecution: string }>
+  }
+
+  harness.capabilities.observeHttpFailure(
+    "UNSUPPORTED100",
+    "semantic.documentation",
+    404,
+    "/documentation"
+  )
+  let unsupportedCalls = 0
+  await assert.rejects(
+    harness.executeCapability(
+      "UNSUPPORTED100",
+      "semantic.documentation",
+      "/documentation",
+      async () => {
+        unsupportedCalls += 1
+        return "never"
+      }
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.deepEqual(error.details, {
+        capabilityId: "semantic.documentation",
+        endpoint: "/documentation"
+      })
+      return true
+    }
+  )
+  assert.equal(unsupportedCalls, 0)
+
+  let unverifiedCalls = 0
+  const unverified = await harness.executeCapability(
+    "UNVERIFIED100",
+    "semantic.completion_element",
+    "/completion",
+    async () => {
+      unverifiedCalls += 1
+      return "completion"
+    }
+  )
+  assert.deepEqual(unverified, {
+    result: "completion",
+    capabilityStatusAtExecution: "unverified"
+  })
+  assert.equal(unverifiedCalls, 1)
+  assert.equal(
+    harness.capabilities.status("UNVERIFIED100", "semantic.completion_element"),
+    "supported"
+  )
+
+  harness.capabilities.observeSuccess(
+    "SUPPORTED100",
+    "semantic.type_hierarchy",
+    "/hierarchy"
+  )
+  let supportedCalls = 0
+  const supported = await harness.executeCapability(
+    "SUPPORTED100",
+    "semantic.type_hierarchy",
+    "/hierarchy",
+    async () => {
+      supportedCalls += 1
+      return ["parent"]
+    }
+  )
+  assert.deepEqual(supported, {
+    result: ["parent"],
+    capabilityStatusAtExecution: "supported"
+  })
+  assert.equal(supportedCalls, 1)
+
+  let normalizedCalls = 0
+  const normalized = await harness.executeCapability(
+    " dev100 ",
+    "semantic.components",
+    "/components",
+    async () => {
+      normalizedCalls += 1
+      return "components"
+    }
+  )
+  assert.equal(normalized.capabilityStatusAtExecution, "unverified")
+  assert.equal(normalizedCalls, 1)
+  assert.equal(harness.capabilities.status("DEV100", "semantic.components"), "supported")
+  assert.equal(harness.capabilities.status("QAS100", "semantic.components"), "unverified")
+
+  const secret = "super-secret"
+  const endpoint = `/sap/bc/adt/oo/classrun?token=${secret}`
+  let failureCalls = 0
+  const authFailure = Object.assign(new Error(`Authorization: Bearer ${secret}`), {
+    response: { status: 403 }
+  })
+  await assert.rejects(
+    harness.executeCapability(
+      "AUTH100",
+      "execution.class_runner",
+      endpoint,
+      async () => {
+        failureCalls += 1
+        throw authFailure
+      }
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.deepEqual(error.details, {
+        capabilityId: "execution.class_runner",
+        endpoint: "/sap/bc/adt/oo/classrun?token=[REDACTED]",
+        httpStatus: 403
+      })
+      assert.equal(error.message.includes(secret), false)
+      assert.equal(
+        (error.message.match(/SAP capability execution\.class_runner failed:/g) ?? []).length,
+        1
+      )
+      return true
+    }
+  )
+  assert.equal(failureCalls, 1)
+  const failureRecord = harness.capabilities
+    .list("AUTH100", "", "execution")
+    .find(item => item.id === "execution.class_runner")
+  assert.equal(failureRecord?.authorization, "denied")
+  assert.deepEqual(failureRecord?.evidence, [
+    "http:403:/sap/bc/adt/oo/classrun?token=[REDACTED]"
+  ])
+})
+
 test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => {
   const profile: SapProfile = {
     id: "DEV100",
@@ -1279,6 +1426,14 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     Buffer.byteLength(JSON.stringify(listed.tools), "utf8") < 64 * 1024,
     "full MCP tool schemas must stay below the 64 KiB token-budget guardrail"
   )
+  const capabilityTool = listed.tools.find(tool => tool.name === "get_sap_capabilities")
+  assert.ok(capabilityTool)
+  assert.deepEqual(capabilityTool.annotations, {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true
+  })
   const filteredServer = createMcpServer(service, {
     enabledTools: new Set(["get_connected_systems"])
   })
@@ -1312,28 +1467,50 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     includeComponents: false
   })
   assert.equal(sapInfo.sapRelease, "758")
+  const serviceCapabilities = (
+    service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities
+  serviceCapabilities.observeSuccess(
+    "DEV100",
+    "repository.activate.batch",
+    "batch-activation-observed"
+  )
   const mutationsBeforeCapabilities = {
     batchActivationCalls: fake.batchActivationCalls,
     classRunCalls: fake.classRunCalls,
+    createdObject: fake.createdObject,
+    currentSource: fake.currentSource,
+    debugActive: fake.debugActive,
+    deletedObject: fake.deletedObject,
     replExecuteCalls: fake.replExecuteCalls,
     transportMutations: [...fake.transportMutations]
   }
   const capabilities = await callJson("get_sap_capabilities", {
     connectionId: "DEV100",
-    category: "repository",
-    includeEvidence: true
+    category: "repository"
   })
   assert.equal(capabilities.connectionId, "DEV100")
   const repositoryCapabilities = capabilities.capabilities as Array<{
     id: string
     category: string
+    evidence: string[]
     status: string
+    system: string
   }>
   assert.equal(
     repositoryCapabilities.find(item => item.id === "repository.create.bdef")?.status,
     "unverified"
   )
   assert.ok(repositoryCapabilities.every(item => item.category === "repository"))
+  const activationCapability = repositoryCapabilities.find(
+    item => item.id === "repository.activate.batch"
+  )
+  assert.equal(activationCapability?.system, "advertised")
+  assert.equal(activationCapability?.status, "supported")
+  assert.ok(
+    activationCapability?.evidence.includes("discovery:/sap/bc/adt/activation")
+  )
+  const activationEvidence = [...(activationCapability?.evidence ?? [])]
   const compactCapabilities = await callJson("get_sap_capabilities", {
     connectionId: " dev100 ",
     category: "repository",
@@ -1341,10 +1518,23 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   })
   assert.equal(compactCapabilities.connectionId, "DEV100")
   assert.equal("evidence" in compactCapabilities.capabilities[0], false)
+  const capabilitiesAfterCompact = await callJson("get_sap_capabilities", {
+    connectionId: "DEV100",
+    category: "repository",
+    includeEvidence: true
+  })
+  const activationAfterCompact = capabilitiesAfterCompact.capabilities.find(
+    (item: { id: string }) => item.id === "repository.activate.batch"
+  )
+  assert.deepEqual(activationAfterCompact.evidence, activationEvidence)
   assert.deepEqual(
     {
       batchActivationCalls: fake.batchActivationCalls,
       classRunCalls: fake.classRunCalls,
+      createdObject: fake.createdObject,
+      currentSource: fake.currentSource,
+      debugActive: fake.debugActive,
+      deletedObject: fake.deletedObject,
       replExecuteCalls: fake.replExecuteCalls,
       transportMutations: fake.transportMutations
     },
