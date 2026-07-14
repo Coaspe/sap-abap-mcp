@@ -188,10 +188,9 @@ export interface ReplaceStringInput extends WorkspaceFileInput {
   activate: boolean
 }
 
-export interface ActivateObjectInput {
-  url: string
-  connectionId?: string
-}
+export type ActivateObjectInput =
+  | { url: string; connectionId?: string }
+  | { urls: string[]; connectionId?: string }
 
 export interface ExecuteDataQueryInput {
   sql?: string
@@ -1122,9 +1121,12 @@ export class AbapToolService {
     return matches[0]!
   }
 
-  private async resolveEditableTarget(input: WorkspaceFileInput): Promise<EditableTarget> {
+  private async resolveEditableTarget(
+    input: WorkspaceFileInput,
+    existingClient?: SapClient
+  ): Promise<EditableTarget> {
     const location = parseAdtLocation(input.fileUri, input.connectionId)
-    const client = await this.connections.getClient(location.connectionId)
+    const client = existingClient ?? await this.connections.getClient(location.connectionId)
     const source = await client.readSourceByUri(location.path)
     const objectUri = objectUriFromSourceUri(source.sourceUri)
     const structure = await client.getObjectStructure(objectUri)
@@ -4221,22 +4223,147 @@ export class AbapToolService {
   }
 
   async activateObject(input: ActivateObjectInput) {
-    const target = await this.resolveEditableTarget({
-      fileUri: input.url,
-      ...(input.connectionId ? { connectionId: input.connectionId } : {})
-    })
-    requireWritablePackage(target.client, target.object.packageName)
-    const result = await target.client.activateObject(
-      target.object.name,
-      target.objectUri,
-      target.mainProgram
+    const hasUrl = typeof (input as { url?: unknown }).url === "string"
+    const hasUrls = Array.isArray((input as { urls?: unknown }).urls)
+    if (hasUrl === hasUrls) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Provide exactly one of url or urls",
+        { reason: "ACTIVATION_INPUT_AMBIGUOUS" }
+      )
+    }
+
+    if ("url" in input) {
+      const target = await this.resolveEditableTarget({
+        fileUri: input.url,
+        ...(input.connectionId ? { connectionId: input.connectionId } : {})
+      })
+      requireWritablePackage(target.client, target.object.packageName)
+      const result = await target.client.activateObject(
+        target.object.name,
+        target.objectUri,
+        target.mainProgram
+      )
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        success: result.success,
+        messages: result.messages,
+        inactive: result.inactive
+      }
+    }
+
+    if (input.urls.length < 1 || input.urls.length > 100) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Batch activation requires 1 through 100 URLs",
+        { reason: "ACTIVATION_CARDINALITY_INVALID" }
+      )
+    }
+
+    const locations = input.urls.map(url => parseAdtLocation(url, input.connectionId))
+    const connectionIds = new Set(locations.map(location => location.connectionId))
+    if (connectionIds.size !== 1) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Batch activation requires exactly one connection",
+        { reason: "CROSS_CONNECTION_BATCH" }
+      )
+    }
+
+    const connectionId = locations[0]!.connectionId
+    const client = await this.connections.getClient(connectionId)
+    const targets: EditableTarget[] = []
+    for (const location of locations) {
+      const target = await this.resolveEditableTarget(
+        { fileUri: location.path, connectionId },
+        client
+      )
+      requireWritablePackage(client, target.object.packageName)
+      targets.push(target)
+    }
+
+    const inactiveRecords = await client.getInactiveObjects()
+    const inactiveByUri = new Map(
+      inactiveRecords
+        .map(record => record.object)
+        .filter(record => record !== undefined)
+        .map(record => [
+          objectUriFromSourceUri(record["adtcore:uri"]).replace(/\/+$/, ""),
+          record
+        ] as const)
     )
+    const submitted = targets.flatMap(target => {
+      const inactive = inactiveByUri.get(
+        objectUriFromSourceUri(target.objectUri).replace(/\/+$/, "")
+      )
+      return inactive ? [{ target, inactive }] : []
+    })
+    const submittedUris = new Set(
+      submitted.map(item =>
+        objectUriFromSourceUri(item.target.objectUri).replace(/\/+$/, "")
+      )
+    )
+
+    let capabilityStatusAtExecution = this.capabilities.status(
+      connectionId,
+      "repository.activate.batch"
+    )
+    let activation = { success: false, messages: [], inactive: [] } as Awaited<
+      ReturnType<SapClient["activateObjects"]>
+    >
+    if (submitted.length > 0) {
+      const executed = await this.executeCapability(
+        connectionId,
+        "repository.activate.batch",
+        "/sap/bc/adt/activation",
+        () => client.activateObjects(submitted.map(item => item.inactive))
+      )
+      activation = executed.result
+      capabilityStatusAtExecution = executed.capabilityStatusAtExecution
+    }
+
+    const remainingUris = new Set(
+      activation.inactive
+        .map(record => record.object)
+        .filter(record => record !== undefined)
+        .map(record =>
+          objectUriFromSourceUri(record["adtcore:uri"]).replace(/\/+$/, "")
+        )
+    )
+    const objectResults = targets.map(target => {
+      const uri = objectUriFromSourceUri(target.objectUri).replace(/\/+$/, "")
+      const messages = activation.messages.filter(message =>
+        objectUriFromSourceUri(message.href).replace(/\/+$/, "") === uri ||
+        message.objDescr.toUpperCase().includes(target.object.name.toUpperCase())
+      )
+      const failed = remainingUris.has(uri) || messages.some(message =>
+        /^(E|A|X|ERROR)$/i.test(message.type.trim())
+      )
+      return {
+        object: target.object,
+        outcome: failed
+          ? "failed"
+          : submittedUris.has(uri) && activation.success
+            ? "activated"
+            : "unknown",
+        messages
+      }
+    })
+    const status = objectResults.every(item => item.outcome === "activated")
+      ? "complete"
+      : objectResults.every(item => item.outcome === "failed")
+        ? "failed"
+        : "partial"
+
     return {
-      connectionId: target.connectionId,
-      object: target.object,
-      success: result.success,
-      messages: result.messages,
-      inactive: result.inactive
+      connectionId,
+      status,
+      requested: targets.map(target => target.object),
+      objectResults,
+      messages: activation.messages,
+      remainingInactive: activation.inactive,
+      capabilityStatusAtExecution
     }
   }
 
