@@ -1438,18 +1438,16 @@ test("BDEF create object reports manual cleanup after post-create source failure
 test("BDEF create object preserves source safety codes with normalized recovery details", async () => {
   const { fake, service } = createBdefHarness()
   const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_SOURCE_CHANGED"
-  fake.replaceSourceError = Object.assign(
-    new AppError(
-      "SOURCE_CHANGED",
-      "Authorization: Bearer source-secret",
-      {
-        reason: "FINGERPRINT_MISMATCH",
-        capabilityId: "spoofed.capability",
-        endpoint: "spoofed_endpoint",
-        httpStatus: 418
-      }
-    ),
-    { status: 403 }
+  fake.replaceSourceError = new AppError(
+    "SOURCE_CHANGED",
+    "Authorization: Bearer source-secret",
+    {
+      password: "details-secret",
+      nested: { authorization: "Bearer nested-secret" },
+      capabilityId: "spoofed.capability",
+      endpoint: "spoofed_endpoint",
+      httpStatus: 200
+    }
   )
 
   await assert.rejects(
@@ -1472,11 +1470,13 @@ test("BDEF create object preserves source safety codes with normalized recovery 
         error.message,
         "SAP capability repository.create.bdef failed: Authorization: [REDACTED]"
       )
+      assert.ok(error.details)
+      assert.equal("password" in error.details, false)
+      assert.equal("nested" in error.details, false)
+      assert.equal("httpStatus" in error.details, false)
       assert.deepEqual(error.details, {
-        reason: "FINGERPRINT_MISMATCH",
         capabilityId: "repository.create.bdef",
         endpoint: "write_source",
-        httpStatus: 403,
         stage: "write_source",
         created: true,
         objectUri,
