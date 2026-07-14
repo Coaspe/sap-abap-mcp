@@ -167,7 +167,7 @@ function sanitizeSensitiveHeaders(value: string): string {
 
 function sanitizeSensitiveText(value: string): string {
   const sanitized = value.replace(
-    /(^|[^a-z0-9_-])(["']?)(access_token|refresh_token|csrf[-_]token|session_id|password|authorization|token|cookie|csrf|session)\2(\s*[:=]\s*)(?:(["'])([\s\S]*?)\5|((?:Bearer\s+)?[^\s,;&#}\]]+))/gi,
+    /(^|[^a-z0-9_-])(["']?)(x-csrf-token|set-cookie|access_token|refresh_token|csrf[-_]token|session_id|password|authorization|token|cookie|csrf|session)\2(\s*[:=]\s*)(?:(["'])([\s\S]*?)\5|((?:Bearer\s+)?[^\s,;&#}\]]+))/gi,
     (_match, prefix, labelQuote, label, delimiter, valueQuote) =>
       `${prefix}${labelQuote}${label}${labelQuote}${delimiter}` +
       (valueQuote ? `${valueQuote}[REDACTED]${valueQuote}` : "[REDACTED]")
