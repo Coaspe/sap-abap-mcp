@@ -157,13 +157,22 @@ function numericHttpStatus(error: unknown): number | undefined {
   return undefined
 }
 
-function sanitizeSensitiveText(value: string): string {
+function sanitizeSensitiveHeaders(value: string): string {
   return value.replace(
+    /(^|[^a-z0-9-])(x-csrf-token|set-cookie|authorization|cookie)(\s*:\s*)[^\r\n]*/gi,
+    (_match, prefix, header, delimiter) =>
+      `${prefix}${header}${delimiter}[REDACTED]`
+  )
+}
+
+function sanitizeSensitiveText(value: string): string {
+  const sanitized = value.replace(
     /(^|[^a-z0-9_-])(["']?)(access_token|refresh_token|csrf[-_]token|session_id|password|authorization|token|cookie|csrf|session)\2(\s*[:=]\s*)(?:(["'])([\s\S]*?)\5|((?:Bearer\s+)?[^\s,;&#}\]]+))/gi,
     (_match, prefix, labelQuote, label, delimiter, valueQuote) =>
       `${prefix}${labelQuote}${label}${labelQuote}${delimiter}` +
       (valueQuote ? `${valueQuote}[REDACTED]${valueQuote}` : "[REDACTED]")
   )
+  return sanitizeSensitiveHeaders(sanitized)
 }
 
 function truncateEvidence(value: string): string {
