@@ -69,6 +69,24 @@ test("missing backlog capabilities never claim support", () => {
   assert.equal(record.status, "unsupported")
 })
 
+test("capability IDs are normalized without changing canonical record IDs", () => {
+  const registry = new SapCapabilityRegistry()
+
+  registry.observeSuccess(
+    "  dev100  ",
+    "  REPOSITORY.CREATE.BDEF  ",
+    "create"
+  )
+
+  const record = capability(registry, "DEV100", "repository.create.bdef", "repository")
+  assert.equal(record.id, "repository.create.bdef")
+  assert.equal(record.status, "supported")
+  assert.equal(
+    registry.status("dev100", "  Repository.Create.Bdef  "),
+    "supported"
+  )
+})
+
 test("capability failures normalize authorization and redact secrets", () => {
   const error = Object.assign(new Error("token=secret-value"), {
     response: { status: 403 }
