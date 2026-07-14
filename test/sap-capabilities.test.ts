@@ -287,6 +287,44 @@ test("capability errors redact structured secrets without swallowing diagnostics
   }
 })
 
+test("capability errors redact complete sensitive header values", () => {
+  const cases = [
+    {
+      message: "X-CSRF-Token: csrf-header-secret\ncsrf-header-kept",
+      sensitive: ["csrf-header-secret"],
+      preserved: "csrf-header-kept"
+    },
+    {
+      message: "Set-Cookie: SAP_SESSIONID_...=cookie-secret; Path=/; HttpOnly\nset-cookie-kept",
+      sensitive: ["cookie-secret", "Path=/", "HttpOnly"],
+      preserved: "set-cookie-kept"
+    },
+    {
+      message: "Authorization: Basic <credentials>\nauthorization-header-kept",
+      sensitive: ["Basic", "<credentials>"],
+      preserved: "authorization-header-kept"
+    },
+    {
+      message: "Cookie: first=one; second=two\ncookie-header-kept",
+      sensitive: ["first=one", "second=two"],
+      preserved: "cookie-header-kept"
+    }
+  ]
+
+  for (const entry of cases) {
+    const normalized = normalizeCapabilityError(
+      new Error(entry.message),
+      "semantic.documentation",
+      "/sap/bc/adt/docu/abap/langu"
+    )
+
+    for (const sensitive of entry.sensitive) {
+      assert.equal(normalized.message.includes(sensitive), false)
+    }
+    assert.equal(normalized.message.includes(entry.preserved), true)
+  }
+})
+
 test("capability endpoints and evidence redact sensitive query values", () => {
   const capabilityId = "semantic.documentation"
   const normalized = normalizeCapabilityError(
