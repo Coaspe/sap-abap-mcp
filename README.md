@@ -7,6 +7,7 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
+- Current version: `0.4.0`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
@@ -33,15 +34,15 @@ The server provides all 42 strict-compatible headless tools from the pinned ABAP
 |---|---|
 | Connections | Multiple SAP profiles, lazy login, system metadata, ADT discovery export |
 | Repository reads | Search, metadata, source ranges, batch reads, URI reads, source search, enhancements |
-| Semantic services | Completion, definition lookup, quick-fix discovery, SAP formatter preview |
-| Source writes | Exact source replacement, syntax diagnostics, activation, text elements |
+| Semantic services | Completion details, definition lookup, documentation, type hierarchy, components, quick-fix discovery, SAP formatter preview |
+| Source writes | Exact source replacement, BDEF source creation, syntax diagnostics, single- and one-request batch activation, text elements |
 | Refactoring | Rename, package move, extract method, quick-fix application, formatting, deletion |
 | Quality | ABAP Unit, ATC, diagnostics, test-include creation |
 | Transports | List, details, objects, compare, create, release, delete, owner/user management, object resolution |
 | Versions | Active revision history, revision comparison, inactive source, guarded revision restore |
 | abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch |
 | RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details and publication |
-| Runtime | Debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
+| Runtime | Guarded class-runner and fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
 | Cross-system | Source comparison across configured SAP systems |
 | Dependency analysis | Bounded where-used dependency graph |
 | SAP GUI integration | Validated WebGUI transaction URL generation and optional local launch |
@@ -131,7 +132,7 @@ claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes --prefer
 
 Restart the client after registration. Use `codex mcp list`, `claude mcp get sap-abap`, or the client's `/mcp` command to verify the connection.
 
-The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.1.0` will automatically run `0.3.0` after `0.3.0` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
+The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.3.0` will automatically run `0.4.0` after `0.4.0` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
 
 ### 4. Start with read-only requests
 
@@ -254,6 +255,8 @@ Available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `arti
 ## Real SAP acceptance testing
 
 Run acceptance tests first against a development system and dedicated packages, objects, transports, repositories, and RAP artifacts.
+
+For BDEF creation, batch activation, class execution, the fixed ABAP REPL contract, and detailed semantic inspection, follow the evidence and cleanup procedure in [`docs/live-sap-acceptance.md`](docs/live-sap-acceptance.md). Until those checks succeed on a selected connection, the capabilities remain `unverified`.
 
 Recommended order:
 
