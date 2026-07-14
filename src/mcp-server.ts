@@ -13,7 +13,11 @@ import { z } from "zod"
 import type { RapGeneratorContent } from "abap-adt-api"
 import { errorPayload } from "./errors.js"
 import { MERMAID_DIAGRAM_TYPES } from "./mermaid-tools.js"
-import type { AbapToolService } from "./tool-service.js"
+import type {
+  AbapToolService,
+  ActivateObjectInput,
+  RunAbapApplicationInput
+} from "./tool-service.js"
 
 export const ABAP_OBJECT_TYPES = [
   "FUNC",
@@ -90,7 +94,7 @@ export function createMcpServer(
     { name: "sap-abap-mcp", version: "0.3.0" },
     {
       instructions:
-        "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Writes are blocked for production profiles and restricted to each profile's allowedPackages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
+        "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
   )
   const readOnlyAnnotations = {
@@ -185,6 +189,34 @@ export function createMcpServer(
     },
     async ({ connectionId, includeComponents }) =>
       runTool(() => tools.getSapSystemInfo(connectionId, includeComponents))
+  )
+
+  registerTool(
+    "get_sap_capabilities",
+    {
+      title: "Get SAP Capabilities",
+      description:
+        "Report implemented, missing, supported, unsupported, and live-unverified SAP development capabilities for one connection.",
+      inputSchema: {
+        connectionId: z.string().min(1),
+        category: z.enum([
+          "connection",
+          "repository",
+          "execution",
+          "semantic",
+          "quality",
+          "debugging",
+          "insight"
+        ]).optional(),
+        includeEvidence: z.boolean().default(true)
+      },
+      annotations: readOnlyAnnotations
+    },
+    async input => runTool(() => tools.getSapCapabilities(
+      input.connectionId,
+      input.category,
+      input.includeEvidence
+    ))
   )
 
   registerTool(
@@ -431,7 +463,7 @@ export function createMcpServer(
     {
       title: "Create ABAP Object Programmatically",
       description:
-        "Validate and create an ADT repository object. Non-local packages require an existing or new transport request; the package must be in the profile write allowlist.",
+        "Validate and create an ADT repository object. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package.",
       inputSchema: {
         objectType: z.string().min(1).describe("Creatable ADT type such as PROG/P or CLAS/OC"),
         name: z.string().min(1),
@@ -439,6 +471,8 @@ export function createMcpServer(
         packageName: z.string().min(1).default("$TMP"),
         parentName: z.string().min(1).optional(),
         connectionId: z.string().min(1),
+        source: z.string().optional(),
+        activate: z.boolean().default(false),
         additionalOptions: z.object({
           serviceDefinition: z.string().min(1).optional(),
           bindingType: z.literal("ODATA").optional(),
@@ -462,6 +496,8 @@ export function createMcpServer(
           description: input.description,
           packageName: input.packageName,
           connectionId: input.connectionId,
+          activate: input.activate,
+          ...(input.source !== undefined ? { source: input.source } : {}),
           ...(input.parentName ? { parentName: input.parentName } : {}),
           ...(input.additionalOptions ? {
             additionalOptions: {
@@ -828,7 +864,7 @@ export function createMcpServer(
     {
       title: "Create ABAP Test Include",
       description:
-        "Create a class test include under an allowlisted package. A transport is required outside $TMP.",
+        "Create a class test include under a package permitted by the profile's optional allowlist. A transport is required outside $TMP.",
       inputSchema: {
         className: z.string().min(1),
         connectionId: z.string().min(1),
@@ -1256,25 +1292,26 @@ export function createMcpServer(
     async input => runTool(() => tools.exportAdtDiscovery(input.connectionId, input.mode))
   )
 
+  const activationInputSchema = z.union([
+    z.object({
+      url: z.string().min(1),
+      connectionId: z.string().min(1).optional()
+    }).strict(),
+    z.object({
+      urls: z.array(z.string().min(1)).min(1).max(100),
+      connectionId: z.string().min(1).optional()
+    }).strict()
+  ])
+
   registerTool(
     "abap_activate",
     {
-      title: "Activate ABAP Object",
-      description:
-        "Activate the ABAP object identified by an adt:// workspace URI or an ADT path plus connectionId.",
-      inputSchema: {
-        url: z.string().min(1),
-        connectionId: z.string().min(1).optional()
-      },
+      title: "Activate ABAP Object(s)",
+      description: "Activate one legacy object or one same-connection batch of 1 through 100 ABAP objects.",
+      inputSchema: activationInputSchema,
       annotations: writeAnnotations
     },
-    async input =>
-      runTool(() =>
-        tools.activateObject({
-          url: input.url,
-          ...(input.connectionId ? { connectionId: input.connectionId } : {})
-        })
-      )
+    async input => runTool(() => tools.activateObject(input as ActivateObjectInput))
   )
 
   registerTool(
@@ -1338,15 +1375,25 @@ export function createMcpServer(
     {
       title: "Inspect ABAP Code",
       description:
-        "Use SAP ADT semantic services for completion, definition, safe quick-fix discovery, or formatter preview. line is one-based and column is zero-based.",
+        "Use SAP ADT semantic services for completion, documentation, type hierarchy, components, definition, safe quick-fix discovery, or formatter preview. line is one-based and column is zero-based.",
       inputSchema: {
-        action: z.enum(["completion", "definition", "quick_fixes", "format_preview"]),
+        action: z.enum([
+          "completion",
+          "definition",
+          "quick_fixes",
+          "format_preview",
+          "completion_element",
+          "documentation",
+          "type_hierarchy",
+          "components"
+        ]),
         fileUri: z.string().min(1),
         connectionId: z.string().min(1).optional(),
         line: z.number().int().min(1).default(1),
         column: z.number().int().min(0).default(0),
         endColumn: z.number().int().min(0).optional(),
         implementation: z.boolean().default(false),
+        superTypes: z.boolean().default(false),
         startIndex: z.number().int().min(0).default(0),
         maxResults: z.number().int().min(1).max(500).default(50)
       },
@@ -1358,6 +1405,7 @@ export function createMcpServer(
       line: input.line,
       column: input.column,
       implementation: input.implementation,
+      superTypes: input.superTypes,
       startIndex: input.startIndex,
       maxResults: input.maxResults,
       ...(input.connectionId ? { connectionId: input.connectionId } : {}),
@@ -1563,6 +1611,41 @@ export function createMcpServer(
       ...(input.confirmation ? { confirmation: input.confirmation } : {}),
       ...(input.transport ? { transport: input.transport } : {})
     }))
+  )
+
+  const runAbapApplicationSchema = z.discriminatedUnion("action", [
+    z.object({
+      action: z.literal("repl_health"),
+      connectionId: z.string().min(1)
+    }).strict(),
+    z.object({
+      action: z.literal("preview_class"),
+      connectionId: z.string().min(1),
+      className: z.string().min(1)
+    }).strict(),
+    z.object({
+      action: z.literal("preview_snippet"),
+      connectionId: z.string().min(1),
+      code: z.string().min(1).max(98_304)
+    }).strict(),
+    z.object({
+      action: z.literal("execute"),
+      connectionId: z.string().min(1),
+      planId: z.string().uuid(),
+      confirmation: z.string().min(1)
+    }).strict()
+  ])
+
+  registerTool(
+    "run_abap_application",
+    {
+      title: "Run ABAP Application",
+      description:
+        "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan.",
+      inputSchema: runAbapApplicationSchema,
+      annotations: writeAnnotations
+    },
+    async input => runTool(() => tools.runAbapApplication(input as RunAbapApplicationInput))
   )
 
   registerTool(

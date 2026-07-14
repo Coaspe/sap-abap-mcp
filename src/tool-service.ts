@@ -31,6 +31,7 @@ import {
   type TransportObject,
   type TransportRequest,
   type ValidateOptions,
+  type ValidationResult,
   type UsageReference
 } from "abap-adt-api"
 import type { ChangePackageRefactoring } from "abap-adt-api/build/api/refactor.js"
@@ -40,6 +41,7 @@ import {
   normalizeAbapGitRepositoryUrl,
   type AbapGitCredentials
 } from "./abapgit-credentials.js"
+import { registerBdefType } from "./bdef-creator.js"
 import type { ConnectionSummary } from "./connection-manager.js"
 import {
   readAbapFsDocumentation,
@@ -53,6 +55,12 @@ import {
   type MermaidDiagramType,
   type MermaidTheme
 } from "./mermaid-tools.js"
+import {
+  normalizeCapabilityError,
+  SapCapabilityRegistry,
+  type SapCapabilityCategory,
+  type SapCapabilityStatus
+} from "./sap-capabilities.js"
 import type { SapClient } from "./sap-client.js"
 import type { SapNewObjectOptions, SapObjectReference } from "./sap-client.js"
 import type { SecretStore } from "./secret-store.js"
@@ -147,6 +155,8 @@ export interface CreateObjectInput {
   packageName: string
   parentName?: string
   connectionId: string
+  source?: string
+  activate?: boolean
   additionalOptions?: {
     serviceDefinition?: string
     bindingType?: "ODATA"
@@ -178,10 +188,9 @@ export interface ReplaceStringInput extends WorkspaceFileInput {
   activate: boolean
 }
 
-export interface ActivateObjectInput {
-  url: string
-  connectionId?: string
-}
+export type ActivateObjectInput =
+  | { url: string; connectionId?: string }
+  | { urls: string[]; connectionId?: string }
 
 export interface ExecuteDataQueryInput {
   sql?: string
@@ -271,11 +280,20 @@ export interface VersionHistoryInput extends ObjectLocatorInput {
 }
 
 export interface InspectCodeInput extends WorkspaceFileInput {
-  action: "completion" | "definition" | "quick_fixes" | "format_preview"
+  action:
+    | "completion"
+    | "definition"
+    | "quick_fixes"
+    | "format_preview"
+    | "completion_element"
+    | "documentation"
+    | "type_hierarchy"
+    | "components"
   line: number
   column: number
   endColumn?: number
   implementation: boolean
+  superTypes?: boolean
   startIndex: number
   maxResults: number
 }
@@ -566,6 +584,28 @@ interface RefactorPlan {
   payload: unknown
 }
 
+export type RunAbapApplicationInput =
+  | { action: "repl_health"; connectionId: string }
+  | { action: "preview_class"; connectionId: string; className: string }
+  | { action: "preview_snippet"; connectionId: string; code: string }
+  | { action: "execute"; connectionId: string; planId: string; confirmation: string }
+
+type ExecutionPlanPayload =
+  | { kind: "class"; className: string; code?: never }
+  | { kind: "snippet"; code: string; className?: never }
+
+type ExecutionPlan = {
+  id: string
+  connectionId: string
+  confirmation: string
+  expiresAt: number
+} & ExecutionPlanPayload
+
+type ExecutionPlanDraft = {
+  connectionId: string
+  confirmation: string
+} & ExecutionPlanPayload
+
 interface GitStageState {
   connectionId: string
   repository: GitRepo
@@ -697,6 +737,27 @@ function selectLines(
     endIndex,
     truncated: endIndex < requestedEnd,
     nextIndex: endIndex < lines.length ? endIndex : null
+  }
+}
+
+function boundInlineText(value: string, byteLimit = INLINE_TEXT_BYTE_LIMIT) {
+  const originalBytes = Buffer.byteLength(value, "utf8")
+  if (originalBytes <= byteLimit) {
+    return { content: value, originalBytes, returnedBytes: originalBytes, truncated: false }
+  }
+  let content = ""
+  let returnedBytes = 0
+  for (const character of value) {
+    const characterBytes = Buffer.byteLength(character, "utf8")
+    if (returnedBytes + characterBytes > byteLimit) break
+    content += character
+    returnedBytes += characterBytes
+  }
+  return {
+    content,
+    originalBytes,
+    returnedBytes,
+    truncated: true
   }
 }
 
@@ -845,6 +906,38 @@ function objectUriFromSourceUri(sourceUri: string): string {
   return withoutQuery.replace(/\/source\/[^/]+$/i, "")
 }
 
+function canonicalActivationUri(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined
+  const candidate = value.trim()
+  let encodedPath: string
+
+  if (candidate.startsWith("/")) {
+    if (candidate.startsWith("//")) return undefined
+    encodedPath = candidate.replace(/[?#].*$/, "")
+  } else {
+    let parsed: URL
+    try {
+      parsed = new URL(candidate)
+    } catch {
+      return undefined
+    }
+    if (!["adt:", "http:", "https:"].includes(parsed.protocol)) return undefined
+    if (!parsed.hostname) return undefined
+    encodedPath = parsed.pathname
+  }
+
+  let pathname: string
+  try {
+    pathname = decodeURIComponent(encodedPath)
+  } catch {
+    return undefined
+  }
+  if (!/^\/sap\/bc\/adt\//i.test(pathname)) return undefined
+  const normalized = objectUriFromSourceUri(pathname).replace(/\/+$/, "")
+  if (normalized.toLowerCase() === "/sap/bc/adt") return undefined
+  return normalized.toLowerCase()
+}
+
 export function replaceExactlyOnce(content: string, oldString: string, newString: string): string {
   if (!oldString) {
     if (content.length === 0) return newString
@@ -901,7 +994,10 @@ function requireWritablePackage(client: SapClient, packageName?: string): string
       "The target package could not be determined, so the write was refused"
     )
   }
-  if (!client.profile.allowedPackages.includes(normalizedPackage)) {
+  if (
+    client.profile.allowedPackages.length > 0 &&
+    !client.profile.allowedPackages.includes(normalizedPackage)
+  ) {
     throw new AppError(
       "PACKAGE_NOT_ALLOWED",
       `Package ${normalizedPackage} is not in the ${client.profile.id} write allowlist`,
@@ -916,6 +1012,16 @@ function requireNonProduction(client: SapClient): void {
     throw new AppError(
       "PRODUCTION_WRITE_BLOCKED",
       `Writes are disabled for production profile ${client.profile.id}`
+    )
+  }
+}
+
+function requireExecutableProfile(client: SapClient): void {
+  if (client.profile.environment === "production") {
+    throw new AppError(
+      "SAP_CAPABILITY_UNAVAILABLE",
+      "ABAP execution is disabled on production",
+      { reason: "PRODUCTION_EXECUTION_BLOCKED", connectionId: client.profile.id }
     )
   }
 }
@@ -1007,8 +1113,10 @@ function stripHtml(html: string): string {
 
 export class AbapToolService {
   private readonly atcDecorations = new Map<string, unknown[]>()
+  private readonly capabilities = new SapCapabilityRegistry()
   private readonly dataViews = new Map<string, DataViewState>()
   private readonly refactorPlans = new Map<string, RefactorPlan>()
+  private readonly executionPlans = new Map<string, ExecutionPlan>()
   private readonly gitStages = new Map<string, GitStageState>()
   private readonly heartbeatTasks = new Map<string, HeartbeatTask>()
   private readonly heartbeatHistory: Array<Record<string, unknown>> = []
@@ -1019,7 +1127,32 @@ export class AbapToolService {
   constructor(
     private readonly connections: ConnectionProvider,
     private readonly secrets?: SecretStore
-  ) {}
+  ) {
+    registerBdefType()
+  }
+
+  private async executeCapability<T>(
+    connectionId: string,
+    capabilityId: string,
+    endpoint: string,
+    operation: () => Promise<T>
+  ): Promise<{ result: T; capabilityStatusAtExecution: SapCapabilityStatus }> {
+    const capabilityStatusAtExecution = this.capabilities.status(connectionId, capabilityId)
+    if (capabilityStatusAtExecution === "unsupported") {
+      throw new AppError("SAP_CAPABILITY_UNAVAILABLE", `Capability ${capabilityId} is unavailable`, {
+        capabilityId,
+        endpoint
+      })
+    }
+    try {
+      const result = await operation()
+      this.capabilities.observeSuccess(connectionId, capabilityId, endpoint)
+      return { result, capabilityStatusAtExecution }
+    } catch (error) {
+      this.capabilities.observeFailure(connectionId, capabilityId, error, endpoint)
+      throw normalizeCapabilityError(error, capabilityId, endpoint)
+    }
+  }
 
   private cachePlan(plan: Omit<RefactorPlan, "id" | "expiresAt">): RefactorPlan {
     const now = Date.now()
@@ -1056,6 +1189,57 @@ export class AbapToolService {
     return plan
   }
 
+  private cacheExecutionPlan(plan: ExecutionPlanDraft): ExecutionPlan {
+    const now = Date.now()
+    for (const [id, cached] of this.executionPlans) {
+      if (cached.expiresAt <= now) this.executionPlans.delete(id)
+    }
+    while (this.executionPlans.size >= MAX_CACHED_PLANS) {
+      const oldest = this.executionPlans.keys().next().value as string | undefined
+      if (!oldest) break
+      this.executionPlans.delete(oldest)
+    }
+    const cached: ExecutionPlan = {
+      ...plan,
+      id: randomUUID(),
+      expiresAt: now + PLAN_TTL_MS
+    }
+    this.executionPlans.set(cached.id, cached)
+    return cached
+  }
+
+  private takeExecutionPlan(
+    planId: string,
+    confirmation: string,
+    connectionId: string
+  ): ExecutionPlan {
+    const plan = this.executionPlans.get(planId)
+    if (!plan || plan.expiresAt <= Date.now()) {
+      this.executionPlans.delete(planId)
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Execution plan is missing or expired",
+        { reason: "EXECUTION_PLAN_EXPIRED" }
+      )
+    }
+    if (connectionId !== plan.connectionId) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Execution plan belongs to another connection",
+        { reason: "EXECUTION_PLAN_CONNECTION_MISMATCH" }
+      )
+    }
+    if (confirmation !== plan.confirmation) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Execution confirmation does not match",
+        { reason: "CONFIRMATION_MISMATCH" }
+      )
+    }
+    this.executionPlans.delete(planId)
+    return plan
+  }
+
   private async gitCredentials(
     connectionId: string,
     repositoryUrl: string
@@ -1083,9 +1267,12 @@ export class AbapToolService {
     return matches[0]!
   }
 
-  private async resolveEditableTarget(input: WorkspaceFileInput): Promise<EditableTarget> {
+  private async resolveEditableTarget(
+    input: WorkspaceFileInput,
+    existingClient?: SapClient
+  ): Promise<EditableTarget> {
     const location = parseAdtLocation(input.fileUri, input.connectionId)
-    const client = await this.connections.getClient(location.connectionId)
+    const client = existingClient ?? await this.connections.getClient(location.connectionId)
     const source = await client.readSourceByUri(location.path)
     const objectUri = objectUriFromSourceUri(source.sourceUri)
     const structure = await client.getObjectStructure(objectUri)
@@ -1217,6 +1404,25 @@ export class AbapToolService {
     return client.getSystemInfo(includeComponents)
   }
 
+  async getSapCapabilities(
+    connectionId: string,
+    category?: SapCapabilityCategory,
+    includeEvidence = true
+  ) {
+    const client = await this.connections.getClient(connectionId)
+    const discovery = await client.getAdtDiscovery()
+    const capabilities = this.capabilities.list(connectionId, JSON.stringify(discovery), category)
+    return {
+      connectionId: connectionId.trim().toUpperCase(),
+      generatedAt: new Date().toISOString(),
+      adapterVersion: "abap-adt-api@8.4.1",
+      systemMetadata: await client.getSystemInfo(false),
+      capabilities: includeEvidence
+        ? capabilities
+        : capabilities.map(({ evidence, ...item }) => item)
+    }
+  }
+
   async inspectCode(input: InspectCodeInput) {
     const target = await this.resolveEditableTarget(input)
     if (input.action === "completion") {
@@ -1245,6 +1451,140 @@ export class AbapToolService {
           grade: proposal.GRADE,
           inherited: Boolean(proposal.IS_INHERITED)
         }))
+      }
+    }
+
+    if (input.action === "completion_element") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        target.connectionId,
+        "semantic.completion_element",
+        "/sap/bc/adt/abapsource/codecompletion/elementinfo",
+        () => target.client.getCodeCompletionElement(
+          target.sourceUri,
+          target.source,
+          input.line,
+          input.column
+        )
+      )
+      if (typeof result === "string") {
+        return {
+          connectionId: target.connectionId,
+          object: target.object,
+          format: "legacy",
+          ...boundInlineText(result),
+          capabilityStatusAtExecution
+        }
+      }
+      const doc = boundInlineText(result.doc)
+      const components = pageItems(result.components, input.startIndex, input.maxResults)
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        format: "structured",
+        element: {
+          name: result.name,
+          type: result.type,
+          href: result.href,
+          doc: doc.content,
+          docTruncated: doc.truncated,
+          componentTotal: components.total,
+          componentStartIndex: components.startIndex,
+          componentsReturned: components.returned,
+          componentsTruncated: components.truncated,
+          componentsNextStartIndex: components.nextStartIndex,
+          components: components.items
+        },
+        capabilityStatusAtExecution
+      }
+    }
+
+    if (input.action === "documentation") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        target.connectionId,
+        "semantic.documentation",
+        "/sap/bc/adt/docu/abap/langu",
+        () => target.client.getAbapDocumentation(
+          target.objectUri,
+          target.source,
+          input.line,
+          input.column
+        )
+      )
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        format: /<[^>]+>/.test(result) ? "html" : "text",
+        ...boundInlineText(result),
+        capabilityStatusAtExecution
+      }
+    }
+
+    if (input.action === "type_hierarchy") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        target.connectionId,
+        "semantic.type_hierarchy",
+        "/sap/bc/adt/abapsource/typehierarchy",
+        () => target.client.getTypeHierarchy(
+          target.sourceUri,
+          target.source,
+          input.line,
+          input.column,
+          input.superTypes ?? false
+        )
+      )
+      const page = pageItems(result, input.startIndex, input.maxResults)
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        nodes: page.items,
+        capabilityStatusAtExecution
+      }
+    }
+
+    if (input.action === "components") {
+      const objectType = target.object.type.toUpperCase()
+      const baseObjectType = objectType.split("/")[0]
+      if (baseObjectType !== "CLAS" && baseObjectType !== "INTF") {
+        throw new AppError(
+          "SAP_VALIDATION_FAILED",
+          "components requires a class or interface",
+          { reason: "COMPONENTS_OBJECT_TYPE_INVALID", objectType: target.object.type }
+        )
+      }
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        target.connectionId,
+        "semantic.components",
+        `${target.objectUri}/objectstructure`,
+        () => target.client.getClassComponents(target.objectUri)
+      )
+      const page = pageItems(result.components, input.startIndex, input.maxResults)
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        root: {
+          name: result["adtcore:name"],
+          type: result["adtcore:type"],
+          visibility: result.visibility
+        },
+        total: page.total,
+        startIndex: page.startIndex,
+        returned: page.returned,
+        truncated: page.truncated,
+        nextStartIndex: page.nextStartIndex,
+        components: page.items.map(item => ({
+          name: item["adtcore:name"],
+          type: item["adtcore:type"],
+          visibility: item.visibility,
+          constant: item.constant ?? false,
+          readOnly: item.readOnly ?? false,
+          childCount: item.components.length
+        })),
+        capabilityStatusAtExecution
       }
     }
 
@@ -1770,10 +2110,26 @@ export class AbapToolService {
   async createObjectProgrammatically(input: CreateObjectInput) {
     const client = await this.connections.getClient(input.connectionId)
     const objectType = input.objectType.trim().toUpperCase()
+    const isBdef = objectType === "BDEF/BDO"
+    const activate = input.activate ?? false
     if (!isCreatableTypeId(objectType)) {
       throw new AppError(
         "OBJECT_TYPE_NOT_CREATABLE",
         `${input.objectType} is not a creatable object type supported by the installed ADT API`
+      )
+    }
+    if (activate && input.source === undefined) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "activate=true requires source",
+        { reason: "SOURCE_REQUIRED_FOR_ACTIVATION" }
+      )
+    }
+    if (input.source !== undefined && !isBdef) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Create-time source is supported only for BDEF/BDO in this delivery",
+        { reason: "CREATE_SOURCE_UNSUPPORTED" }
       )
     }
 
@@ -1852,10 +2208,37 @@ export class AbapToolService {
       }
     }
 
-    const validation = await client.validateNewObject(validateOptions)
+    const capabilityStatusAtExecution = isBdef
+      ? this.capabilities.status(input.connectionId, "repository.create.bdef")
+      : undefined
+    if (capabilityStatusAtExecution === "unsupported") {
+      throw new AppError("SAP_CAPABILITY_UNAVAILABLE", "BDEF creation is unavailable", {
+        capabilityId: "repository.create.bdef",
+        endpoint: "bo/behaviordefinitions"
+      })
+    }
+
+    let validation: ValidationResult
+    try {
+      validation = await client.validateNewObject(validateOptions)
+    } catch (error) {
+      if (!isBdef) throw error
+      this.capabilities.observeFailure(
+        input.connectionId,
+        "repository.create.bdef",
+        error,
+        "bo/behaviordefinitions/validation"
+      )
+      throw normalizeCapabilityError(
+        error,
+        "repository.create.bdef",
+        "bo/behaviordefinitions/validation",
+        true
+      )
+    }
     if (!validation.success) {
       throw new AppError(
-        "OBJECT_VALIDATION_FAILED",
+        isBdef ? "SAP_VALIDATION_FAILED" : "OBJECT_VALIDATION_FAILED",
         validation.SHORT_TEXT || `SAP rejected ${objectType} ${name}`,
         { validation }
       )
@@ -1909,12 +2292,84 @@ export class AbapToolService {
     } else {
       createOptions = baseOptions
     }
-    await client.createObject(createOptions)
-    return {
+    try {
+      await client.createObject(createOptions)
+      if (isBdef) {
+        this.capabilities.observeSuccess(
+          input.connectionId,
+          "repository.create.bdef",
+          "bo/behaviordefinitions"
+        )
+      }
+    } catch (error) {
+      if (!isBdef) throw error
+      this.capabilities.observeFailure(
+        input.connectionId,
+        "repository.create.bdef",
+        error,
+        "bo/behaviordefinitions"
+      )
+      throw normalizeCapabilityError(
+        error,
+        "repository.create.bdef",
+        "bo/behaviordefinitions"
+      )
+    }
+    const created = {
       connectionId: input.connectionId.toUpperCase(),
       success: true,
       object: { name, type: objectType, uri: targetUri, packageName: writePackage },
-      transport: transport ?? null
+      transport: transport ?? null,
+      ...(capabilityStatusAtExecution === undefined
+        ? {}
+        : { capabilityStatusAtExecution })
+    }
+    if (input.source === undefined) return created
+
+    let stage: "read_source" | "write_source" = "read_source"
+    try {
+      const current = await client.readSourceByUri(targetUri)
+      stage = "write_source"
+      const result = await client.replaceSource(
+        name,
+        targetUri,
+        current.sourceUri,
+        current.source,
+        input.source,
+        transport,
+        activate
+      )
+      return {
+        ...created,
+        sourceUri: current.sourceUri,
+        diagnostics: result.diagnostics,
+        activation: result.activation ?? null,
+        activationSkipped: result.activationSkipped
+      }
+    } catch (error) {
+      this.capabilities.observeFailure(
+        input.connectionId,
+        "repository.create.bdef",
+        error,
+        stage
+      )
+      const normalized = normalizeCapabilityError(
+        error,
+        "repository.create.bdef",
+        stage
+      )
+      throw new AppError(
+        error instanceof AppError ? error.code : normalized.code,
+        normalized.message,
+        {
+          ...normalized.details,
+          stage,
+          created: true,
+          objectUri: targetUri,
+          transport: transport ?? null,
+          manualCleanupRequired: true
+        }
+      )
     }
   }
 
@@ -4048,22 +4503,157 @@ export class AbapToolService {
   }
 
   async activateObject(input: ActivateObjectInput) {
-    const target = await this.resolveEditableTarget({
-      fileUri: input.url,
-      ...(input.connectionId ? { connectionId: input.connectionId } : {})
-    })
-    requireWritablePackage(target.client, target.object.packageName)
-    const result = await target.client.activateObject(
-      target.object.name,
-      target.objectUri,
-      target.mainProgram
+    const candidate = typeof input === "object" && input !== null
+      ? input as { url?: unknown; urls?: unknown; connectionId?: unknown }
+      : {}
+    const urlPresent = Object.prototype.hasOwnProperty.call(candidate, "url")
+    const urlsPresent = Object.prototype.hasOwnProperty.call(candidate, "urls")
+    const connectionIdPresent = Object.prototype.hasOwnProperty.call(candidate, "connectionId")
+    const hasUrl = urlPresent && typeof candidate.url === "string"
+    const hasUrls = urlsPresent && Array.isArray(candidate.urls) &&
+      candidate.urls.every(url => typeof url === "string")
+    const connectionIdValid = !connectionIdPresent || typeof candidate.connectionId === "string"
+    if (!connectionIdValid || urlPresent !== hasUrl || urlsPresent !== hasUrls || hasUrl === hasUrls) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Provide exactly one of url or urls",
+        { reason: "ACTIVATION_INPUT_AMBIGUOUS" }
+      )
+    }
+
+    const explicitConnectionId = candidate.connectionId as string | undefined
+    if (hasUrl) {
+      const target = await this.resolveEditableTarget({
+        fileUri: candidate.url as string,
+        ...(explicitConnectionId ? { connectionId: explicitConnectionId } : {})
+      })
+      requireWritablePackage(target.client, target.object.packageName)
+      const result = await target.client.activateObject(
+        target.object.name,
+        target.objectUri,
+        target.mainProgram
+      )
+      return {
+        connectionId: target.connectionId,
+        object: target.object,
+        success: result.success,
+        messages: result.messages,
+        inactive: result.inactive
+      }
+    }
+
+    const urls = candidate.urls as string[]
+    if (urls.length < 1 || urls.length > 100) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Batch activation requires 1 through 100 URLs",
+        { reason: "ACTIVATION_CARDINALITY_INVALID" }
+      )
+    }
+
+    const locations = urls.map(url => parseAdtLocation(url, explicitConnectionId))
+    const connectionIds = new Set(locations.map(location => location.connectionId))
+    if (connectionIds.size !== 1) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Batch activation requires exactly one connection",
+        { reason: "CROSS_CONNECTION_BATCH" }
+      )
+    }
+
+    const connectionId = locations[0]!.connectionId
+    const client = await this.connections.getClient(connectionId)
+    const targets: EditableTarget[] = []
+    for (const location of locations) {
+      const target = await this.resolveEditableTarget(
+        { fileUri: location.path, connectionId },
+        client
+      )
+      requireWritablePackage(client, target.object.packageName)
+      targets.push(target)
+    }
+
+    const inactiveRecords = await client.getInactiveObjects()
+    const inactiveByUri = new Map(inactiveRecords.flatMap(record => {
+      const inactive = record?.object
+      const uri = canonicalActivationUri(inactive?.["adtcore:uri"])
+      return inactive && uri ? [[uri, inactive] as const] : []
+    }))
+    const submittedByUri = new Map<string, {
+      target: EditableTarget
+      inactive: NonNullable<(typeof inactiveRecords)[number]["object"]>
+    }>()
+    for (const target of targets) {
+      const uri = canonicalActivationUri(target.objectUri)
+      const inactive = uri ? inactiveByUri.get(uri) : undefined
+      if (uri && inactive && !submittedByUri.has(uri)) {
+        submittedByUri.set(uri, { target, inactive })
+      }
+    }
+    const submitted = [...submittedByUri.values()]
+    const submittedUris = new Set(submittedByUri.keys())
+
+    let capabilityStatusAtExecution = this.capabilities.status(
+      connectionId,
+      "repository.activate.batch"
     )
+    let activation = { success: false, messages: [], inactive: [] } as Awaited<
+      ReturnType<SapClient["activateObjects"]>
+    >
+    if (submitted.length > 0) {
+      const executed = await this.executeCapability(
+        connectionId,
+        "repository.activate.batch",
+        "/sap/bc/adt/activation",
+        () => client.activateObjects(submitted.map(item => item.inactive))
+      )
+      activation = executed.result
+      capabilityStatusAtExecution = executed.capabilityStatusAtExecution
+    }
+
+    const remainingUris = new Set(activation.inactive.flatMap(record => {
+      const uri = canonicalActivationUri(record?.object?.["adtcore:uri"])
+      return uri ? [uri] : []
+    }))
+    const objectResults = targets.map(target => {
+      const uri = canonicalActivationUri(target.objectUri)
+      const escapedName = target.object.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      const namePattern = new RegExp(
+        `(?<![A-Z0-9_/])${escapedName}(?![A-Z0-9_/])`,
+        "i"
+      )
+      const messages = uri === undefined ? [] : activation.messages.filter(message => {
+        const href = canonicalActivationUri(message?.href)
+        if (href !== undefined) return href === uri
+        return typeof message?.objDescr === "string" && namePattern.test(message.objDescr)
+      })
+      const failed = (uri !== undefined && remainingUris.has(uri)) || messages.some(message =>
+        typeof message?.type === "string" && /^(E|A|X|ERROR)$/i.test(message.type.trim())
+      )
+      return {
+        object: target.object,
+        outcome: failed
+          ? "failed"
+          : uri !== undefined && submittedUris.has(uri) && activation.success
+            ? "activated"
+            : "unknown",
+        messages
+      }
+    })
+    const status = objectResults.every(item => item.outcome === "activated")
+      ? "complete"
+      : objectResults.every(item => item.outcome === "failed")
+        ? "failed"
+        : "partial"
+
     return {
-      connectionId: target.connectionId,
-      object: target.object,
-      success: result.success,
-      messages: result.messages,
-      inactive: result.inactive
+      connectionId,
+      status,
+      requested: targets.map(target => target.object),
+      objectResults,
+      messages: activation.messages,
+      remainingInactive: activation.inactive,
+      capabilityStatusAtExecution
     }
   }
 
@@ -4593,6 +5183,143 @@ export class AbapToolService {
       truncated: limited,
       nodes: [...nodes.values()],
       edges: [...edges.values()]
+    }
+  }
+
+  async runAbapApplication(input: RunAbapApplicationInput) {
+    const connectionId = input.connectionId.trim().toUpperCase()
+    const client = await this.connections.getClient(connectionId)
+    const replEndpoint = "/sap/bc/z_abap_repl"
+
+    if (input.action === "repl_health") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        connectionId,
+        "execution.abap_repl",
+        replEndpoint,
+        () => client.checkReplAvailability()
+      )
+      return {
+        connectionId,
+        health: result,
+        capabilityStatusAtExecution
+      }
+    }
+
+    if (input.action === "preview_class") {
+      requireExecutableProfile(client)
+      const className = input.className.trim()
+      if (
+        className !== className.toUpperCase() ||
+        className.length > 30 ||
+        !/^(?:\/[A-Z0-9_]+\/)?[A-Z][A-Z0-9_]*$/.test(className)
+      ) {
+        throw new AppError(
+          "SAP_VALIDATION_FAILED",
+          "className must be an uppercase ABAP class name",
+          { reason: "CLASS_NAME_INVALID" }
+        )
+      }
+      const plan = this.cacheExecutionPlan({
+        kind: "class",
+        connectionId,
+        className,
+        confirmation: `RUN_CLASS:${connectionId}:${className}`
+      })
+      return {
+        action: input.action,
+        planId: plan.id,
+        confirmation: plan.confirmation,
+        expiresAt: new Date(plan.expiresAt).toISOString(),
+        capabilityStatusAtExecution: this.capabilities.status(
+          connectionId,
+          "execution.class_runner"
+        )
+      }
+    }
+
+    if (input.action === "preview_snippet") {
+      requireExecutableProfile(client)
+      const codeBytes = Buffer.byteLength(input.code, "utf8")
+      if (!input.code.trim() || codeBytes < 1 || codeBytes > INLINE_TEXT_BYTE_LIMIT) {
+        throw new AppError(
+          "SAP_VALIDATION_FAILED",
+          `code must contain 1 through ${INLINE_TEXT_BYTE_LIMIT} UTF-8 bytes`,
+          { reason: "SNIPPET_SIZE_INVALID", bytes: codeBytes }
+        )
+      }
+      const digest = createHash("sha256").update(input.code).digest("hex").slice(0, 12)
+      const plan = this.cacheExecutionPlan({
+        kind: "snippet",
+        connectionId,
+        code: input.code,
+        confirmation: `RUN_SNIPPET:${connectionId}:${digest}`
+      })
+      return {
+        action: input.action,
+        planId: plan.id,
+        confirmation: plan.confirmation,
+        expiresAt: new Date(plan.expiresAt).toISOString(),
+        codeBytes,
+        capabilityStatusAtExecution: this.capabilities.status(connectionId, "execution.abap_repl")
+      }
+    }
+
+    const plan = this.takeExecutionPlan(input.planId, input.confirmation, connectionId)
+    requireExecutableProfile(client)
+    if (plan.kind === "class") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        connectionId,
+        "execution.class_runner",
+        `/sap/bc/adt/oo/classrun/${plan.className}`,
+        () => client.runClass(plan.className)
+      )
+      const output = boundInlineText(result)
+      return {
+        connectionId,
+        kind: plan.kind,
+        output: output.content,
+        originalBytes: output.originalBytes,
+        returnedBytes: output.returnedBytes,
+        truncated: output.truncated,
+        capabilityStatusAtExecution
+      }
+    }
+
+    const health = await this.executeCapability(
+      connectionId,
+      "execution.abap_repl",
+      replEndpoint,
+      () => client.checkReplAvailability()
+    )
+    if (health.result.production) {
+      throw new AppError(
+        "SAP_CAPABILITY_UNAVAILABLE",
+        "ABAP REPL is disabled on production",
+        { capabilityId: "execution.abap_repl", endpoint: replEndpoint }
+      )
+    }
+    const { result, capabilityStatusAtExecution } = await this.executeCapability(
+      connectionId,
+      "execution.abap_repl",
+      replEndpoint,
+      () => client.executeAbapCode(plan.code)
+    )
+    const output = boundInlineText(result.output)
+    const error = boundInlineText(
+      result.error,
+      Math.max(0, INLINE_TEXT_BYTE_LIMIT - output.returnedBytes)
+    )
+    return {
+      connectionId,
+      kind: plan.kind,
+      success: result.success,
+      output: output.content,
+      error: error.content,
+      runtime_ms: result.runtime_ms,
+      originalBytes: output.originalBytes + error.originalBytes,
+      returnedBytes: output.returnedBytes + error.returnedBytes,
+      truncated: output.truncated || error.truncated,
+      capabilityStatusAtExecution
     }
   }
 
