@@ -156,7 +156,7 @@ export interface CreateObjectInput {
   parentName?: string
   connectionId: string
   source?: string
-  activate: boolean
+  activate?: boolean
   additionalOptions?: {
     serviceDefinition?: string
     bindingType?: "ODATA"
@@ -1829,13 +1829,14 @@ export class AbapToolService {
     const client = await this.connections.getClient(input.connectionId)
     const objectType = input.objectType.trim().toUpperCase()
     const isBdef = objectType === "BDEF/BDO"
+    const activate = input.activate ?? false
     if (!isCreatableTypeId(objectType)) {
       throw new AppError(
         "OBJECT_TYPE_NOT_CREATABLE",
         `${input.objectType} is not a creatable object type supported by the installed ADT API`
       )
     }
-    if (input.activate && input.source === undefined) {
+    if (activate && input.source === undefined) {
       throw new AppError(
         "SAP_VALIDATION_FAILED",
         "activate=true requires source",
@@ -1925,6 +1926,16 @@ export class AbapToolService {
       }
     }
 
+    const capabilityStatusAtExecution = isBdef
+      ? this.capabilities.status(input.connectionId, "repository.create.bdef")
+      : undefined
+    if (capabilityStatusAtExecution === "unsupported") {
+      throw new AppError("SAP_CAPABILITY_UNAVAILABLE", "BDEF creation is unavailable", {
+        capabilityId: "repository.create.bdef",
+        endpoint: "bo/behaviordefinitions"
+      })
+    }
+
     let validation: ValidationResult
     try {
       validation = await client.validateNewObject(validateOptions)
@@ -1999,15 +2010,6 @@ export class AbapToolService {
     } else {
       createOptions = baseOptions
     }
-    const capabilityStatusAtExecution = isBdef
-      ? this.capabilities.status(input.connectionId, "repository.create.bdef")
-      : undefined
-    if (capabilityStatusAtExecution === "unsupported") {
-      throw new AppError("SAP_CAPABILITY_UNAVAILABLE", "BDEF creation is unavailable", {
-        capabilityId: "repository.create.bdef",
-        endpoint: "bo/behaviordefinitions"
-      })
-    }
     try {
       await client.createObject(createOptions)
       if (isBdef) {
@@ -2053,7 +2055,7 @@ export class AbapToolService {
         current.source,
         input.source,
         transport,
-        input.activate
+        activate
       )
       return {
         ...created,
@@ -2063,19 +2065,30 @@ export class AbapToolService {
         activationSkipped: result.activationSkipped
       }
     } catch (error) {
+      this.capabilities.observeFailure(
+        input.connectionId,
+        "repository.create.bdef",
+        error,
+        stage
+      )
       const normalized = normalizeCapabilityError(
         error,
         "repository.create.bdef",
         stage
       )
-      throw new AppError(normalized.code, normalized.message, {
-        ...normalized.details,
-        stage,
-        created: true,
-        objectUri: targetUri,
-        transport: transport ?? null,
-        manualCleanupRequired: true
-      })
+      throw new AppError(
+        error instanceof AppError ? error.code : normalized.code,
+        normalized.message,
+        {
+          ...(error instanceof AppError && error.details ? error.details : {}),
+          ...normalized.details,
+          stage,
+          created: true,
+          objectUri: targetUri,
+          transport: transport ?? null,
+          manualCleanupRequired: true
+        }
+      )
     }
   }
 

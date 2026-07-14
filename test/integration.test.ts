@@ -86,6 +86,10 @@ class FakeSapClient implements SapClient {
   }> = []
   deleteObjectCalls = 0
   objectCreationOperations: string[] = []
+  validationResult: any = { success: true }
+  validationError?: Error
+  createObjectError?: Error
+  readSourceError?: Error
   replaceSourceError?: Error
   debugActive = false
   deletedObject = false
@@ -139,6 +143,7 @@ class FakeSapClient implements SapClient {
   async readSourceByUri(uri: string) {
     this.readSourceCalls.push(uri)
     this.objectCreationOperations.push("read_source")
+    if (this.readSourceError) throw this.readSourceError
     if (uri.endsWith("/revisions/1")) {
       return { source: this.currentSource, sourceUri: uri }
     }
@@ -280,12 +285,14 @@ class FakeSapClient implements SapClient {
   async validateNewObject(): Promise<any> {
     this.validateNewObjectCalls += 1
     this.objectCreationOperations.push("validate")
-    return { success: true }
+    if (this.validationError) throw this.validationError
+    return this.validationResult
   }
 
   async createObject(options: unknown): Promise<void> {
     this.createObjectCalls += 1
     this.objectCreationOperations.push("create")
+    if (this.createObjectError) throw this.createObjectError
     this.createdObject = options
   }
 
@@ -1130,6 +1137,81 @@ test("BDEF create object writes exact source and activates after creation", asyn
   assert.equal(fake.deleteObjectCalls, 0)
 })
 
+test("BDEF create object rejects known unsupported capability before SAP calls", async () => {
+  const { fake, service } = createBdefHarness()
+  const capabilities = (
+    service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities
+  capabilities.observeHttpFailure(
+    "DEV100",
+    "repository.create.bdef",
+    404,
+    "bo/behaviordefinitions"
+  )
+
+  await assert.rejects(
+    service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_UNSUPPORTED",
+      description: "Unsupported behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      activate: false,
+      additionalOptions: {
+        transportRequest: { type: "new", description: "Must not be created" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.equal(error.message, "BDEF creation is unavailable")
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "bo/behaviordefinitions"
+      })
+      return true
+    }
+  )
+  assert.equal(fake.validateNewObjectCalls, 0)
+  assert.equal(fake.createTransportCalls, 0)
+  assert.equal(fake.createObjectCalls, 0)
+  assert.deepEqual(fake.readSourceCalls, [])
+  assert.deepEqual(fake.replaceSourceCalls, [])
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
+test("create object direct callers may omit source and activate", async () => {
+  const { fake, service } = createBdefHarness()
+
+  const created = await service.createObjectProgrammatically({
+    objectType: "CLAS/OC",
+    name: "ZCL_LEGACY",
+    description: "Legacy direct caller",
+    packageName: "Z_DEMO",
+    connectionId: "DEV100",
+    additionalOptions: {
+      transportRequest: { type: "existing", number: "DEVK900123" }
+    }
+  })
+
+  assert.deepEqual(created, {
+    connectionId: "DEV100",
+    success: true,
+    object: {
+      name: "ZCL_LEGACY",
+      type: "CLAS/OC",
+      uri: "/sap/bc/adt/oo/classes/ZCL_LEGACY",
+      packageName: "Z_DEMO"
+    },
+    transport: "DEVK900123"
+  })
+  assert.deepEqual(fake.objectCreationOperations, ["validate", "create"])
+  assert.equal((fake.createdObject as { transport: string }).transport, "DEVK900123")
+  assert.deepEqual(fake.readSourceCalls, [])
+  assert.deepEqual(fake.replaceSourceCalls, [])
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
 test("BDEF create object validation rejects invalid source combinations before SAP mutation", async () => {
   const missingSource = createBdefHarness()
   await assert.rejects(
@@ -1186,6 +1268,129 @@ test("BDEF create object validation rejects invalid source combinations before S
   assert.deepEqual(unsupportedSource.fake.replaceSourceCalls, [])
 })
 
+test("BDEF create object normalizes thrown validation and create failures", async () => {
+  const validationFailure = createBdefHarness()
+  validationFailure.fake.validationError = Object.assign(
+    new Error("Authorization: Bearer validation-secret"),
+    { response: { status: 403 } }
+  )
+  await assert.rejects(
+    validationFailure.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_VALIDATION_FAILURE",
+      description: "Validation failure",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      activate: false,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.equal(
+        error.message,
+        "SAP capability repository.create.bdef failed: Authorization: [REDACTED]"
+      )
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "bo/behaviordefinitions/validation",
+        httpStatus: 403
+      })
+      return true
+    }
+  )
+  assert.equal(validationFailure.fake.validateNewObjectCalls, 1)
+  assert.equal(validationFailure.fake.createTransportCalls, 0)
+  assert.equal(validationFailure.fake.createObjectCalls, 0)
+  assert.deepEqual(validationFailure.fake.readSourceCalls, [])
+  assert.deepEqual(validationFailure.fake.replaceSourceCalls, [])
+  const validationCapability = (
+    validationFailure.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.list("DEV100", "").find(item => item.id === "repository.create.bdef")
+  assert.equal(validationCapability?.authorization, "denied")
+  assert.deepEqual(validationCapability?.evidence, [
+    "http:403:bo/behaviordefinitions/validation"
+  ])
+
+  const negativeValidation = createBdefHarness()
+  negativeValidation.fake.validationResult = {
+    success: false,
+    SHORT_TEXT: "Behavior definition rejected"
+  }
+  await assert.rejects(
+    negativeValidation.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_REJECTED",
+      description: "Rejected behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      activate: false,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_VALIDATION_FAILED")
+      assert.equal(error.message, "Behavior definition rejected")
+      assert.deepEqual(error.details, {
+        validation: {
+          success: false,
+          SHORT_TEXT: "Behavior definition rejected"
+        }
+      })
+      return true
+    }
+  )
+  assert.equal(negativeValidation.fake.createObjectCalls, 0)
+  assert.deepEqual(negativeValidation.fake.readSourceCalls, [])
+
+  const createFailure = createBdefHarness()
+  createFailure.fake.createObjectError = Object.assign(
+    new Error("missing BDEF endpoint token=create-secret"),
+    { status: 404 }
+  )
+  await assert.rejects(
+    createFailure.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_CREATE_FAILURE",
+      description: "Create failure",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_create_failure unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_CAPABILITY_UNAVAILABLE")
+      assert.ok(!error.message.includes("create-secret"))
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "bo/behaviordefinitions",
+        httpStatus: 404
+      })
+      return true
+    }
+  )
+  assert.equal(createFailure.fake.createObjectCalls, 1)
+  assert.deepEqual(createFailure.fake.readSourceCalls, [])
+  assert.deepEqual(createFailure.fake.replaceSourceCalls, [])
+  assert.equal(createFailure.fake.deleteObjectCalls, 0)
+  const createCapability = (
+    createFailure.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.list("DEV100", "").find(item => item.id === "repository.create.bdef")
+  assert.equal(createCapability?.system, "not_advertised")
+  assert.equal(createCapability?.status, "unsupported")
+  assert.deepEqual(createCapability?.evidence, [
+    "http:404:bo/behaviordefinitions"
+  ])
+})
+
 test("BDEF create object reports manual cleanup after post-create source failure", async () => {
   const { fake, service } = createBdefHarness()
   const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_DEMO"
@@ -1230,6 +1435,197 @@ test("BDEF create object reports manual cleanup after post-create source failure
   assert.equal(fake.deletedObject, false)
 })
 
+test("BDEF create object preserves source safety codes with normalized recovery details", async () => {
+  const { fake, service } = createBdefHarness()
+  const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_SOURCE_CHANGED"
+  fake.replaceSourceError = Object.assign(
+    new AppError(
+      "SOURCE_CHANGED",
+      "Authorization: Bearer source-secret",
+      {
+        reason: "FINGERPRINT_MISMATCH",
+        capabilityId: "spoofed.capability",
+        endpoint: "spoofed_endpoint",
+        httpStatus: 418
+      }
+    ),
+    { status: 403 }
+  )
+
+  await assert.rejects(
+    service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_SOURCE_CHANGED",
+      description: "Changed behavior",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_source_changed unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SOURCE_CHANGED")
+      assert.equal(
+        error.message,
+        "SAP capability repository.create.bdef failed: Authorization: [REDACTED]"
+      )
+      assert.deepEqual(error.details, {
+        reason: "FINGERPRINT_MISMATCH",
+        capabilityId: "repository.create.bdef",
+        endpoint: "write_source",
+        httpStatus: 403,
+        stage: "write_source",
+        created: true,
+        objectUri,
+        transport: "DEVK900123",
+        manualCleanupRequired: true
+      })
+      return true
+    }
+  )
+  assert.equal(fake.createObjectCalls, 1)
+  assert.equal(fake.replaceSourceCalls.length, 1)
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
+test("BDEF create object observes authorization failures at read and write stages", async () => {
+  const readFailure = createBdefHarness()
+  readFailure.fake.readSourceError = Object.assign(
+    new Error("Authorization: Bearer read-secret"),
+    { response: { status: 403 } }
+  )
+  await assert.rejects(
+    readFailure.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_READ_FAILURE",
+      description: "Read failure",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_read_failure unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.equal(
+        error.message,
+        "SAP capability repository.create.bdef failed: Authorization: [REDACTED]"
+      )
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "read_source",
+        httpStatus: 403,
+        stage: "read_source",
+        created: true,
+        objectUri: "/sap/bc/adt/bo/behaviordefinitions/ZI_READ_FAILURE",
+        transport: "DEVK900123",
+        manualCleanupRequired: true
+      })
+      return true
+    }
+  )
+  assert.equal(readFailure.fake.readSourceCalls.length, 1)
+  assert.equal(readFailure.fake.replaceSourceCalls.length, 0)
+  assert.equal(readFailure.fake.deleteObjectCalls, 0)
+  const readCapability = (
+    readFailure.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.list("DEV100", "").find(item => item.id === "repository.create.bdef")
+  assert.equal(readCapability?.status, "supported")
+  assert.equal(readCapability?.authorization, "denied")
+  assert.deepEqual(readCapability?.evidence, [
+    "success:bo/behaviordefinitions",
+    "http:403:read_source"
+  ])
+
+  const writeFailure = createBdefHarness()
+  writeFailure.fake.replaceSourceError = Object.assign(
+    new Error("Authorization: Bearer write-secret"),
+    { status: 403 }
+  )
+  await assert.rejects(
+    writeFailure.service.createObjectProgrammatically({
+      objectType: "BDEF/BDO",
+      name: "ZI_WRITE_FAILURE",
+      description: "Write failure",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "managed implementation in class zbp_i_write_failure unique;",
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "SAP_AUTHORIZATION_DENIED")
+      assert.equal(
+        error.message,
+        "SAP capability repository.create.bdef failed: Authorization: [REDACTED]"
+      )
+      assert.deepEqual(error.details, {
+        capabilityId: "repository.create.bdef",
+        endpoint: "write_source",
+        httpStatus: 403,
+        stage: "write_source",
+        created: true,
+        objectUri: "/sap/bc/adt/bo/behaviordefinitions/ZI_WRITE_FAILURE",
+        transport: "DEVK900123",
+        manualCleanupRequired: true
+      })
+      return true
+    }
+  )
+  assert.equal(writeFailure.fake.readSourceCalls.length, 1)
+  assert.equal(writeFailure.fake.replaceSourceCalls.length, 1)
+  assert.equal(writeFailure.fake.deleteObjectCalls, 0)
+  const writeCapability = (
+    writeFailure.service as unknown as { capabilities: SapCapabilityRegistry }
+  ).capabilities.list("DEV100", "").find(item => item.id === "repository.create.bdef")
+  assert.equal(writeCapability?.status, "supported")
+  assert.equal(writeCapability?.authorization, "denied")
+  assert.deepEqual(writeCapability?.evidence, [
+    "success:bo/behaviordefinitions",
+    "http:403:write_source"
+  ])
+})
+
+test("BDEF create object returns syntax diagnostics and skips activation", async () => {
+  const { fake, service } = createBdefHarness()
+  const objectUri = "/sap/bc/adt/bo/behaviordefinitions/ZI_SYNTAX_ERROR"
+
+  const created = await service.createObjectProgrammatically({
+    objectType: "BDEF/BDO",
+    name: "ZI_SYNTAX_ERROR",
+    description: "Syntax error behavior",
+    packageName: "Z_DEMO",
+    connectionId: "DEV100",
+    source: "SYNTAX_ERROR",
+    activate: true,
+    additionalOptions: {
+      transportRequest: { type: "existing", number: "DEVK900123" }
+    }
+  }) as Record<string, any>
+
+  assert.deepEqual(created.diagnostics, [{
+    uri: `${objectUri}/source/main`,
+    line: 3,
+    offset: 4,
+    severity: "E",
+    text: "Syntax error"
+  }])
+  assert.equal(created.activation, null)
+  assert.equal(created.activationSkipped, true)
+  assert.equal(fake.createObjectCalls, 1)
+  assert.equal(fake.replaceSourceCalls.length, 1)
+  assert.equal(fake.deleteObjectCalls, 0)
+})
+
 test("write allowlists, production blocking, transports, and read-only SQL are enforced", async () => {
   const makeService = (profile: SapProfile) => {
     const fake = new FakeSapClient(profile)
@@ -1248,8 +1644,7 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
     name: "ZCL_SAFE_TEST",
     description: "Safety policy test",
     packageName: "Z_DEMO",
-    connectionId: "DEV100",
-    activate: false
+    connectionId: "DEV100"
   }
 
   await rejectsCode(
