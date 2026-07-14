@@ -31,6 +31,7 @@ import {
   type TransportObject,
   type TransportRequest,
   type ValidateOptions,
+  type ValidationResult,
   type UsageReference
 } from "abap-adt-api"
 import type { ChangePackageRefactoring } from "abap-adt-api/build/api/refactor.js"
@@ -154,6 +155,8 @@ export interface CreateObjectInput {
   packageName: string
   parentName?: string
   connectionId: string
+  source?: string
+  activate: boolean
   additionalOptions?: {
     serviceDefinition?: string
     bindingType?: "ODATA"
@@ -1825,10 +1828,25 @@ export class AbapToolService {
   async createObjectProgrammatically(input: CreateObjectInput) {
     const client = await this.connections.getClient(input.connectionId)
     const objectType = input.objectType.trim().toUpperCase()
+    const isBdef = objectType === "BDEF/BDO"
     if (!isCreatableTypeId(objectType)) {
       throw new AppError(
         "OBJECT_TYPE_NOT_CREATABLE",
         `${input.objectType} is not a creatable object type supported by the installed ADT API`
+      )
+    }
+    if (input.activate && input.source === undefined) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "activate=true requires source",
+        { reason: "SOURCE_REQUIRED_FOR_ACTIVATION" }
+      )
+    }
+    if (input.source !== undefined && !isBdef) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "Create-time source is supported only for BDEF/BDO in this delivery",
+        { reason: "CREATE_SOURCE_UNSUPPORTED" }
       )
     }
 
@@ -1907,10 +1925,27 @@ export class AbapToolService {
       }
     }
 
-    const validation = await client.validateNewObject(validateOptions)
+    let validation: ValidationResult
+    try {
+      validation = await client.validateNewObject(validateOptions)
+    } catch (error) {
+      if (!isBdef) throw error
+      this.capabilities.observeFailure(
+        input.connectionId,
+        "repository.create.bdef",
+        error,
+        "bo/behaviordefinitions/validation"
+      )
+      throw normalizeCapabilityError(
+        error,
+        "repository.create.bdef",
+        "bo/behaviordefinitions/validation",
+        true
+      )
+    }
     if (!validation.success) {
       throw new AppError(
-        "OBJECT_VALIDATION_FAILED",
+        isBdef ? "SAP_VALIDATION_FAILED" : "OBJECT_VALIDATION_FAILED",
         validation.SHORT_TEXT || `SAP rejected ${objectType} ${name}`,
         { validation }
       )
@@ -1964,12 +1999,83 @@ export class AbapToolService {
     } else {
       createOptions = baseOptions
     }
-    await client.createObject(createOptions)
-    return {
+    const capabilityStatusAtExecution = isBdef
+      ? this.capabilities.status(input.connectionId, "repository.create.bdef")
+      : undefined
+    if (capabilityStatusAtExecution === "unsupported") {
+      throw new AppError("SAP_CAPABILITY_UNAVAILABLE", "BDEF creation is unavailable", {
+        capabilityId: "repository.create.bdef",
+        endpoint: "bo/behaviordefinitions"
+      })
+    }
+    try {
+      await client.createObject(createOptions)
+      if (isBdef) {
+        this.capabilities.observeSuccess(
+          input.connectionId,
+          "repository.create.bdef",
+          "bo/behaviordefinitions"
+        )
+      }
+    } catch (error) {
+      if (!isBdef) throw error
+      this.capabilities.observeFailure(
+        input.connectionId,
+        "repository.create.bdef",
+        error,
+        "bo/behaviordefinitions"
+      )
+      throw normalizeCapabilityError(
+        error,
+        "repository.create.bdef",
+        "bo/behaviordefinitions"
+      )
+    }
+    const created = {
       connectionId: input.connectionId.toUpperCase(),
       success: true,
       object: { name, type: objectType, uri: targetUri, packageName: writePackage },
-      transport: transport ?? null
+      transport: transport ?? null,
+      ...(capabilityStatusAtExecution === undefined
+        ? {}
+        : { capabilityStatusAtExecution })
+    }
+    if (input.source === undefined) return created
+
+    let stage: "read_source" | "write_source" = "read_source"
+    try {
+      const current = await client.readSourceByUri(targetUri)
+      stage = "write_source"
+      const result = await client.replaceSource(
+        name,
+        targetUri,
+        current.sourceUri,
+        current.source,
+        input.source,
+        transport,
+        input.activate
+      )
+      return {
+        ...created,
+        sourceUri: current.sourceUri,
+        diagnostics: result.diagnostics,
+        activation: result.activation ?? null,
+        activationSkipped: result.activationSkipped
+      }
+    } catch (error) {
+      const normalized = normalizeCapabilityError(
+        error,
+        "repository.create.bdef",
+        stage
+      )
+      throw new AppError(normalized.code, normalized.message, {
+        ...normalized.details,
+        stage,
+        created: true,
+        objectUri: targetUri,
+        transport: transport ?? null,
+        manualCleanupRequired: true
+      })
     }
   }
 
