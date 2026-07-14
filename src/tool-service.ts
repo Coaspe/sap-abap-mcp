@@ -856,12 +856,34 @@ function objectUriFromSourceUri(sourceUri: string): string {
 
 function canonicalActivationUri(value: unknown): string | undefined {
   if (typeof value !== "string" || !value.trim()) return undefined
-  const normalized = objectUriFromSourceUri(value.trim()).replace(/\/+$/, "")
-  const adtIndex = normalized.toLowerCase().indexOf("/sap/bc/adt/")
-  if (adtIndex < 0) return undefined
-  const adtPath = normalized.slice(adtIndex)
-  if (adtPath.toLowerCase() === "/sap/bc/adt") return undefined
-  return adtPath.toLowerCase()
+  const candidate = value.trim()
+  let encodedPath: string
+
+  if (candidate.startsWith("/")) {
+    if (candidate.startsWith("//")) return undefined
+    encodedPath = candidate.replace(/[?#].*$/, "")
+  } else {
+    let parsed: URL
+    try {
+      parsed = new URL(candidate)
+    } catch {
+      return undefined
+    }
+    if (!["adt:", "http:", "https:"].includes(parsed.protocol)) return undefined
+    if (!parsed.hostname) return undefined
+    encodedPath = parsed.pathname
+  }
+
+  let pathname: string
+  try {
+    pathname = decodeURIComponent(encodedPath)
+  } catch {
+    return undefined
+  }
+  if (!/^\/sap\/bc\/adt\//i.test(pathname)) return undefined
+  const normalized = objectUriFromSourceUri(pathname).replace(/\/+$/, "")
+  if (normalized.toLowerCase() === "/sap/bc/adt") return undefined
+  return normalized.toLowerCase()
 }
 
 export function replaceExactlyOnce(content: string, oldString: string, newString: string): string {

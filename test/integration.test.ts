@@ -1305,6 +1305,46 @@ test("activateObject canonicalizes SAP evidence and tolerates malformed result f
   }) as unknown as { objectResults: Array<{ outcome: string; messages: unknown[] }> }
   assert.deepEqual(precedenceResult.objectResults.map(item => item.outcome), ["unknown"])
   assert.deepEqual(precedenceResult.objectResults[0]!.messages, [])
+
+  const invalidPrefix = createActivationHarness()
+  invalidPrefix.fake.inactiveObjects = [inactiveClass("ZCL_FIRST")]
+  invalidPrefix.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Unrelated object",
+      type: "E",
+      line: 1,
+      href: "garbage/sap/bc/adt/oo/classes/zcl_first",
+      forceSupported: false,
+      shortText: "Malformed href"
+    }],
+    inactive: []
+  }
+  const invalidPrefixResult = await invalidPrefix.service.activateObject({
+    urls: [firstUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string; messages: unknown[] }> }
+  assert.deepEqual(invalidPrefixResult.objectResults.map(item => item.outcome), ["unknown"])
+  assert.deepEqual(invalidPrefixResult.objectResults[0]!.messages, [])
+
+  const absoluteHttp = createActivationHarness()
+  absoluteHttp.fake.inactiveObjects = [inactiveClass("ZCL_FIRST")]
+  absoluteHttp.fake.batchActivationResult = {
+    success: false,
+    messages: [{
+      objDescr: "Unrelated object",
+      type: "E",
+      line: 1,
+      href: "https://sap.example.test/sap/bc/adt/oo/classes/zcl_first/source/main?x=1#fragment",
+      forceSupported: false,
+      shortText: "Absolute href"
+    }],
+    inactive: []
+  }
+  const absoluteHttpResult = await absoluteHttp.service.activateObject({
+    urls: [firstUrl]
+  }) as unknown as { objectResults: Array<{ outcome: string; messages: unknown[] }> }
+  assert.deepEqual(absoluteHttpResult.objectResults.map(item => item.outcome), ["failed"])
+  assert.equal(absoluteHttpResult.objectResults[0]!.messages.length, 1)
 })
 
 test("activateObject deduplicates SAP submission without dropping requested results", async () => {
