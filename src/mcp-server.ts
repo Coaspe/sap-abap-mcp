@@ -188,6 +188,34 @@ export function createMcpServer(
   )
 
   registerTool(
+    "get_sap_capabilities",
+    {
+      title: "Get SAP Capabilities",
+      description:
+        "Report implemented, missing, supported, unsupported, and live-unverified SAP development capabilities for one connection.",
+      inputSchema: {
+        connectionId: z.string().min(1),
+        category: z.enum([
+          "connection",
+          "repository",
+          "execution",
+          "semantic",
+          "quality",
+          "debugging",
+          "insight"
+        ]).optional(),
+        includeEvidence: z.boolean().default(true)
+      },
+      annotations: readOnlyAnnotations
+    },
+    async input => runTool(() => tools.getSapCapabilities(
+      input.connectionId,
+      input.category,
+      input.includeEvidence
+    ))
+  )
+
+  registerTool(
     "search_abap_objects",
     {
       title: "Search ABAP Objects",

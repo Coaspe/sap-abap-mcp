@@ -1312,6 +1312,44 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     includeComponents: false
   })
   assert.equal(sapInfo.sapRelease, "758")
+  const mutationsBeforeCapabilities = {
+    batchActivationCalls: fake.batchActivationCalls,
+    classRunCalls: fake.classRunCalls,
+    replExecuteCalls: fake.replExecuteCalls,
+    transportMutations: [...fake.transportMutations]
+  }
+  const capabilities = await callJson("get_sap_capabilities", {
+    connectionId: "DEV100",
+    category: "repository",
+    includeEvidence: true
+  })
+  assert.equal(capabilities.connectionId, "DEV100")
+  const repositoryCapabilities = capabilities.capabilities as Array<{
+    id: string
+    category: string
+    status: string
+  }>
+  assert.equal(
+    repositoryCapabilities.find(item => item.id === "repository.create.bdef")?.status,
+    "unverified"
+  )
+  assert.ok(repositoryCapabilities.every(item => item.category === "repository"))
+  const compactCapabilities = await callJson("get_sap_capabilities", {
+    connectionId: " dev100 ",
+    category: "repository",
+    includeEvidence: false
+  })
+  assert.equal(compactCapabilities.connectionId, "DEV100")
+  assert.equal("evidence" in compactCapabilities.capabilities[0], false)
+  assert.deepEqual(
+    {
+      batchActivationCalls: fake.batchActivationCalls,
+      classRunCalls: fake.classRunCalls,
+      replExecuteCalls: fake.replExecuteCalls,
+      transportMutations: fake.transportMutations
+    },
+    mutationsBeforeCapabilities
+  )
 
   const search = await client.callTool({
     name: "search_abap_objects",

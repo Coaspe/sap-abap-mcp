@@ -54,6 +54,12 @@ import {
   type MermaidDiagramType,
   type MermaidTheme
 } from "./mermaid-tools.js"
+import {
+  normalizeCapabilityError,
+  SapCapabilityRegistry,
+  type SapCapabilityCategory,
+  type SapCapabilityStatus
+} from "./sap-capabilities.js"
 import type { SapClient } from "./sap-client.js"
 import type { SapNewObjectOptions, SapObjectReference } from "./sap-client.js"
 import type { SecretStore } from "./secret-store.js"
@@ -1011,6 +1017,7 @@ function stripHtml(html: string): string {
 
 export class AbapToolService {
   private readonly atcDecorations = new Map<string, unknown[]>()
+  private readonly capabilities = new SapCapabilityRegistry()
   private readonly dataViews = new Map<string, DataViewState>()
   private readonly refactorPlans = new Map<string, RefactorPlan>()
   private readonly gitStages = new Map<string, GitStageState>()
@@ -1025,6 +1032,29 @@ export class AbapToolService {
     private readonly secrets?: SecretStore
   ) {
     registerBdefType()
+  }
+
+  private async executeCapability<T>(
+    connectionId: string,
+    capabilityId: string,
+    endpoint: string,
+    operation: () => Promise<T>
+  ): Promise<{ result: T; capabilityStatusAtExecution: SapCapabilityStatus }> {
+    const capabilityStatusAtExecution = this.capabilities.status(connectionId, capabilityId)
+    if (capabilityStatusAtExecution === "unsupported") {
+      throw new AppError("SAP_CAPABILITY_UNAVAILABLE", `Capability ${capabilityId} is unavailable`, {
+        capabilityId,
+        endpoint
+      })
+    }
+    try {
+      const result = await operation()
+      this.capabilities.observeSuccess(connectionId, capabilityId, endpoint)
+      return { result, capabilityStatusAtExecution }
+    } catch (error) {
+      this.capabilities.observeFailure(connectionId, capabilityId, error, endpoint)
+      throw normalizeCapabilityError(error, capabilityId, endpoint)
+    }
   }
 
   private cachePlan(plan: Omit<RefactorPlan, "id" | "expiresAt">): RefactorPlan {
@@ -1221,6 +1251,25 @@ export class AbapToolService {
   async getSapSystemInfo(connectionId: string, includeComponents: boolean) {
     const client = await this.connections.getClient(connectionId)
     return client.getSystemInfo(includeComponents)
+  }
+
+  async getSapCapabilities(
+    connectionId: string,
+    category?: SapCapabilityCategory,
+    includeEvidence = true
+  ) {
+    const client = await this.connections.getClient(connectionId)
+    const discovery = await client.getAdtDiscovery()
+    const capabilities = this.capabilities.list(connectionId, JSON.stringify(discovery), category)
+    return {
+      connectionId: connectionId.trim().toUpperCase(),
+      generatedAt: new Date().toISOString(),
+      adapterVersion: "abap-adt-api@8.4.1",
+      systemMetadata: await client.getSystemInfo(false),
+      capabilities: includeEvidence
+        ? capabilities
+        : capabilities.map(({ evidence, ...item }) => item)
+    }
   }
 
   async inspectCode(input: InspectCodeInput) {

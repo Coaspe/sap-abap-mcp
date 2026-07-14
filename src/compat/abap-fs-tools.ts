@@ -57,7 +57,8 @@ export const EXTENDED_TOOL_NAMES = [
   "manage_abap_versions",
   "compare_abap_systems",
   "get_abap_dependency_graph",
-  "run_sap_transaction"
+  "run_sap_transaction",
+  "get_sap_capabilities"
 ] as const
 
 export const IMPLEMENTED_TOOL_NAMES = [
@@ -97,7 +98,8 @@ export const ABAP_MCP_TOOLSETS: Record<
     "abap_fs_documentation",
     "get_abap_sql_syntax",
     "get_abap_diagnostics",
-    "inspect_abap_code"
+    "inspect_abap_code",
+    "get_sap_capabilities"
   ],
   write: [
     "create_object_programmatically",
