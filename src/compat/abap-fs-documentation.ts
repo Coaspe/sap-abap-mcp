@@ -19,11 +19,13 @@ const TOOL_GROUPS = {
   "Repository read and navigation": [
     "search_abap_objects", "get_abap_object_lines", "search_abap_object_lines",
     "get_abap_object_info", "get_batch_lines", "get_object_by_uri", "find_where_used",
-    "get_abap_object_url", "get_abap_object_workspace_uri", "open_object", "inspect_abap_code"
+    "get_abap_object_url", "get_abap_object_workspace_uri", "open_object", "inspect_abap_code",
+    "get_abap_dependency_graph", "compare_abap_systems"
   ],
   "Repository write and activation": [
     "create_object_programmatically", "replace_string_in_abap_object", "get_abap_diagnostics",
-    "abap_activate", "manage_text_elements", "create_test_include"
+    "abap_activate", "manage_text_elements", "create_test_include", "refactor_abap_code",
+    "manage_abapgit", "manage_rap_generator", "manage_abap_versions"
   ],
   "Quality and lifecycle": [
     "run_atc_analysis", "get_atc_decorations", "run_unit_tests", "get_version_history",
@@ -31,9 +33,9 @@ const TOOL_GROUPS = {
   ],
   "Data and reference": ["execute_data_query", "get_abap_sql_syntax", "abap_fs_documentation"],
   "Runtime operations": [
-    "run_abap_application", "abap_debug_session", "abap_debug_breakpoint", "abap_debug_step",
-    "abap_debug_variable", "abap_debug_stack", "abap_debug_status", "analyze_abap_dumps",
-    "analyze_abap_traces", "manage_heartbeat"
+    "run_abap_application", "run_sap_transaction", "abap_debug_session", "abap_debug_breakpoint",
+    "abap_debug_step", "abap_debug_variable", "abap_debug_stack", "abap_debug_status",
+    "analyze_abap_dumps", "analyze_abap_traces", "manage_heartbeat"
   ],
   "Artifacts": [
     "create_mermaid_diagram", "validate_mermaid_syntax", "get_mermaid_documentation",

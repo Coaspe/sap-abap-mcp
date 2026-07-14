@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import test from "node:test"
 import {
   ABAP_MCP_TOOLSETS,
@@ -89,11 +90,55 @@ test("bundled documentation states exact parity, verification, and runtime bound
   assert.deepEqual(groupTools("Repository read and navigation"), [
     "search_abap_objects", "get_abap_object_lines", "search_abap_object_lines",
     "get_abap_object_info", "get_batch_lines", "get_object_by_uri", "find_where_used",
-    "get_abap_object_url", "get_abap_object_workspace_uri", "open_object", "inspect_abap_code"
+    "get_abap_object_url", "get_abap_object_workspace_uri", "open_object", "inspect_abap_code",
+    "get_abap_dependency_graph", "compare_abap_systems"
   ])
   assert.deepEqual(groupTools("Runtime operations"), [
-    "run_abap_application", "abap_debug_session", "abap_debug_breakpoint", "abap_debug_step",
-    "abap_debug_variable", "abap_debug_stack", "abap_debug_status", "analyze_abap_dumps",
-    "analyze_abap_traces", "manage_heartbeat"
+    "run_abap_application", "run_sap_transaction", "abap_debug_session", "abap_debug_breakpoint",
+    "abap_debug_step", "abap_debug_variable", "abap_debug_stack", "abap_debug_status",
+    "analyze_abap_dumps", "analyze_abap_traces", "manage_heartbeat"
   ])
+
+  const toolSection = content.split("## Tool groups\n\n")[1]?.split("## Recommended workflow")[0] ?? ""
+  const documentedTools = [...toolSection.matchAll(/^- (.+)$/gm)].map(match => match[1]!)
+  assert.equal(documentedTools.length, 52)
+  assert.equal(new Set(documentedTools).size, 52)
+  assert.deepEqual([...documentedTools].sort(), [...IMPLEMENTED_TOOL_NAMES].sort())
+})
+
+test("published guides preserve current counts and live acceptance safety boundaries", () => {
+  const readme = readFileSync("README.md", "utf8")
+  const acceptance = readFileSync("docs/live-sap-acceptance.md", "utf8")
+
+  assert.match(readme, /complete 52-tool schema/)
+  assert.doesNotMatch(readme, /50-tool|eight grouped|eight extension|all 42 MCP tools/)
+  assert.match(acceptance, /"status": "<supported\|unsupported\|unverified>"/)
+  assert.match(
+    acceptance,
+    /Choose `supported` only after the relevant operation succeeds and a fresh `get_sap_capabilities` read for the same connection reports `supported`\./
+  )
+  assert.match(
+    acceptance,
+    /`get_sap_system_info\.environment` is the configured MCP profile environment, not an independently detected SAP production flag\./
+  )
+  assert.match(acceptance, /returned `environment` is `production`/)
+  assert.doesNotMatch(acceptance, /SAP reports a production system/)
+
+  for (const tool of [
+    "create_object_programmatically", "abap_activate", "run_abap_application",
+    "inspect_abap_code", "refactor_abap_code"
+  ]) {
+    assert.match(acceptance, new RegExp("arguments (?:object )?for `" + tool + "`"))
+  }
+  assert.match(acceptance, /`MCP_CLASS_RUNNER_OK`/)
+  assert.doesNotMatch(acceptance, /MCP_CLASSRUN_OK/)
+  assert.match(acceptance, /The execute response's `capabilityStatusAtExecution` is the pre-call status/)
+  assert.match(acceptance, /`success` is `true`, `error` is empty, and output contains `MCP_REPL_OK`/)
+
+  const classesCleanup = acceptance.indexOf("Delete the three classes first")
+  const bdefCleanup = acceptance.indexOf("Next, delete the `BDEF/BDO` behavior definition")
+  const ddlsCleanup = acceptance.indexOf("Only after the behavior definition is gone, delete the `DDLS`")
+  assert.ok(classesCleanup >= 0 && classesCleanup < bdefCleanup && bdefCleanup < ddlsCleanup)
+  assert.match(acceptance, /Reinspect the dedicated transport at the end/)
+  assert.match(acceptance, /acceptance cannot pass until the final transport state is recorded/)
 })

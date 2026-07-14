@@ -13,22 +13,19 @@ Use all of the following controls together:
 - Source: use root CDS and behavior-definition source that was prepared and syntax-checked for the exact SAP release. Do not invent or adapt RAP syntax during acceptance.
 - Optional snippet prerequisite: class `ZCL_ABAP_REPL` and an active SICF service at `/sap/bc/z_abap_repl`.
 
-Stop before any mutation if SAP reports a production system, if the resolved package is not `Z_MCP_ACCEPTANCE`, or if the transport contains unrelated objects.
+`get_sap_system_info.environment` is the configured MCP profile environment, not an independently detected SAP production flag. Stop before any mutation when the returned `environment` is `production`, when the resolved package is not `Z_MCP_ACCEPTANCE`, or when the transport contains unrelated objects.
 
 Use this exact class-runner fixture source for `ZCL_MCP_RUNNER`:
 
 ```abap
-CLASS zcl_mcp_runner DEFINITION
-  PUBLIC
-  FINAL
-  CREATE PUBLIC.
+CLASS zcl_mcp_runner DEFINITION PUBLIC FINAL CREATE PUBLIC.
   PUBLIC SECTION.
     INTERFACES if_oo_adt_classrun.
 ENDCLASS.
 
 CLASS zcl_mcp_runner IMPLEMENTATION.
   METHOD if_oo_adt_classrun~main.
-    out->write( 'MCP_CLASSRUN_OK' ).
+    out->write( `MCP_CLASS_RUNNER_OK` ).
   ENDMETHOD.
 ENDCLASS.
 ```
@@ -42,17 +39,17 @@ Store one sanitized record per step using exactly these fields:
   "connection": "DEV100",
   "sapRelease": "<SAP_RELEASE>",
   "capability": "<CAPABILITY_ID>",
-  "status": "supported",
+  "status": "<supported|unsupported|unverified>",
   "timestamp": "<ISO-8601_TIMESTAMP>",
   "sanitizedResult": {}
 }
 ```
 
-Remove SAP users, host names, cookies, authorization values, tokens, CSRF values, and session identifiers from `sanitizedResult`. Capability observations are held in process memory and belong to the selected connection, so capture evidence in the same server process in which the operation ran.
+Remove SAP users, host names, cookies, authorization values, tokens, CSRF values, and session identifiers from `sanitizedResult`. Capability observations are held in process memory and belong to the selected connection, so capture evidence in the same server process in which the operation ran. Choose `supported` only after the relevant operation succeeds and a fresh `get_sap_capabilities` read for the same connection reports `supported`. Otherwise record the observed `unverified` or `unsupported` status.
 
 ## 1. Establish the system and capability baseline
 
-Call `get_sap_system_info`:
+Use this arguments object for `get_sap_system_info`:
 
 ```json
 {
@@ -61,7 +58,7 @@ Call `get_sap_system_info`:
 }
 ```
 
-Confirm the expected development system, client, and SAP release. Then call `get_sap_capabilities`:
+Confirm the expected development profile environment, client, and SAP release. Then use this arguments object for `get_sap_capabilities`:
 
 ```json
 {
@@ -74,7 +71,7 @@ Newly implemented SAP-dependent capabilities must be treated as `unverified` unl
 
 ## 2. Create and activate the behavior definition
 
-Use the pre-recorded, release-valid behavior source in place of the placeholder. Use the actual dedicated transport in place of `DEVK900999`.
+Use the pre-recorded, release-valid behavior source in place of the placeholder. Use the actual dedicated transport in place of `DEVK900999`. The following JSON is the arguments object for `create_object_programmatically`.
 
 ```json
 {
@@ -94,11 +91,11 @@ Use the pre-recorded, release-valid behavior source in place of the placeholder.
 }
 ```
 
-Accept this step only if the returned repository object type is `BDEF/BDO`, diagnostics contain no errors, activation succeeds, and `repository.create.bdef` becomes `supported` for `DEV100`. A created object followed by a source or activation failure is not a pass; preserve the returned manual-cleanup details.
+Accept the operation result only if the returned repository object type is `BDEF/BDO`, diagnostics contain no errors, and activation succeeds. Then re-run `get_sap_capabilities` with `includeEvidence: true` for `DEV100`; accept capability support only when that fresh read reports `repository.create.bdef` as `supported`. A created object followed by a source or activation failure is not a pass; preserve the returned manual-cleanup details.
 
 ## 3. Activate two objects in one SAP request
 
-Add a harmless inactive comment to each of `ZCL_MCP_ACTIVATE_A` and `ZCL_MCP_ACTIVATE_B`, without changing behavior. Confirm both inactive versions belong to the dedicated transport, then call `abap_activate` once:
+Add a harmless inactive comment to each of `ZCL_MCP_ACTIVATE_A` and `ZCL_MCP_ACTIVATE_B`, without changing behavior. Confirm both inactive versions belong to the dedicated transport. The JSON below is the arguments object for `abap_activate`; call it once.
 
 ```json
 {
@@ -110,11 +107,11 @@ Add a harmless inactive comment to each of `ZCL_MCP_ACTIVATE_A` and `ZCL_MCP_ACT
 }
 ```
 
-Accept this step only when `status` is `complete`, both object outcomes are `activated`, and `repository.activate.batch` becomes `supported`. Preserve all returned activation messages in the sanitized evidence. A partial or ambiguous result is not a pass.
+Accept the operation result only when `status` is `complete` and both object outcomes are `activated`. Then re-run `get_sap_capabilities` with `includeEvidence: true` for `DEV100`; accept capability support only when that fresh read reports `repository.activate.batch` as `supported`. Preserve all returned activation messages in the sanitized evidence. A partial or ambiguous result is not a pass.
 
 ## 4. Run the class fixture with one-use confirmation
 
-Preview the class execution:
+Both JSON blocks in this step are arguments for `run_abap_application`. Preview the class execution:
 
 ```json
 {
@@ -135,11 +132,11 @@ Copy the fresh response values into the execute request without editing them:
 }
 ```
 
-Accept only output containing `MCP_CLASSRUN_OK` and a `supported` observation for `execution.class_runner`. Send the identical execute request a second time and require it to fail because the plan was already consumed. Never create a second preview merely to make that replay check pass.
+Accept the execution result only when output contains `MCP_CLASS_RUNNER_OK`. The execute response's `capabilityStatusAtExecution` is the pre-call status and may be `unverified` on the first successful call. After that success, call `get_sap_capabilities` with `includeEvidence: true` for `DEV100` and require the fresh result to report `execution.class_runner` as `supported`. Then send the identical execute request a second time and require it to fail because the plan was already consumed. Never create a second preview merely to make that replay check pass.
 
 ## 5. Check and run the fixed ABAP REPL contract
 
-Call the health action first:
+All three JSON blocks in this step are arguments for `run_abap_application`. Call the health action first:
 
 ```json
 {
@@ -169,18 +166,18 @@ Execute it with the fresh values returned by that preview:
 }
 ```
 
-Accept only output containing `MCP_REPL_OK` and a `supported` observation for `execution.abap_repl`. The adapter uses only `/sap/bc/z_abap_repl`; do not substitute or probe fallback routes. Separately verify from configuration and the recorded health response that a production profile, or a response with `health.production` equal to `true`, is blocked before any snippet POST. Do not change a live system to production to test this guard.
+Accept the execution result only when `success` is `true`, `error` is empty, and output contains `MCP_REPL_OK`. The execute response's `capabilityStatusAtExecution` is the pre-call status and may be `unverified` on the first successful call. After that success, call `get_sap_capabilities` with `includeEvidence: true` for `DEV100` and require the fresh result to report `execution.abap_repl` as `supported`. The adapter uses only `/sap/bc/z_abap_repl`; do not substitute or probe fallback routes. Separately verify from the configured MCP profile and the recorded health response that a production profile, or a response with `health.production` equal to `true`, is blocked before any snippet POST. Do not change a live system to production to test this guard.
 
 ## 6. Inspect detailed semantic information
 
-Use the active source of `ZCL_MCP_RUNNER` and issue these four bounded reads:
+Use the active source of `ZCL_MCP_RUNNER`. All four JSON blocks in this step are arguments for `inspect_abap_code` and issue bounded reads:
 
 ```json
 {
   "action": "completion_element",
   "fileUri": "adt://dev100/sap/bc/adt/oo/classes/zcl_mcp_runner/source/main",
   "connectionId": "DEV100",
-  "line": 11,
+  "line": 8,
   "column": 9,
   "startIndex": 0,
   "maxResults": 20
@@ -192,7 +189,7 @@ Use the active source of `ZCL_MCP_RUNNER` and issue these four bounded reads:
   "action": "documentation",
   "fileUri": "adt://dev100/sap/bc/adt/oo/classes/zcl_mcp_runner/source/main",
   "connectionId": "DEV100",
-  "line": 11,
+  "line": 8,
   "column": 9,
   "startIndex": 0,
   "maxResults": 20
@@ -205,7 +202,7 @@ Use the active source of `ZCL_MCP_RUNNER` and issue these four bounded reads:
   "fileUri": "adt://dev100/sap/bc/adt/oo/classes/zcl_mcp_runner/source/main",
   "connectionId": "DEV100",
   "line": 1,
-  "column": 0,
+  "column": 6,
   "superTypes": true,
   "startIndex": 0,
   "maxResults": 20
@@ -218,7 +215,7 @@ Use the active source of `ZCL_MCP_RUNNER` and issue these four bounded reads:
   "fileUri": "adt://dev100/sap/bc/adt/oo/classes/zcl_mcp_runner/source/main",
   "connectionId": "DEV100",
   "line": 1,
-  "column": 0,
+  "column": 6,
   "startIndex": 0,
   "maxResults": 20
 }
@@ -228,7 +225,7 @@ Accept the corresponding results only when completion and documentation use thei
 
 ## 7. Clean up only the disposable fixture
 
-Before each deletion, re-check that the object resolves to `Z_MCP_ACCEPTANCE` and that the dedicated transport contains no unrelated object. For each deletable class and the root CDS data definition, obtain a fresh `preview_delete` plan, then execute only its exact returned confirmation:
+Before each deletion, re-check that the object is one of the exact named fixture objects, resolves to package `Z_MCP_ACCEPTANCE`, and is recorded in the dedicated transport without unrelated objects. Both JSON blocks below are arguments for `refactor_abap_code`. For every object handled by this tool, obtain a fresh `preview_delete` plan and execute only its exact returned confirmation:
 
 ```json
 {
@@ -247,6 +244,12 @@ Before each deletion, re-check that the object resolves to `Z_MCP_ACCEPTANCE` an
 }
 ```
 
-Use a separate fresh preview for `ZCL_MCP_ACTIVATE_A`, `ZCL_MCP_ACTIVATE_B`, `ZCL_MCP_RUNNER`, and the `DDLS` data definition `ZI_MCP_ACCEPTANCE`. The `DDLS` data definition and `BDEF/BDO` behavior definition share the logical name `ZI_MCP_ACCEPTANCE` but are distinct repository object types; verify the type before every action. Clean up the `BDEF/BDO` object through the release-appropriate manual ADT path and record the result. Do not auto-delete it through an unverified generic path.
+Delete the three classes first. Use a separate fresh preview and confirmation for `ZCL_MCP_ACTIVATE_A`, `ZCL_MCP_ACTIVATE_B`, and `ZCL_MCP_RUNNER`.
 
-Pass this acceptance only when every required step has sanitized evidence and every disposable repository object is accounted for during cleanup. A missing prerequisite, authorization failure, absent endpoint, unexpected response shape, or incomplete cleanup leaves the relevant capability `unverified` or `unsupported`; it must never be reported as live-supported.
+Next, delete the `BDEF/BDO` behavior definition `ZI_MCP_ACCEPTANCE` through the release-appropriate manual ADT path before deleting its dependent data definition. Record the exact repository type, name, and result. Do not auto-delete it through an unverified generic path.
+
+Only after the behavior definition is gone, delete the `DDLS` data definition `ZI_MCP_ACCEPTANCE` with a fresh `refactor_abap_code` preview and exact confirmation. The `DDLS` data definition and `BDEF/BDO` behavior definition share a logical name but are distinct repository object types; verify the type before every action.
+
+Reinspect the dedicated transport at the end. Require it to contain only the fixture's creation and deletion entries and no unrelated objects, then record its final disposition. If SAP reports that it is empty and safely deletable, delete it through the confirmed transport workflow. If cleanup or deletion entries must be transported, retain or release it only through the transport owner's approved process. Never leave the transport in an unknown state, and never delete changes still needed for cleanup or transport. This acceptance cannot pass until the final transport state is recorded.
+
+Pass this acceptance only when every required step has sanitized evidence and every disposable repository object is accounted for during cleanup. A missing prerequisite, authorization failure, absent endpoint, unexpected response shape, incomplete cleanup, or unrecorded transport disposition leaves the relevant capability `unverified` or `unsupported`; it must never be reported as live-supported.
