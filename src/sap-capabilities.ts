@@ -22,6 +22,10 @@ export interface SapCapabilityRecord {
   lastObservedAt: string | null
 }
 
+// Bound each process-memory evidence entry to 512 UTF-8 bytes.
+const MAX_EVIDENCE_BYTES = 512
+const EVIDENCE_TRUNCATION_MARKER = "[TRUNCATED]"
+
 interface SapCapabilityDefinition {
   id: string
   category: SapCapabilityCategory
@@ -130,6 +134,18 @@ const DEFINITIONS_BY_ID = new Map(
   CAPABILITY_DEFINITIONS.map(definition => [normalizeId(definition.id), definition])
 )
 
+function capabilityDefinition(capabilityId: string): SapCapabilityDefinition {
+  const definition = DEFINITIONS_BY_ID.get(normalizeId(capabilityId))
+  if (!definition) {
+    throw new AppError(
+      "SAP_CAPABILITY_UNAVAILABLE",
+      `Unknown SAP capability: ${capabilityId}`,
+      { capabilityId }
+    )
+  }
+  return definition
+}
+
 function numericHttpStatus(error: unknown): number | undefined {
   if (typeof error !== "object" || error === null) return undefined
 
@@ -139,6 +155,30 @@ function numericHttpStatus(error: unknown): number | undefined {
   }
   if ("status" in error && typeof error.status === "number") return error.status
   return undefined
+}
+
+function sanitizeSensitiveText(value: string): string {
+  return value.replace(
+    /(^|[^a-z0-9_-])(["']?)(access_token|refresh_token|csrf[-_]token|session_id|password|authorization|token|cookie|csrf|session)\2(\s*[:=]\s*)(?:(["'])([\s\S]*?)\5|((?:Bearer\s+)?[^\s,;&#}\]]+))/gi,
+    (_match, prefix, labelQuote, label, delimiter, valueQuote) =>
+      `${prefix}${labelQuote}${label}${labelQuote}${delimiter}` +
+      (valueQuote ? `${valueQuote}[REDACTED]${valueQuote}` : "[REDACTED]")
+  )
+}
+
+function truncateEvidence(value: string): string {
+  if (Buffer.byteLength(value, "utf8") <= MAX_EVIDENCE_BYTES) return value
+
+  const markerBytes = Buffer.byteLength(EVIDENCE_TRUNCATION_MARKER, "utf8")
+  let bytes = 0
+  let truncated = ""
+  for (const character of value) {
+    const characterBytes = Buffer.byteLength(character, "utf8")
+    if (bytes + characterBytes + markerBytes > MAX_EVIDENCE_BYTES) break
+    truncated += character
+    bytes += characterBytes
+  }
+  return truncated + EVIDENCE_TRUNCATION_MARKER
 }
 
 function sanitizedErrorMessage(error: unknown): string {
@@ -151,10 +191,7 @@ function sanitizedErrorMessage(error: unknown): string {
         ? error
         : "SAP operation failed"
 
-  return message.replace(
-    /\b(password|authorization|token|cookie|csrf|session)\b(\s*[:=]\s*)([^,;\r\n]*)/gi,
-    "$1$2[REDACTED]"
-  )
+  return sanitizeSensitiveText(message)
 }
 
 export function normalizeCapabilityError(
@@ -177,7 +214,7 @@ export function normalizeCapabilityError(
     `SAP capability ${capabilityId} failed: ${sanitizedErrorMessage(error)}`,
     {
       capabilityId,
-      endpoint,
+      endpoint: sanitizeSensitiveText(endpoint),
       ...(httpStatus === undefined ? {} : { httpStatus })
     }
   )
@@ -195,6 +232,7 @@ export class SapCapabilityRegistry {
 
   observeSuccess(connectionId: string, capabilityId: string, evidence: string): void {
     this.update(connectionId, capabilityId, observation => {
+      if (observation.system === "not_advertised") delete observation.system
       observation.succeeded = true
       observation.authorization = "allowed"
       this.addEvidence(observation, `success:${evidence}`)
@@ -232,16 +270,7 @@ export class SapCapabilityRegistry {
   }
 
   status(connectionId: string, capabilityId: string): SapCapabilityStatus {
-    const definition = DEFINITIONS_BY_ID.get(normalizeId(capabilityId))
-    if (!definition) {
-      throw new AppError(
-        "SAP_CAPABILITY_UNAVAILABLE",
-        `Unknown SAP capability: ${capabilityId}`,
-        { capabilityId }
-      )
-    }
-
-    return this.record(connectionId, definition).status
+    return this.record(connectionId, capabilityDefinition(capabilityId)).status
   }
 
   observeDiscovery(connectionId: string, discoveryText: string): void {
@@ -270,8 +299,9 @@ export class SapCapabilityRegistry {
     capabilityId: string,
     apply: (observation: SapCapabilityObservation) => void
   ): void {
+    const definition = capabilityDefinition(capabilityId)
     const connectionKey = normalizeId(connectionId)
-    const capabilityKey = normalizeId(capabilityId)
+    const capabilityKey = normalizeId(definition.id)
     let connectionObservations = this.observations.get(connectionKey)
     if (!connectionObservations) {
       connectionObservations = new Map()
@@ -289,9 +319,10 @@ export class SapCapabilityRegistry {
   }
 
   private addEvidence(observation: SapCapabilityObservation, evidence: string): void {
-    const existingIndex = observation.evidence.indexOf(evidence)
+    const retainedEvidence = truncateEvidence(sanitizeSensitiveText(evidence))
+    const existingIndex = observation.evidence.indexOf(retainedEvidence)
     if (existingIndex >= 0) observation.evidence.splice(existingIndex, 1)
-    observation.evidence.push(evidence)
+    observation.evidence.push(retainedEvidence)
     if (observation.evidence.length > 20) {
       observation.evidence.splice(0, observation.evidence.length - 20)
     }
