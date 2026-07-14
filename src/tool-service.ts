@@ -40,6 +40,7 @@ import {
   normalizeAbapGitRepositoryUrl,
   type AbapGitCredentials
 } from "./abapgit-credentials.js"
+import { registerBdefType } from "./bdef-creator.js"
 import type { ConnectionSummary } from "./connection-manager.js"
 import {
   readAbapFsDocumentation,
@@ -1022,7 +1023,9 @@ export class AbapToolService {
   constructor(
     private readonly connections: ConnectionProvider,
     private readonly secrets?: SecretStore
-  ) {}
+  ) {
+    registerBdefType()
+  }
 
   private cachePlan(plan: Omit<RefactorPlan, "id" | "expiresAt">): RefactorPlan {
     const now = Date.now()
