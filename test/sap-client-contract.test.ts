@@ -293,3 +293,64 @@ test("transport, abapGit, and RAP wrappers preserve upstream argument order", as
     { method: "unPublishServiceBinding", args: ["ZUI_DEMO", "1"] }
   ])
 })
+
+test("activation, semantic detail, and class execution wrappers preserve ADT contracts", async () => {
+  const calls: Array<{ method: string; args: unknown[] }> = []
+  const fakeAdt: any = {
+    activate: async (...args: unknown[]) => {
+      calls.push({ method: "activate", args })
+      return { success: true, messages: [], inactive: [] }
+    },
+    codeCompletionElement: async (...args: unknown[]) => {
+      calls.push({ method: "codeCompletionElement", args })
+      return ""
+    },
+    abapDocumentation: async (...args: unknown[]) => {
+      calls.push({ method: "abapDocumentation", args })
+      return ""
+    },
+    typeHierarchy: async (...args: unknown[]) => {
+      calls.push({ method: "typeHierarchy", args })
+      return []
+    },
+    classComponents: async (...args: unknown[]) => {
+      calls.push({ method: "classComponents", args })
+      return {
+        "adtcore:name": "ZCL_RUNNER",
+        "adtcore:type": "CLAS/OC",
+        links: [],
+        visibility: "public",
+        "xml:base": "",
+        components: []
+      }
+    },
+    runClass: async (...args: unknown[]) => {
+      calls.push({ method: "runClass", args })
+      return ""
+    }
+  }
+  fakeAdt.statelessClone = fakeAdt
+  const client = clientWithAdt(fakeAdt)
+  const inactiveObject = {
+    "adtcore:uri": "/object",
+    "adtcore:type": "CLAS/OC",
+    "adtcore:name": "ZCL_RUNNER",
+    "adtcore:parentUri": ""
+  }
+
+  await client.activateObjects([inactiveObject])
+  await client.getCodeCompletionElement("/source", "WRITE x.", 7, 3)
+  await client.getAbapDocumentation("/object", "WRITE x.", 7, 3)
+  await client.getTypeHierarchy("/source", "WRITE x.", 7, 3, true)
+  await client.getClassComponents("/object")
+  await client.runClass("zcl_runner")
+
+  assert.deepEqual(calls, [
+    { method: "activate", args: [[inactiveObject], true] },
+    { method: "codeCompletionElement", args: ["/source", "WRITE x.", 7, 3] },
+    { method: "abapDocumentation", args: ["/object", "WRITE x.", 7, 3, "EN"] },
+    { method: "typeHierarchy", args: ["/source", "WRITE x.", 7, 3, true] },
+    { method: "classComponents", args: ["/object"] },
+    { method: "runClass", args: ["ZCL_RUNNER"] }
+  ])
+})
