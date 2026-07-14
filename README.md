@@ -7,7 +7,7 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current release: `0.3.0`
+- Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
 - Authentication: SAP Basic Auth
@@ -78,56 +78,52 @@ node --version
 
 ## Quick start on Windows
 
-### 1. Add an SAP profile
+### 1. Add an SAP profile and log in
 
-The following profile permits writes only to two dedicated packages. Use your real values and keep production profiles read-only.
+Use your real values and keep production profiles read-only. Omitting `--packages` allows writes to all packages; add it only when you want to restrict writes to specific packages.
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 profile add DEV100 `
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 `
   --url "https://sap-dev.company.com" `
   --client 100 `
   --username "DEV_USER" `
   --environment development `
-  --packages "Z_MCP_TEST,Z_MCP_TEST2"
+  --login
 ```
 
-PowerShell also accepts the command on one line. The profile ID `DEV100` is a local alias.
+PowerShell also accepts the command on one line. The profile ID `DEV100` is a local alias. When `SAP password:` appears, enter the password and press Enter; the input remains hidden. The profile and password are stored only after the MCP validates the credentials against SAP.
 
-Omit `--packages` for a read-only profile. An empty package allowlist denies every repository write.
+To restrict writes, add a comma-separated allowlist such as `--packages "Z_MCP_TEST,Z_MCP_TEST2"`. An empty allowlist permits every package, while production profiles still reject writes.
 
-### 2. Store the SAP password
+The password is stored with Windows DPAPI and is never written to the profile file. For non-interactive environments, pipe the password and add `--password-stdin` after `--login`.
 
-```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 auth login DEV100
-```
-
-The password is entered without echo and stored with Windows DPAPI. It is never written to the profile file.
-
-### 3. Verify ADT connectivity
+### 2. Verify ADT connectivity
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 doctor DEV100
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest doctor DEV100
 ```
 
 A successful response contains `"ok": true`.
 
-### 4. Register the MCP server
+### 3. Register the MCP server
 
 Codex CLI:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 serve --profile DEV100
+codex mcp add sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
 ```
 
 Claude Code:
 
 ```powershell
-claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 serve --profile DEV100
+claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
 ```
 
 Restart the client after registration. Use `codex mcp list`, `claude mcp get sap-abap`, or the client's `/mcp` command to verify the connection.
 
-### 5. Start with read-only requests
+The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.1.0` will automatically run `0.3.0` after `0.3.0` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
+
+### 4. Start with read-only requests
 
 ```text
 List the configured SAP systems and verify DEV100.
@@ -141,16 +137,15 @@ Build a depth-1 dependency graph for ZCL_DEMO.
 Use `npx` instead of `npx.cmd`:
 
 ```bash
-npx -y @coaspe/sap-abap-mcp@0.3.0 profile add DEV100 \
+npx --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 \
   --url "https://sap-dev.company.com" \
   --client 100 \
   --username "DEV_USER" \
   --environment development \
-  --packages "Z_MCP_TEST,Z_MCP_TEST2"
+  --login
 
-npx -y @coaspe/sap-abap-mcp@0.3.0 auth login DEV100
-npx -y @coaspe/sap-abap-mcp@0.3.0 doctor DEV100
-codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@0.3.0 serve --profile DEV100
+npx --yes --prefer-online @coaspe/sap-abap-mcp@latest doctor DEV100
+codex mcp add sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
 ```
 
 SAP passwords are stored in macOS Keychain.
@@ -165,8 +160,9 @@ If the `codex` command is not available, add a stdio MCP server in Codex setting
 - Arguments:
 
 ```text
--y
-@coaspe/sap-abap-mcp@0.3.0
+--yes
+--prefer-online
+@coaspe/sap-abap-mcp@latest
 serve
 --profile
 DEV100
@@ -177,7 +173,7 @@ DEV100
 Create one profile per SAP client, for example `DEV100`, `QAS200`, and `PRD100`. To expose all profiles through one MCP server, register `serve` without `--profile`:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 serve
+codex mcp add sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve
 ```
 
 Every SAP-facing tool requires an explicit `connectionId`, which prevents accidental cross-system routing. Cross-system comparison requires the same object to exist in both selected profiles.
@@ -187,7 +183,7 @@ Every SAP-facing tool requires an explicit `connectionId`, which prevents accide
 Public repositories require no additional setup. Store credentials for each private repository URL separately:
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth login DEV100 `
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest abapgit auth login DEV100 `
   --repository-url "https://github.example.com/team/repo.git" `
   --username "GIT_USER"
 ```
@@ -195,10 +191,10 @@ npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth login DEV100 `
 Status and removal:
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth status DEV100 `
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest abapgit auth status DEV100 `
   --repository-url "https://github.example.com/team/repo.git"
 
-npx.cmd -y @coaspe/sap-abap-mcp@0.3.0 abapgit auth logout DEV100 `
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest abapgit auth logout DEV100 `
   --repository-url "https://github.example.com/team/repo.git"
 ```
 
@@ -209,7 +205,7 @@ Credentials are selected by canonical repository URL so credentials for one remo
 Repository-changing operations enforce these rules:
 
 - Profiles marked `production` reject writes.
-- The target package must be present in the profile's `allowedPackages` list.
+- A non-empty `allowedPackages` list restricts writes to those packages; an empty list allows all packages.
 - Packages other than `$TMP` require a transport request.
 - Exact source replacement reads the current source, obtains an SAP lock, rechecks it under the lock, writes, runs syntax diagnostics, optionally activates, and unlocks.
 - Rename, package move, method extraction, quick-fix application, formatting, deletion, and revision restore use a preview plan.
@@ -265,6 +261,7 @@ When reporting a failure, preserve the MCP error code, HTTP status, ADT endpoint
 profile add <id> --url <url> --client <nnn> [--language EN]
     [--environment development|quality|production]
     [--username <user>] [--packages ZPKG1,ZPKG2]
+    [--login [--password-stdin]]
 profile list
 profile remove <id>
 
@@ -291,8 +288,8 @@ Removing a profile also removes its SAP password and stored abapGit credential v
 | `PROFILE_NOT_FOUND` | Run `profile add` again and verify the profile ID. |
 | SAP login fails | Verify URL, client, username, password, VPN, Basic Auth, and ADT activation. |
 | Certificate or connection error | Check the corporate CA, proxy, VPN, and SAP HTTPS endpoint. |
-| Tools are missing | Confirm that the MCP client uses version `0.3.0`, restart it, and inspect `/mcp`. |
-| Writes return `PACKAGE_NOT_ALLOWED` | Add only the dedicated development package to `--packages`. |
+| Tools are missing | Confirm that the MCP command contains `@latest` and `--prefer-online`, restart it, and inspect `/mcp`. |
+| Writes return `PACKAGE_NOT_ALLOWED` | The profile has a non-empty `--packages` restriction; add the target package or remove the restriction. |
 | Writes return `TRANSPORT_REQUIRED` | Supply an open transport for non-local packages. |
 | RAP generator is unavailable | The SAP release or installed components may not expose the RAP generator endpoints. |
 | Private Git access fails | Store credentials for the exact canonical repository URL. |

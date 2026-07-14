@@ -901,7 +901,10 @@ function requireWritablePackage(client: SapClient, packageName?: string): string
       "The target package could not be determined, so the write was refused"
     )
   }
-  if (!client.profile.allowedPackages.includes(normalizedPackage)) {
+  if (
+    client.profile.allowedPackages.length > 0 &&
+    !client.profile.allowedPackages.includes(normalizedPackage)
+  ) {
     throw new AppError(
       "PACKAGE_NOT_ALLOWED",
       `Package ${normalizedPackage} is not in the ${client.profile.id} write allowlist`,

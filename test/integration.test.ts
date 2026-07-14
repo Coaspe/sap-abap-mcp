@@ -993,6 +993,14 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
       environment: "development", authType: "basic", username: "DEVELOPER",
       allowedPackages: []
     }).createObjectProgrammatically(objectInput),
+    "TRANSPORT_REQUIRED"
+  )
+  await rejectsCode(
+    makeService({
+      id: "DEV100", url: "https://sap.example.test", client: "100", language: "EN",
+      environment: "development", authType: "basic", username: "DEVELOPER",
+      allowedPackages: ["Z_OTHER"]
+    }).createObjectProgrammatically(objectInput),
     "PACKAGE_NOT_ALLOWED"
   )
   const developmentService = makeService({
