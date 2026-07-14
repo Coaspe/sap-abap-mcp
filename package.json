@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Coaspe/sap-abap-mcp.git"
+    "url": "git+https://github.com/Coaspe/sap-abap-mcp.git"
   },
   "license": "MIT",
   "mcpName": "io.github.coaspe/sap-abap-mcp",

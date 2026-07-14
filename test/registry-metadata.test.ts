@@ -13,7 +13,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
     type: "git",
-    url: "https://github.com/Coaspe/sap-abap-mcp.git"
+    url: "git+https://github.com/Coaspe/sap-abap-mcp.git"
   })
   assert.equal(packageJson.homepage, "https://github.com/Coaspe/sap-abap-mcp#readme")
   assert.equal(packageJson.bugs.url, "https://github.com/Coaspe/sap-abap-mcp/issues")
