@@ -4,3 +4,4 @@ dist/
 .DS_Store
 .sap-abap/
 .sap-abap-mcp.json
+.worktrees/
