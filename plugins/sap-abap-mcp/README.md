@@ -43,4 +43,6 @@ Install **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace in th
 
 Every SAP-facing tool requires an explicit `connectionId`. Live SAP behavior depends on the selected SAP release, configuration, and authorizations.
 
+Tool results through 40 KiB are normally returned unchanged. Larger JSON results use a `compact-v1` envelope with a structural summary, exact preview, temporary `resultId`, and `nextOffset`. Repetitive `search_abap_object_lines` results switch at 16 KiB and merge overlapping context in the summary. Use the summary first; call `read_deferred_result` only when exact omitted data is needed. The local in-memory result expires after ten minutes, is never written to disk, and does not repeat the SAP request.
+
 Profiles are stored in `%APPDATA%\sap-abap-mcp\profiles.json` on Windows and `$XDG_CONFIG_HOME/sap-abap-mcp/profiles.json` or `~/.config/sap-abap-mcp/profiles.json` on macOS or Linux. They are outside the plugin cache and survive plugin updates. Passwords are stored separately with Windows DPAPI or macOS Keychain; Linux reads them only from the process environment.

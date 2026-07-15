@@ -13,6 +13,7 @@ export type DocumentationAction =
   | "search_settings"
 
 const TOOL_GROUPS = {
+  "MCP result retrieval": ["read_deferred_result"],
   "Connection and discovery": [
     "get_connected_systems", "get_sap_system_info", "get_sap_capabilities", "adt_discovery_export"
   ],
@@ -74,6 +75,8 @@ const DOCUMENTATION = [
   "- execute_data_query returns bounded JSON or writes CSV/XLSX instead of opening a grid.",
   "- create_test_documentation writes a DOCX file to a temporary output directory.",
   "- adt_discovery_export returns discovery JSON through MCP.",
+  "- read_deferred_result continues oversized JSON results from an in-memory ten-minute cache.",
+  "- compact-v1 summaries preserve exact results by ID while merging repeated search context and summarizing large collections.",
   "",
   "## Tool groups",
   "",

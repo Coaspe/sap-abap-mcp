@@ -1,3 +1,5 @@
+import { DEFERRED_RESULT_TOOL_NAME } from "../deferred-results.js"
+
 export const ABAP_FS_BASELINE = {
   repository: "https://github.com/marcellourbani/vscode_abap_remote_fs",
   version: "2.6.5",
@@ -55,6 +57,7 @@ export const ABAP_FS_UPSTREAM_MCP_TOOL_NAMES = [
 ] as const
 
 export const EXTENDED_TOOL_NAMES = [
+  DEFERRED_RESULT_TOOL_NAME,
   "inspect_abap_code",
   "refactor_abap_code",
   "manage_abapgit",
@@ -89,6 +92,7 @@ export const ABAP_MCP_TOOLSETS: Record<
   readonly typeof IMPLEMENTED_TOOL_NAMES[number][]
 > = {
   core: [
+    DEFERRED_RESULT_TOOL_NAME,
     "get_connected_systems",
     "get_sap_system_info",
     "search_abap_objects",
@@ -108,6 +112,7 @@ export const ABAP_MCP_TOOLSETS: Record<
     "get_sap_capabilities"
   ],
   write: [
+    DEFERRED_RESULT_TOOL_NAME,
     "create_object_programmatically",
     "manage_text_elements",
     "create_test_include",
@@ -120,6 +125,7 @@ export const ABAP_MCP_TOOLSETS: Record<
     "run_abap_application"
   ],
   analysis: [
+    DEFERRED_RESULT_TOOL_NAME,
     "execute_data_query",
     "run_atc_analysis",
     "get_atc_decorations",
@@ -130,6 +136,7 @@ export const ABAP_MCP_TOOLSETS: Record<
     "get_abap_dependency_graph"
   ],
   debug: [
+    DEFERRED_RESULT_TOOL_NAME,
     "abap_debug_session",
     "abap_debug_breakpoint",
     "abap_debug_step",
@@ -138,6 +145,7 @@ export const ABAP_MCP_TOOLSETS: Record<
     "abap_debug_status"
   ],
   operations: [
+    DEFERRED_RESULT_TOOL_NAME,
     "analyze_abap_dumps",
     "analyze_abap_traces",
     "manage_heartbeat",
@@ -145,6 +153,7 @@ export const ABAP_MCP_TOOLSETS: Record<
     "run_sap_transaction"
   ],
   artifacts: [
+    DEFERRED_RESULT_TOOL_NAME,
     "create_mermaid_diagram",
     "validate_mermaid_syntax",
     "get_mermaid_documentation",

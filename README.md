@@ -46,7 +46,7 @@ Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#cla
 
 ## ABAP FS parity status
 
-The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless extensions, this server advertises 52 tools in total.
+The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless feature extensions and `read_deferred_result`, this server advertises 53 tools in total.
 
 The first development-parity slice implements BDEF source creation, one-request batch activation, class-runner execution, the ABAP FS REPL contract, and detailed semantic inspection. These SAP-dependent capabilities remain `unverified` until they succeed against the selected live connection; call `get_sap_capabilities` for per-connection evidence.
 
@@ -54,7 +54,7 @@ Snippet execution requires `ZCL_ABAP_REPL` and an active SICF service at `/sap/b
 
 ## What it supports
 
-The server provides all 42 strict-compatible headless tools from the pinned ABAP FS baseline and adds ten grouped extension tools.
+The server provides all 42 strict-compatible headless tools from the pinned ABAP FS baseline, ten grouped feature extensions, and one infrastructure tool for continuing oversized results.
 
 | Area | Capabilities |
 |---|---|
@@ -89,6 +89,7 @@ The ten grouped extension tools are:
 - `run_abap_application`
 
 Grouping related actions keeps the tool-schema footprint lower than exposing every operation as a separate MCP tool.
+`read_deferred_result` is the additional infrastructure tool; it reads the remaining UTF-8 chunks of a large result without repeating the SAP operation.
 
 ## MCP directories and registries
 
@@ -98,7 +99,7 @@ Before the first SAP-facing request, create and verify at least one local SAP pr
 
 Registry publication does not change the live-evidence boundary. SAP-dependent development-parity capabilities remain `unverified` until they succeed against the selected live connection.
 
-The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp) exposes the same 52 runtime tools and installs the validated local MCPB bundle.
+The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp) currently exposes the published 52-tool release and installs the validated local MCPB bundle.
 
 ## Privacy Policy
 
@@ -317,14 +318,17 @@ Transport release and deletion can be irreversible. Use a dedicated transport an
 The server is designed to keep model context usage bounded without removing useful data:
 
 - Related operations are grouped into action-based tools.
-- The complete 52-tool schema is kept below a 64 KiB automated guardrail.
+- The complete 53-tool schema is kept below a 64 KiB automated guardrail.
 - Source, search, SQL, ATC, dump, trace, transport, version, Git, and RAP schema responses are paged or summarized.
 - Unified diffs are limited by both line count and byte size.
 - Large source responses are bounded by an inline byte budget.
 - Discovery data and large download manifests can be exported to local files.
 - Compact JSON is returned without pretty-print whitespace.
+- Compact JSON through 40 KiB is normally returned unchanged. Larger results return a bounded structural summary, an exact UTF-8 preview, and an in-memory `resultId` in a `compact-v1` envelope no larger than 12 KiB.
+- `search_abap_object_lines` switches at 16 KiB because adjacent matches repeat context heavily. Its summary merges overlapping source windows, reports match-line numbers and samples, and keeps the exact original JSON behind the same `resultId`.
 
 Continue paged responses with fields such as `nextStartIndex`, `nextLine`, `nextRowStart`, and `nextContentOffset`.
+For a response with `format: "compact-v1"`, use `summary` first. Call `read_deferred_result` with its `resultId` and `nextOffset` only when omitted exact data is needed. Each chunk is at most 24 KiB; continue until `done` is true. Deferred results expire after ten minutes, are never written to disk, and reading them does not repeat the SAP request.
 
 Hosts without automatic tool search can register only selected toolsets:
 
@@ -416,8 +420,8 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current source version: `0.4.10`
-- Published npm version: `0.4.10`
+- Current source version: `0.4.11`
+- Published npm version: `0.4.11`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
@@ -426,7 +430,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 - SAP API client: `abap-adt-api` 8.4.1
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
-The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 52 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
+The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 53 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
 
 ## Detailed Windows guide
 
