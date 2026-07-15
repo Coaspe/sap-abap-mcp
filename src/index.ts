@@ -25,10 +25,12 @@ import {
   encodeAbapGitCredentials,
   normalizeAbapGitRepositoryUrl
 } from "./abapgit-credentials.js"
+import { createTerminalSetupPrompter, runSetupWizard } from "./setup-wizard.js"
 
 const HELP = `sap-abap-mcp
 
 Commands:
+  setup
   profile add <id> --url <url> --client <nnn> [--language EN]
       [--environment development|quality|production] [--username <user>]
       [--packages ZPKG1,ZPKG2] [--login [--password-stdin]]
@@ -351,6 +353,21 @@ async function doctorCommand(parsed: ParsedArguments, profiles: ProfileStore, se
   }
 }
 
+async function setupCommand(profiles: ProfileStore, secrets: SecretStore) {
+  const manager = new ConnectionManager(profiles, secrets)
+  try {
+    await runSetupWizard({
+      profiles,
+      secrets,
+      prompter: createTerminalSetupPrompter(promptSecret),
+      platform: process.platform,
+      validateCredentials: (profile, password) => manager.validateCredentials(profile, password)
+    })
+  } finally {
+    await manager.close()
+  }
+}
+
 async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, secrets: SecretStore) {
   const profileId = option(parsed, "profile")
   if (profileId) await profiles.get(profileId)
@@ -399,6 +416,7 @@ export async function runCli(args = process.argv.slice(2)): Promise<void> {
 
   const profiles = new ProfileStore()
   const secrets = createDefaultSecretStore()
+  if (command === "setup") return setupCommand(profiles, secrets)
   if (command === "profile") return profileCommand(parsed, profiles, secrets)
   if (command === "auth") return authCommand(parsed, profiles, secrets)
   if (command === "abapgit") return abapGitCommand(parsed, profiles, secrets)

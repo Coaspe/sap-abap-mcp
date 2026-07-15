@@ -6,7 +6,7 @@ This plugin starts [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coasp
 
 - Node.js 20 or later
 - A reachable SAP system with ADT services enabled
-- The SAP base URL, client number, username, environment classification, and optional package allowlist
+- The SAP URL, client number, username, environment classification, and optional package allowlist
 
 ## Claude Code
 
@@ -22,7 +22,7 @@ Configure or verify the local SAP profile before the first SAP-facing request:
 /sap-abap-mcp:sap-abap-setup
 ```
 
-The skill collects only non-secret connection settings. On Windows or macOS it asks the user to enter the SAP password at a hidden prompt in a trusted terminal. On Linux it guides the user to set a profile-specific environment variable and restart Claude Code from that environment. Never paste an SAP password into Claude.
+The skill launches onboarding through the interactive `npx @coaspe/sap-abap-mcp@latest setup` wizard. The wizard calls the local connection alias `Server name`, calls the endpoint `SAP URL`, and keeps the SAP password out of chat. On Windows or macOS the user enters it at a hidden prompt in a trusted terminal. On Linux the wizard prints instructions for a server-specific environment variable and restarting Claude Code from that environment. Never paste an SAP password into Claude.
 
 Use `/mcp` to confirm that the plugin process is connected. That status alone does not prove that SAP authentication succeeded; the setup skill runs `doctor` for live ADT verification.
 

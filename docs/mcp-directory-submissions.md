@@ -6,7 +6,7 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Version: `0.4.7`
+- Version: `0.4.8`
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -54,9 +54,9 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| npm | Live | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp), version 0.4.7 on `latest` |
-| Official MCP Registry | Live | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp), version 0.4.7 active and latest |
-| Smithery | Live and listed | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); version 0.4.7 deployed successfully and all 52 runtime tools are visible, with a current quality score of 78/100. The latest local MCPB release has no Smithery security-scan result and the listing is not verified |
+| npm | Live | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp), version 0.4.8 on `latest` |
+| Official MCP Registry | Live | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp), version 0.4.8 active and latest |
+| Smithery | Live and listed | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); version 0.4.8 deployed successfully and all 52 runtime tools are visible, with a current quality score of 78/100. The latest local MCPB release has no Smithery security-scan result and the listing is not verified |
 | Glama | Live and evaluated | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp); claimed and author-verified, with release 0.4.6 built successfully from commit `f09b34e`. The score page reports server coherence A, tool definition quality B (52/52 tools, 3.3/5 average), maintenance A, MIT license A, and 83% profile completion |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
 | MCP Server Hub | Submitted | Awaiting directory review |

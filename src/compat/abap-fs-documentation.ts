@@ -118,6 +118,7 @@ const SETTINGS = [
   "",
   "## CLI",
   "",
+  "setup",
   "profile add <id> --url <url> --client <nnn> [--language EN] [--environment development|quality|production] [--username <user>] [--packages ZPKG1,ZPKG2] [--login [--password-stdin]]",
   "profile list",
   "profile remove <id>",
