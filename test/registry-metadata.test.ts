@@ -8,7 +8,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
   const serverJson = JSON.parse(readFileSync("server.json", "utf8"))
 
-  assert.equal(packageJson.version, "0.4.9")
+  assert.equal(packageJson.version, "0.4.10")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
@@ -176,6 +176,11 @@ test("Claude Code and Codex plugins launch the same published local MCP package"
 
 test("README explains registry installation without claiming live SAP verification", () => {
   const readme = readFileSync("README.md", "utf8")
+  const quickStartIndex = readme.indexOf("## Quick start\n")
+  const releaseStatusIndex = readme.indexOf("## Release status\n")
+  assert.notEqual(quickStartIndex, -1)
+  assert.notEqual(releaseStatusIndex, -1)
+  assert.ok(quickStartIndex < releaseStatusIndex)
   assert.match(readme, /PowerShell continues a line with a backtick/)
   assert.match(readme, /Command Prompt \(`cmd\.exe`\) uses a caret \(`\^`\)/)
   assert.match(readme, /npx\.cmd @coaspe\/sap-abap-mcp@latest setup/)
