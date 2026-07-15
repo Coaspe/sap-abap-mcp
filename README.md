@@ -7,7 +7,8 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current version: `0.4.8`
+- Current source version: `0.4.8`
+- Published npm version: `0.4.7` (`0.4.8` is awaiting npm publish authentication)
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
