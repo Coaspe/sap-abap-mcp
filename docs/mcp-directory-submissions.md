@@ -54,7 +54,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| Official MCP Registry | Live | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp), version 0.4.3 |
+| Official MCP Registry | 0.4.2 live; 0.4.3 pending | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp); publish 0.4.3 after npm OTP authorization |
 | Smithery | Live | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); its generated description remains empty because of [smithery-ai/cli#787](https://github.com/smithery-ai/cli/issues/787) |
 | Glama | Live, cache stale | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp); claim the listing to request a refresh |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
