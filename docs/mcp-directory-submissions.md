@@ -6,7 +6,7 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Version: `0.4.4`
+- Version: `0.4.5`
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -56,7 +56,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 |---|---|---|
 | npm | Live | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp), version 0.4.4 on `latest` |
 | Official MCP Registry | Live | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp), version 0.4.4 active and latest |
-| Smithery | Live | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); its generated description remains empty because of [smithery-ai/cli#787](https://github.com/smithery-ai/cli/issues/787) |
+| Smithery | Live and listed | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); expanded metadata and all 52 runtime tools are visible, with a current quality score of 78/100. The latest local MCPB release has no Smithery security-scan result and the listing is not verified |
 | Glama | Live, cache stale | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp); claim the listing to request a refresh |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
 | MCP Server Hub | Submitted | Awaiting directory review |
@@ -77,7 +77,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 |---|---|
 | Official MCP Registry | Publish `server.json` with `mcp-publisher` after npm publication |
 | Glama and PulseMCP | Verify ingestion from the Official MCP Registry; submit the repository manually if absent |
-| Smithery | Publish the generated MCPB bundle from `artifacts/` |
+| Smithery | Run `npm run publish:smithery`; it validates and builds the MCPB, refreshes listing metadata, and publishes the complete runtime tool schemas through the release API |
 | Claude Code | Monitor the submitted `Coaspe ABAP MCP` listing in the Anthropic Console and respond if the review team requests more information |
 | Claude Desktop | Monitor the submitted MCPB listing and respond if Anthropic requests more information |
 | Codex | Distribute the repository marketplace immediately; complete developer identity verification and design a production HTTPS MCP architecture before using the universal `With MCP` submission flow |

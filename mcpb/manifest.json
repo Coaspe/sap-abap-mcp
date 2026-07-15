@@ -3,9 +3,9 @@
   "manifest_version": "0.4",
   "name": "sap-abap-mcp",
   "display_name": "SAP ABAP MCP",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
-  "long_description": "A local-only MCP server for SAP ABAP development through the official ADT HTTP services. SAP profiles and credentials remain on the user's computer in macOS Keychain or Windows DPAPI. Configure and verify a profile before starting the bundle.",
+  "long_description": "SAP ABAP MCP is a local-only Model Context Protocol server that enables AI coding agents to develop, test, analyze, and operate SAP ABAP systems through the official ABAP Development Tools HTTP services. It supports repository search and source editing, semantic services, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, debugging, runtime dumps and traces, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer, with passwords protected by macOS Keychain or Windows DPAPI. SAP-dependent capabilities are validated against the user's own SAP release, configuration, and authorizations.",
   "author": {
     "name": "Coaspe",
     "url": "https://github.com/Coaspe"
@@ -32,8 +32,217 @@
       ]
     }
   },
-  "tools": [],
-  "tools_generated": true,
+  "tools": [
+    {
+      "name": "abap_activate",
+      "description": "Activate one legacy object or one same-connection batch of 1 through 100 ABAP objects."
+    },
+    {
+      "name": "abap_debug_breakpoint",
+      "description": "Set or remove line breakpoints for an adt:// ABAP source URI."
+    },
+    {
+      "name": "abap_debug_session",
+      "description": "Start a non-blocking SAP debugger listener, stop it, or inspect its state. A separate stateful ADT client is used after a debuggee attaches."
+    },
+    {
+      "name": "abap_debug_stack",
+      "description": "Get the current attached debuggee stack and stable frame IDs."
+    },
+    {
+      "name": "abap_debug_status",
+      "description": "Return listener, debuggee attachment, and breakpoint state for a connection."
+    },
+    {
+      "name": "abap_debug_step",
+      "description": "Continue or step an attached ABAP debuggee and return the new raw stack."
+    },
+    {
+      "name": "abap_debug_variable",
+      "description": "Read variables or evaluate an ABAP expression in a selected stack frame. Call abap_debug_stack first for frameId."
+    },
+    {
+      "name": "abap_download",
+      "description": "Download one ABAP source object or the readable objects in a package to an absolute local folder."
+    },
+    {
+      "name": "abap_fs_documentation",
+      "description": "Read or search the bundled ABAP FS compatibility and sap-abap-mcp settings reference."
+    },
+    {
+      "name": "adt_discovery_export",
+      "description": "Return an ADT capability summary, explicitly return full discovery data, or export it to a local JSON file."
+    },
+    {
+      "name": "analyze_abap_dumps",
+      "description": "List SAP runtime dumps or retrieve and normalize one dump's HTML content."
+    },
+    {
+      "name": "analyze_abap_traces",
+      "description": "List SAP trace runs/configurations or inspect a trace summary, statements, or aggregated hit list."
+    },
+    {
+      "name": "compare_abap_systems",
+      "description": "Compare the same active ABAP object on two configured SAP systems with a bounded unified diff."
+    },
+    {
+      "name": "create_mermaid_diagram",
+      "description": "Validate Mermaid code and create an interactive local HTML viewer with zoom controls and SVG export."
+    },
+    {
+      "name": "create_object_programmatically",
+      "description": "Validate and create an ADT repository object. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package."
+    },
+    {
+      "name": "create_test_documentation",
+      "description": "Create a styled Word report from test scenarios and screenshots, returning the local DOCX path."
+    },
+    {
+      "name": "create_test_include",
+      "description": "Create a class test include under a package permitted by the profile's optional allowlist. A transport is required outside $TMP."
+    },
+    {
+      "name": "detect_mermaid_diagram_type",
+      "description": "Parse Mermaid code and return its normalized and native Mermaid diagram types."
+    },
+    {
+      "name": "execute_data_query",
+      "description": "Run a read-only SAP ADT data-preview query, process supplied structured data, return a bounded headless result, or export CSV/XLSX."
+    },
+    {
+      "name": "find_where_used",
+      "description": "Find ADT usage references for an ABAP object or a symbol position, with filtering, pagination, and optional snippets."
+    },
+    {
+      "name": "get_abap_dependency_graph",
+      "description": "Build a bounded where-used dependency graph. Edges point from each dependent object to the object it uses."
+    },
+    {
+      "name": "get_abap_diagnostics",
+      "description": "Run SAP ADT syntax checking for the current source identified by an adt:// workspace URI or ADT path."
+    },
+    {
+      "name": "get_abap_object_info",
+      "description": "Get repository metadata, ADT structure, source URI, and active source line count."
+    },
+    {
+      "name": "get_abap_object_lines",
+      "description": "Read active ABAP source lines. objectType disambiguates objects; methodName extracts one class method."
+    },
+    {
+      "name": "get_abap_object_url",
+      "description": "Generate a SAP WebGUI URL for an ABAP report, class, or function module."
+    },
+    {
+      "name": "get_abap_object_workspace_uri",
+      "description": "Resolve an exact ABAP object to a stable adt:// URI usable by headless source-edit tools."
+    },
+    {
+      "name": "get_abap_sql_syntax",
+      "description": "Return the safe SAP ADT data-preview SQL rules used by execute_data_query."
+    },
+    {
+      "name": "get_atc_decorations",
+      "description": "Return cached headless ATC findings from run_atc_analysis, optionally for one workspace URI."
+    },
+    {
+      "name": "get_batch_lines",
+      "description": "Read active source ranges from multiple ABAP objects. startLine is zero-based for ABAP FS compatibility."
+    },
+    {
+      "name": "get_connected_systems",
+      "description": "List configured SAP connection IDs and whether credentials are available. Call this first if connectionId is unknown."
+    },
+    {
+      "name": "get_mermaid_documentation",
+      "description": "Get bundled syntax, keywords, and usage tips for supported Mermaid diagram types."
+    },
+    {
+      "name": "get_object_by_uri",
+      "description": "Read active ABAP source directly by ADT object or source URI. startLine is zero-based for ABAP FS compatibility."
+    },
+    {
+      "name": "get_sap_capabilities",
+      "description": "Report implemented, missing, supported, unsupported, and live-unverified SAP development capabilities for one connection."
+    },
+    {
+      "name": "get_sap_system_info",
+      "description": "Get SAP client, system type, release, timezone, and optionally the full software component list."
+    },
+    {
+      "name": "get_version_history",
+      "description": "List repository revisions, retrieve source at a revision, or compare two revision snapshots."
+    },
+    {
+      "name": "inspect_abap_code",
+      "description": "Use SAP ADT semantic services for completion, documentation, type hierarchy, components, definition, safe quick-fix discovery, or formatter preview. line is one-based and column is zero-based."
+    },
+    {
+      "name": "manage_abap_versions",
+      "description": "List inactive objects, read inactive source, or preview and execute restoration of a historical source revision."
+    },
+    {
+      "name": "manage_abapgit",
+      "description": "List, inspect, create, pull, unlink, stage, push, check, or switch abapGit repositories. Credentials come only from the secret store. Create confirmation is PACKAGE:CANONICAL_URL; other mutations use repositoryId."
+    },
+    {
+      "name": "manage_heartbeat",
+      "description": "Manage an in-process monitoring watchlist, trigger safe SAP connection/query checks, and inspect history."
+    },
+    {
+      "name": "manage_rap_generator",
+      "description": "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION."
+    },
+    {
+      "name": "manage_text_elements",
+      "description": "Read or merge-create/update REPT text-pool symbols, selection texts, and headings using ADT locking, transport enforcement, and activation."
+    },
+    {
+      "name": "manage_transport_requests",
+      "description": "List, inspect, compare, create, release, delete, reassign, add objects (including LIMU DYNP/REPT subobjects), and resolve SAP transports. release/delete confirmation is the request number; owner/user confirmation is NUMBER:USER; object confirmation is NUMBER:PGMID:TYPE:NAME."
+    },
+    {
+      "name": "open_object",
+      "description": "Resolve an ABAP object in headless mode and return its ADT and workspace URIs for subsequent reads or edits."
+    },
+    {
+      "name": "refactor_abap_code",
+      "description": "Preview or execute SAP rename, package move, method extraction, quick-fix, formatting, or deletion. Execute only a fresh plan and copy its exact confirmation value."
+    },
+    {
+      "name": "replace_string_in_abap_object",
+      "description": "Replace exactly one source fragment, using a fresh read and an under-lock compare before saving. SAP syntax diagnostics are returned. Non-local packages require transport."
+    },
+    {
+      "name": "run_abap_application",
+      "description": "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan."
+    },
+    {
+      "name": "run_atc_analysis",
+      "description": "Run the system ATC check variant for an exact object, or retrieve documentation for a prior finding."
+    },
+    {
+      "name": "run_sap_transaction",
+      "description": "Build a validated SAP WebGUI transaction URL, or launch it with the local default browser. Parameter values use a restricted injection-safe character set."
+    },
+    {
+      "name": "run_unit_tests",
+      "description": "Run SAP ABAP Unit for an exact repository object and return structured results."
+    },
+    {
+      "name": "search_abap_object_lines",
+      "description": "Search literal text or a regular expression in active ABAP source. Wildcard object names can scan up to 10 objects."
+    },
+    {
+      "name": "search_abap_objects",
+      "description": "Search ABAP repository objects by name pattern. Supports SAP ADT wildcards such as * and ?."
+    },
+    {
+      "name": "validate_mermaid_syntax",
+      "description": "Parse Mermaid code without rendering and return the normalized diagram type."
+    }
+  ],
+  "tools_generated": false,
   "keywords": [
     "sap",
     "abap",

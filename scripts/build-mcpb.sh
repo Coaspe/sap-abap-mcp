@@ -16,6 +16,7 @@ mkdir -p "$(dirname "${OUTPUT}")" "${STAGE}/server"
 
 cd "${ROOT}"
 npm run build
+node scripts/sync-mcpb-tools.mjs --check
 
 cp mcpb/manifest.json "${STAGE}/manifest.json"
 cp mcpb/icon.png "${STAGE}/icon.png"

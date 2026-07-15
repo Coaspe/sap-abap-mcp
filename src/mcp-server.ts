@@ -91,7 +91,19 @@ export function createMcpServer(
   options: McpServerOptions = {}
 ): McpServer {
   const server = new McpServer(
-    { name: "sap-abap-mcp", version: "0.3.0" },
+    {
+      name: "sap-abap-mcp",
+      version: "0.4.5",
+      title: "SAP ABAP MCP",
+      description:
+        "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
+      websiteUrl: "https://github.com/Coaspe/sap-abap-mcp",
+      icons: [{
+        src: "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+        mimeType: "image/png",
+        sizes: ["400x400"]
+      }]
+    },
     {
       instructions:
         "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
@@ -671,7 +683,7 @@ export function createMcpServer(
     {
       title: "Manage ABAP Text Elements",
       description:
-        "Read or merge-create/update text symbols using ADT locking, transport enforcement, and activation.",
+        "Read or merge-create/update REPT text-pool symbols, selection texts, and headings using ADT locking, transport enforcement, and activation.",
       inputSchema: {
         objectName: z.string().min(1),
         objectType: z.enum(["PROGRAM", "CLASS", "FUNCTION_GROUP"]),
@@ -887,7 +899,7 @@ export function createMcpServer(
     {
       title: "Manage Transport Requests",
       description:
-        "List, inspect, compare, create, release, delete, reassign, and resolve SAP transports. release/delete confirmation is the request number; owner/user confirmation is NUMBER:USER.",
+        "List, inspect, compare, create, release, delete, reassign, add objects (including LIMU DYNP/REPT subobjects), and resolve SAP transports. release/delete confirmation is the request number; owner/user confirmation is NUMBER:USER; object confirmation is NUMBER:PGMID:TYPE:NAME.",
       inputSchema: {
         action: z.enum([
           "get_user_transports",
@@ -899,6 +911,7 @@ export function createMcpServer(
           "delete_transport",
           "set_owner",
           "add_user",
+          "add_object",
           "list_system_users",
           "resolve_object"
         ]),

@@ -40,6 +40,14 @@ const object: SapObjectReference = {
   packageName: "Z_DEMO"
 }
 
+const screenProgram: SapObjectReference = {
+  name: "ZDEMO_SCREEN",
+  type: "PROG/P",
+  uri: "/sap/bc/adt/programs/programs/zdemo_screen",
+  description: "Demo screen program",
+  packageName: "Z_DEMO"
+}
+
 const source = [
   "CLASS zcl_demo IMPLEMENTATION.",
   "  METHOD run.",
@@ -210,6 +218,10 @@ class FakeSapClient implements SapClient {
         description: normalizedQuery,
         packageName: this.objectPackages.get(normalizedQuery)!
       }]
+    }
+    if (normalizedQuery === screenProgram.name) {
+      if (objectType && objectType.replace(/\/.*$/, "") !== "PROG") return []
+      return [screenProgram]
     }
     if (!normalizedQuery.includes("ZCL_DEMO")) return []
     if (objectType && objectType.replace(/\/.*$/, "") !== "CLAS") return []
@@ -543,6 +555,21 @@ class FakeSapClient implements SapClient {
   async addTransportUser(transportNumber: string, user: string): Promise<any> {
     this.transportMutations.push(`user:${transportNumber}:${user}`)
     return { "tm:number": transportNumber, "tm:targetuser": user, "tm:uri": "", "tm:useraction": "ADD" }
+  }
+
+  async addTransportObject(transportNumber: string, objectUri: string): Promise<void> {
+    this.transportMutations.push(`object:${transportNumber}:${objectUri}`)
+  }
+
+  async addTransportObjectByKey(
+    transportNumber: string,
+    pgmid: string,
+    objectType: string,
+    objectName: string
+  ): Promise<void> {
+    this.transportMutations.push(
+      `object-key:${transportNumber}:${pgmid}:${objectType}:${objectName}`
+    )
   }
 
   async listSystemUsers(): Promise<any[]> {
@@ -2986,6 +3013,58 @@ test("mutation plans reject stale SAP state and transport writes reject producti
       "code" in error && error.code === "PRODUCTION_WRITE_BLOCKED"
   )
 
+  const addObjectInput = {
+    action: "add_object" as const,
+    connectionId: "DEV100",
+    transportNumber: "DEVK900123",
+    pgmid: "R3TR",
+    objectType: "CLAS",
+    objectName: object.name,
+    confirmation: "DEVK900123:R3TR:CLAS:ZCL_DEMO",
+    startIndex: 0,
+    maxResults: 20,
+    includeObjects: false
+  }
+  await assert.rejects(
+    service.manageTransportRequests({ ...addObjectInput, confirmation: "wrong" }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "CONFIRMATION_MISMATCH"
+  )
+  await assert.rejects(
+    service.manageTransportRequests({
+      ...addObjectInput,
+      pgmid: "LIMU",
+      objectType: "DYNP",
+      objectName: screenProgram.name,
+      confirmation: `DEVK900123:LIMU:DYNP:${screenProgram.name}`
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "TRANSPORT_DYNP_KEY_INVALID"
+  )
+  await assert.rejects(
+    productionService.manageTransportRequests({
+      ...addObjectInput,
+      connectionId: "PRD100",
+      transportNumber: "PRDK900123",
+      confirmation: "PRDK900123:R3TR:CLAS:ZCL_DEMO"
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "PRODUCTION_WRITE_BLOCKED"
+  )
+  const disallowedFake = new FakeSapClient({ ...profile, allowedPackages: ["Z_OTHER"] })
+  const disallowedService = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { return disallowedFake }
+  })
+  await assert.rejects(
+    disallowedService.manageTransportRequests(addObjectInput),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "PACKAGE_NOT_ALLOWED"
+  )
+  assert.deepEqual(fake.transportMutations, [])
+  assert.deepEqual(productionFake.transportMutations, [])
+  assert.deepEqual(disallowedFake.transportMutations, [])
+
   await assert.rejects(
     service.runSapTransaction({
       connectionId: "DEV100",
@@ -3557,6 +3636,36 @@ test("MCP semantic inspect actions expose fixtures and default superTypes to fal
   )
 })
 
+test("MCP initialize reports the npm package version", async t => {
+  const harness = createApplicationHarness()
+  const server = createMcpServer(harness.service)
+  const client = new Client({ name: "version-test-client", version: "1.0.0" })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  t.after(async () => {
+    await client.close()
+    await server.close()
+  })
+  await server.connect(serverTransport)
+  await client.connect(clientTransport)
+
+  const packageJson = JSON.parse(await readFile("package.json", "utf8")) as {
+    version: string
+  }
+  assert.deepEqual(client.getServerVersion(), {
+    name: "sap-abap-mcp",
+    version: packageJson.version,
+    title: "SAP ABAP MCP",
+    description:
+      "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
+    websiteUrl: "https://github.com/Coaspe/sap-abap-mcp",
+    icons: [{
+      src: "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+      mimeType: "image/png",
+      sizes: ["400x400"]
+    }]
+  })
+})
+
 test("MCP run_abap_application exposes strict health, class, and snippet actions", async t => {
   const harness = createApplicationHarness()
   const server = createMcpServer(harness.service)
@@ -3694,6 +3803,18 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   assert.deepEqual(
     listed.tools.map(tool => tool.name).sort(),
     [...IMPLEMENTED_TOOL_NAMES].sort()
+  )
+  const manifest = JSON.parse(await readFile("mcpb/manifest.json", "utf8")) as {
+    tools_generated: boolean
+    tools: Array<{ name: string; description: string }>
+  }
+  assert.equal(manifest.tools_generated, false)
+  assert.deepEqual(
+    manifest.tools,
+    listed.tools.map(tool => ({
+      name: tool.name,
+      description: tool.description
+    })).sort((left, right) => left.name.localeCompare(right.name))
   )
   for (const tool of listed.tools) {
     assert.ok(tool.title?.trim(), `missing MCP directory title: ${tool.name}`)
@@ -4391,6 +4512,52 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     transportNumber: "DEVK900123"
   })
   assert.equal(transportReference.transportReference, object.uri)
+  const objectAdded = await callJson("manage_transport_requests", {
+    action: "add_object",
+    connectionId: "DEV100",
+    transportNumber: "DEVK900123",
+    pgmid: "R3TR",
+    objectType: "CLAS",
+    objectName: "ZCL_DEMO",
+    confirmation: "DEVK900123:R3TR:CLAS:ZCL_DEMO"
+  })
+  assert.equal(objectAdded.added, true)
+  assert.deepEqual(objectAdded.object, {
+    pgmid: "R3TR",
+    type: "CLAS",
+    name: "ZCL_DEMO",
+    uri: object.uri
+  })
+  assert.ok(fake.transportMutations.includes(`object:DEVK900123:${object.uri}`))
+  const dynproAdded = await callJson("manage_transport_requests", {
+    action: "add_object",
+    connectionId: "DEV100",
+    transportNumber: "DEVK900123",
+    pgmid: "LIMU",
+    objectType: "DYNP",
+    objectName: "ZDEMO_SCREEN 0100",
+    confirmation: "DEVK900123:LIMU:DYNP:ZDEMO_SCREEN 0100"
+  })
+  assert.equal(dynproAdded.added, true)
+  assert.equal(dynproAdded.object.uri, null)
+  assert.equal(dynproAdded.parentObject.name, screenProgram.name)
+  const textPoolAdded = await callJson("manage_transport_requests", {
+    action: "add_object",
+    connectionId: "DEV100",
+    transportNumber: "DEVK900123",
+    pgmid: "LIMU",
+    objectType: "REPT",
+    objectName: "ZDEMO_SCREEN",
+    confirmation: "DEVK900123:LIMU:REPT:ZDEMO_SCREEN"
+  })
+  assert.equal(textPoolAdded.added, true)
+  assert.equal(textPoolAdded.parentObject.name, screenProgram.name)
+  assert.ok(fake.transportMutations.includes(
+    "object-key:DEVK900123:LIMU:DYNP:ZDEMO_SCREEN 0100"
+  ))
+  assert.ok(fake.transportMutations.includes(
+    "object-key:DEVK900123:LIMU:REPT:ZDEMO_SCREEN"
+  ))
   const ownerChanged = await callJson("manage_transport_requests", {
     action: "set_owner",
     connectionId: "DEV100",
