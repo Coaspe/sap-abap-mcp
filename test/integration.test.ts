@@ -3691,6 +3691,15 @@ test("MCP run_abap_application exposes strict health, class, and snippet actions
     idempotentHint: false,
     openWorldHint: true
   })
+  assert.deepEqual(applicationTool?.inputSchema.required, ["action", "connectionId"])
+  assert.deepEqual(
+    (applicationTool?.inputSchema.properties?.action as { enum?: string[] } | undefined)?.enum,
+    ["repl_health", "preview_class", "preview_snippet", "execute"]
+  )
+  assert.deepEqual(
+    Object.keys(applicationTool?.inputSchema.properties ?? {}),
+    ["action", "connectionId", "className", "code", "planId", "confirmation"]
+  )
 
   const callRaw = (arguments_: Record<string, unknown>) => client.callTool({
     name: "run_abap_application",

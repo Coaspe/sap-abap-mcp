@@ -1648,6 +1648,14 @@ export function createMcpServer(
       confirmation: z.string().min(1)
     }).strict()
   ])
+  const runAbapApplicationInputShape = {
+    action: z.enum(["repl_health", "preview_class", "preview_snippet", "execute"]),
+    connectionId: z.string().min(1),
+    className: z.string().min(1).optional(),
+    code: z.string().min(1).max(98_304).optional(),
+    planId: z.string().uuid().optional(),
+    confirmation: z.string().min(1).optional()
+  }
 
   registerTool(
     "run_abap_application",
@@ -1655,10 +1663,12 @@ export function createMcpServer(
       title: "Run ABAP Application",
       description:
         "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan.",
-      inputSchema: runAbapApplicationSchema,
+      inputSchema: runAbapApplicationInputShape,
       annotations: writeAnnotations
     },
-    async input => runTool(() => tools.runAbapApplication(input as RunAbapApplicationInput))
+    async input => runTool(() => tools.runAbapApplication(
+      runAbapApplicationSchema.parse(input) as RunAbapApplicationInput
+    ))
   )
 
   registerTool(
