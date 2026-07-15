@@ -8,7 +8,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
   const serverJson = JSON.parse(readFileSync("server.json", "utf8"))
 
-  assert.equal(packageJson.version, "0.4.6")
+  assert.equal(packageJson.version, "0.4.7")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
@@ -176,10 +176,35 @@ test("Claude Code and Codex plugins launch the same published local MCP package"
 
 test("README explains registry installation without claiming live SAP verification", () => {
   const readme = readFileSync("README.md", "utf8")
+  assert.match(readme, /PowerShell continues a command with a backtick/)
+  assert.match(readme, /Command Prompt \(`cmd\.exe`\) uses a caret \(`\^`\)/)
+  assert.match(readme, /```bat\nnpx\.cmd[^\n]+ \^\n/)
   assert.match(readme, /## MCP directories and registries/)
   assert.match(readme, /io\.github\.Coaspe\/sap-abap-mcp/)
   assert.match(readme, /local `stdio` server/)
   assert.match(readme, /remain `unverified`/)
   assert.match(readme, /### Claude Code and Codex plugin marketplaces/)
   assert.match(readme, /plugin marketplace add Coaspe\/sap-abap-mcp/)
+  assert.match(readme, /\/sap-abap-mcp:sap-abap-setup/)
+})
+
+test("plugin onboarding keeps credentials local and verifies SAP explicitly", () => {
+  const pluginReadme = readFileSync("plugins/sap-abap-mcp/README.md", "utf8")
+  const setupSkill = readFileSync(
+    "plugins/sap-abap-mcp/skills/sap-abap-setup/SKILL.md",
+    "utf8"
+  )
+  const agentInstall = readFileSync("llms-install.md", "utf8")
+
+  for (const document of [pluginReadme, agentInstall]) {
+    assert.match(document, /\/sap-abap-mcp:sap-abap-setup/)
+    assert.match(document, /\/mcp[^\n]+does not prove/)
+  }
+  assert.match(setupSkill, /Windows, macOS, or Linux/)
+  assert.match(setupSkill, /profile list/)
+  assert.match(setupSkill, /auth login <id> --username <username>\n```/)
+  assert.match(setupSkill, /hidden `SAP password:` prompt/)
+  assert.match(setupSkill, /SAP_ABAP_MCP_PASSWORD_<NORMALIZED_ID>/)
+  assert.match(setupSkill, /SAP_ABAP_MCP_PASSWORD_DEV100/)
+  assert.match(setupSkill, /get_connected_systems/)
 })
