@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "sap-abap-mcp",
   "display_name": "SAP ABAP MCP",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
   "long_description": "A local-only MCP server for SAP ABAP development through the official ADT HTTP services. SAP profiles and credentials remain on the user's computer in macOS Keychain or Windows DPAPI. Configure and verify a profile before starting the bundle.",
   "author": {
@@ -20,15 +20,16 @@
   "icon": "icon.png",
   "server": {
     "type": "node",
-    "entry_point": "server/dist/src/index.js",
+    "entry_point": "server/index.mjs",
     "mcp_config": {
       "command": "node",
       "args": [
-        "${__dirname}/server/dist/src/index.js",
+        "${__dirname}/server/index.mjs",
         "serve"
       ]
     }
   },
+  "tools": [],
   "tools_generated": true,
   "keywords": [
     "sap",

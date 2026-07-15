@@ -8,7 +8,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
   const serverJson = JSON.parse(readFileSync("server.json", "utf8"))
 
-  assert.equal(packageJson.version, "0.4.2")
+  assert.equal(packageJson.version, "0.4.3")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
@@ -75,14 +75,15 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.equal(manifest.license, "MIT")
   assert.equal(manifest.icon, "icon.png")
   assert.equal(manifest.server.type, "node")
-  assert.equal(manifest.server.entry_point, "server/dist/src/index.js")
+  assert.equal(manifest.server.entry_point, "server/index.mjs")
   assert.deepEqual(manifest.server.mcp_config, {
     command: "node",
-    args: ["${__dirname}/server/dist/src/index.js", "serve"]
+    args: ["${__dirname}/server/index.mjs", "serve"]
   })
   assert.deepEqual(manifest.compatibility.platforms, ["darwin", "win32"])
   assert.equal(manifest.compatibility.runtimes.node, ">=20")
   assert.equal(manifest.tools_generated, true)
+  assert.deepEqual(manifest.tools, [])
   const mcpbIcon = readFileSync("mcpb/icon.png")
   assert.equal(mcpbIcon.readUInt32BE(16), 512)
   assert.equal(mcpbIcon.readUInt32BE(20), 512)

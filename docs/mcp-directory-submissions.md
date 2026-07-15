@@ -6,7 +6,7 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Version: `0.4.2`
+- Version: `0.4.3`
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -49,6 +49,21 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 - Passwords are stored in macOS Keychain or Windows DPAPI, not in the profile file.
 - Network traffic goes directly from the user's computer to the configured SAP system and to npm when `npx` installs or updates the package.
 - Automated tests use an in-memory SAP implementation. SAP-dependent capabilities remain `unverified` until they succeed against the selected live SAP connection.
+
+## Submission status (2026-07-15)
+
+| Target | Status | Evidence or next action |
+|---|---|---|
+| Official MCP Registry | Live | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp), version 0.4.3 |
+| Smithery | Live | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); its generated description remains empty because of [smithery-ai/cli#787](https://github.com/smithery-ai/cli/issues/787) |
+| Glama | Live, cache stale | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp); claim the listing to request a refresh |
+| PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
+| MCP Server Hub | Submitted | Awaiting directory review |
+| Awesome MCP Servers | Draft PR opened | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129) |
+| LobeHub | Authentication required | Complete the human-in-the-loop CLI authorization, connect GitHub, then submit the repository |
+| mcp.so | Authentication required | Sign in before submitting the already prepared repository listing |
+| MCP Servers and MCP Market | Contact email required | Submit only after the owner approves the contact email sent to both directories |
+| Cline MCP Marketplace | Setup test required | Perform a real Cline installation test before checking the submission form's required verification box |
 
 ## Distribution targets
 

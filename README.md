@@ -7,7 +7,7 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current version: `0.4.2`
+- Current version: `0.4.3`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
@@ -140,7 +140,7 @@ claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes --prefer
 
 Restart the client after registration. Use `codex mcp list`, `claude mcp get sap-abap`, or the client's `/mcp` command to verify the connection.
 
-The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.4.1` will automatically run `0.4.2` after `0.4.2` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
+The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.4.2` will automatically run `0.4.3` after `0.4.3` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
 
 ### 4. Start with read-only requests
 
