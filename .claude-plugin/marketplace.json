@@ -12,7 +12,7 @@
       "name": "sap-abap-mcp",
       "source": "./plugins/sap-abap-mcp",
       "description": "Develop, test, analyze, and operate SAP ABAP systems through local ADT connections.",
-      "version": "0.4.6",
+      "version": "0.4.7",
       "category": "development",
       "tags": [
         "sap",

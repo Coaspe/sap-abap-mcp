@@ -7,7 +7,7 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current version: `0.4.6`
+- Current version: `0.4.7`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
@@ -68,7 +68,7 @@ Grouping related actions keeps the tool-schema footprint lower than exposing eve
 
 The canonical registry identity is `io.github.Coaspe/sap-abap-mcp`, defined in [`server.json`](server.json). Directory installs must run this package as a local `stdio` server; SAP profiles and credentials stay on the user's machine and are never hosted by a registry.
 
-Before starting the MCP server from any directory or one-click installer, create and verify at least one local SAP profile using the commands in [Quick start](#quick-start-on-windows) or [`llms-install.md`](llms-install.md). A generic registry launch runs `@coaspe/sap-abap-mcp` with the `serve` argument and exposes all locally configured profiles; every SAP-facing tool still requires an explicit `connectionId`.
+Before the first SAP-facing request, create and verify at least one local SAP profile using the commands in [Quick start](#quick-start-on-windows) or [`llms-install.md`](llms-install.md). The Claude plugin may start successfully without a profile; after installation, run `/sap-abap-mcp:sap-abap-setup` to complete local SAP setup. A generic registry launch runs `@coaspe/sap-abap-mcp` with the `serve` argument and exposes all locally configured profiles; every SAP-facing tool still requires an explicit `connectionId`.
 
 Registry publication does not change the live-evidence boundary. SAP-dependent development-parity capabilities remain `unverified` until they succeed against the selected live connection.
 
@@ -80,7 +80,7 @@ SAP ABAP MCP runs locally and does not send SAP profiles, credentials, source co
 
 ### Claude Code and Codex plugin marketplaces
 
-This repository is also a dual-compatible plugin marketplace. The plugin starts the same npm `latest` package as a local `stdio` process, so SAP profiles, credentials, and ADT traffic stay on the user's computer.
+This repository is also a dual-compatible plugin marketplace. The plugin starts the same npm `latest` package as a local `stdio` process, so SAP profiles, credentials, and ADT traffic stay on the user's computer. Profiles are user-scoped outside the plugin cache and survive plugin updates.
 
 Claude Code:
 
@@ -90,7 +90,13 @@ Claude Code:
 /reload-plugins
 ```
 
-Use `/mcp` to confirm that `sap-abap` is connected.
+Run the namespaced setup skill after reloading:
+
+```text
+/sap-abap-mcp:sap-abap-setup
+```
+
+The skill reuses an existing profile or guides profile creation, local password entry, and live ADT verification. Use `/mcp` to confirm that the `sap-abap` process is connected, but do not treat that status as proof that an SAP profile is authenticated; the setup skill verifies SAP with `doctor`.
 
 Codex:
 
@@ -98,7 +104,7 @@ Codex:
 codex plugin marketplace add Coaspe/sap-abap-mcp
 ```
 
-Then install **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace in the Codex app and start a new task. The plugin includes a `sap-abap-setup` skill that keeps passwords out of chat and guides profile creation, authentication, and live ADT verification.
+Then install **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace in the Codex app and start a new task. Ask Codex to set up SAP ABAP MCP; the included `sap-abap-setup` skill keeps passwords out of chat and guides profile creation, authentication, and live ADT verification.
 
 ## Prerequisites
 
@@ -129,6 +135,8 @@ node --version
 
 Use your real values and keep production profiles read-only. Omitting `--packages` allows writes to all packages; add it only when you want to restrict writes to specific packages.
 
+The Windows examples in this guide use PowerShell. PowerShell continues a command with a backtick (`` ` ``), while Command Prompt (`cmd.exe`) uses a caret (`^`). Do not mix the two continuation characters.
+
 ```powershell
 npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 `
   --url "https://sap-dev.company.com" `
@@ -138,7 +146,18 @@ npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 `
   --login
 ```
 
-PowerShell also accepts the command on one line. The profile ID `DEV100` is a local alias. When `SAP password:` appears, enter the password and press Enter; the input remains hidden. The profile and password are stored only after the MCP validates the credentials against SAP.
+The same command in Command Prompt is:
+
+```bat
+npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 ^
+  --url "https://sap-dev.company.com" ^
+  --client 100 ^
+  --username "DEV_USER" ^
+  --environment development ^
+  --login
+```
+
+Both shells also accept the command on one line. The profile ID `DEV100` is a local alias. When `SAP password:` appears, enter the password and press Enter; the input remains hidden. The profile and password are stored only after the MCP validates the credentials against SAP.
 
 To restrict writes, add a comma-separated allowlist such as `--packages "Z_MCP_TEST,Z_MCP_TEST2"`. An empty allowlist permits every package, while production profiles still reject writes.
 
@@ -168,7 +187,7 @@ claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes --prefer
 
 Restart the client after registration. Use `codex mcp list`, `claude mcp get sap-abap`, or the client's `/mcp` command to verify the connection.
 
-The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.4.5` will automatically run `0.4.6` after `0.4.6` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
+The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.4.6` will automatically run `0.4.7` after `0.4.7` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
 
 ### 4. Start with read-only requests
 

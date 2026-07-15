@@ -3,7 +3,7 @@
   "name": "io.github.Coaspe/sap-abap-mcp",
   "title": "SAP ABAP MCP",
   "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
   "repository": {
     "url": "https://github.com/Coaspe/sap-abap-mcp",
@@ -23,7 +23,7 @@
     {
       "registryType": "npm",
       "identifier": "@coaspe/sap-abap-mcp",
-      "version": "0.4.6",
+      "version": "0.4.7",
       "transport": {
         "type": "stdio"
       },
