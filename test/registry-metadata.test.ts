@@ -20,7 +20,14 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   for (const keyword of ["mcp", "sap", "abap", "adt", "claude", "codex"]) {
     assert.ok(packageJson.keywords.includes(keyword), `missing npm keyword: ${keyword}`)
   }
-  for (const packagedFile of ["LICENSE", "server.json", "llms-install.md", "assets"]) {
+  for (const packagedFile of [
+    "LICENSE",
+    "PRIVACY.md",
+    "TERMS.md",
+    "server.json",
+    "llms-install.md",
+    "assets"
+  ]) {
     assert.ok(packageJson.files.includes(packagedFile), `missing packaged file: ${packagedFile}`)
   }
 
@@ -84,6 +91,21 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.equal(manifest.compatibility.runtimes.node, ">=20")
   assert.equal(manifest.tools_generated, true)
   assert.deepEqual(manifest.tools, [])
+  assert.deepEqual(manifest.privacy_policies, [
+    "https://github.com/Coaspe/sap-abap-mcp/blob/main/PRIVACY.md"
+  ])
+  const readme = readFileSync("README.md", "utf8")
+  assert.match(readme, /^## Privacy Policy$/m)
+  const privacy = readFileSync("PRIVACY.md", "utf8")
+  for (const heading of [
+    "Data processed by the software",
+    "How data is used",
+    "Storage and retention",
+    "Sharing",
+    "Contact"
+  ]) {
+    assert.match(privacy, new RegExp(`^## ${heading}$`, "m"))
+  }
   const mcpbIcon = readFileSync("mcpb/icon.png")
   assert.equal(mcpbIcon.readUInt32BE(16), 512)
   assert.equal(mcpbIcon.readUInt32BE(20), 512)
@@ -105,6 +127,14 @@ test("Claude Code and Codex plugins launch the same published local MCP package"
   assert.equal(codexManifest.version, packageJson.version)
   assert.equal(codexManifest.license, "MIT")
   assert.equal(codexManifest.mcpServers, "./.mcp.json")
+  assert.equal(
+    codexManifest.interface.privacyPolicyURL,
+    "https://github.com/Coaspe/sap-abap-mcp/blob/main/PRIVACY.md"
+  )
+  assert.equal(
+    codexManifest.interface.termsOfServiceURL,
+    "https://github.com/Coaspe/sap-abap-mcp/blob/main/TERMS.md"
+  )
   assert.equal(claudeManifest.name, codexManifest.name)
   assert.equal(claudeManifest.version, packageJson.version)
   assert.equal(claudeManifest.license, "MIT")

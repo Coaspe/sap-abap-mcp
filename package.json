@@ -30,6 +30,8 @@
     "dist/src",
     "docs",
     "README.md",
+    "PRIVACY.md",
+    "TERMS.md",
     "LICENSE",
     "server.json",
     "llms-install.md",

@@ -19,7 +19,7 @@ npm run build
 
 cp mcpb/manifest.json "${STAGE}/manifest.json"
 cp mcpb/icon.png "${STAGE}/icon.png"
-cp LICENSE README.md llms-install.md "${STAGE}/"
+cp LICENSE PRIVACY.md README.md TERMS.md llms-install.md "${STAGE}/"
 npx --yes esbuild@0.27.2 dist/src/index.js \
   --bundle \
   --minify \
