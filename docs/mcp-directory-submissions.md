@@ -54,13 +54,13 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| npm | Live | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp), version 0.4.5 on `latest` |
-| Official MCP Registry | Live | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp), version 0.4.5 active and latest |
-| Smithery | Live and listed | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); version 0.4.5 deployed successfully and all 52 runtime tools are visible, with a current quality score of 78/100. The latest local MCPB release has no Smithery security-scan result and the listing is not verified |
-| Glama | Live, cache stale | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp); claim the listing to request a refresh |
+| npm | Live | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp), version 0.4.6 on `latest` |
+| Official MCP Registry | Live | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp), version 0.4.6 active and latest |
+| Smithery | Live and listed | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); version 0.4.6 deployed successfully and all 52 runtime tools are visible, with a current quality score of 78/100. The latest local MCPB release has no Smithery security-scan result and the listing is not verified |
+| Glama | Live and evaluated | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp); claimed and author-verified, with release 0.4.6 built successfully from commit `f09b34e`. The score page reports server coherence A, tool definition quality B (52/52 tools, 3.3/5 average), maintenance A, MIT license A, and 83% profile completion |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
 | MCP Server Hub | Submitted | Awaiting directory review |
-| Awesome MCP Servers | Draft PR opened | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129) |
+| Awesome MCP Servers | Ready for review | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129); submission check passes and the PR is cleanly mergeable |
 | Claude Code Community Marketplace | Submitted; review pending | Submitted through the Anthropic Console on 2026-07-15 as `Coaspe ABAP MCP` for Claude Code; the public GitHub plugin validates and installs as `sap-abap-mcp@coaspe-sap` |
 | Claude Desktop MCPB directory | Submitted; review pending | Submitted the validated `sap-abap-mcp-0.4.4.mcpb` through Anthropic's official local-extension form on 2026-07-15; the form confirmed that the response was recorded |
 | Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap` |
