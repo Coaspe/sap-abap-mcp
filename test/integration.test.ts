@@ -3695,6 +3695,19 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     listed.tools.map(tool => tool.name).sort(),
     [...IMPLEMENTED_TOOL_NAMES].sort()
   )
+  for (const tool of listed.tools) {
+    assert.ok(tool.title?.trim(), `missing MCP directory title: ${tool.name}`)
+    assert.equal(
+      typeof tool.annotations?.readOnlyHint,
+      "boolean",
+      `missing readOnlyHint: ${tool.name}`
+    )
+    assert.equal(
+      typeof tool.annotations?.destructiveHint,
+      "boolean",
+      `missing destructiveHint: ${tool.name}`
+    )
+  }
   assert.ok(
     Buffer.byteLength(JSON.stringify(listed.tools), "utf8") < 64 * 1024,
     "full MCP tool schemas must stay below the 64 KiB token-budget guardrail"

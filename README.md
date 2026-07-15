@@ -72,6 +72,10 @@ Before starting the MCP server from any directory or one-click installer, create
 
 Registry publication does not change the live-evidence boundary. SAP-dependent development-parity capabilities remain `unverified` until they succeed against the selected live connection.
 
+## Privacy Policy
+
+SAP ABAP MCP runs locally and does not send SAP profiles, credentials, source code, or tool results to a publisher-operated service. It communicates only with destinations selected by the user, including the configured SAP system and the user's MCP host. See the complete [`PRIVACY.md`](PRIVACY.md) and [`TERMS.md`](TERMS.md).
+
 ### Claude Code and Codex plugin marketplaces
 
 This repository is also a dual-compatible plugin marketplace. The plugin starts the same npm `latest` package as a local `stdio` process, so SAP profiles, credentials, and ADT traffic stay on the user's computer.

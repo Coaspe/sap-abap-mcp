@@ -17,6 +17,9 @@
   "homepage": "https://github.com/Coaspe/sap-abap-mcp",
   "documentation": "https://github.com/Coaspe/sap-abap-mcp#readme",
   "support": "https://github.com/Coaspe/sap-abap-mcp/issues",
+  "privacy_policies": [
+    "https://github.com/Coaspe/sap-abap-mcp/blob/main/PRIVACY.md"
+  ],
   "icon": "icon.png",
   "server": {
     "type": "node",
