@@ -6,7 +6,7 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Version: `0.4.3`
+- Version: `0.4.4`
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -54,12 +54,15 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| Official MCP Registry | 0.4.2 live; 0.4.3 pending | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp); publish 0.4.3 after npm OTP authorization |
+| npm | 0.4.3 live; 0.4.4 pending | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp); approve the staged 0.4.4 release with npm 2FA |
+| Official MCP Registry | 0.4.3 live; 0.4.4 pending | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp); publish after npm 0.4.4 is live |
 | Smithery | Live | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); its generated description remains empty because of [smithery-ai/cli#787](https://github.com/smithery-ai/cli/issues/787) |
 | Glama | Live, cache stale | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp); claim the listing to request a refresh |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
 | MCP Server Hub | Submitted | Awaiting directory review |
 | Awesome MCP Servers | Draft PR opened | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129) |
+| Claude Code Community Marketplace | Plugin ready | Dual-compatible plugin validates and installs locally; submit through the Anthropic Console after repository publication |
+| Codex marketplace | Plugin ready | Repository marketplace validates and installs as `sap-abap-mcp@coaspe-sap`; public universal directory still requires a production HTTPS MCP endpoint |
 | LobeHub | Authentication required | Complete the human-in-the-loop CLI authorization, connect GitHub, then submit the repository |
 | mcp.so | Authentication required | Sign in before submitting the already prepared repository listing |
 | MCP Servers and MCP Market | Contact email required | Submit only after the owner approves the contact email sent to both directories |
@@ -72,5 +75,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 | Official MCP Registry | Publish `server.json` with `mcp-publisher` after npm publication |
 | Glama and PulseMCP | Verify ingestion from the Official MCP Registry; submit the repository manually if absent |
 | Smithery | Publish the generated MCPB bundle from `artifacts/` |
+| Claude Code | Submit `plugins/sap-abap-mcp` to the `claude-community` marketplace after `claude plugin validate .` passes |
+| Codex | Distribute the repository marketplace immediately; use the public submission portal only after a production HTTPS MCP architecture exists |
 | Cline MCP Marketplace | Submit the GitHub repository and 400 by 400 PNG logo through its issue form |
 | mcp.so, MCP Servers, MCP Market, MCP Server Hub, LobeHub | Submit the repository URL and canonical metadata above |

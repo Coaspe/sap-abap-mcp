@@ -1,0 +1,20 @@
+{
+  "name": "coaspe-sap",
+  "interface": {
+    "displayName": "Coaspe SAP Developer Tools"
+  },
+  "plugins": [
+    {
+      "name": "sap-abap-mcp",
+      "source": {
+        "source": "local",
+        "path": "./plugins/sap-abap-mcp"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

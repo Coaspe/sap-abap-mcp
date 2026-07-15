@@ -8,7 +8,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
   const serverJson = JSON.parse(readFileSync("server.json", "utf8"))
 
-  assert.equal(packageJson.version, "0.4.3")
+  assert.equal(packageJson.version, "0.4.4")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
@@ -89,10 +89,62 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.equal(mcpbIcon.readUInt32BE(20), 512)
 })
 
+test("Claude Code and Codex plugins launch the same published local MCP package", () => {
+  const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
+  const codexManifest = JSON.parse(
+    readFileSync("plugins/sap-abap-mcp/.codex-plugin/plugin.json", "utf8")
+  )
+  const claudeManifest = JSON.parse(
+    readFileSync("plugins/sap-abap-mcp/.claude-plugin/plugin.json", "utf8")
+  )
+  const mcpConfig = JSON.parse(readFileSync("plugins/sap-abap-mcp/.mcp.json", "utf8"))
+  const codexMarketplace = JSON.parse(readFileSync(".agents/plugins/marketplace.json", "utf8"))
+  const claudeMarketplace = JSON.parse(readFileSync(".claude-plugin/marketplace.json", "utf8"))
+
+  assert.equal(codexManifest.name, "sap-abap-mcp")
+  assert.equal(codexManifest.version, packageJson.version)
+  assert.equal(codexManifest.license, "MIT")
+  assert.equal(codexManifest.mcpServers, "./.mcp.json")
+  assert.equal(claudeManifest.name, codexManifest.name)
+  assert.equal(claudeManifest.version, packageJson.version)
+  assert.equal(claudeManifest.license, "MIT")
+  assert.deepEqual(mcpConfig, {
+    mcpServers: {
+      "sap-abap": {
+        command: "npx",
+        args: [
+          "--yes",
+          "--prefer-online",
+          "@coaspe/sap-abap-mcp@latest",
+          "serve"
+        ]
+      }
+    }
+  })
+
+  assert.equal(codexMarketplace.name, "coaspe-sap")
+  assert.deepEqual(codexMarketplace.plugins[0], {
+    name: "sap-abap-mcp",
+    source: { source: "local", path: "./plugins/sap-abap-mcp" },
+    policy: { installation: "AVAILABLE", authentication: "ON_INSTALL" },
+    category: "Developer Tools"
+  })
+  assert.equal(claudeMarketplace.name, codexMarketplace.name)
+  assert.equal(claudeMarketplace.plugins[0].name, codexManifest.name)
+  assert.equal(claudeMarketplace.plugins[0].source, "./plugins/sap-abap-mcp")
+
+  const pluginIcon = readFileSync("plugins/sap-abap-mcp/assets/icon.png")
+  assert.equal(pluginIcon.readUInt32BE(16), 400)
+  assert.equal(pluginIcon.readUInt32BE(20), 400)
+  assert.deepEqual(pluginIcon, readFileSync("assets/directory-icon.png"))
+})
+
 test("README explains registry installation without claiming live SAP verification", () => {
   const readme = readFileSync("README.md", "utf8")
   assert.match(readme, /## MCP directories and registries/)
   assert.match(readme, /io\.github\.Coaspe\/sap-abap-mcp/)
   assert.match(readme, /local `stdio` server/)
   assert.match(readme, /remain `unverified`/)
+  assert.match(readme, /### Claude Code and Codex plugin marketplaces/)
+  assert.match(readme, /plugin marketplace add Coaspe\/sap-abap-mcp/)
 })

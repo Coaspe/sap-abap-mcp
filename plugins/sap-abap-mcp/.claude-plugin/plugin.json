@@ -1,0 +1,19 @@
+{
+  "name": "sap-abap-mcp",
+  "version": "0.4.4",
+  "description": "Develop, test, analyze, and operate SAP ABAP systems through local ADT connections.",
+  "author": {
+    "name": "Coaspe",
+    "url": "https://github.com/Coaspe"
+  },
+  "homepage": "https://github.com/Coaspe/sap-abap-mcp#readme",
+  "repository": "https://github.com/Coaspe/sap-abap-mcp",
+  "license": "MIT",
+  "keywords": [
+    "sap",
+    "abap",
+    "adt",
+    "mcp",
+    "developer-tools"
+  ]
+}
