@@ -8,7 +8,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
   const serverJson = JSON.parse(readFileSync("server.json", "utf8"))
 
-  assert.equal(packageJson.version, "0.4.10")
+  assert.equal(packageJson.version, "0.4.11")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
@@ -90,8 +90,8 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.deepEqual(manifest.compatibility.platforms, ["darwin", "win32"])
   assert.equal(manifest.compatibility.runtimes.node, ">=20")
   assert.equal(manifest.tools_generated, false)
-  assert.equal(manifest.tools.length, 52)
-  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 52)
+  assert.equal(manifest.tools.length, 53)
+  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 53)
   for (const tool of manifest.tools) {
     assert.ok(tool.name.trim(), "MCPB tool name must not be empty")
     assert.ok(tool.description.trim(), `MCPB tool description must not be empty: ${tool.name}`)

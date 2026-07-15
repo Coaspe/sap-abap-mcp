@@ -8,6 +8,10 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ConnectionManager, type ConnectionSummary } from "../src/connection-manager.js"
 import { IMPLEMENTED_TOOL_NAMES } from "../src/compat/abap-fs-tools.js"
+import {
+  DEFERRED_RESULT_TOOL_NAME,
+  type DeferredResultEnvelope
+} from "../src/deferred-results.js"
 import { createMcpServer } from "../src/mcp-server.js"
 import { AppError } from "../src/errors.js"
 import { ProfileStore, type SapProfile } from "../src/profile-store.js"
@@ -4020,12 +4024,24 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   assert.equal(pagedSearch.matchCount, 1000)
   assert.equal(pagedSearch.returnedMatches, 10)
   assert.equal(pagedSearch.nextStartIndex, 20)
-  const boundedSource = await callJson("get_abap_object_lines", {
+  const boundedEnvelope = await callJson("get_abap_object_lines", {
     objectName: "ZCL_DEMO",
     objectType: "CLAS",
     connectionId: "DEV100",
     lineCount: 5000
-  })
+  }) as DeferredResultEnvelope
+  assert.equal(boundedEnvelope.deferred, true)
+  let boundedSourceText = boundedEnvelope.previewText
+  let boundedSourceOffset: number | null = boundedEnvelope.nextOffset
+  while (boundedSourceOffset !== null) {
+    const chunk = await callJson(DEFERRED_RESULT_TOOL_NAME, {
+      resultId: boundedEnvelope.resultId,
+      offset: boundedSourceOffset
+    }) as { content: string; nextOffset: number | null }
+    boundedSourceText += chunk.content
+    boundedSourceOffset = chunk.nextOffset
+  }
+  const boundedSource = JSON.parse(boundedSourceText)
   assert.equal(boundedSource.truncated, true)
   assert.ok(Buffer.byteLength(JSON.stringify(boundedSource), "utf8") < 100 * 1024)
   fake.currentSource = source

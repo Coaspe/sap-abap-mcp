@@ -128,16 +128,18 @@ MCP 프로세스를 중앙 클라우드에 배포하지 않는다. 프로젝트 
 | 프로필별 자격증명 조회 | 구조 구현 |
 | 실제 ADT 로그인 검증 | 구현 |
 | 연결 진단 `doctor` | 구현 |
-| 실제 MCP 도구 | ABAP FS 2.6.5 기준 42개 + 확장 기능 10개, 총 52개 구현 및 인메모리 MCP 통합 테스트 완료 |
+| 실제 MCP 도구 | ABAP FS 2.6.5 기준 42개 + 확장 기능 10개 + 대용량 결과 조회 1개, 총 53개 구현 및 인메모리 MCP 통합 테스트 완료 |
 | ABAP FS 도구 42개 목록 | 호환성 기준선으로 고정 |
 | Windows DPAPI SecretStore | 구현 및 단위 테스트 완료 |
 | scoped 패키지명 `@coaspe/sap-abap-mcp` | 변경 완료 |
-| public npm 게시 | 최상단 Quick Start와 대화형 등록·수정·삭제 마법사를 포함한 `0.4.10`을 npm Trusted Publishing으로 게시 완료 |
+| public npm 게시 | 대용량 결과 지연 조회와 검색 context 중복 제거를 포함한 `0.4.11`을 npm `latest`로 게시 완료 |
 | Windows 실제 SAP 통합 테스트 | 미실행 |
 
 `createDefaultSecretStore()`는 Windows에서 DPAPI 저장소를 자동 선택한다. 저장·조회·삭제와 프로필 격리는 단위 테스트를 통과했지만, 실제 Windows와 SAP 서버를 함께 사용하는 통합 테스트는 아직 필요하다.
 
-ABAP FS 호환 42개와 확장 10개 전체 이름은 [`src/compat/abap-fs-tools.ts`](../src/compat/abap-fs-tools.ts)에 고정되어 있다. 확장 도구에는 연결별 SAP 기능 상태를 조회하는 `get_sap_capabilities`와 일회용 확인 계획으로 class runner 또는 고정 `/sap/bc/z_abap_repl` 계약을 실행하는 `run_abap_application`이 포함된다. BDEF 소스 생성, 단일 요청 batch activation, 상세 completion/documentation/type hierarchy/components 조회도 구현되어 있다. 이 SAP 의존 기능은 선택한 실제 연결에서 성공 증거가 쌓일 때까지 `unverified`로 취급한다.
+ABAP FS 호환 42개, 기능 확장 10개, 대용량 결과 조회 도구 `read_deferred_result`의 전체 이름은 [`src/compat/abap-fs-tools.ts`](../src/compat/abap-fs-tools.ts)에 고정되어 있다. 확장 도구에는 연결별 SAP 기능 상태를 조회하는 `get_sap_capabilities`와 일회용 확인 계획으로 class runner 또는 고정 `/sap/bc/z_abap_repl` 계약을 실행하는 `run_abap_application`이 포함된다. BDEF 소스 생성, 단일 요청 batch activation, 상세 completion/documentation/type hierarchy/components 조회도 구현되어 있다. 이 SAP 의존 기능은 선택한 실제 연결에서 성공 증거가 쌓일 때까지 `unverified`로 취급한다.
+
+40 KiB를 넘는 JSON은 `compact-v1` 구조 요약과 정확한 원문 조회 ID로 분리한다. `search_abap_object_lines`는 반복 context가 많으므로 16 KiB부터 겹치는 줄 범위를 병합하며, 원문 전체가 필요할 때만 `read_deferred_result`를 사용한다. 이 과정은 SAP 요청을 다시 실행하지 않는다.
 
 실제 개발 시스템 검증은 [`live-sap-acceptance.md`](live-sap-acceptance.md)의 전용 객체·전용 transport·증거 삭제 절차를 따른다. 자동화 테스트 통과를 live SAP 지원 증거로 해석하지 않는다.
 

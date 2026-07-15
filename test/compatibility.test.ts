@@ -22,8 +22,8 @@ test("implementation advertises the strict-compatible headless subset without th
   )
   assert.equal((ABAP_FS_UPSTREAM_MCP_TOOL_NAMES as readonly string[]).includes("manage_subagents"), true)
   assert.equal((IMPLEMENTED_TOOL_NAMES as readonly string[]).includes("manage_subagents"), false)
-  assert.equal(IMPLEMENTED_TOOL_NAMES.length, 52)
-  assert.equal(new Set(IMPLEMENTED_TOOL_NAMES).size, 52)
+  assert.equal(IMPLEMENTED_TOOL_NAMES.length, 53)
+  assert.equal(new Set(IMPLEMENTED_TOOL_NAMES).size, 53)
   assert.ok(ABAP_FS_MCP_TOOL_NAMES.every(name => IMPLEMENTED_TOOL_NAMES.includes(name)))
 })
 
@@ -40,11 +40,16 @@ test("static toolsets cover the full tool surface without changing all", () => {
     ABAP_MCP_TOOLSETS.write.filter(name => name === "run_abap_application").length,
     1
   )
+  assert.ok(
+    Object.values(ABAP_MCP_TOOLSETS).every(toolset =>
+      toolset.includes("read_deferred_result")
+    )
+  )
   assert.deepEqual(
     [...toolsForToolsets(["core"])].sort(),
     [...ABAP_MCP_TOOLSETS.core].sort()
   )
-  assert.equal(toolsForToolsets(["all"]).size, 52)
+  assert.equal(toolsForToolsets(["all"]).size, 53)
 })
 
 test("bundled documentation states exact parity, verification, and runtime boundaries", () => {
@@ -60,7 +65,7 @@ test("bundled documentation states exact parity, verification, and runtime bound
     "Pinned upstream MCP tools: 43",
     "Strict-compatible local tools: 42",
     "Omitted upstream tool: manage_subagents (requires the VS Code agent host)",
-    "Total locally advertised tools: 52",
+    "Total locally advertised tools: 53",
     "SAP-dependent parity features are implemented but remain live-unverified until a selected connection succeeds.",
     "ABAP REPL requires ZCL_ABAP_REPL and SICF /sap/bc/z_abap_repl.",
     "Generic report/program-console execution is not implemented."
@@ -84,6 +89,7 @@ test("bundled documentation states exact parity, verification, and runtime bound
     const afterHeading = content.split(`### ${group}\n\n`)[1] ?? ""
     return afterHeading.split("\n\n")[0]?.split("\n").map(line => line.slice(2)) ?? []
   }
+  assert.deepEqual(groupTools("MCP result retrieval"), ["read_deferred_result"])
   assert.deepEqual(groupTools("Connection and discovery"), [
     "get_connected_systems", "get_sap_system_info", "get_sap_capabilities", "adt_discovery_export"
   ])
@@ -101,8 +107,8 @@ test("bundled documentation states exact parity, verification, and runtime bound
 
   const toolSection = content.split("## Tool groups\n\n")[1]?.split("## Recommended workflow")[0] ?? ""
   const documentedTools = [...toolSection.matchAll(/^- (.+)$/gm)].map(match => match[1]!)
-  assert.equal(documentedTools.length, 52)
-  assert.equal(new Set(documentedTools).size, 52)
+  assert.equal(documentedTools.length, 53)
+  assert.equal(new Set(documentedTools).size, 53)
   assert.deepEqual([...documentedTools].sort(), [...IMPLEMENTED_TOOL_NAMES].sort())
 })
 
@@ -110,7 +116,7 @@ test("published guides preserve current counts and live acceptance safety bounda
   const readme = readFileSync("README.md", "utf8")
   const acceptance = readFileSync("docs/live-sap-acceptance.md", "utf8")
 
-  assert.match(readme, /complete 52-tool schema/)
+  assert.match(readme, /complete 53-tool schema/)
   assert.doesNotMatch(readme, /50-tool|eight grouped|eight extension|all 42 MCP tools/)
   assert.match(acceptance, /"status": "<supported\|unsupported\|unverified>"/)
   assert.match(

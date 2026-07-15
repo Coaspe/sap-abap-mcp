@@ -11,8 +11,19 @@ import type {
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
 import type { RapGeneratorContent } from "abap-adt-api"
+import {
+  DEFERRED_RESULT_CHUNK_BYTE_LIMIT,
+  DEFERRED_RESULT_TOOL_NAME,
+  DeferredResultStore,
+  type DeferredErrorSummary
+} from "./deferred-results.js"
 import { errorPayload } from "./errors.js"
 import { MERMAID_DIAGRAM_TYPES } from "./mermaid-tools.js"
+import {
+  SEARCH_RESULT_COMPACT_BYTE_THRESHOLD,
+  summarizeDeferredResult,
+  summarizeSearchObjectLinesResult
+} from "./result-summaries.js"
 import type {
   AbapToolService,
   ActivateObjectInput,
@@ -60,30 +71,46 @@ export const ABAP_OBJECT_TYPES = [
   "SRVB"
 ] as const
 
-function success(value: unknown) {
-  const text = JSON.stringify(value)
-  return {
-    content: [{ type: "text" as const, text }]
+function boundSummaryText(value: string, byteLimit: number): string {
+  if (Buffer.byteLength(value, "utf8") <= byteLimit) return value
+  let result = ""
+  let bytes = 0
+  for (const character of value) {
+    const characterBytes = Buffer.byteLength(character, "utf8")
+    if (bytes + characterBytes > byteLimit - 3) break
+    result += character
+    bytes += characterBytes
   }
+  return `${result}...`
 }
 
-function failure(error: unknown) {
+function deferredErrorSummary(payload: ReturnType<typeof errorPayload>): DeferredErrorSummary {
+  const details = payload.details ?? {}
+  const status = typeof details.status === "string" || typeof details.status === "number"
+    ? details.status
+    : typeof details.statusCode === "string" || typeof details.statusCode === "number"
+      ? details.statusCode
+      : undefined
+  const endpoint = typeof details.endpoint === "string"
+    ? boundSummaryText(details.endpoint, 1024)
+    : undefined
   return {
-    content: [{ type: "text" as const, text: JSON.stringify(errorPayload(error)) }],
-    isError: true
-  }
-}
-
-async function runTool<T>(operation: () => Promise<T>) {
-  try {
-    return success(await operation())
-  } catch (error) {
-    return failure(error)
+    code: boundSummaryText(payload.code, 256),
+    message: boundSummaryText(payload.message, 2048),
+    ...(status !== undefined ? { status } : {}),
+    ...(endpoint !== undefined ? { endpoint } : {})
   }
 }
 
 export interface McpServerOptions {
   enabledTools?: ReadonlySet<string>
+}
+
+interface ToolResultPolicy {
+  allowDeferred?: boolean
+  inlineByteLimit?: number
+  previewByteLimit?: number
+  summarize?: (value: unknown) => unknown
 }
 
 export function createMcpServer(
@@ -93,7 +120,7 @@ export function createMcpServer(
   const server = new McpServer(
     {
       name: "sap-abap-mcp",
-      version: "0.4.10",
+      version: "0.4.11",
       title: "SAP ABAP MCP",
       description:
         "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
@@ -106,9 +133,58 @@ export function createMcpServer(
     },
     {
       instructions:
-        "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
+        "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
   )
+  const deferredResults = new DeferredResultStore()
+  const deferredResultsEnabled = !options.enabledTools ||
+    options.enabledTools.has(DEFERRED_RESULT_TOOL_NAME)
+  const result = (
+    value: unknown,
+    isError = false,
+    policy: ToolResultPolicy = {},
+    errorSummary?: DeferredErrorSummary
+  ) => {
+    const text = JSON.stringify(value) as string
+    const deferred = (policy.allowDeferred ?? true) && deferredResultsEnabled
+      ? deferredResults.defer(text, errorSummary, {
+          ...(policy.inlineByteLimit !== undefined
+            ? { inlineByteLimit: policy.inlineByteLimit }
+            : {}),
+          ...(policy.previewByteLimit !== undefined
+            ? { previewByteLimit: policy.previewByteLimit }
+            : {}),
+          ...(!isError
+            ? {
+                createSummary: () => (policy.summarize ?? summarizeDeferredResult)(value)
+              }
+            : {})
+        })
+      : undefined
+    return {
+      content: [{
+        type: "text" as const,
+        text: deferred ? JSON.stringify(deferred) : text
+      }],
+      ...(isError ? { isError: true } : {})
+    }
+  }
+  const success = (value: unknown, policy: ToolResultPolicy = {}) =>
+    result(value, false, policy)
+  const failure = (error: unknown, policy: ToolResultPolicy = {}) => {
+    const payload = errorPayload(error)
+    return result(payload, true, policy, deferredErrorSummary(payload))
+  }
+  const runTool = async <T>(
+    operation: () => Promise<T>,
+    policy: ToolResultPolicy = {}
+  ) => {
+    try {
+      return success(await operation(), policy)
+    } catch (error) {
+      return failure(error, policy)
+    }
+  }
   const readOnlyAnnotations = {
     readOnlyHint: true,
     destructiveHint: false,
@@ -174,6 +250,27 @@ export function createMcpServer(
     if (options.enabledTools && !options.enabledTools.has(name)) return undefined
     return server.registerTool(name, config, callback)
   }
+
+  registerTool(
+    DEFERRED_RESULT_TOOL_NAME,
+    {
+      title: "Read Deferred MCP Result",
+      description:
+        "Read the next UTF-8 chunk of a large MCP result using the resultId and nextOffset returned by another tool.",
+      inputSchema: {
+        resultId: z.string().describe("Deferred result ID returned by another MCP tool"),
+        offset: z.number().int().optional().describe("UTF-8 byte offset; use the returned nextOffset"),
+        maxBytes: z.number().int().optional().describe(
+          `Requested chunk size in bytes, up to ${DEFERRED_RESULT_CHUNK_BYTE_LIMIT}`
+        )
+      },
+      annotations: readOnlyAnnotations
+    },
+    async ({ resultId, offset, maxBytes }) => runTool(
+      async () => deferredResults.read(resultId, offset, maxBytes),
+      { allowDeferred: false }
+    )
+  )
 
   registerTool(
     "get_connected_systems",
@@ -296,7 +393,14 @@ export function createMcpServer(
       },
       annotations: readOnlyAnnotations
     },
-    async input => runTool(() => tools.searchObjectLines(input))
+    async input => runTool(
+      () => tools.searchObjectLines(input),
+      {
+        inlineByteLimit: SEARCH_RESULT_COMPACT_BYTE_THRESHOLD,
+        previewByteLimit: 0,
+        summarize: summarizeSearchObjectLinesResult
+      }
+    )
   )
 
   registerTool(
