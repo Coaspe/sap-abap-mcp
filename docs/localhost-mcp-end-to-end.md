@@ -362,7 +362,13 @@ DEV100과 QAS200의 ZCL_ORDER 클래스가 같은지 비교해줘.
 npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest profile list
 ```
 
-같은 ID로 `profile add`를 다시 실행하면 해당 프로필을 갱신한다.
+서버 정보 수정 및 SAP 재검증:
+
+```powershell
+npx.cmd @coaspe/sap-abap-mcp@latest setup edit DEV100
+```
+
+Server name을 생략하면 저장된 서버 목록에서 선택할 수 있다. 수정 중에는 Server name이 고정되며, 변경된 설정과 암호가 SAP 검증을 통과한 뒤에만 기존 설정을 교체한다.
 
 암호 변경 후 다시 로그인:
 
@@ -379,8 +385,10 @@ npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest auth logout DEV100
 프로필과 자격증명 삭제:
 
 ```powershell
-npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest profile remove DEV100
+npx.cmd @coaspe/sap-abap-mcp@latest setup remove DEV100
 ```
+
+삭제 명령은 서버 정보를 다시 보여주고 기본값이 `No`인 확인을 거친다. 승인하면 SAP 암호와 해당 서버의 abapGit 자격증명도 함께 삭제한다. 자동화에서는 기존 `profile remove DEV100` 명령을 계속 사용할 수 있다.
 
 ## 12. 특정 시스템 하나만 노출하는 제한 모드
 

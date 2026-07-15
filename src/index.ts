@@ -25,12 +25,18 @@ import {
   encodeAbapGitCredentials,
   normalizeAbapGitRepositoryUrl
 } from "./abapgit-credentials.js"
-import { createTerminalSetupPrompter, runSetupWizard } from "./setup-wizard.js"
+import {
+  createTerminalSetupPrompter,
+  runSetupRemoval,
+  runSetupWizard
+} from "./setup-wizard.js"
 
 const HELP = `sap-abap-mcp
 
 Commands:
   setup
+  setup edit [<server-name>]
+  setup remove [<server-name>]
   profile add <id> --url <url> --client <nnn> [--language EN]
       [--environment development|quality|production] [--username <user>]
       [--packages ZPKG1,ZPKG2] [--login [--password-stdin]]
@@ -353,7 +359,26 @@ async function doctorCommand(parsed: ParsedArguments, profiles: ProfileStore, se
   }
 }
 
-async function setupCommand(profiles: ProfileStore, secrets: SecretStore) {
+async function setupCommand(
+  parsed: ParsedArguments,
+  profiles: ProfileStore,
+  secrets: SecretStore
+) {
+  const action = parsed.positionals[1]
+  const serverName = parsed.positionals[2]
+  if (action === "remove") {
+    await runSetupRemoval({
+      profiles,
+      secrets,
+      prompter: createTerminalSetupPrompter(promptSecret),
+      ...(serverName ? { serverName } : {})
+    })
+    return
+  }
+  if (action && action !== "edit") {
+    throw new AppError("UNKNOWN_COMMAND", `Unknown setup action: ${action}`)
+  }
+
   const manager = new ConnectionManager(profiles, secrets)
   try {
     await runSetupWizard({
@@ -361,6 +386,8 @@ async function setupCommand(profiles: ProfileStore, secrets: SecretStore) {
       secrets,
       prompter: createTerminalSetupPrompter(promptSecret),
       platform: process.platform,
+      ...(action === "edit" ? { mode: "edit" as const } : {}),
+      ...(serverName ? { serverName } : {}),
       validateCredentials: (profile, password) => manager.validateCredentials(profile, password)
     })
   } finally {
@@ -416,7 +443,7 @@ export async function runCli(args = process.argv.slice(2)): Promise<void> {
 
   const profiles = new ProfileStore()
   const secrets = createDefaultSecretStore()
-  if (command === "setup") return setupCommand(profiles, secrets)
+  if (command === "setup") return setupCommand(parsed, profiles, secrets)
   if (command === "profile") return profileCommand(parsed, profiles, secrets)
   if (command === "auth") return authCommand(parsed, profiles, secrets)
   if (command === "abapgit") return abapGitCommand(parsed, profiles, secrets)

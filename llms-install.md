@@ -27,6 +27,15 @@ npx @coaspe/sap-abap-mcp@latest setup
 
 The wizard labels the local connection alias as `Server name` and the endpoint as `SAP URL`. On macOS or Windows it verifies SAP before saving and stores the hidden password in macOS Keychain or Windows DPAPI. On Windows, use `npx.cmd`. PowerShell uses a backtick for multiline commands and Command Prompt uses a caret; the one-line wizard command avoids that distinction. Keep production servers marked as `production`; the server rejects writes for those profiles.
 
+To change or remove a saved server, use the same local wizard. Omit the Server name to choose from a list:
+
+```text
+<npx> @coaspe/sap-abap-mcp@latest setup edit [<server-name>]
+<npx> @coaspe/sap-abap-mcp@latest setup remove [<server-name>]
+```
+
+Editing keeps the Server name fixed. On Windows and macOS it verifies SAP before replacing the saved values; Linux verifies when the matching password environment variable is available and otherwise prints the authentication steps again. Removal displays the selected server, defaults to `No`, and deletes its stored SAP and abapGit credentials after confirmation.
+
 On Linux, the wizard saves the non-secret server settings and prints the exact `SAP_ABAP_MCP_PASSWORD_<NORMALIZED_SERVER_NAME>` commands. Set it with a hidden shell prompt and start Claude Code from the same shell. For example, `DEV-100` uses `SAP_ABAP_MCP_PASSWORD_DEV_100`:
 
 ```bash
