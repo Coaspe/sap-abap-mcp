@@ -65,10 +65,11 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 | Claude Desktop MCPB directory | Submitted; review pending | Submitted the validated `sap-abap-mcp-0.4.4.mcpb` through Anthropic's official local-extension form on 2026-07-15; the form confirmed that the response was recorded |
 | Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap` |
 | Codex universal plugin directory | Blocked by prerequisites | The official `With MCP` flow requires completed OpenAI developer identity verification and a production public HTTPS MCP endpoint; the current local `stdio` server cannot be submitted as-is |
-| LobeHub | Authentication required | Complete the human-in-the-loop CLI authorization, connect GitHub, then submit the repository |
-| mcp.so | Authentication required | Sign in before submitting the already prepared repository listing |
-| MCP Servers and MCP Market | Contact email required | Submit only after the owner approves the contact email sent to both directories |
-| Cline MCP Marketplace | Setup test required | Perform a real Cline installation test before checking the submission form's required verification box |
+| LobeHub | Live | [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp), generated from the GitHub repository on 2026-07-15 |
+| mcp.so | Submitted; review queued | [Submission `cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64`](https://mcp.so/settings/submissions/cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64/edit); canonical metadata and the local `stdio` configuration were saved after automated extraction |
+| MCP Servers | Submitted; review pending | Free submission confirmed on 2026-07-15; the confirmation page stated that review is expected within 12 hours and the result will be sent by email |
+| MCP Market | Submitted; review queued | Free submission confirmed on 2026-07-15; the confirmation page reported an estimated 4–6 week queue and email notification when live |
+| Cline MCP Marketplace | Submitted; review pending | [`cline/mcp-marketplace#2030`](https://github.com/cline/mcp-marketplace/issues/2030); before submission, Cline used only `README.md` and `llms-install.md` to create the configuration, complete a real MCP initialization, discover all 52 tools, and stop with exit code 0 and empty stderr |
 
 ## Distribution targets
 
@@ -80,5 +81,6 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 | Claude Code | Monitor the submitted `Coaspe ABAP MCP` listing in the Anthropic Console and respond if the review team requests more information |
 | Claude Desktop | Monitor the submitted MCPB listing and respond if Anthropic requests more information |
 | Codex | Distribute the repository marketplace immediately; complete developer identity verification and design a production HTTPS MCP architecture before using the universal `With MCP` submission flow |
-| Cline MCP Marketplace | Submit the GitHub repository and 400 by 400 PNG logo through its issue form |
-| mcp.so, MCP Servers, MCP Market, MCP Server Hub, LobeHub | Submit the repository URL and canonical metadata above |
+| Cline MCP Marketplace | Monitor [`cline/mcp-marketplace#2030`](https://github.com/cline/mcp-marketplace/issues/2030) and respond if the review team requests changes |
+| mcp.so, MCP Servers, MCP Market, MCP Server Hub | Monitor the submitted listings and respond to review email or requested changes |
+| LobeHub | Verify that [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp) refreshes after each repository release |
