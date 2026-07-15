@@ -7,7 +7,7 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current version: `0.4.7`
+- Current version: `0.4.8`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
@@ -131,37 +131,17 @@ node --version
 
 ## Quick start on Windows
 
-### 1. Add an SAP profile and log in
-
-Use your real values and keep production profiles read-only. Omitting `--packages` allows writes to all packages; add it only when you want to restrict writes to specific packages.
-
-The Windows examples in this guide use PowerShell. PowerShell continues a command with a backtick (`` ` ``), while Command Prompt (`cmd.exe`) uses a caret (`^`). Do not mix the two continuation characters.
+### 1. Run interactive setup
 
 ```powershell
-npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 `
-  --url "https://sap-dev.company.com" `
-  --client 100 `
-  --username "DEV_USER" `
-  --environment development `
-  --login
+npx.cmd @coaspe/sap-abap-mcp@latest setup
 ```
 
-The same command in Command Prompt is:
+The first run may ask whether npm may download the package; enter `y` to continue. The setup wizard collects the SAP URL, client, username, environment, and optional writable-package restriction. `Server name` is the local name used later as `connectionId`, for example `DEV100`. Keep production servers classified as `production`; they are read-only even if the package restriction is empty.
 
-```bat
-npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 ^
-  --url "https://sap-dev.company.com" ^
-  --client 100 ^
-  --username "DEV_USER" ^
-  --environment development ^
-  --login
-```
+When `SAP password:` appears, enter the password and press Enter; the input remains hidden. The server configuration and password are stored only after the MCP validates the credentials against SAP. Windows protects the password with DPAPI and never writes it to the profile file.
 
-Both shells also accept the command on one line. The profile ID `DEV100` is a local alias. When `SAP password:` appears, enter the password and press Enter; the input remains hidden. The profile and password are stored only after the MCP validates the credentials against SAP.
-
-To restrict writes, add a comma-separated allowlist such as `--packages "Z_MCP_TEST,Z_MCP_TEST2"`. An empty allowlist permits every package, while production profiles still reject writes.
-
-The password is stored with Windows DPAPI and is never written to the profile file. For non-interactive environments, pipe the password and add `--password-stdin` after `--login`.
+The setup command is one line in both PowerShell and Command Prompt. For advanced multiline commands, PowerShell continues a line with a backtick (`` ` ``), while Command Prompt (`cmd.exe`) uses a caret (`^`); do not mix them.
 
 ### 2. Verify ADT connectivity
 
@@ -169,7 +149,7 @@ The password is stored with Windows DPAPI and is never written to the profile fi
 npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest doctor DEV100
 ```
 
-A successful response contains `"ok": true`.
+A completed setup already performs this live check. Run `doctor` again whenever you want to recheck ADT connectivity; a successful response contains `"ok": true`.
 
 ### 3. Register the MCP server
 
@@ -187,7 +167,7 @@ claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes --prefer
 
 Restart the client after registration. Use `codex mcp list`, `claude mcp get sap-abap`, or the client's `/mcp` command to verify the connection.
 
-The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.4.6` will automatically run `0.4.7` after `0.4.7` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
+The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.4.7` will automatically run `0.4.8` after `0.4.8` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
 
 ### 4. Start with read-only requests
 
@@ -203,35 +183,21 @@ Build a depth-1 dependency graph for ZCL_DEMO.
 Use `npx` instead of `npx.cmd`:
 
 ```bash
-npx --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 \
-  --url "https://sap-dev.company.com" \
-  --client 100 \
-  --username "DEV_USER" \
-  --environment development \
-  --login
-
-npx --yes --prefer-online @coaspe/sap-abap-mcp@latest doctor DEV100
+npx @coaspe/sap-abap-mcp@latest setup
 codex mcp add sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
 ```
 
-SAP passwords are stored in macOS Keychain.
+The wizard tests the SAP connection and stores the password in macOS Keychain.
 
 ## Linux and containers
 
-Linux runs the same local stdio server, but it does not persist credentials. Create the profile without `--login`, then provide its password through a profile-specific environment variable:
+Linux runs the same interactive setup, but it does not persist credentials:
 
 ```bash
-npx --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 \
-  --url "https://sap-dev.company.com" \
-  --client 100 \
-  --username "DEV_USER" \
-  --environment development
-
-export SAP_ABAP_MCP_PASSWORD_DEV100="your-password"
-npx --yes --prefer-online @coaspe/sap-abap-mcp@latest doctor DEV100
+npx @coaspe/sap-abap-mcp@latest setup
 ```
 
-Convert non-alphanumeric characters in the profile ID to underscores when forming the variable name; for example, `DEV-100` uses `SAP_ABAP_MCP_PASSWORD_DEV_100`. The Linux environment store is read-only, so `auth login` and `auth logout` are unavailable and no plaintext credential file is created.
+The wizard saves the non-secret server configuration and prints the exact hidden-input and `export` commands for its profile-specific password variable. Run those commands in the same shell that starts the MCP client, then run the printed `doctor` command. For example, server name `DEV-100` uses `SAP_ABAP_MCP_PASSWORD_DEV_100`. The Linux environment store is read-only, so `auth login` and `auth logout` are unavailable and no plaintext credential file is created.
 
 ## Codex desktop setup
 
@@ -343,6 +309,8 @@ When reporting a failure, preserve the MCP error code, HTTP status, ADT endpoint
 ## CLI reference
 
 ```text
+setup
+
 profile add <id> --url <url> --client <nnn> [--language EN]
     [--environment development|quality|production]
     [--username <user>] [--packages ZPKG1,ZPKG2]
@@ -370,7 +338,7 @@ Removing a profile also removes its SAP password and stored abapGit credential v
 |---|---|
 | `node` is not found | Install Node.js 20 or later and reopen the terminal. |
 | npm cannot download the package | Check internet access, proxy configuration, and npm registry policy. |
-| `PROFILE_NOT_FOUND` | Run `profile add` again and verify the profile ID. |
+| `PROFILE_NOT_FOUND` | Run `setup` again and verify the Server name. |
 | SAP login fails | Verify URL, client, username, password, VPN, Basic Auth, and ADT activation. |
 | Certificate or connection error | Check the corporate CA, proxy, VPN, and SAP HTTPS endpoint. |
 | Tools are missing | Confirm that the MCP command contains `@latest` and `--prefer-online`, restart it, and inspect `/mcp`. |

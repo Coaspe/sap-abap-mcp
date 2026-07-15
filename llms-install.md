@@ -17,24 +17,17 @@ When the Claude Code plugin is installed, reload it and invoke its namespaced se
 /sap-abap-mcp:sap-abap-setup
 ```
 
-The skill must list existing profiles first, reuse the profile selected by the user, and collect only non-secret settings. `/mcp` proves that the local plugin process started; it does not prove that SAP authentication succeeded.
+The skill must direct the user to the interactive setup wizard, then verify the exact Server name selected by the user. `/mcp` proves that the local plugin process started; it does not prove that SAP authentication succeeded.
 
-For manual setup on macOS or Windows, run this outside the MCP process so the password is entered through the hidden terminal prompt and stored in macOS Keychain or Windows DPAPI:
+For manual setup, run this outside the MCP process:
 
 ```bash
-npx --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 \
-  --url "https://sap-dev.company.com" \
-  --client 100 \
-  --username "DEV_USER" \
-  --environment development \
-  --login
-
-npx --yes --prefer-online @coaspe/sap-abap-mcp@latest doctor DEV100
+npx @coaspe/sap-abap-mcp@latest setup
 ```
 
-On Windows, use `npx.cmd`. PowerShell uses a backtick for multiline commands and Command Prompt uses a caret; a one-line command avoids that distinction. Keep production profiles marked as `production`; the server rejects writes for those profiles.
+The wizard labels the local connection alias as `Server name` and the endpoint as `SAP URL`. On macOS or Windows it verifies SAP before saving and stores the hidden password in macOS Keychain or Windows DPAPI. On Windows, use `npx.cmd`. PowerShell uses a backtick for multiline commands and Command Prompt uses a caret; the one-line wizard command avoids that distinction. Keep production servers marked as `production`; the server rejects writes for those profiles.
 
-On Linux, create the profile without `--login`, set `SAP_ABAP_MCP_PASSWORD_<NORMALIZED_PROFILE_ID>` with a hidden shell prompt, and start Claude Code from the same shell. For example, `DEV-100` uses `SAP_ABAP_MCP_PASSWORD_DEV_100`:
+On Linux, the wizard saves the non-secret server settings and prints the exact `SAP_ABAP_MCP_PASSWORD_<NORMALIZED_SERVER_NAME>` commands. Set it with a hidden shell prompt and start Claude Code from the same shell. For example, `DEV-100` uses `SAP_ABAP_MCP_PASSWORD_DEV_100`:
 
 ```bash
 read -rsp "SAP password: " SAP_ABAP_MCP_PASSWORD_DEV_100; echo
