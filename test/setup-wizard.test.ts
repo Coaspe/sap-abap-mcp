@@ -4,10 +4,12 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 import { AppError } from "../src/errors.js"
+import { abapGitCredentialKey } from "../src/abapgit-credentials.js"
 import { ProfileStore, type SapProfile } from "../src/profile-store.js"
 import { MemorySecretStore } from "../src/secret-store.js"
 import {
   runSetupWizard,
+  runSetupRemoval,
   type SetupChoice,
   type SetupPrompter
 } from "../src/setup-wizard.js"
@@ -120,6 +122,102 @@ test("setup wizard creates and verifies a server using beginner-facing labels", 
   assert.ok(prompter.labels.every(label => !/Profile ID|System/.test(label)))
   assert.match(prompter.output.join("\n"), /Server name: DEV100/)
   assert.match(prompter.output.join("\n"), /SAP URL: https:\/\/sap\.example\.test/)
+})
+
+test("setup edit targets one server and keeps its name fixed", async t => {
+  const { profiles, secrets } = await setupStores(t)
+  await profiles.upsert({
+    id: "DEV100",
+    url: "https://old.example.test",
+    client: "100",
+    username: "OLD_USER"
+  })
+  await secrets.set("DEV100", "old-secret")
+  const prompter = new ScriptedPrompter([
+    "https://new.example.test",
+    "200",
+    "NEW_USER",
+    "EN",
+    "quality",
+    "Z_NEW",
+    true,
+    "new-secret"
+  ])
+
+  const result = await runSetupWizard({
+    profiles,
+    secrets,
+    prompter,
+    platform: "win32",
+    mode: "edit",
+    serverName: "dev100",
+    async validateCredentials(profile, password) {
+      assert.equal(profile.id, "DEV100")
+      assert.equal(password, "new-secret")
+    }
+  })
+
+  assert.deepEqual(result, {
+    status: "ready",
+    serverName: "DEV100",
+    sapUrl: "https://new.example.test"
+  })
+  assert.ok(!prompter.labels.includes("Server name"))
+  assert.deepEqual(await profiles.get("DEV100"), {
+    id: "DEV100",
+    url: "https://new.example.test",
+    client: "200",
+    language: "EN",
+    environment: "quality",
+    authType: "basic",
+    username: "NEW_USER",
+    allowedPackages: ["Z_NEW"]
+  })
+  assert.equal(await secrets.get("DEV100"), "new-secret")
+})
+
+test("setup remove deletes the selected server and all stored credentials", async t => {
+  const { profiles, secrets } = await setupStores(t)
+  await profiles.upsert({
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    username: "DEVELOPER"
+  })
+  await secrets.set("DEV100", "sap-secret")
+  await secrets.set(abapGitCredentialKey("DEV100"), "git-secret")
+  const prompter = new ScriptedPrompter(["DEV100", true])
+
+  const result = await runSetupRemoval({ profiles, secrets, prompter })
+
+  assert.deepEqual(result, { status: "removed", serverName: "DEV100" })
+  assert.deepEqual(await profiles.list(), [])
+  assert.equal(await secrets.get("DEV100"), undefined)
+  assert.equal(await secrets.get(abapGitCredentialKey("DEV100")), undefined)
+  assert.match(prompter.output.join("\n"), /SAP URL: https:\/\/sap\.example\.test/)
+})
+
+test("setup remove cancellation preserves the server and credentials", async t => {
+  const { profiles, secrets } = await setupStores(t)
+  await profiles.upsert({
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100"
+  })
+  await secrets.set("DEV100", "sap-secret")
+  const prompter = new ScriptedPrompter([false])
+
+  const result = await runSetupRemoval({
+    profiles,
+    secrets,
+    prompter,
+    serverName: "DEV100"
+  })
+
+  assert.deepEqual(result, { status: "cancelled" })
+  assert.equal((await profiles.get("DEV100")).id, "DEV100")
+  assert.equal(await secrets.get("DEV100"), "sap-secret")
+  assert.match(prompter.output.join("\n"), /No changes were made/)
 })
 
 test("setup wizard uses an existing server as defaults and preserves it on login failure", async t => {

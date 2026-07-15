@@ -13,8 +13,16 @@ description: Configure, re-authenticate, and verify a local SAP ABAP MCP profile
    ```
 
 3. Explain that the wizard can create a new server or update an existing one. It labels the local connection alias as `Server name` and the endpoint as `SAP URL`. The Server name becomes the `connectionId` used by SAP tools.
-4. Never ask for a password or token in chat, append it to the command, or proxy the hidden prompt. The user must enter it only at the wizard's local `SAP password:` prompt.
-5. Wait for the user to confirm that the wizard finished. Then run `<npx> --yes --prefer-online @coaspe/sap-abap-mcp@latest profile list`, and have the user select the exact Server name if more than one exists. Never infer or silently switch servers.
+4. When the user asks to change or delete a saved server, direct them to the matching local command. The Server name may be omitted to choose from a list:
+
+   ```text
+   <npx> @coaspe/sap-abap-mcp@latest setup edit [<server-name>]
+   <npx> @coaspe/sap-abap-mcp@latest setup remove [<server-name>]
+   ```
+
+5. Explain that edit keeps the Server name fixed. Windows and macOS verify SAP before saving; Linux verifies when the matching password environment variable is available and otherwise prints the authentication steps again. Remove shows the selected server, defaults to `No`, and deletes the saved SAP and abapGit credentials only after confirmation.
+6. Never ask for a password or token in chat, append it to the command, or proxy the hidden prompt. The user must enter it only at the wizard's local `SAP password:` prompt.
+7. Wait for the user to confirm that the wizard finished. Then run `<npx> --yes --prefer-online @coaspe/sap-abap-mcp@latest profile list`, and have the user select the exact Server name if more than one exists. Never infer or silently switch servers.
 
 ## Windows and macOS
 

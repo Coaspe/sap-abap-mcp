@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline/promises"
 import { stdin, stdout } from "node:process"
+import { abapGitCredentialKey } from "./abapgit-credentials.js"
 import { AppError } from "./errors.js"
 import {
   normalizeProfile,
@@ -37,7 +38,20 @@ export interface SetupWizardOptions {
   secrets: SecretStore
   prompter: SetupPrompter
   platform: NodeJS.Platform
+  mode?: "configure" | "edit"
+  serverName?: string
   validateCredentials(profile: SapProfile, password: string): Promise<void>
+}
+
+export type SetupRemovalResult =
+  | { status: "removed"; serverName: string }
+  | { status: "cancelled" }
+
+export interface SetupRemovalOptions {
+  profiles: ProfileStore
+  secrets: SecretStore
+  prompter: SetupPrompter
+  serverName?: string
 }
 
 function environmentVariableName(serverName: string): string {
@@ -116,13 +130,41 @@ async function requiredSecret(prompter: SetupPrompter): Promise<string> {
 }
 
 export async function runSetupWizard(options: SetupWizardOptions): Promise<SetupWizardResult> {
-  const { profiles, secrets, prompter, platform, validateCredentials } = options
+  const {
+    profiles,
+    secrets,
+    prompter,
+    platform,
+    mode = "configure",
+    serverName: targetServerName,
+    validateCredentials
+  } = options
 
   try {
     prompter.write("SAP ABAP MCP setup\n")
     const savedProfiles = await profiles.list()
     let existing: SapProfile | undefined
-    if (savedProfiles.length > 0) {
+    if (mode === "edit") {
+      if (targetServerName) {
+        existing = await profiles.get(targetServerName)
+      } else {
+        if (savedProfiles.length === 0) {
+          throw new AppError("PROFILE_NOT_FOUND", "No saved servers were found.")
+        }
+        const selected = await prompter.select(
+          "Choose a server to edit",
+          savedProfiles.map(profile => ({
+            value: profile.id,
+            label: `${profile.id} — ${profile.url}`
+          })),
+          savedProfiles[0]?.id ?? ""
+        )
+        existing = savedProfiles.find(profile => profile.id === selected)
+        if (!existing) {
+          throw new AppError("PROFILE_NOT_FOUND", `SAP profile ${selected} was not found`)
+        }
+      }
+    } else if (savedProfiles.length > 0) {
       const choices: SetupChoice[] = [
         ...savedProfiles.map(profile => ({
           value: profile.id,
@@ -140,12 +182,14 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       prompter.write("No saved servers found. Let's add one.")
     }
 
-    const serverName = await requiredInput(
-      prompter,
-      "Server name",
-      existing?.id,
-      validateServerName
-    )
+    const serverName = mode === "edit" && existing
+      ? existing.id
+      : await requiredInput(
+        prompter,
+        "Server name",
+        existing?.id,
+        validateServerName
+      )
     const sapUrl = await requiredInput(
       prompter,
       "SAP URL",
@@ -245,6 +289,64 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       `Use ${profile.id} as connectionId in SAP tools.`
     ].join("\n"))
     return { status: "ready", serverName: profile.id, sapUrl: profile.url }
+  } finally {
+    prompter.close()
+  }
+}
+
+export async function runSetupRemoval(
+  options: SetupRemovalOptions
+): Promise<SetupRemovalResult> {
+  const { profiles, secrets, prompter, serverName: targetServerName } = options
+
+  try {
+    prompter.write("SAP ABAP MCP setup\n")
+    const savedProfiles = await profiles.list()
+    if (savedProfiles.length === 0) {
+      throw new AppError("PROFILE_NOT_FOUND", "No saved servers were found.")
+    }
+
+    let profile: SapProfile
+    if (targetServerName) {
+      profile = await profiles.get(targetServerName)
+    } else {
+      const selected = await prompter.select(
+        "Choose a server to remove",
+        savedProfiles.map(item => ({
+          value: item.id,
+          label: `${item.id} — ${item.url}`
+        })),
+        savedProfiles[0]?.id ?? ""
+      )
+      const selectedProfile = savedProfiles.find(item => item.id === selected)
+      if (!selectedProfile) {
+        throw new AppError("PROFILE_NOT_FOUND", `SAP profile ${selected} was not found`)
+      }
+      profile = selectedProfile
+    }
+
+    prompter.write([
+      "\nRemove server",
+      `  Server name: ${profile.id}`,
+      `  SAP URL: ${profile.url}`,
+      `  SAP client: ${profile.client}`,
+      `  Username: ${profile.username ?? "Not set"}`
+    ].join("\n"))
+
+    const confirmed = await prompter.confirm(
+      `Remove ${profile.id} and its stored credentials?`,
+      false
+    )
+    if (!confirmed) {
+      prompter.write("Removal cancelled. No changes were made.")
+      return { status: "cancelled" }
+    }
+
+    await profiles.remove(profile.id)
+    await secrets.delete(profile.id)
+    await secrets.delete(abapGitCredentialKey(profile.id))
+    prompter.write(`✓ Server ${profile.id} and its stored credentials were removed.`)
+    return { status: "removed", serverName: profile.id }
   } finally {
     prompter.close()
   }

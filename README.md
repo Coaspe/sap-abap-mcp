@@ -170,7 +170,23 @@ Restart the client after registration. Use `codex mcp list`, `claude mcp get sap
 
 The registration deliberately uses the moving npm tag `@latest` together with `--prefer-online`. Whenever Codex or Claude starts a new MCP process, npm checks which published version `latest` points to and runs that version. For example, a user who originally ran `0.4.7` will automatically run `0.4.8` after `0.4.8` is promoted to `latest` and the client is restarted. An already-running MCP process is not replaced in place. Maintainers should promote only tested releases to `latest`.
 
-### 4. Start with read-only requests
+### 4. Change or remove a saved server
+
+Edit a server with its current values as defaults. The wizard tests the updated settings and password before replacing the saved configuration:
+
+```powershell
+npx.cmd @coaspe/sap-abap-mcp@latest setup edit DEV100
+```
+
+Remove a server and its stored SAP and abapGit credentials:
+
+```powershell
+npx.cmd @coaspe/sap-abap-mcp@latest setup remove DEV100
+```
+
+Omit `DEV100` to choose from the saved servers. Removal always shows the selected server and asks for confirmation; the default answer is `No`.
+
+### 5. Start with read-only requests
 
 ```text
 List the configured SAP systems and verify DEV100.
@@ -185,6 +201,8 @@ Use `npx` instead of `npx.cmd`:
 
 ```bash
 npx @coaspe/sap-abap-mcp@latest setup
+npx @coaspe/sap-abap-mcp@latest setup edit DEV100
+npx @coaspe/sap-abap-mcp@latest setup remove DEV100
 codex mcp add sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
 ```
 
@@ -311,6 +329,8 @@ When reporting a failure, preserve the MCP error code, HTTP status, ADT endpoint
 
 ```text
 setup
+setup edit [<server-name>]
+setup remove [<server-name>]
 
 profile add <id> --url <url> --client <nnn> [--language EN]
     [--environment development|quality|production]
