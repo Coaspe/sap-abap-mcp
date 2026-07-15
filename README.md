@@ -12,7 +12,7 @@ It can inspect and edit ABAP source, run quality checks, manage transports, use 
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
 - Authentication: SAP Basic Auth
-- Secret storage: macOS Keychain or Windows DPAPI
+- Secret storage: macOS Keychain, Windows DPAPI, or read-only environment variables on Linux
 - SAP API client: `abap-adt-api` 8.4.1
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
@@ -196,6 +196,23 @@ codex mcp add sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest 
 ```
 
 SAP passwords are stored in macOS Keychain.
+
+## Linux and containers
+
+Linux runs the same local stdio server, but it does not persist credentials. Create the profile without `--login`, then provide its password through a profile-specific environment variable:
+
+```bash
+npx --yes --prefer-online @coaspe/sap-abap-mcp@latest profile add DEV100 \
+  --url "https://sap-dev.company.com" \
+  --client 100 \
+  --username "DEV_USER" \
+  --environment development
+
+export SAP_ABAP_MCP_PASSWORD_DEV100="your-password"
+npx --yes --prefer-online @coaspe/sap-abap-mcp@latest doctor DEV100
+```
+
+Convert non-alphanumeric characters in the profile ID to underscores when forming the variable name; for example, `DEV-100` uses `SAP_ABAP_MCP_PASSWORD_DEV_100`. The Linux environment store is read-only, so `auth login` and `auth logout` are unavailable and no plaintext credential file is created.
 
 ## Codex desktop setup
 

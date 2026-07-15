@@ -266,11 +266,32 @@ export class MemorySecretStore implements SecretStore {
   }
 }
 
+export class EnvironmentSecretStore implements SecretStore {
+  async get(profileId: string): Promise<string | undefined> {
+    return environmentSecret(profileId)
+  }
+
+  async set(_profileId: string, _secret: string): Promise<void> {
+    throw new AppError(
+      "SECRET_STORE_READ_ONLY",
+      "This platform reads SAP credentials from profile-specific environment variables only."
+    )
+  }
+
+  async delete(_profileId: string): Promise<void> {
+    throw new AppError(
+      "SECRET_STORE_READ_ONLY",
+      "This platform reads SAP credentials from profile-specific environment variables only."
+    )
+  }
+}
+
 export function createDefaultSecretStore(platform: NodeJS.Platform = process.platform): SecretStore {
   if (platform === "darwin") return new MacOsKeychainSecretStore()
   if (platform === "win32") return new WindowsDpapiSecretStore()
+  if (platform === "linux") return new EnvironmentSecretStore()
   throw new AppError(
     "SECRET_STORE_UNSUPPORTED",
-    "This build supports macOS Keychain and Windows DPAPI. Linux keyring support is not implemented yet."
+    "This build supports macOS Keychain, Windows DPAPI, and Linux environment variables."
   )
 }
