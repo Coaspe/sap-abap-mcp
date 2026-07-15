@@ -246,6 +246,7 @@ export interface ManageTransportsInput {
     | "delete_transport"
     | "set_owner"
     | "add_user"
+    | "add_object"
     | "list_system_users"
     | "resolve_object"
   connectionId: string
@@ -2936,6 +2937,81 @@ export class AbapToolService {
           input.objectName.trim().toUpperCase(),
           input.transportNumber?.trim().toUpperCase()
         )
+      }
+    }
+    if (input.action === "add_object") {
+      requireNonProduction(client)
+      const transportNumber = input.transportNumber?.trim().toUpperCase()
+      const pgmid = input.pgmid?.trim().toUpperCase()
+      const objectType = input.objectType?.trim().toUpperCase()
+      let objectName = input.objectName?.trim().toUpperCase()
+      if (!transportNumber || !pgmid || !objectType || !objectName) {
+        throw new AppError(
+          "TRANSPORT_OBJECT_INPUT_REQUIRED",
+          "add_object requires transportNumber, pgmid, objectType, and objectName"
+        )
+      }
+      const isClassicProgramSubobject = objectType === "DYNP" || objectType === "REPT"
+      if (isClassicProgramSubobject && pgmid !== "LIMU") {
+        throw new AppError(
+          "TRANSPORT_SUBOBJECT_PGMID_INVALID",
+          `${objectType} transport entries require pgmid LIMU`
+        )
+      }
+      let parentProgramName: string | undefined
+      if (objectType === "DYNP") {
+        const dynproKey = objectName.match(/^(\S+)\s+(\d{4})$/)
+        if (!dynproKey?.[1] || !dynproKey[2]) {
+          throw new AppError(
+            "TRANSPORT_DYNP_KEY_INVALID",
+            "DYNP objectName must use PROGRAM 0100 format"
+          )
+        }
+        parentProgramName = dynproKey[1]
+        objectName = `${dynproKey[1]} ${dynproKey[2]}`
+      } else if (objectType === "REPT") {
+        if (!/^\S+$/.test(objectName)) {
+          throw new AppError(
+            "TRANSPORT_REPT_KEY_INVALID",
+            "REPT objectName must be one ABAP program name"
+          )
+        }
+        parentProgramName = objectName
+      }
+      requireExactConfirmation(
+        input.confirmation,
+        `${transportNumber}:${pgmid}:${objectType}:${objectName}`
+      )
+      if (parentProgramName) {
+        const parentObject = await resolveObject(client, parentProgramName, "PROG/P")
+        requireWritablePackage(client, parentObject.packageName)
+        await client.addTransportObjectByKey(
+          transportNumber,
+          pgmid,
+          objectType,
+          objectName
+        )
+        return {
+          connectionId: input.connectionId.toUpperCase(),
+          transportNumber,
+          added: true,
+          object: { pgmid, type: objectType, name: objectName, uri: null },
+          parentObject
+        }
+      }
+      const object = await resolveObject(client, objectName, objectType)
+      requireWritablePackage(client, object.packageName)
+      await client.addTransportObject(transportNumber, object.uri)
+      return {
+        connectionId: input.connectionId.toUpperCase(),
+        transportNumber,
+        added: true,
+        object: {
+          pgmid,
+          type: objectType,
+          name: object.name,
+          uri: object.uri
+        }
       }
     }
     if (

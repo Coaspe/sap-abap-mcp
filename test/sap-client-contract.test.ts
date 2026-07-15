@@ -324,6 +324,69 @@ test("transport, abapGit, and RAP wrappers preserve upstream argument order", as
   ])
 })
 
+test("adding an object to a transport posts an escaped ADT object reference", async () => {
+  const calls: Array<{ url: string; config: unknown }> = []
+  const fakeAdt: any = {
+    httpClient: {
+      request: async (url: string, config: unknown) => {
+        calls.push({ url, config })
+        return { body: "", status: 200, statusText: "OK", headers: {} }
+      }
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  await client.addTransportObject(
+    "DEVK900123",
+    "/sap/bc/adt/programs/programs/z_demo?foo=1&bar=\"two\""
+  )
+
+  assert.deepEqual(calls, [{
+    url: "/sap/bc/adt/cts/transportrequests/DEVK900123/abaptransportcomponents",
+    config: {
+      method: "POST",
+      headers: { "Content-Type": "application/xml" },
+      body:
+        "<adtcore:objectReference xmlns:adtcore=\"http://www.sap.com/adt/core\" " +
+        "adtcore:uri=\"/sap/bc/adt/programs/programs/z_demo?foo=1&amp;bar=&quot;two&quot;\"/>"
+    }
+  }])
+})
+
+test("adding a transport subobject posts its CTS key to the organizer endpoint", async () => {
+  const calls: Array<{ url: string; config: unknown }> = []
+  const fakeAdt: any = {
+    httpClient: {
+      request: async (url: string, config: unknown) => {
+        calls.push({ url, config })
+        return { body: "", status: 200, statusText: "OK", headers: {} }
+      }
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  await client.addTransportObjectByKey(
+    "DEVK900123",
+    "LIMU",
+    "DYNP",
+    "ZDEMO_SCREEN 0100"
+  )
+
+  const mediaType = "application/vnd.sap.adt.transportorganizer.v1+xml"
+  assert.deepEqual(calls, [{
+    url: "/sap/bc/adt/cts/transportrequests/DEVK900123",
+    config: {
+      method: "PUT",
+      headers: { Accept: mediaType, "Content-Type": mediaType },
+      body:
+        "<tm:root xmlns:tm=\"http://www.sap.com/cts/adt/tm\" " +
+        "tm:number=\"DEVK900123\" tm:useraction=\"addobject\">" +
+        "<tm:request><tm:abap_object tm:name=\"ZDEMO_SCREEN 0100\" " +
+        "tm:pgmid=\"LIMU\" tm:type=\"DYNP\"/></tm:request></tm:root>"
+    }
+  }])
+})
+
 test("activation, semantic detail, and class execution wrappers preserve ADT contracts", async () => {
   const calls: Array<{ method: string; args: unknown[] }> = []
   const statelessAdt: any = {

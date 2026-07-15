@@ -251,6 +251,13 @@ export interface SapClient {
   deleteTransport(transportNumber: string): Promise<void>
   setTransportOwner(transportNumber: string, user: string): Promise<TransportOwnerResponse>
   addTransportUser(transportNumber: string, user: string): Promise<TransportAddUserResponse>
+  addTransportObject(transportNumber: string, objectUri: string): Promise<void>
+  addTransportObjectByKey(
+    transportNumber: string,
+    pgmid: string,
+    objectType: string,
+    objectName: string
+  ): Promise<void>
   listSystemUsers(): Promise<Array<{ id: string; title: string }>>
   resolveTransportObject(
     pgmid: string,
@@ -455,6 +462,14 @@ function stableJson(value: unknown): string {
       .join(",")}}`
   }
   return JSON.stringify(value)
+}
+
+function escapeXmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
 }
 
 function detectSystemType(components: SapSoftwareComponent[]): SapSystemInfo["systemType"] {
@@ -820,6 +835,47 @@ export class AdtSapClient implements SapClient {
 
   async addTransportUser(transportNumber: string, user: string): Promise<TransportAddUserResponse> {
     return this.serializeMutation(() => this.client.transportAddUser(transportNumber, user))
+  }
+
+  async addTransportObject(transportNumber: string, objectUri: string): Promise<void> {
+    await this.serializeMutation(async () => {
+      await this.client.httpClient.request(
+        `/sap/bc/adt/cts/transportrequests/${encodeURIComponent(transportNumber)}/abaptransportcomponents`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/xml" },
+          body:
+            '<adtcore:objectReference xmlns:adtcore="http://www.sap.com/adt/core" ' +
+            `adtcore:uri="${escapeXmlAttribute(objectUri)}"/>`
+        }
+      )
+    })
+  }
+
+  async addTransportObjectByKey(
+    transportNumber: string,
+    pgmid: string,
+    objectType: string,
+    objectName: string
+  ): Promise<void> {
+    const mediaType = "application/vnd.sap.adt.transportorganizer.v1+xml"
+    const escapedTransport = escapeXmlAttribute(transportNumber)
+    const body =
+      `<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" ` +
+      `tm:number="${escapedTransport}" tm:useraction="addobject">` +
+      `<tm:request><tm:abap_object tm:name="${escapeXmlAttribute(objectName)}" ` +
+      `tm:pgmid="${escapeXmlAttribute(pgmid)}" ` +
+      `tm:type="${escapeXmlAttribute(objectType)}"/></tm:request></tm:root>`
+    await this.serializeMutation(async () => {
+      await this.client.httpClient.request(
+        `/sap/bc/adt/cts/transportrequests/${encodeURIComponent(transportNumber)}`,
+        {
+          method: "PUT",
+          headers: { Accept: mediaType, "Content-Type": mediaType },
+          body
+        }
+      )
+    })
   }
 
   async listSystemUsers(): Promise<Array<{ id: string; title: string }>> {

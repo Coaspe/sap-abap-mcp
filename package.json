@@ -1,6 +1,6 @@
 {
   "name": "@coaspe/sap-abap-mcp",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Headless MCP server for SAP ABAP Development Tools",
   "keywords": [
     "mcp",
@@ -44,6 +44,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:mcpb": "bash scripts/build-mcpb.sh",
+    "publish:smithery": "bash scripts/publish-smithery.sh",
+    "sync:mcpb-tools": "npm run build && node scripts/sync-mcpb-tools.mjs --write",
     "test": "npm run build && node --test dist/test/*.test.js",
     "start": "node dist/src/index.js",
     "check": "npm run build && npm test"
