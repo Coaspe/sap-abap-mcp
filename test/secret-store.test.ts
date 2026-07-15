@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 import {
+  EnvironmentSecretStore,
   WindowsDpapiSecretStore,
   createDefaultSecretStore,
   type WindowsDpapiOperation,
@@ -63,6 +64,37 @@ test("WindowsDpapiSecretStore prefers a profile environment secret", async t => 
 
 test("createDefaultSecretStore selects DPAPI on Windows", () => {
   assert.ok(createDefaultSecretStore("win32") instanceof WindowsDpapiSecretStore)
+})
+
+test("EnvironmentSecretStore reads profile secrets without persisting them", async t => {
+  const name = "SAP_ABAP_MCP_PASSWORD_DEV_100"
+  const previous = process.env[name]
+  process.env[name] = "environment-secret"
+  t.after(() => {
+    if (previous === undefined) delete process.env[name]
+    else process.env[name] = previous
+  })
+
+  const store = new EnvironmentSecretStore()
+  assert.equal(await store.get("dev-100"), "environment-secret")
+  await assert.rejects(
+    () => store.set("DEV-100", "secret"),
+    (error: unknown) =>
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code: string }).code === "SECRET_STORE_READ_ONLY"
+  )
+  await assert.rejects(
+    () => store.delete("DEV-100"),
+    (error: unknown) =>
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code: string }).code === "SECRET_STORE_READ_ONLY"
+  )
+})
+
+test("createDefaultSecretStore selects environment-only storage on Linux", () => {
+  assert.ok(createDefaultSecretStore("linux") instanceof EnvironmentSecretStore)
 })
 
 test("WindowsDpapiSecretStore rejects profile IDs that could escape the secrets directory", async () => {

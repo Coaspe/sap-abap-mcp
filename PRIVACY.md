@@ -27,7 +27,7 @@ The npm registry may be contacted when the user installs or updates the package.
 
 The publisher does not receive or retain SAP profiles, credentials, source code, tool inputs, tool results, or generated artifacts.
 
-Profile configuration and generated files remain on the user's computer until the user removes them. Passwords and tokens are stored in macOS Keychain or Windows DPAPI and remain there until the user logs out, removes the profile, or deletes the corresponding credential. Temporary runtime data is held in process memory and is discarded when the process exits.
+Profile configuration and generated files remain on the user's computer until the user removes them. Passwords and tokens are stored in macOS Keychain or Windows DPAPI and remain there until the user logs out, removes the profile, or deletes the corresponding credential. On Linux, credentials are read only from profile-specific environment variables and are not persisted by the software. Temporary runtime data is held in process memory and is discarded when the process exits.
 
 ## Sharing
 

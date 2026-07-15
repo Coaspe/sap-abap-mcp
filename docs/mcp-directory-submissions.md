@@ -11,7 +11,7 @@ Use this canonical copy for directory submissions. Do not describe the server as
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
 - Category: Developer Tools
-- Platforms: macOS and Windows
+- Platforms: macOS, Windows, and Linux (environment-variable credentials only)
 - Tags: MCP, SAP, ABAP, ADT, Claude, Codex, developer tools
 - Logo: `https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png`
 
@@ -21,7 +21,7 @@ Short description:
 
 Long description:
 
-> SAP ABAP MCP is a local Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. It supports source inspection and editing, semantic services, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, runtime inspection, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain or Windows DPAPI. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
+> SAP ABAP MCP is a local Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. It supports source inspection and editing, semantic services, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, runtime inspection, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain, Windows DPAPI, or profile-specific environment variables on Linux. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
 
 ## Generic local installation
 
@@ -46,7 +46,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 ## Data handling and verification boundary
 
 - The server is local-only and does not send SAP credentials to an MCP directory.
-- Passwords are stored in macOS Keychain or Windows DPAPI, not in the profile file.
+- Passwords are stored in macOS Keychain or Windows DPAPI. Linux reads profile-specific password environment variables without persisting them.
 - Network traffic goes directly from the user's computer to the configured SAP system and to npm when `npx` installs or updates the package.
 - Automated tests use an in-memory SAP implementation. SAP-dependent capabilities remain `unverified` until they succeed against the selected live SAP connection.
 
