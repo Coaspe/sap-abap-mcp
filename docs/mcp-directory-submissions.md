@@ -62,7 +62,9 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 | MCP Server Hub | Submitted | Awaiting directory review |
 | Awesome MCP Servers | Draft PR opened | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129) |
 | Claude Code Community Marketplace | Submitted; review pending | Submitted through the Anthropic Console on 2026-07-15 as `Coaspe ABAP MCP` for Claude Code; the public GitHub plugin validates and installs as `sap-abap-mcp@coaspe-sap` |
-| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap`; the universal directory still requires a production HTTPS MCP endpoint |
+| Claude Desktop MCPB directory | Submission prepared | The official form is complete except for the publisher's MCP Directory Terms consent and manual upload of `artifacts/sap-abap-mcp-0.4.4.mcpb`; browser automation cannot upload a local file |
+| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap` |
+| Codex universal plugin directory | Blocked by prerequisites | The official `With MCP` flow requires completed OpenAI developer identity verification and a production public HTTPS MCP endpoint; the current local `stdio` server cannot be submitted as-is |
 | LobeHub | Authentication required | Complete the human-in-the-loop CLI authorization, connect GitHub, then submit the repository |
 | mcp.so | Authentication required | Sign in before submitting the already prepared repository listing |
 | MCP Servers and MCP Market | Contact email required | Submit only after the owner approves the contact email sent to both directories |
@@ -76,6 +78,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 | Glama and PulseMCP | Verify ingestion from the Official MCP Registry; submit the repository manually if absent |
 | Smithery | Publish the generated MCPB bundle from `artifacts/` |
 | Claude Code | Monitor the submitted `Coaspe ABAP MCP` listing in the Anthropic Console and respond if the review team requests more information |
-| Codex | Distribute the repository marketplace immediately; use the public submission portal only after a production HTTPS MCP architecture exists |
+| Claude Desktop | Upload the validated MCPB artifact through the official local-extension form after the publisher accepts the MCP Directory Terms |
+| Codex | Distribute the repository marketplace immediately; complete developer identity verification and design a production HTTPS MCP architecture before using the universal `With MCP` submission flow |
 | Cline MCP Marketplace | Submit the GitHub repository and 400 by 400 PNG logo through its issue form |
 | mcp.so, MCP Servers, MCP Market, MCP Server Hub, LobeHub | Submit the repository URL and canonical metadata above |
