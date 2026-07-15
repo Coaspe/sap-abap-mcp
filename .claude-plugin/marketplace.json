@@ -1,0 +1,25 @@
+{
+  "name": "coaspe-sap",
+  "owner": {
+    "name": "Coaspe",
+    "url": "https://github.com/Coaspe"
+  },
+  "metadata": {
+    "description": "Local SAP ABAP developer tools for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "sap-abap-mcp",
+      "source": "./plugins/sap-abap-mcp",
+      "description": "Develop, test, analyze, and operate SAP ABAP systems through local ADT connections.",
+      "version": "0.4.4",
+      "category": "development",
+      "tags": [
+        "sap",
+        "abap",
+        "adt",
+        "mcp"
+      ]
+    }
+  ]
+}

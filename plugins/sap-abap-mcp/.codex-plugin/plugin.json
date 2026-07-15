@@ -1,0 +1,41 @@
+{
+  "name": "sap-abap-mcp",
+  "version": "0.4.4",
+  "description": "Develop, test, analyze, and operate SAP ABAP systems through local ADT connections.",
+  "author": {
+    "name": "Coaspe",
+    "url": "https://github.com/Coaspe"
+  },
+  "homepage": "https://github.com/Coaspe/sap-abap-mcp#readme",
+  "repository": "https://github.com/Coaspe/sap-abap-mcp",
+  "license": "MIT",
+  "keywords": [
+    "sap",
+    "abap",
+    "adt",
+    "mcp",
+    "developer-tools"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "SAP ABAP MCP",
+    "shortDescription": "Local SAP ABAP development through ADT",
+    "longDescription": "Connect Codex to locally configured SAP ABAP systems for source editing, semantic services, activation, tests, transports, abapGit, RAP, analysis, and guarded refactoring.",
+    "developerName": "Coaspe",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/Coaspe/sap-abap-mcp",
+    "brandColor": "#0A6ED1",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
+    "defaultPrompt": [
+      "Inspect an ABAP object and explain its dependencies.",
+      "Run ABAP Unit for this object and summarize failures.",
+      "Plan a guarded ABAP source change before applying it."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "sap-abap": {
+      "command": "npx",
+      "args": [
+        "--yes",
+        "--prefer-online",
+        "@coaspe/sap-abap-mcp@latest",
+        "serve"
+      ]
+    }
+  }
+}
