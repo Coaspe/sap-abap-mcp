@@ -1,6 +1,6 @@
 {
   "name": "@coaspe/sap-abap-mcp",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "Headless MCP server for SAP ABAP Development Tools",
   "keywords": [
     "mcp",

@@ -4,20 +4,45 @@ A local Model Context Protocol server that lets Codex and Claude work with SAP A
 
 It can inspect and edit ABAP source, run quality checks, manage transports, use abapGit and the RAP generator, inspect runtime data, compare systems, and perform repository refactorings without VS Code, SAP GUI, or an ABAP FS virtual workspace.
 
-## Release status
+## Quick start
 
-- Package: `@coaspe/sap-abap-mcp`
-- Current source version: `0.4.9`
-- Published npm version: `0.4.9`
-- Release channel: npm `latest` (resolved automatically when the MCP process starts)
-- Runtime: Node.js 20 or later
-- Transport: local MCP over stdio
-- Authentication: SAP Basic Auth
-- Secret storage: macOS Keychain, Windows DPAPI, or read-only environment variables on Linux
-- SAP API client: `abap-adt-api` 8.4.1
-- ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
+You need Node.js 20 or later, network or VPN access to SAP, and an SAP HTTPS URL, three-digit client number, username, and ADT Basic Auth permission.
 
-The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 52 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
+### 1. Configure SAP
+
+Windows:
+
+```powershell
+npx.cmd @coaspe/sap-abap-mcp@latest setup
+```
+
+macOS or Linux:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest setup
+```
+
+The wizard calls the local connection alias `Server name` and the endpoint `SAP URL`. Windows and macOS validate SAP before saving and protect the password with DPAPI or Keychain. Linux saves only non-secret settings and prints the password environment-variable commands to run before starting the MCP client.
+
+### 2. Register the MCP server
+
+After setup, run the command for your client on Windows:
+
+```powershell
+codex mcp add sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
+claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
+```
+
+On macOS or Linux, replace `npx.cmd` with `npx`:
+
+```bash
+codex mcp add sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
+claude mcp add --transport stdio --scope user sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
+```
+
+Replace `DEV100` with the Server name selected in the wizard. Restart the client, then use `codex mcp list`, `claude mcp get sap-abap`, or `/mcp` to confirm that the process starts. The completed wizard already performs live SAP verification; `/mcp` alone does not prove that SAP authentication succeeded.
+
+Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#claude-code-and-codex-plugin-marketplaces); the included setup skill guides the same local wizard without putting the SAP password in chat. See the detailed [Windows](#detailed-setup-on-windows), [macOS](#detailed-setup-on-macos), and [Linux](#linux-and-containers) sections for platform-specific behavior and server management.
 
 ## ABAP FS parity status
 
@@ -69,7 +94,7 @@ Grouping related actions keeps the tool-schema footprint lower than exposing eve
 
 The canonical registry identity is `io.github.Coaspe/sap-abap-mcp`, defined in [`server.json`](server.json). Directory installs must run this package as a local `stdio` server; SAP profiles and credentials stay on the user's machine and are never hosted by a registry.
 
-Before the first SAP-facing request, create and verify at least one local SAP profile using the commands in [Quick start](#quick-start-on-windows) or [`llms-install.md`](llms-install.md). The Claude plugin may start successfully without a profile; after installation, run `/sap-abap-mcp:sap-abap-setup` to complete local SAP setup. A generic registry launch runs `@coaspe/sap-abap-mcp` with the `serve` argument and exposes all locally configured profiles; every SAP-facing tool still requires an explicit `connectionId`.
+Before the first SAP-facing request, create and verify at least one local SAP profile using the commands in [Quick start](#quick-start) or [`llms-install.md`](llms-install.md). The Claude plugin may start successfully without a profile; after installation, run `/sap-abap-mcp:sap-abap-setup` to complete local SAP setup. A generic registry launch runs `@coaspe/sap-abap-mcp` with the `serve` argument and exposes all locally configured profiles; every SAP-facing tool still requires an explicit `connectionId`.
 
 Registry publication does not change the live-evidence boundary. SAP-dependent development-parity capabilities remain `unverified` until they succeed against the selected live connection.
 
@@ -130,7 +155,7 @@ Verify Node.js first:
 node --version
 ```
 
-## Quick start on Windows
+## Detailed setup on Windows
 
 ### 1. Run interactive setup
 
@@ -195,7 +220,7 @@ Run syntax diagnostics and show a formatter preview without changing the source.
 Build a depth-1 dependency graph for ZCL_DEMO.
 ```
 
-## Quick start on macOS
+## Detailed setup on macOS
 
 Use `npx` instead of `npx.cmd`:
 
@@ -387,6 +412,21 @@ codex mcp add sap-abap-local -- node "/absolute/path/to/sap-abap-mcp/dist/src/in
 ```
 
 The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tools.ts`. ADT wrapper contract tests are in `test/sap-client-contract.test.ts`, and end-to-end in-memory MCP tests are in `test/integration.test.ts`.
+
+## Release status
+
+- Package: `@coaspe/sap-abap-mcp`
+- Current source version: `0.4.10`
+- Published npm version: `0.4.10`
+- Release channel: npm `latest` (resolved automatically when the MCP process starts)
+- Runtime: Node.js 20 or later
+- Transport: local MCP over stdio
+- Authentication: SAP Basic Auth
+- Secret storage: macOS Keychain, Windows DPAPI, or read-only environment variables on Linux
+- SAP API client: `abap-adt-api` 8.4.1
+- ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
+
+The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 52 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
 
 ## Detailed Windows guide
 
