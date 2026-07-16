@@ -28,6 +28,23 @@ const sourceLines = Array.from(
 )
 const source = sourceLines.join("\n")
 
+const usageReferences = Array.from({ length: 20 }, (_, index) => ({
+  uri: `/sap/bc/adt/programs/programs/zrep_caller_${index}`,
+  objectIdentifier: `ABAPFullName;ZREP_CALLER_${index}`,
+  parentUri: `/sap/bc/adt/programs/programs/zrep_caller_${index}`,
+  isResult: true,
+  canHaveChildren: false,
+  usageInformation: "method call",
+  "adtcore:responsible": "DEVELOPER",
+  "adtcore:name": `ZREP_CALLER_${index}`,
+  "adtcore:type": "PROG/P",
+  "adtcore:description": `Caller program ${index}`,
+  packageRef: {
+    "adtcore:uri": "/sap/bc/adt/packages/z_token",
+    "adtcore:name": "Z_TOKEN"
+  }
+}))
+
 const structure = {
   objectUrl: object.uri,
   metaData: {
@@ -76,6 +93,8 @@ function createService() {
     }),
     getObjectStructure: async () => structure,
     getObjectEnhancements: async () => ({ implementations: [] }),
+    findUsageReferences: async () => usageReferences,
+    getUsageReferenceSnippets: async () => [],
     readSourceByUri: async () => ({ source, sourceUri: `${object.uri}/source/main` }),
     formatSource: async () => `${source}\n`,
     getAdtDiscovery: async () => ({ discovery: [], core: [] }),
@@ -346,6 +365,52 @@ test("object-centric analysis responses use a compact object identity", async ()
 
   assert.deepEqual(result.object, { name: object.name, type: object.type })
   assert.doesNotMatch(JSON.stringify(result), /Token efficiency fixture|Z_TOKEN/)
+})
+
+test("where-used and dependency graph responses omit internal ADT object metadata", async () => {
+  const service = createService()
+  const usages = await service.findWhereUsed({
+    objectName: object.name,
+    objectType: "CLAS",
+    connectionId: "DEV100",
+    maxResults: 20,
+    includeSnippets: false,
+    startIndex: 0
+  })
+
+  assert.deepEqual(usages.references[0], {
+    name: "ZREP_CALLER_0",
+    type: "PROG/P",
+    uri: "/sap/bc/adt/programs/programs/zrep_caller_0",
+    usageInformation: "method call",
+    description: "Caller program 0",
+    packageName: "Z_TOKEN"
+  })
+  assert.doesNotMatch(JSON.stringify(usages.references), /adtcore:|packageRef|canHaveChildren|isResult/)
+
+  const legacy = { ...usages, references: usageReferences }
+  assert.ok(
+    Buffer.byteLength(JSON.stringify(usages), "utf8") <
+      Buffer.byteLength(JSON.stringify(legacy), "utf8") * 0.75
+  )
+
+  const graph = await service.dependencyGraph({
+    objectName: object.name,
+    objectType: "CLAS",
+    connectionId: "DEV100",
+    depth: 1,
+    maxNodes: 100,
+    customOnly: false
+  })
+  assert.equal(graph.nodeCount, 21)
+  for (const node of graph.nodes) {
+    assert.equal("uri" in node, false)
+    assert.equal("parentUri" in node, false)
+    assert.equal("objectIdentifier" in node, false)
+    assert.equal("canExpand" in node, false)
+    assert.equal("responsible" in node, false)
+    assert.equal("usageInformation" in node, false)
+  }
 })
 
 test("batch source reads do not repeat the parent connection ID", async () => {
