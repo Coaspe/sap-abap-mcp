@@ -50,14 +50,14 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 - Network traffic goes directly from the user's computer to the configured SAP system and to npm when `npx` installs or updates the package.
 - Automated tests use an in-memory SAP implementation. SAP-dependent capabilities remain `unverified` until they succeed against the selected live SAP connection.
 
-## Submission status (2026-07-15)
+## Submission status (2026-07-16)
 
 | Target | Status | Evidence or next action |
 |---|---|---|
 | npm | Live at 0.4.12 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 0.4.12 on `latest`; the manual `Publish npm` workflow uses npm Trusted Publishing |
 | Official MCP Registry | Live at 0.4.12 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) reports version 0.4.12 active and latest; the manual `Publish MCP Registry` workflow uses GitHub OIDC |
 | Smithery | Live and listed | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); version 0.4.12 deploys the validated local MCPB bundle and exposes all 53 runtime tools. The listing is not publisher-verified |
-| Glama | Live and evaluated | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp); claimed and author-verified, with release 0.4.6 built successfully from commit `f09b34e`. The score page reports server coherence A, tool definition quality B (52/52 tools, 3.3/5 average), maintenance A, MIT license A, and 83% profile completion |
+| Glama | Live; 0.4.12 refresh submitted | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp) is claimed and author-verified. A fresh repository submission was accepted on 2026-07-16; the public page still shows 0.4.11 at commit `921fa7f` while Glama review and re-indexing are pending |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
 | MCP Server Hub | Submitted | Awaiting directory review |
 | Awesome MCP Servers | Ready for review | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129); submission check passes and the PR is cleanly mergeable |
@@ -67,7 +67,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 | Codex universal plugin directory | Blocked by prerequisites | The official `With MCP` flow requires completed OpenAI developer identity verification and a production public HTTPS MCP endpoint; the current local `stdio` server cannot be submitted as-is |
 | LobeHub | Live | [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp), generated from the GitHub repository on 2026-07-15 |
 | mcp.so | Submitted; review queued | [Submission `cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64`](https://mcp.so/settings/submissions/cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64/edit); canonical metadata and the local `stdio` configuration were saved after automated extraction |
-| MCP Servers | Submitted; review pending | Free submission confirmed on 2026-07-15; the confirmation page stated that review is expected within 12 hours and the result will be sent by email |
+| MCP Servers | Live; update requested | [`coaspe/sap-abap-mcp`](https://mcpservers.org/servers/coaspe/sap-abap-mcp) is public. The listing's update action was requested on 2026-07-16 and changed to `Requested`; the page still shows 0.4.11 while re-indexing is pending |
 | MCP Market | Submitted; review queued | Free submission confirmed on 2026-07-15; the confirmation page reported an estimated 4–6 week queue and email notification when live |
 | Cline MCP Marketplace | Submitted; review pending | [`cline/mcp-marketplace#2030`](https://github.com/cline/mcp-marketplace/issues/2030); before submission, Cline used only `README.md` and `llms-install.md` to create the configuration, complete a real MCP initialization, discover all 52 tools, and stop with exit code 0 and empty stderr |
 
