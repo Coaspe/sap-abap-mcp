@@ -120,7 +120,7 @@ export function createMcpServer(
   const server = new McpServer(
     {
       name: "sap-abap-mcp",
-      version: "0.4.11",
+      version: "0.4.12",
       title: "SAP ABAP MCP",
       description:
         "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
@@ -317,7 +317,7 @@ export function createMcpServer(
           "debugging",
           "insight"
         ]).optional(),
-        includeEvidence: z.boolean().default(true)
+        includeEvidence: z.boolean().default(false)
       },
       annotations: readOnlyAnnotations
     },
@@ -407,7 +407,8 @@ export function createMcpServer(
     "get_abap_object_info",
     {
       title: "Get ABAP Object Info",
-      description: "Get repository metadata, ADT structure, source URI, and active source line count.",
+      description:
+        "Get core repository metadata, source URI, and active source line count; optionally include the full ADT structure.",
       inputSchema: {
         objectName: z.string().min(1),
         objectType: z.enum(ABAP_OBJECT_TYPES).optional(),

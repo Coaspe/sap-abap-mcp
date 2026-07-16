@@ -31,6 +31,10 @@ function responseText(response: unknown): string {
   ).text
 }
 
+test("default inline results are capped at 16 KiB before deferral", () => {
+  assert.equal(DEFERRED_RESULT_INLINE_BYTE_LIMIT, 16 * 1024)
+})
+
 test("deferred result store preserves the inline threshold and bounds its envelope", () => {
   const store = new DeferredResultStore()
   assert.equal(store.defer("X".repeat(DEFERRED_RESULT_INLINE_BYTE_LIMIT)), undefined)
@@ -180,7 +184,7 @@ test("MCP defers only large results and reads them without repeating the operati
   assert.equal(operationCalls, 2)
 })
 
-test("MCP compacts repeated search context below the global deferral threshold", async t => {
+test("MCP uses the search-specific summary for repeated context", async t => {
   const lines = Array.from({ length: 60 }, (_, index) => `${index + 1} ${"X".repeat(80)}`)
   const matches = Array.from({ length: 20 }, (_, index) => index + 10).map(lineNumber => ({
     lineNumber,
@@ -212,7 +216,6 @@ test("MCP compacts repeated search context below the global deferral threshold",
   }
   const originalText = JSON.stringify(value)
   assert.ok(Buffer.byteLength(originalText, "utf8") > 16 * 1024)
-  assert.ok(Buffer.byteLength(originalText, "utf8") < DEFERRED_RESULT_INLINE_BYTE_LIMIT)
   let operationCalls = 0
   const service = {
     async searchObjectLines() {

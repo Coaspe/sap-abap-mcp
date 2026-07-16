@@ -207,8 +207,73 @@ function compactHitGroup(hits: SearchHit[], maxBlocks: number) {
   }
 }
 
+function compactContextBlocks(value: unknown) {
+  if (!Array.isArray(value)) return []
+  return value.flatMap(item => {
+    const block = record(item)
+    if (!block || typeof block.startLine !== "number" || !Array.isArray(block.lines)) return []
+    return [{
+      startLine: block.startLine,
+      lines: block.lines.filter((line): line is string => typeof line === "string"),
+      matchLineNumbers: Array.isArray(block.matchLineNumbers)
+        ? block.matchLineNumbers.filter(
+            (lineNumber): lineNumber is number => typeof lineNumber === "number"
+          )
+        : []
+    }]
+  })
+}
+
+function hitSamplesFromBlocks(
+  matchLineNumbers: number[],
+  blocks: Array<{ startLine: number; lines: string[]; matchLineNumbers: number[] }>
+) {
+  return matchLineNumbers.slice(0, 5).flatMap(lineNumber => {
+    const block = blocks.find(item =>
+      lineNumber >= item.startLine && lineNumber < item.startLine + item.lines.length
+    )
+    const line = block?.lines[lineNumber - (block?.startLine ?? 0)]
+    return line === undefined ? [] : [{ lineNumber, line: boundText(line, 160) }]
+  })
+}
+
+function compactStoredHitGroup(value: JsonRecord, maxBlocks: number) {
+  const matchLineNumbers = Array.isArray(value.matchLineNumbers)
+    ? value.matchLineNumbers.filter(
+        (lineNumber): lineNumber is number => typeof lineNumber === "number"
+      )
+    : []
+  const blocks = compactContextBlocks(value.contextBlocks)
+  return {
+    matchCount: matchLineNumbers.length,
+    matchLineNumbers,
+    hitSamples: hitSamplesFromBlocks(matchLineNumbers, blocks),
+    contextBlocks: compactBlocks(blocks, maxBlocks),
+    contextBlocksTruncated: blocks.length > maxBlocks
+  }
+}
+
 function compactSearchResultEntry(value: unknown) {
   const result = record(value) ?? {}
+  if (Array.isArray(result.matchLineNumbers) || Array.isArray(result.contextBlocks)) {
+    return {
+      object: result.object,
+      sourceUri: result.sourceUri,
+      totalLines: result.totalLines,
+      ...compactStoredHitGroup(result, 2),
+      enhancements: Array.isArray(result.enhancements)
+        ? result.enhancements.map(item => {
+            const enhancement = record(item) ?? {}
+            return {
+              enhancementName: enhancement.enhancementName,
+              enhancementType: enhancement.enhancementType,
+              elementUri: enhancement.elementUri,
+              ...compactStoredHitGroup(enhancement, 1)
+            }
+          })
+        : []
+    }
+  }
   const matches = searchHits(result.matches)
   const enhancementGroups = new Map<string, {
     enhancementName: string

@@ -132,7 +132,7 @@ MCP 프로세스를 중앙 클라우드에 배포하지 않는다. 프로젝트 
 | ABAP FS 도구 42개 목록 | 호환성 기준선으로 고정 |
 | Windows DPAPI SecretStore | 구현 및 단위 테스트 완료 |
 | scoped 패키지명 `@coaspe/sap-abap-mcp` | 변경 완료 |
-| public npm 게시 | 대용량 결과 지연 조회와 검색 context 중복 제거를 포함한 `0.4.11`을 npm `latest`로 게시 완료 |
+| public npm 게시 | 53개 도구 응답 전수 감사와 토큰 효율 개선을 포함한 `0.4.12`를 npm `latest`로 게시 완료 |
 | Windows 실제 SAP 통합 테스트 | 미실행 |
 
 `createDefaultSecretStore()`는 Windows에서 DPAPI 저장소를 자동 선택한다. 저장·조회·삭제와 프로필 격리는 단위 테스트를 통과했지만, 실제 Windows와 SAP 서버를 함께 사용하는 통합 테스트는 아직 필요하다.

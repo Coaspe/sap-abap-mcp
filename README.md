@@ -99,7 +99,7 @@ Before the first SAP-facing request, create and verify at least one local SAP pr
 
 Registry publication does not change the live-evidence boundary. SAP-dependent development-parity capabilities remain `unverified` until they succeed against the selected live connection.
 
-The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp) currently exposes the published 52-tool release and installs the validated local MCPB bundle.
+The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp) installs the validated local MCPB bundle and exposes all 53 runtime tools.
 
 ## Privacy Policy
 
@@ -324,11 +324,19 @@ The server is designed to keep model context usage bounded without removing usef
 - Large source responses are bounded by an inline byte budget.
 - Discovery data and large download manifests can be exported to local files.
 - Compact JSON is returned without pretty-print whitespace.
-- Compact JSON through 40 KiB is normally returned unchanged. Larger results return a bounded structural summary, an exact UTF-8 preview, and an in-memory `resultId` in a `compact-v1` envelope no larger than 12 KiB.
-- `search_abap_object_lines` switches at 16 KiB because adjacent matches repeat context heavily. Its summary merges overlapping source windows, reports match-line numbers and samples, and keeps the exact original JSON behind the same `resultId`.
+- Connection discovery returns only the profile ID, environment, and credential availability. Object-info reads normalize useful scalar metadata and return the raw ADT structure only when `includeStructure=true`.
+- Source reads identify the resolved object by name and type without repeating its search description, package, and object URI; `sourceUri` remains available for follow-up operations.
+- `search_abap_object_lines` always merges overlapping source windows into `contextBlocks` and reports matches once in `matchLineNumbers`, including enhancement source groups.
+- `get_sap_capabilities` omits evidence by default; request `includeEvidence=true` only when auditing discovery or execution observations.
+- Semantic, refactoring, ATC, version, activation, navigation, and download responses reuse the same compact object identity policy. Batch reads omit the parent `connectionId` from each nested result.
+- ATC findings reference one response-level object catalog. Dump, trace, and heartbeat list/mutation responses omit raw details that are available through explicit detail actions or options.
+- Compact JSON through 16 KiB is normally returned unchanged. Larger results return a bounded structural summary, an exact UTF-8 preview, and an in-memory `resultId` in a `compact-v1` envelope no larger than 12 KiB.
+- `search_abap_object_lines` switches to its bounded summary at 16 KiB and keeps the exact compact result behind the same `resultId`.
+
+The complete 53-tool, 149-variant review and fixture measurements are in [`docs/response-token-audit.md`](docs/response-token-audit.md).
 
 Continue paged responses with fields such as `nextStartIndex`, `nextLine`, `nextRowStart`, and `nextContentOffset`.
-For a response with `format: "compact-v1"`, use `summary` first. Call `read_deferred_result` with its `resultId` and `nextOffset` only when omitted exact data is needed. Each chunk is at most 24 KiB; continue until `done` is true. Deferred results expire after ten minutes, are never written to disk, and reading them does not repeat the SAP request.
+For a response with `format: "compact-v1"`, use `summary` first. Call `read_deferred_result` with its `resultId` and `nextOffset` only when omitted exact data is needed. A request may ask for up to 24 KiB, while the serialized chunk response remains within the 16 KiB inline budget; continue until `done` is true. Deferred results expire after ten minutes, are never written to disk, and reading them does not repeat the SAP request.
 
 Hosts without automatic tool search can register only selected toolsets:
 
@@ -420,8 +428,8 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current source version: `0.4.11`
-- Published npm version: `0.4.11`
+- Current source version: `0.4.12`
+- Published npm version: `0.4.12`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
