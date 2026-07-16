@@ -889,13 +889,12 @@ function referenceName(reference: UsageReference): string {
     : reference["adtcore:name"] || reference.objectIdentifier || ""
 }
 
-function usageReferenceResult(reference: UsageReference, includeObjectIdentifier: boolean) {
+function usageReferenceResult(reference: UsageReference) {
   const packageName = reference.packageRef?.["adtcore:name"]
   return {
     name: referenceName(reference),
     type: reference["adtcore:type"] || "UNKNOWN",
     uri: reference.uri,
-    ...(includeObjectIdentifier ? { objectIdentifier: reference.objectIdentifier } : {}),
     usageInformation: reference.usageInformation,
     ...(reference["adtcore:description"]
       ? { description: reference["adtcore:description"] }
@@ -5225,6 +5224,17 @@ export class AbapToolService {
     const snippets = input.includeSnippets && page.length > 0
       ? await client.getUsageReferenceSnippets(page)
       : []
+    const compactSnippets = snippets.map(snippet => {
+      const referenceIndex = page.findIndex(
+        reference => reference.objectIdentifier === snippet.objectIdentifier
+      )
+      return {
+        ...(referenceIndex >= 0
+          ? { referenceIndex }
+          : { objectIdentifier: snippet.objectIdentifier }),
+        snippets: snippet.snippets
+      }
+    })
 
     return {
       connectionId: input.connectionId.toUpperCase(),
@@ -5240,8 +5250,8 @@ export class AbapToolService {
         input.startIndex + page.length < filtered.length
           ? input.startIndex + page.length
           : null,
-      references: page.map(reference => usageReferenceResult(reference, input.includeSnippets)),
-      snippets
+      references: page.map(usageReferenceResult),
+      snippets: compactSnippets
     }
   }
 

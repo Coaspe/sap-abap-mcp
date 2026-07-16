@@ -19,7 +19,7 @@ The review combined static inspection of every service return branch with saniti
 
 - Inline JSON is capped at 16 KiB. Larger exact results are retained in the deferred-result store and represented by a bounded `compact-v1` response.
 - Repeated object search metadata is reduced to `{name,type}` when the same response already contains the source URI, result data, or operation identity. Search and object-info responses keep richer metadata because it is their primary result.
-- Where-used results project raw ADT references into follow-up-safe fields, flatten package metadata, and retain `objectIdentifier` only when snippets need it for correlation. Dependency graph traversal keeps URI and expansion metadata internally but does not serialize it into graph nodes.
+- Where-used results project raw ADT references into follow-up-safe fields, flatten package metadata, and correlate snippet groups with a page-local `referenceIndex` instead of repeating long ADT object identifiers. Dependency graph traversal keeps URI and expansion metadata internally but does not serialize it into graph nodes.
 - Cross-system comparisons keep one top-level object identity instead of repeating it inside both system summaries.
 - Lists use pagination, summaries, or explicit detail switches. Raw source, diagnostics, activation messages, release reports, query columns/values, and debugger values remain because they are the requested result or safety evidence.
 - Full ADT discovery, object structure, software components, dump HTML, trace details, unit-test successes, and download file lists require explicit options or modes.

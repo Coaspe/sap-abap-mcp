@@ -3843,6 +3843,14 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     Buffer.byteLength(JSON.stringify(listed.tools), "utf8") < 64 * 1024,
     "full MCP tool schemas must stay below the 64 KiB token-budget guardrail"
   )
+  assert.deepEqual(
+    listed.tools
+      .filter(tool => Object.keys(tool.inputSchema.properties ?? {}).length === 0)
+      .map(tool => tool.name)
+      .sort(),
+    ["get_abap_sql_syntax", "get_connected_systems"],
+    "only intentional no-argument tools may advertise an empty input schema"
+  )
   const capabilityTool = listed.tools.find(tool => tool.name === "get_sap_capabilities")
   assert.ok(capabilityTool)
   assert.equal(
@@ -3860,6 +3868,14 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   assert.equal(
     activationTool?.description,
     "Activate one legacy object or one same-connection batch of 1 through 100 ABAP objects."
+  )
+  assert.deepEqual(
+    Object.keys(activationTool?.inputSchema.properties ?? {}),
+    ["url", "urls", "connectionId"]
+  )
+  assert.equal(
+    (activationTool?.inputSchema.properties?.urls as { type?: string } | undefined)?.type,
+    "array"
   )
   const filteredServer = createMcpServer(service, {
     enabledTools: new Set(["get_connected_systems"])
@@ -4165,10 +4181,11 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     name: "ZREP_CALLER",
     type: "PROG/P",
     uri: "/sap/bc/adt/programs/programs/zrep_caller",
-    objectIdentifier: "ABAPFullName;ZREP_CALLER",
     usageInformation: "method call",
     packageName: "Z_DEMO"
   })
+  assert.equal(usages.snippets[0].referenceIndex, 0)
+  assert.equal("objectIdentifier" in usages.snippets[0], false)
   assert.equal(usages.snippets[0].snippets[0].uri.start.line, 7)
 
   const objectUrl = await callJson("get_abap_object_url", {
