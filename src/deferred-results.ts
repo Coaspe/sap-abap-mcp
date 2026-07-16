@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import { AppError } from "./errors.js"
 
 export const DEFERRED_RESULT_TOOL_NAME = "read_deferred_result"
-export const DEFERRED_RESULT_INLINE_BYTE_LIMIT = 40 * 1024
+export const DEFERRED_RESULT_INLINE_BYTE_LIMIT = 16 * 1024
 export const DEFERRED_RESULT_PREVIEW_BYTE_LIMIT = 8 * 1024
 export const DEFERRED_RESULT_ENVELOPE_BYTE_LIMIT = 12 * 1024
 export const DEFERRED_RESULT_CHUNK_BYTE_LIMIT = 24 * 1024

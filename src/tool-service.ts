@@ -72,6 +72,16 @@ import {
 type BindingCategory = "0" | "1"
 const execFileAsync = promisify(execFile)
 
+interface CachedAtcDecoration {
+  object: {
+    name: string
+    type: string
+    packageName: string
+    uri: string
+  }
+  finding: Record<string, unknown>
+}
+
 export interface ConnectionProvider {
   listConnections(): Promise<ConnectionSummary[]>
   getClient(connectionId: string): Promise<SapClient>
@@ -798,6 +808,48 @@ function sameType(actual: string, expected?: string): boolean {
   return normalizedActual.replace(/\/.*$/, "") === normalizedExpected
 }
 
+function objectIdentity(object: SapObjectReference) {
+  return { name: object.name, type: object.type }
+}
+
+function atcObjectKey(object: { name: string; type: string; uri: string }) {
+  return `${object.type}:${object.name}:${object.uri}`
+}
+
+function searchContextBlocks(
+  lines: string[],
+  matchIndexes: number[],
+  contextLines: number
+) {
+  const includedIndexes = new Set<number>()
+  for (const matchIndex of matchIndexes) {
+    const start = Math.max(0, matchIndex - contextLines)
+    const end = Math.min(lines.length - 1, matchIndex + contextLines)
+    for (let index = start; index <= end; index += 1) includedIndexes.add(index)
+  }
+
+  const blocks: Array<{
+    startLine: number
+    lines: string[]
+    matchLineNumbers: number[]
+  }> = []
+  const matchLineNumbers = new Set(matchIndexes.map(index => index + 1))
+  for (const index of [...includedIndexes].sort((left, right) => left - right)) {
+    const previous = blocks.at(-1)
+    if (previous && previous.startLine + previous.lines.length === index + 1) {
+      previous.lines.push(lines[index] ?? "")
+      if (matchLineNumbers.has(index + 1)) previous.matchLineNumbers.push(index + 1)
+      continue
+    }
+    blocks.push({
+      startLine: index + 1,
+      lines: [lines[index] ?? ""],
+      matchLineNumbers: matchLineNumbers.has(index + 1) ? [index + 1] : []
+    })
+  }
+  return blocks
+}
+
 async function resolveObject(
   client: SapClient,
   objectName: string,
@@ -1113,7 +1165,7 @@ function stripHtml(html: string): string {
 }
 
 export class AbapToolService {
-  private readonly atcDecorations = new Map<string, unknown[]>()
+  private readonly atcDecorations = new Map<string, CachedAtcDecoration[]>()
   private readonly capabilities = new SapCapabilityRegistry()
   private readonly dataViews = new Map<string, DataViewState>()
   private readonly refactorPlans = new Map<string, RefactorPlan>()
@@ -1369,7 +1421,14 @@ export class AbapToolService {
   }
 
   async getConnectedSystems() {
-    return { systems: await this.connections.listConnections() }
+    const systems = await this.connections.listConnections()
+    return {
+      systems: systems.map(({ id, environment, credentialAvailable }) => ({
+        id,
+        environment,
+        credentialAvailable
+      }))
+    }
   }
 
   async createMermaidDiagram(
@@ -1402,22 +1461,32 @@ export class AbapToolService {
 
   async getSapSystemInfo(connectionId: string, includeComponents: boolean) {
     const client = await this.connections.getClient(connectionId)
-    return client.getSystemInfo(includeComponents)
+    const info = await client.getSystemInfo(includeComponents)
+    if (includeComponents) return info
+    const { softwareComponents: _softwareComponents, ...summary } = info
+    return summary
   }
 
   async getSapCapabilities(
     connectionId: string,
     category?: SapCapabilityCategory,
-    includeEvidence = true
+    includeEvidence = false
   ) {
     const client = await this.connections.getClient(connectionId)
     const discovery = await client.getAdtDiscovery()
     const capabilities = this.capabilities.list(connectionId, JSON.stringify(discovery), category)
+    const system = await client.getSystemInfo(false)
     return {
       connectionId: connectionId.trim().toUpperCase(),
-      generatedAt: new Date().toISOString(),
       adapterVersion: "abap-adt-api@8.4.1",
-      systemMetadata: await client.getSystemInfo(false),
+      systemMetadata: {
+        environment: system.environment,
+        sapRelease: system.sapRelease,
+        systemType: system.systemType,
+        logicalSystem: system.logicalSystem,
+        discoveryCollections: system.discoveryCollections,
+        warnings: system.warnings
+      },
       capabilities: includeEvidence
         ? capabilities
         : capabilities.map(({ evidence, ...item }) => item)
@@ -1437,7 +1506,7 @@ export class AbapToolService {
       const page = pageItems(unique, input.startIndex, input.maxResults)
       return {
         connectionId: target.connectionId,
-        object: target.object,
+        object: objectIdentity(target.object),
         line: input.line,
         column: input.column,
         total: page.total,
@@ -1470,7 +1539,7 @@ export class AbapToolService {
       if (typeof result === "string") {
         return {
           connectionId: target.connectionId,
-          object: target.object,
+          object: objectIdentity(target.object),
           format: "legacy",
           ...boundInlineText(result),
           capabilityStatusAtExecution
@@ -1480,7 +1549,7 @@ export class AbapToolService {
       const components = pageItems(result.components, input.startIndex, input.maxResults)
       return {
         connectionId: target.connectionId,
-        object: target.object,
+        object: objectIdentity(target.object),
         format: "structured",
         element: {
           name: result.name,
@@ -1513,7 +1582,7 @@ export class AbapToolService {
       )
       return {
         connectionId: target.connectionId,
-        object: target.object,
+        object: objectIdentity(target.object),
         format: /<[^>]+>/.test(result) ? "html" : "text",
         ...boundInlineText(result),
         capabilityStatusAtExecution
@@ -1536,7 +1605,7 @@ export class AbapToolService {
       const page = pageItems(result, input.startIndex, input.maxResults)
       return {
         connectionId: target.connectionId,
-        object: target.object,
+        object: objectIdentity(target.object),
         total: page.total,
         startIndex: page.startIndex,
         returned: page.returned,
@@ -1566,7 +1635,7 @@ export class AbapToolService {
       const page = pageItems(result.components, input.startIndex, input.maxResults)
       return {
         connectionId: target.connectionId,
-        object: target.object,
+        object: objectIdentity(target.object),
         root: {
           name: result["adtcore:name"],
           type: result["adtcore:type"],
@@ -1601,7 +1670,7 @@ export class AbapToolService {
       )
       return {
         connectionId: target.connectionId,
-        object: target.object,
+        object: objectIdentity(target.object),
         definition: definition.url
           ? {
               uri: definition.url,
@@ -1623,7 +1692,7 @@ export class AbapToolService {
       const page = pageItems(proposals, input.startIndex, input.maxResults)
       return {
         connectionId: target.connectionId,
-        object: target.object,
+        object: objectIdentity(target.object),
         total: page.total,
         startIndex: page.startIndex,
         returned: page.returned,
@@ -1649,7 +1718,7 @@ export class AbapToolService {
     }
     return {
       connectionId: target.connectionId,
-      object: target.object,
+      object: objectIdentity(target.object),
       ...summarizeDiff(target.source, formatted)
     }
   }
@@ -1695,7 +1764,7 @@ export class AbapToolService {
         request,
         payload: preview,
         summary: {
-          object: target.object,
+          object: objectIdentity(target.object),
           oldName: preview.oldName,
           newName: preview.newName,
           transport: preview.transport || null,
@@ -1746,7 +1815,7 @@ export class AbapToolService {
         request,
         payload: preview,
         summary: {
-          object: target.object,
+          object: objectIdentity(target.object),
           oldPackage: sourcePackage,
           newPackage,
           transport: preview.transport || null,
@@ -1790,7 +1859,7 @@ export class AbapToolService {
         request,
         payload: { proposal, preview },
         summary: {
-          object: target.object,
+          object: objectIdentity(target.object),
           methodName: proposal.name,
           transport: preview.transport || null,
           affectedObjectCount: preview.affectedObjects.length,
@@ -1835,7 +1904,7 @@ export class AbapToolService {
         request,
         payload,
         summary: {
-          object: target.object,
+          object: objectIdentity(target.object),
           proposal: proposal["adtcore:name"],
           editCount: edits.length,
           affectedObjectCount: new Set(edits.map(edit => edit.uri)).size,
@@ -1875,7 +1944,7 @@ export class AbapToolService {
         request,
         payload,
         summary: {
-          object: target.object,
+          object: objectIdentity(target.object),
           ...summarizeDiff(target.source, formatted),
           activate: input.activate
         }
@@ -1904,7 +1973,7 @@ export class AbapToolService {
       request,
       payload,
       summary: {
-        object: target.object,
+        object: objectIdentity(target.object),
         packageName: sourcePackage,
         transport: transport ?? null,
         state: {
@@ -2005,7 +2074,7 @@ export class AbapToolService {
       transport: string
     }
     await client.deleteObject(payload.objectUri, payload.state.fingerprint, payload.transport || undefined)
-    return { executed: true, operation: plan.kind, object: payload.object }
+    return { executed: true, operation: plan.kind, object: objectIdentity(payload.object) }
   }
 
   private async applySourceDeltas(
@@ -2105,7 +2174,7 @@ export class AbapToolService {
         })
       }
     }
-    return { changedObjects: changes.map(change => change.object), activations }
+    return { changedObjects: changes.map(change => objectIdentity(change.object)), activations }
   }
 
   async createObjectProgrammatically(input: CreateObjectInput) {
@@ -2616,9 +2685,17 @@ export class AbapToolService {
     const workspaceUri = `adt://${target.connectionId.toLowerCase()}${target.sourceUri}`
     this.atcDecorations.set(workspaceUri, findings)
     const page = pageItems(findings, input.startIndex, input.maxResults)
+    const findingObjects = [...new Map(page.items.map(item => [
+      atcObjectKey(item.object),
+      item.object
+    ])).values()]
+    const objectIndexes = new Map(findingObjects.map((item, index) => [
+      atcObjectKey(item),
+      index
+    ]))
     return {
       connectionId: target.connectionId,
-      target: target.object,
+      target: objectIdentity(target.object),
       variant,
       run,
       summary: {
@@ -2627,7 +2704,11 @@ export class AbapToolService {
         warnings: findings.filter(item => item.finding.priority === 2).length,
         infos: findings.filter(item => item.finding.priority >= 3).length
       },
-      findings: page.items,
+      objects: findingObjects,
+      findings: page.items.map(item => ({
+        objectIndex: objectIndexes.get(atcObjectKey(item.object))!,
+        ...item.finding
+      })),
       startIndex: page.startIndex,
       returned: page.returned,
       truncated: page.truncated,
@@ -2639,6 +2720,14 @@ export class AbapToolService {
     if (fileUri) {
       const decorations = this.atcDecorations.get(fileUri) ?? []
       const page = pageItems(decorations, startIndex, maxResults)
+      const objects = [...new Map(page.items.map(item => [
+        atcObjectKey(item.object),
+        item.object
+      ])).values()]
+      const objectIndexes = new Map(objects.map((item, index) => [
+        atcObjectKey(item),
+        index
+      ]))
       return {
         fileUri,
         count: page.total,
@@ -2646,13 +2735,25 @@ export class AbapToolService {
         returned: page.returned,
         truncated: page.truncated,
         nextStartIndex: page.nextStartIndex,
-        decorations: page.items
+        objects,
+        decorations: page.items.map(item => ({
+          objectIndex: objectIndexes.get(atcObjectKey(item.object))!,
+          ...item.finding
+        }))
       }
     }
     const allDecorations = [...this.atcDecorations.entries()].flatMap(([uri, findings]) =>
       findings.map(finding => ({ fileUri: uri, finding }))
     )
     const page = pageItems(allDecorations, startIndex, maxResults)
+    const objects = [...new Map(page.items.map(item => [
+      atcObjectKey(item.finding.object),
+      item.finding.object
+    ])).values()]
+    const objectIndexes = new Map(objects.map((item, index) => [
+      atcObjectKey(item),
+      index
+    ]))
     return {
       totalFiles: this.atcDecorations.size,
       totalFindings: page.total,
@@ -2660,7 +2761,12 @@ export class AbapToolService {
       returned: page.returned,
       truncated: page.truncated,
       nextStartIndex: page.nextStartIndex,
-      decorations: page.items
+      objects,
+      decorations: page.items.map(item => ({
+        fileUri: item.fileUri,
+        objectIndex: objectIndexes.get(atcObjectKey(item.finding.object))!,
+        ...item.finding.finding
+      }))
     }
   }
 
@@ -2677,7 +2783,7 @@ export class AbapToolService {
     if (input.action === "read") {
       return {
         connectionId: input.connectionId.toUpperCase(),
-        object,
+        object: objectIdentity(object),
         category: input.category,
         programName: current.programName,
         textElements: current.textElements
@@ -2724,7 +2830,7 @@ export class AbapToolService {
     )
     return {
       connectionId: input.connectionId.toUpperCase(),
-      object,
+      object: objectIdentity(object),
       action: input.action,
       category: input.category,
       changedIds: [...updates.keys()],
@@ -2775,7 +2881,7 @@ export class AbapToolService {
           })
     return {
       connectionId: connectionId.toUpperCase(),
-      object,
+      object: objectIdentity(object),
       detailLevel,
       total,
       passed,
@@ -2796,7 +2902,7 @@ export class AbapToolService {
     ) {
       return {
         connectionId: connectionId.toUpperCase(),
-        object,
+        object: objectIdentity(object),
         created: false,
         alreadyExists: true
       }
@@ -2806,7 +2912,7 @@ export class AbapToolService {
     await client.createTestInclude(object.name, object.uri, normalizedTransport)
     return {
       connectionId: connectionId.toUpperCase(),
-      object,
+      object: objectIdentity(object),
       created: true,
       alreadyExists: false,
       transport: normalizedTransport ?? null
@@ -2996,7 +3102,7 @@ export class AbapToolService {
           transportNumber,
           added: true,
           object: { pgmid, type: objectType, name: objectName, uri: null },
-          parentObject
+          parentObject: objectIdentity(parentObject)
         }
       }
       const object = await resolveObject(client, objectName, objectType)
@@ -3479,7 +3585,7 @@ export class AbapToolService {
       return {
         connectionId: input.connectionId.toUpperCase(),
         generatorId,
-        reference,
+        reference: objectIdentity(reference),
         packageName,
         initialValidation: initial,
         totalCharacters: schema.length,
@@ -3494,7 +3600,7 @@ export class AbapToolService {
       return {
         connectionId: input.connectionId.toUpperCase(),
         generatorId,
-        reference,
+        reference: objectIdentity(reference),
         packageName,
         initialValidation: initial,
         content: await client.getRapGeneratorContent(generatorId, reference.uri, packageName)
@@ -3504,7 +3610,7 @@ export class AbapToolService {
       return {
         connectionId: input.connectionId.toUpperCase(),
         generatorId,
-        reference,
+        reference: objectIdentity(reference),
         packageName,
         validation: initial
       }
@@ -3525,7 +3631,8 @@ export class AbapToolService {
       input.content
     )
     if (input.action === "validate") {
-      return { connectionId: input.connectionId.toUpperCase(), generatorId, reference,
+      return { connectionId: input.connectionId.toUpperCase(), generatorId,
+        reference: objectIdentity(reference),
         packageName, validation }
     }
     if (validation.severity === "error") {
@@ -3541,7 +3648,7 @@ export class AbapToolService {
       return {
         connectionId: input.connectionId.toUpperCase(),
         generatorId,
-        reference,
+        reference: objectIdentity(reference),
         packageName,
         validation,
         objectCount: preview.length,
@@ -3571,7 +3678,7 @@ export class AbapToolService {
     return {
       connectionId: input.connectionId.toUpperCase(),
       generatorId,
-      reference,
+      reference: objectIdentity(reference),
       packageName,
       transport: transport ?? null,
       generated: true,
@@ -3623,7 +3730,7 @@ export class AbapToolService {
       payload,
       fingerprint: payloadFingerprint(payload),
       summary: {
-        object,
+        object: objectIdentity(object),
         versionNumber: input.versionNumber,
         revision,
         transport: transport ?? null,
@@ -3751,7 +3858,7 @@ export class AbapToolService {
     return {
       connectionId: plan.connectionId,
       restored: true,
-      object: payload.object,
+      object: objectIdentity(payload.object),
       versionNumber: payload.versionNumber,
       diagnostics: result.diagnostics,
       activation: result.activation ?? null,
@@ -3775,7 +3882,7 @@ export class AbapToolService {
     if (input.action === "list_versions") {
       return {
         connectionId: input.connectionId.toUpperCase(),
-        object,
+        object: objectIdentity(object),
         totalVersions: revisions.length,
         versions: revisions.slice(0, input.maxVersions).map((revision, index) => ({
           number: index + 1,
@@ -3791,7 +3898,7 @@ export class AbapToolService {
       const selected = selectLines(lines, startIndex, input.lineCount)
       return {
         connectionId: input.connectionId.toUpperCase(),
-        object,
+        object: objectIdentity(object),
         versionNumber: input.versionNumber,
         revision,
         startLine: input.startLine,
@@ -3821,7 +3928,7 @@ export class AbapToolService {
     const removedPage = pageItems(removed, input.startIndex, input.maxResults)
     return {
       connectionId: input.connectionId.toUpperCase(),
-      object,
+      object: objectIdentity(object),
       versions: {
         left: { number: input.version1, revision: leftRevision },
         right: { number: input.version2, revision: rightRevision }
@@ -3941,7 +4048,7 @@ export class AbapToolService {
     const previewLimit = 20
     return {
       connectionId: client.profile.id,
-      source: object,
+      source: objectIdentity(object),
       target: targetDirectory,
       files: downloaded.length,
       skipped: skipped.length,
@@ -4091,7 +4198,6 @@ export class AbapToolService {
           author: dump.author ?? null,
           type: dump.type,
           categories: dump.categories,
-          links: dump.links,
           contentLength: dump.text.length
         }))
       }
@@ -4144,7 +4250,20 @@ export class AbapToolService {
         returned: page.returned,
         truncated: page.truncated,
         nextStartIndex: page.nextStartIndex,
-        configurations: page.items
+        configurations: page.items.map(request => ({
+          id: request.id,
+          title: request.title,
+          published: request.published,
+          description: request.extendedData.description,
+          authors: request.authors.map(author => author.name),
+          executions: request.extendedData.executions,
+          isAggregated: request.extendedData.isAggregated,
+          host: request.extendedData.host,
+          expires: request.extendedData.expires,
+          processType: request.extendedData.processType,
+          objectType: request.extendedData.objectType,
+          clients: request.extendedData.clients.map(client => client.id)
+        }))
       }
     }
     const runs = await client.getTraceRuns()
@@ -4160,7 +4279,16 @@ export class AbapToolService {
         returned: page.returned,
         truncated: page.truncated,
         nextStartIndex: page.nextStartIndex,
-        runs: page.items
+        runs: page.items.map(run => ({
+          id: run.id,
+          title: run.title,
+          author: run.author,
+          published: run.published,
+          objectName: run.extendedData.objectName,
+          host: run.extendedData.host,
+          state: run.extendedData.state,
+          isAggregated: run.extendedData.isAggregated
+        }))
       }
     }
     if (!input.traceId) {
@@ -4273,7 +4401,7 @@ export class AbapToolService {
           updatedAt: task.updatedAt,
           priority: task.priority,
           category: task.category,
-          connectionId: task.connectionId ?? null,
+          ...(task.connectionId ? { connectionId: task.connectionId } : {}),
           removeWhenDone: task.removeWhenDone,
           reminderOnly: task.reminderOnly
         }
@@ -4375,19 +4503,19 @@ export class AbapToolService {
           ...(input.startAt ? { startAt: input.startAt } : {})
         }
         this.heartbeatTasks.set(task.id, task)
-        return { task }
+        return { task: presentTask(task) }
       }
       case "remove_task": {
         const task = this.findHeartbeatTask(input.taskId)
         this.heartbeatTasks.delete(task.id)
-        return { removed: task }
+        return { removed: presentTask(task) }
       }
       case "enable_task":
       case "disable_task": {
         const task = this.findHeartbeatTask(input.taskId)
         task.enabled = input.action === "enable_task"
         task.updatedAt = new Date().toISOString()
-        return { task }
+        return { task: presentTask(task) }
       }
       case "update_task": {
         const task = this.findHeartbeatTask(input.taskId)
@@ -4419,7 +4547,7 @@ export class AbapToolService {
           task.lastNotifiedFindings = input.lastNotifiedFindings
         }
         if (input.modifiedBy) task.modifiedBy = input.modifiedBy
-        return { task }
+        return { task: presentTask(task) }
       }
     }
   }
@@ -4537,7 +4665,7 @@ export class AbapToolService {
     const diagnostics = result.diagnostics.slice(0, 100)
     return {
       connectionId: target.connectionId,
-      object: target.object,
+      object: objectIdentity(target.object),
       sourceUri: target.sourceUri,
       workspaceUri: `adt://${target.connectionId.toLowerCase()}${target.sourceUri}`,
       changed: true,
@@ -4565,7 +4693,7 @@ export class AbapToolService {
     const page = pageItems(filtered, input.startIndex, input.maxResults)
     return {
       connectionId: target.connectionId,
-      object: target.object,
+      object: objectIdentity(target.object),
       sourceUri: target.sourceUri,
       count: diagnostics.length,
       errorCount: diagnostics.filter(item => /^(E|ERROR)$/i.test(item.severity.trim())).length,
@@ -4611,7 +4739,7 @@ export class AbapToolService {
       )
       return {
         connectionId: target.connectionId,
-        object: target.object,
+        object: objectIdentity(target.object),
         success: result.success,
         messages: result.messages,
         inactive: result.inactive
@@ -4707,7 +4835,7 @@ export class AbapToolService {
         typeof message?.type === "string" && /^(E|A|X|ERROR)$/i.test(message.type.trim())
       )
       return {
-        object: target.object,
+        object: objectIdentity(target.object),
         outcome: failed
           ? "failed"
           : uri !== undefined && submittedUris.has(uri) && activation.success
@@ -4725,7 +4853,7 @@ export class AbapToolService {
     return {
       connectionId,
       status,
-      requested: targets.map(target => target.object),
+      requested: targets.map(target => objectIdentity(target.object)),
       objectResults,
       messages: activation.messages,
       remainingInactive: activation.inactive,
@@ -4775,7 +4903,7 @@ export class AbapToolService {
       const selected = selectLines(methodLines, 0, methodLines.length)
       return {
         connectionId: input.connectionId.toUpperCase(),
-        object,
+        object: objectIdentity(object),
         sourceUri: result.sourceUri,
         methodName: input.methodName,
         startLine: method.startLine,
@@ -4792,7 +4920,7 @@ export class AbapToolService {
     const selected = selectLines(lines, startIndex, input.lineCount)
     return {
       connectionId: input.connectionId.toUpperCase(),
-      object,
+      object: objectIdentity(object),
       sourceUri: result.sourceUri,
       startLine: startIndex + 1,
       endLine: selected.endIndex,
@@ -4833,21 +4961,25 @@ export class AbapToolService {
     }
 
     const results: Array<{
-      object: SapObjectReference
+      object: { name: string; type: string }
       sourceUri: string
       totalLines: number
-      matches: Array<{
-        lineNumber: number
-        line: string
-        context: Array<{ lineNumber: number; text: string; isMatch: boolean }>
+      matchLineNumbers: number[]
+      contextBlocks: Array<{
+        startLine: number
+        lines: string[]
+        matchLineNumbers: number[]
       }>
-      enhancementMatches: Array<{
+      enhancements: Array<{
         enhancementName: string
         enhancementType: string
         elementUri: string
-        lineNumber: number
-        line: string
-        context: Array<{ lineNumber: number; text: string; isMatch: boolean }>
+        matchLineNumbers: number[]
+        contextBlocks: Array<{
+          startLine: number
+          lines: string[]
+          matchLineNumbers: number[]
+        }>
       }>
     }> = []
     let matchCount = 0
@@ -4855,24 +4987,14 @@ export class AbapToolService {
     for (const object of selected) {
       const source = await client.readObject(object)
       const lines = source.source.split(/\r?\n/)
-      const matches = []
+      const matchIndexes: number[] = []
       for (let index = 0; index < lines.length; index += 1) {
         const line = lines[index] ?? ""
         if (!matcher(line)) continue
         const matchIndex = matchCount
         matchCount += 1
         if (matchIndex < input.startIndex || returnedMatches >= input.maxResults) continue
-        const start = Math.max(0, index - input.contextLines)
-        const end = Math.min(lines.length - 1, index + input.contextLines)
-        matches.push({
-          lineNumber: index + 1,
-          line,
-          context: lines.slice(start, end + 1).map((text, contextIndex) => ({
-            lineNumber: start + contextIndex + 1,
-            text,
-            isMatch: start + contextIndex === index
-          }))
-        })
+        matchIndexes.push(index)
         returnedMatches += 1
       }
 
@@ -4880,9 +5002,12 @@ export class AbapToolService {
         enhancementName: string
         enhancementType: string
         elementUri: string
-        lineNumber: number
-        line: string
-        context: Array<{ lineNumber: number; text: string; isMatch: boolean }>
+        matchLineNumbers: number[]
+        contextBlocks: Array<{
+          startLine: number
+          lines: string[]
+          matchLineNumbers: number[]
+        }>
       }> = []
       try {
         const enhancements = await client.getObjectEnhancements(source.sourceUri, true)
@@ -4890,27 +5015,28 @@ export class AbapToolService {
           for (const element of implementation.elements) {
             if (!element.source) continue
             const enhancementLines = element.source.split(/\r?\n/)
+            const enhancementMatchIndexes: number[] = []
             for (let index = 0; index < enhancementLines.length; index += 1) {
               const line = enhancementLines[index] ?? ""
               if (!matcher(line)) continue
               const matchIndex = matchCount
               matchCount += 1
               if (matchIndex < input.startIndex || returnedMatches >= input.maxResults) continue
-              const start = Math.max(0, index - input.contextLines)
-              const end = Math.min(enhancementLines.length - 1, index + input.contextLines)
+              enhancementMatchIndexes.push(index)
+              returnedMatches += 1
+            }
+            if (enhancementMatchIndexes.length > 0) {
               enhancementMatches.push({
                 enhancementName: implementation.name,
                 enhancementType: implementation.type,
                 elementUri: element.uri,
-                lineNumber: index + 1,
-                line,
-                context: enhancementLines.slice(start, end + 1).map((text, contextIndex) => ({
-                  lineNumber: start + contextIndex + 1,
-                  text,
-                  isMatch: start + contextIndex === index
-                }))
+                matchLineNumbers: enhancementMatchIndexes.map(index => index + 1),
+                contextBlocks: searchContextBlocks(
+                  enhancementLines,
+                  enhancementMatchIndexes,
+                  input.contextLines
+                )
               })
-              returnedMatches += 1
             }
           }
         }
@@ -4918,13 +5044,14 @@ export class AbapToolService {
         // Enhancement discovery is not available on every backend release.
       }
 
-      if (matches.length > 0 || enhancementMatches.length > 0) {
+      if (matchIndexes.length > 0 || enhancementMatches.length > 0) {
         results.push({
-          object,
+          object: objectIdentity(object),
           sourceUri: source.sourceUri,
           totalLines: lines.length,
-          matches,
-          enhancementMatches
+          matchLineNumbers: matchIndexes.map(index => index + 1),
+          contextBlocks: searchContextBlocks(lines, matchIndexes, input.contextLines),
+          enhancements: enhancementMatches
         })
       }
     }
@@ -4959,9 +5086,12 @@ export class AbapToolService {
       sourceUri: source.sourceUri,
       totalLines: source.source.split(/\r?\n/).length,
       structureSummary: {
-        metaData: structure.metaData,
-        sections: Object.keys(structureRecord),
-        linkCount: Array.isArray(structureRecord.links) ? structureRecord.links.length : 0,
+        changedAt: structure.metaData["adtcore:changedAt"],
+        changedBy: structure.metaData["adtcore:changedBy"],
+        createdAt: structure.metaData["adtcore:createdAt"],
+        language: structure.metaData["adtcore:language"],
+        responsible: structure.metaData["adtcore:responsible"],
+        version: structure.metaData["adtcore:version"],
         includeCount: Array.isArray(structureRecord.includes)
           ? structureRecord.includes.length
           : 0
@@ -4995,10 +5125,13 @@ export class AbapToolService {
       requestedLines,
       results: results.map((result, index) =>
         result.status === "fulfilled"
-          ? { request: input.requests[index], ok: true, result: result.value }
+          ? (() => {
+              const { connectionId: _connectionId, ...value } = result.value
+              return { request: input.requests[index], ok: true as const, result: value }
+            })()
           : {
               request: input.requests[index],
-              ok: false,
+              ok: false as const,
               error: result.reason instanceof Error ? result.reason.message : String(result.reason)
             }
       )
@@ -5077,7 +5210,7 @@ export class AbapToolService {
 
     return {
       connectionId: input.connectionId.toUpperCase(),
-      object,
+      object: objectIdentity(object),
       sourceUri,
       position: { line, character },
       searchTerm: input.searchTerm ?? null,
@@ -5100,7 +5233,7 @@ export class AbapToolService {
     const source = await client.readObject(object)
     return {
       connectionId: input.connectionId.toUpperCase(),
-      object,
+      object: objectIdentity(object),
       sourceUri: source.sourceUri,
       workspaceUri: `adt://${input.connectionId.toLowerCase()}${source.sourceUri}`
     }
@@ -5113,7 +5246,7 @@ export class AbapToolService {
     return {
       connectionId: input.connectionId.toUpperCase(),
       mode: "headless",
-      object,
+      object: objectIdentity(object),
       sourceUri: source.sourceUri,
       workspaceUri: `adt://${input.connectionId.toLowerCase()}${source.sourceUri}`,
       totalLines: source.source.split(/\r?\n/).length,
@@ -5172,14 +5305,14 @@ export class AbapToolService {
       objectType: sourceObject.type,
       source: {
         connectionId: input.sourceConnectionId.toUpperCase(),
-        object: sourceObject,
+        object: objectIdentity(sourceObject),
         sourceUri: source.sourceUri,
         sha256: createHash("sha256").update(source.source).digest("hex"),
         lines: source.source.split(/\r?\n/).length
       },
       target: {
         connectionId: input.targetConnectionId.toUpperCase(),
-        object: targetObject,
+        object: objectIdentity(targetObject),
         sourceUri: target.sourceUri,
         sha256: createHash("sha256").update(target.source).digest("hex"),
         lines: target.source.split(/\r?\n/).length
@@ -5251,7 +5384,7 @@ export class AbapToolService {
     }
     return {
       connectionId: input.connectionId.toUpperCase(),
-      object,
+      object: objectIdentity(object),
       depth: input.depth,
       customOnly: input.customOnly,
       nodeCount: nodes.size,

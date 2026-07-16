@@ -107,3 +107,45 @@ test("search summaries substantially reduce dense repeated contexts", () => {
   assert.ok(summaryBytes <= SEARCH_RESULT_SUMMARY_BYTE_LIMIT)
   assert.ok(summaryBytes < rawBytes / 3)
 })
+
+test("search summaries preserve already merged primary contexts", () => {
+  const value = {
+    connectionId: "DEV100",
+    objectPattern: "ZCL_BANK",
+    searchTerm: "BANK",
+    isRegexp: false,
+    objectsSearched: 1,
+    matchCount: 2,
+    startIndex: 0,
+    returnedMatches: 2,
+    truncated: false,
+    nextStartIndex: null,
+    results: [{
+      object: { name: "ZCL_BANK", type: "CLAS/OC" },
+      sourceUri: "/sap/bc/adt/oo/classes/zcl_bank/source/main",
+      totalLines: 20,
+      matchLineNumbers: [10, 12],
+      contextBlocks: [{
+        startLine: 7,
+        lines: Array.from({ length: 9 }, (_, index) => `line ${index + 7}`),
+        matchLineNumbers: [10, 12]
+      }],
+      enhancements: []
+    }]
+  }
+
+  const summary = summarizeSearchObjectLinesResult(value) as {
+    results: Array<{
+      matchLineNumbers: number[]
+      hitSamples: Array<{ lineNumber: number; line: string }>
+      contextBlocks: Array<{ startLine: number; matchLineNumbers: number[] }>
+    }>
+  }
+  const result = summary.results[0]!
+  assert.deepEqual(result.matchLineNumbers, [10, 12])
+  assert.deepEqual(result.hitSamples, [
+    { lineNumber: 10, line: "line 10" },
+    { lineNumber: 12, line: "line 12" }
+  ])
+  assert.deepEqual(result.contextBlocks[0]?.matchLineNumbers, [10, 12])
+})

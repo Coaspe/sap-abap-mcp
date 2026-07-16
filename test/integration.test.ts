@@ -1892,7 +1892,7 @@ test("activateObject validates batches and classifies one SAP activation respons
     }),
     {
       connectionId: "DEV100",
-      object,
+      object: { name: object.name, type: object.type },
       success: true,
       messages: [],
       inactive: []
@@ -2001,10 +2001,7 @@ test("activateObject canonicalizes SAP evidence and tolerates malformed result f
   assert.deepEqual(boundaryResult.objectResults, [{
     object: {
       name: "ZCL_A",
-      type: "CLAS/OC",
-      uri: "/sap/bc/adt/oo/classes/zcl_a",
-      description: "ZCL_A",
-      packageName: "Z_DEMO"
+      type: "CLAS/OC"
     },
     outcome: "unknown",
     messages: []
@@ -3848,6 +3845,10 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   )
   const capabilityTool = listed.tools.find(tool => tool.name === "get_sap_capabilities")
   assert.ok(capabilityTool)
+  assert.equal(
+    (capabilityTool.inputSchema.properties?.includeEvidence as { default?: boolean }).default,
+    false
+  )
   assert.deepEqual(capabilityTool.annotations, {
     readOnlyHint: true,
     destructiveHint: false,
@@ -3913,7 +3914,8 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   }
   const capabilities = await callJson("get_sap_capabilities", {
     connectionId: "DEV100",
-    category: "repository"
+    category: "repository",
+    includeEvidence: true
   })
   assert.equal(capabilities.connectionId, "DEV100")
   const repositoryCapabilities = capabilities.capabilities as Array<{
@@ -4007,7 +4009,8 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     connectionId: "DEV100"
   })
   assert.equal(sourceSearch.matchCount, 1)
-  assert.equal(sourceSearch.results[0].matches[0].lineNumber, 3)
+  assert.deepEqual(sourceSearch.results[0].matchLineNumbers, [3])
+  assert.equal(sourceSearch.results[0].contextBlocks[0].startLine, 1)
 
   fake.currentSource = Array.from(
     { length: 1000 },
@@ -4060,7 +4063,8 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     connectionId: "DEV100"
   })
   assert.equal(compactInfo.structure, undefined)
-  assert.equal(compactInfo.structureSummary.metaData["adtcore:name"], "ZCL_DEMO")
+  assert.equal(compactInfo.structureSummary.responsible, "DEVELOPER")
+  assert.equal(compactInfo.structureSummary.version, "active")
 
   const batch = await callJson("get_batch_lines", {
     requests: [{ objectName: "ZCL_DEMO", startLine: 1, lineCount: 2 }],
