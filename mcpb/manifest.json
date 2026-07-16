@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "sap-abap-mcp",
   "display_name": "SAP ABAP MCP",
-  "version": "0.4.13",
+  "version": "0.4.14",
   "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
   "long_description": "SAP ABAP MCP is a local-only Model Context Protocol server that enables AI coding agents to develop, test, analyze, and operate SAP ABAP systems through the official ABAP Development Tools HTTP services. It supports repository search and source editing, semantic services, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, debugging, runtime dumps and traces, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer, with passwords protected by macOS Keychain or Windows DPAPI. SAP-dependent capabilities are validated against the user's own SAP release, configuration, and authorizations.",
   "author": {
@@ -235,7 +235,7 @@
     },
     {
       "name": "search_abap_object_lines",
-      "description": "Search literal text or a regular expression in active ABAP source. Wildcard object names can scan up to 10 objects."
+      "description": "Search literal text or a regular expression in active main source and enhancements. Class includes are read separately by URI. Wildcard object names can scan up to 10 objects."
     },
     {
       "name": "search_abap_objects",

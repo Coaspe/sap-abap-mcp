@@ -94,7 +94,17 @@ function createService() {
     getObjectStructure: async () => structure,
     getObjectEnhancements: async () => ({ implementations: [] }),
     findUsageReferences: async () => usageReferences,
-    getUsageReferenceSnippets: async () => [],
+    getUsageReferenceSnippets: async (
+      references: Parameters<SapClient["getUsageReferenceSnippets"]>[0]
+    ) => references.map(reference => ({
+      objectIdentifier: reference.objectIdentifier ?? "",
+      snippets: [{
+        uri: { uri: reference.uri, start: { line: 7, column: 2 } },
+        matches: "zcl_token=>run( )",
+        content: "zcl_token=>run( ).",
+        description: "method call"
+      }]
+    })),
     readSourceByUri: async () => ({ source, sourceUri: `${object.uri}/source/main` }),
     formatSource: async () => `${source}\n`,
     getAdtDiscovery: async () => ({ discovery: [], core: [] }),
@@ -393,6 +403,22 @@ test("where-used and dependency graph responses omit internal ADT object metadat
     Buffer.byteLength(JSON.stringify(usages), "utf8") <
       Buffer.byteLength(JSON.stringify(legacy), "utf8") * 0.75
   )
+
+  const usagesWithSnippets = await service.findWhereUsed({
+    objectName: object.name,
+    objectType: "CLAS",
+    connectionId: "DEV100",
+    maxResults: 20,
+    includeSnippets: true,
+    startIndex: 0
+  })
+  assert.equal(
+    usagesWithSnippets.snippets[0] && "referenceIndex" in usagesWithSnippets.snippets[0]
+      ? usagesWithSnippets.snippets[0].referenceIndex
+      : undefined,
+    0
+  )
+  assert.doesNotMatch(JSON.stringify(usagesWithSnippets), /ABAPFullName;/)
 
   const graph = await service.dependencyGraph({
     objectName: object.name,

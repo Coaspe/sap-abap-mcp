@@ -120,7 +120,7 @@ export function createMcpServer(
   const server = new McpServer(
     {
       name: "sap-abap-mcp",
-      version: "0.4.13",
+      version: "0.4.14",
       title: "SAP ABAP MCP",
       description:
         "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
@@ -380,7 +380,7 @@ export function createMcpServer(
     {
       title: "Search ABAP Object Lines",
       description:
-        "Search literal text or a regular expression in active ABAP source. Wildcard object names can scan up to 10 objects.",
+        "Search literal text or a regular expression in active main source and enhancements. Class includes are read separately by URI. Wildcard object names can scan up to 10 objects.",
       inputSchema: {
         objectName: z.string().min(1),
         searchTerm: z.string().min(1),
@@ -1410,16 +1410,15 @@ export function createMcpServer(
     async input => runTool(() => tools.exportAdtDiscovery(input.connectionId, input.mode))
   )
 
-  const activationInputSchema = z.union([
-    z.object({
-      url: z.string().min(1),
-      connectionId: z.string().min(1).optional()
-    }).strict(),
-    z.object({
-      urls: z.array(z.string().min(1)).min(1).max(100),
-      connectionId: z.string().min(1).optional()
-    }).strict()
-  ])
+  const activationInputSchema = z.object({
+    url: z.string().min(1).optional().describe("One ABAP workspace URI to activate"),
+    urls: z.array(z.string().min(1)).min(1).max(100).optional()
+      .describe("One through 100 same-connection ABAP workspace URIs to activate in one batch"),
+    connectionId: z.string().min(1).optional()
+  }).strict().refine(
+    input => (input.url === undefined) !== (input.urls === undefined),
+    { message: "Provide exactly one of url or urls" }
+  )
 
   registerTool(
     "abap_activate",
