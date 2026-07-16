@@ -4161,7 +4161,14 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     filter: { excludeSystemObjects: true }
   })
   assert.equal(usages.count, 1)
-  assert.equal(usages.references[0]["adtcore:name"], "ZREP_CALLER")
+  assert.deepEqual(usages.references[0], {
+    name: "ZREP_CALLER",
+    type: "PROG/P",
+    uri: "/sap/bc/adt/programs/programs/zrep_caller",
+    objectIdentifier: "ABAPFullName;ZREP_CALLER",
+    usageInformation: "method call",
+    packageName: "Z_DEMO"
+  })
   assert.equal(usages.snippets[0].snippets[0].uri.start.line, 7)
 
   const objectUrl = await callJson("get_abap_object_url", {
@@ -4836,6 +4843,8 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     targetConnectionId: "QAS200"
   })
   assert.equal(systemComparison.changed, false)
+  assert.equal("object" in systemComparison.source, false)
+  assert.equal("object" in systemComparison.target, false)
   const graph = await callJson("get_abap_dependency_graph", {
     objectName: "ZCL_DEMO",
     objectType: "CLAS/OC",
@@ -4847,6 +4856,14 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     target: "ZCL_DEMO::CLAS/OC",
     usageType: "method call"
   })
+  for (const node of graph.nodes) {
+    assert.equal("uri" in node, false)
+    assert.equal("parentUri" in node, false)
+    assert.equal("objectIdentifier" in node, false)
+    assert.equal("canExpand" in node, false)
+    assert.equal("responsible" in node, false)
+    assert.equal("usageInformation" in node, false)
+  }
   const transaction = await callJson("run_sap_transaction", {
     connectionId: "DEV100",
     transactionCode: "SE38",

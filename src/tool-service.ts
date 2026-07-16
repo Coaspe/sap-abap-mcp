@@ -889,6 +889,24 @@ function referenceName(reference: UsageReference): string {
     : reference["adtcore:name"] || reference.objectIdentifier || ""
 }
 
+function usageReferenceResult(reference: UsageReference, includeObjectIdentifier: boolean) {
+  const packageName = reference.packageRef?.["adtcore:name"]
+  return {
+    name: referenceName(reference),
+    type: reference["adtcore:type"] || "UNKNOWN",
+    uri: reference.uri,
+    ...(includeObjectIdentifier ? { objectIdentifier: reference.objectIdentifier } : {}),
+    usageInformation: reference.usageInformation,
+    ...(reference["adtcore:description"]
+      ? { description: reference["adtcore:description"] }
+      : {}),
+    ...(packageName ? { packageName } : {}),
+    ...(reference.parentUri && reference.parentUri !== reference.uri
+      ? { parentUri: reference.parentUri }
+      : {})
+  }
+}
+
 function dependencyReference(reference: UsageReference) {
   const parts = reference.objectIdentifier?.split(";")
   if (!parts || parts[0] !== "ABAPFullName" || !parts[1]) return undefined
@@ -5222,7 +5240,7 @@ export class AbapToolService {
         input.startIndex + page.length < filtered.length
           ? input.startIndex + page.length
           : null,
-      references: page,
+      references: page.map(reference => usageReferenceResult(reference, input.includeSnippets)),
       snippets
     }
   }
@@ -5305,14 +5323,12 @@ export class AbapToolService {
       objectType: sourceObject.type,
       source: {
         connectionId: input.sourceConnectionId.toUpperCase(),
-        object: objectIdentity(sourceObject),
         sourceUri: source.sourceUri,
         sha256: createHash("sha256").update(source.source).digest("hex"),
         lines: source.source.split(/\r?\n/).length
       },
       target: {
         connectionId: input.targetConnectionId.toUpperCase(),
-        object: objectIdentity(targetObject),
         sourceUri: target.sourceUri,
         sha256: createHash("sha256").update(target.source).digest("hex"),
         lines: target.source.split(/\r?\n/).length
@@ -5332,10 +5348,9 @@ export class AbapToolService {
         id: rootId,
         name: object.name,
         type: object.type,
-        packageName: object.packageName ?? null,
+        ...(object.packageName ? { packageName: object.packageName } : {}),
         custom: /^[ZY]/i.test(object.name) || /^[ZY]/i.test(object.packageName ?? ""),
-        root: true,
-        uri: source.sourceUri
+        root: true
       }]
     ])
     const edges = new Map<string, Record<string, unknown>>()
@@ -5367,7 +5382,16 @@ export class AbapToolService {
             limited = true
             continue
           }
-          nodes.set(parsed.id, { ...parsed, root: false, depth: current.level + 1 })
+          nodes.set(parsed.id, {
+            id: parsed.id,
+            name: parsed.name,
+            type: parsed.type,
+            ...(parsed.description ? { description: parsed.description } : {}),
+            ...(parsed.packageName ? { packageName: parsed.packageName } : {}),
+            custom: parsed.custom,
+            root: false,
+            depth: current.level + 1
+          })
         }
         const edgeKey = `${parsed.id}->${current.id}`
         if (!edges.has(edgeKey)) {

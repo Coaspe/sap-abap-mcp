@@ -19,6 +19,8 @@ The review combined static inspection of every service return branch with saniti
 
 - Inline JSON is capped at 16 KiB. Larger exact results are retained in the deferred-result store and represented by a bounded `compact-v1` response.
 - Repeated object search metadata is reduced to `{name,type}` when the same response already contains the source URI, result data, or operation identity. Search and object-info responses keep richer metadata because it is their primary result.
+- Where-used results project raw ADT references into follow-up-safe fields, flatten package metadata, and retain `objectIdentifier` only when snippets need it for correlation. Dependency graph traversal keeps URI and expansion metadata internally but does not serialize it into graph nodes.
+- Cross-system comparisons keep one top-level object identity instead of repeating it inside both system summaries.
 - Lists use pagination, summaries, or explicit detail switches. Raw source, diagnostics, activation messages, release reports, query columns/values, and debugger values remain because they are the requested result or safety evidence.
 - Full ADT discovery, object structure, software components, dump HTML, trace details, unit-test successes, and download file lists require explicit options or modes.
 - ATC findings use one object catalog plus `objectIndex` references instead of repeating object metadata per finding.
@@ -42,9 +44,9 @@ Legend: **reduced** means this audit changed the default response; **bounded** m
 | `get_abap_object_url` | URL | compact |
 | `get_abap_object_workspace_uri` | workspace URI | reduced object identity |
 | `open_object` | headless open | reduced object identity |
-| `find_where_used` | references, snippets | reduced object identity; references paged; snippets explicit |
-| `get_abap_dependency_graph` | graph | reduced root object identity; node cap |
-| `compare_abap_systems` | diff | reduced source/target object identity; patch cap |
+| `find_where_used` | references, snippets | reduced raw ADT reference metadata; references paged; snippets explicit |
+| `get_abap_dependency_graph` | graph | reduced traversal-only node metadata; node cap |
+| `compare_abap_systems` | diff | removed duplicate source/target object identity; patch cap |
 | `create_object_programmatically` | create, source write | primary retained for follow-up and recovery |
 | `replace_string_in_abap_object` | replace | reduced object identity; diagnostics capped |
 | `get_abap_diagnostics` | diagnostics | reduced object identity; paged |
@@ -92,6 +94,8 @@ Byte counts use minified UTF-8 JSON as a token proxy, not tokenizer or API billi
 | Full repeated object reference | 153 B | 42 B | 72.5% |
 | Capability response system metadata | 413 B | 141 B | 65.9% |
 | 20 ATC findings for one object | 9,865 B | 6,810 B | 31.0% |
+| 20 where-used references | 9,011 B | 3,691 B | 59.0% |
+| 20 dependency graph nodes | 8,041 B | 3,311 B | 58.8% |
 | One trace-run list entry with eight ADT links | 1,241 B | 208 B | 83.2% |
 | Heartbeat mutation with a long query and 50 instructions | 2,064 B | 255 B | 87.6% |
 
