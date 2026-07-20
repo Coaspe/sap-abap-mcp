@@ -9,6 +9,8 @@ import {
 } from "@modelcontextprotocol/sdk/server/mcp.js"
 import {
   ErrorCode,
+  ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   McpError,
   ReadResourceRequestSchema,
   type ReadResourceResult
@@ -38,22 +40,18 @@ interface RegisterResource {
 }
 
 interface FixedResourceEntry {
-  uri: () => string | null
+  uri: string | null
+  readUri: string | null
   resource: RegisteredResource
 }
 
 interface TemplateResourceEntry {
-  active: () => boolean
+  name: string | null
   resource: RegisteredResourceTemplate
-  rawUriResolver?: (value: string) => string | undefined
 }
 
 interface V1ResourceDispatcher {
-  installReadHandler(): void
-  setRawUriResolver(
-    resource: RegisteredResourceTemplate,
-    resolver: (value: string) => string | undefined
-  ): void
+  installRequestHandlers(): void
 }
 
 async function readCapabilityResource(
@@ -150,10 +148,67 @@ function rawScheme(value: string): string {
   return separator < 0 ? "" : value.slice(0, separator).toLowerCase()
 }
 
+function canonicalResourceUrl(value: string): URL {
+  assertRawV1ResourceUri(value)
+  const scheme = rawScheme(value)
+  if (scheme === "adt") return new URL(parseAdtResourceUri(value).canonicalUri)
+  if (scheme === "sap-capability") {
+    return new URL(parseCapabilityResourceUri(value).canonicalUri)
+  }
+  try {
+    return new URL(value)
+  } catch {
+    throw new AppError("INVALID_ADT_URI", "Resource URI is malformed")
+  }
+}
+
+function fixedReadUri(value: string): string {
+  const scheme = rawScheme(value)
+  if (scheme !== "adt" && scheme !== "sap-capability") return value
+  try {
+    return canonicalResourceUrl(value).toString()
+  } catch {
+    return value
+  }
+}
+
+function currentMetadata(resource: {
+  title?: string
+  metadata?: ResourceMetadata
+}): ResourceMetadata {
+  return {
+    ...(resource.metadata ?? {}),
+    ...(resource.title === undefined ? {} : { title: resource.title })
+  }
+}
+
 function installV1ResourceDispatcher(server: McpServer): V1ResourceDispatcher {
   const fixedResources: FixedResourceEntry[] = []
   const templateResources: TemplateResourceEntry[] = []
   const sdkRegisterResource = server.registerResource.bind(server) as RegisterResource
+
+  const assertFixedUriAvailable = (
+    uri: string,
+    excluded?: FixedResourceEntry
+  ): void => {
+    const readUri = fixedReadUri(uri)
+    if (fixedResources.some(entry =>
+      entry !== excluded && entry.uri !== null && entry.readUri === readUri
+    )) {
+      throw new Error(`Resource ${uri} is already registered`)
+    }
+  }
+
+  const assertTemplateNameAvailable = (
+    name: string,
+    excluded?: TemplateResourceEntry
+  ): void => {
+    if (templateResources.some(entry =>
+      entry !== excluded && entry.name === name
+    )) {
+      throw new Error(`Resource template ${name} is already registered`)
+    }
+  }
 
   const registerFixed = (
     name: string,
@@ -161,14 +216,32 @@ function installV1ResourceDispatcher(server: McpServer): V1ResourceDispatcher {
     config: ResourceMetadata,
     callback: ReadResourceCallback
   ): RegisteredResource => {
-    let currentUri: string | null = initialUri
+    assertFixedUriAvailable(initialUri)
     const resource = sdkRegisterResource(name, initialUri, config, callback)
+    const entry: FixedResourceEntry = {
+      uri: initialUri,
+      readUri: fixedReadUri(initialUri),
+      resource
+    }
+    let attachedToSdkRegistry = true
     const sdkUpdate = resource.update.bind(resource)
     resource.update = updates => {
-      sdkUpdate(updates)
-      if (updates.uri !== undefined) currentUri = updates.uri
+      const { uri, ...surfaceUpdates } = updates
+      if (uri !== undefined && uri !== null) {
+        assertFixedUriAvailable(uri, entry)
+      }
+      if (Object.keys(surfaceUpdates).length > 0) sdkUpdate(surfaceUpdates)
+      if (uri !== undefined && uri !== entry.uri) {
+        if (attachedToSdkRegistry) {
+          sdkUpdate({ uri: null })
+          attachedToSdkRegistry = false
+        }
+        entry.uri = uri
+        entry.readUri = uri === null ? null : fixedReadUri(uri)
+        server.sendResourceListChanged()
+      }
     }
-    fixedResources.push({ uri: () => currentUri, resource })
+    fixedResources.push(entry)
     return resource
   }
 
@@ -178,14 +251,27 @@ function installV1ResourceDispatcher(server: McpServer): V1ResourceDispatcher {
     config: ResourceMetadata,
     callback: ReadResourceTemplateCallback
   ): RegisteredResourceTemplate => {
-    let active = true
+    assertTemplateNameAvailable(initialName)
     const resource = sdkRegisterResource(initialName, template, config, callback)
+    const entry: TemplateResourceEntry = { name: initialName, resource }
+    let attachedToSdkRegistry = true
     const sdkUpdate = resource.update.bind(resource)
     resource.update = updates => {
-      sdkUpdate(updates)
-      if (updates.name !== undefined) active = updates.name !== null
+      const { name, ...surfaceUpdates } = updates
+      if (name !== undefined && name !== null) {
+        assertTemplateNameAvailable(name, entry)
+      }
+      if (Object.keys(surfaceUpdates).length > 0) sdkUpdate(surfaceUpdates)
+      if (name !== undefined && name !== entry.name) {
+        if (attachedToSdkRegistry) {
+          sdkUpdate({ name: null })
+          attachedToSdkRegistry = false
+        }
+        entry.name = name
+        server.sendResourceListChanged()
+      }
     }
-    templateResources.push({ active: () => active, resource })
+    templateResources.push(entry)
     return resource
   }
 
@@ -218,35 +304,54 @@ function installV1ResourceDispatcher(server: McpServer): V1ResourceDispatcher {
   }
 
   return {
-    setRawUriResolver(resource, resolver) {
-      const entry = templateResources.find(candidate => candidate.resource === resource)
-      if (!entry) throw new Error("Resource template is not registered")
-      entry.rawUriResolver = resolver
-    },
-    installReadHandler() {
+    installRequestHandlers() {
+      server.server.setRequestHandler(
+        ListResourcesRequestSchema,
+        async (_request, extra) => {
+          const resources = fixedResources
+            .filter(entry => entry.uri !== null && entry.resource.enabled)
+            .map(entry => ({
+              uri: entry.uri as string,
+              name: entry.resource.name,
+              ...currentMetadata(entry.resource)
+            }))
+
+          for (const entry of templateResources) {
+            if (entry.name === null) continue
+            const list = entry.resource.resourceTemplate.listCallback
+            if (!list) continue
+            const result = await list(extra)
+            const metadata = currentMetadata(entry.resource)
+            for (const resource of result.resources) {
+              resources.push({ ...metadata, ...resource })
+            }
+          }
+          return { resources }
+        }
+      )
+
+      server.server.setRequestHandler(
+        ListResourceTemplatesRequestSchema,
+        async () => ({
+          resourceTemplates: templateResources
+            .filter(entry => entry.name !== null)
+            .map(entry => ({
+              name: entry.name as string,
+              uriTemplate: entry.resource.resourceTemplate.uriTemplate.toString(),
+              ...currentMetadata(entry.resource)
+            }))
+        })
+      )
+
       server.server.setRequestHandler(
         ReadResourceRequestSchema,
         async (request, extra) => {
           try {
-            const value = request.params.uri
-            assertRawV1ResourceUri(value)
-
-            for (const entry of templateResources) {
-              if (!entry.active() || !entry.rawUriResolver) continue
-              const canonical = entry.rawUriResolver(value)
-              if (canonical === undefined) continue
-              const result = await readTemplate(entry, new URL(canonical), extra)
-              if (result !== undefined) return result
-            }
-
-            let uri: URL
-            try {
-              uri = new URL(value)
-            } catch {
-              throw new AppError("INVALID_ADT_URI", "Resource URI is malformed")
-            }
+            const uri = canonicalResourceUrl(request.params.uri)
             const canonicalUri = uri.toString()
-            const fixed = fixedResources.find(entry => entry.uri() === canonicalUri)
+            const fixed = fixedResources.find(entry =>
+              entry.uri !== null && entry.readUri === canonicalUri
+            )
             if (fixed) {
               if (!fixed.resource.enabled) {
                 throw new AppError(
@@ -258,7 +363,7 @@ function installV1ResourceDispatcher(server: McpServer): V1ResourceDispatcher {
             }
 
             for (const entry of templateResources) {
-              if (!entry.active() || entry.rawUriResolver) continue
+              if (entry.name === null) continue
               const result = await readTemplate(entry, uri, extra)
               if (result !== undefined) return result
             }
@@ -282,7 +387,7 @@ export function registerV1Resources(
 ): void {
   const dispatcher = installV1ResourceDispatcher(server)
 
-  const capabilityResource = server.registerResource(
+  server.registerResource(
     "sap-capability-evidence",
     new ResourceTemplate("sap-capability://{system}", { list: undefined }),
     {
@@ -292,14 +397,8 @@ export function registerV1Resources(
     },
     uri => readCapabilityResource(uri.toString(), service)
   )
-  dispatcher.setRawUriResolver(
-    capabilityResource,
-    value => rawScheme(value) === "sap-capability"
-      ? parseCapabilityResourceUri(value).canonicalUri
-      : undefined
-  )
 
-  const adtResource = server.registerResource(
+  server.registerResource(
     "sap-adt-source",
     new ResourceTemplate("adt://{system}/{+adtPath}", { list: undefined }),
     {
@@ -309,12 +408,6 @@ export function registerV1Resources(
     },
     uri => readAdtResource(uri.toString(), service)
   )
-  dispatcher.setRawUriResolver(
-    adtResource,
-    value => rawScheme(value) === "adt"
-      ? parseAdtResourceUri(value).canonicalUri
-      : undefined
-  )
 
-  dispatcher.installReadHandler()
+  dispatcher.installRequestHandlers()
 }

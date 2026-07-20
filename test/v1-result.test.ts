@@ -120,7 +120,12 @@ test("the shared sanitizer redacts adversarial sensitive key spellings", () => {
     ["api_key=api-key-value", "api-key-value"],
     ["Proxy-Authorization: Basic proxy-secret-value", "proxy-secret-value"],
     ['client_secret="prefix\\"escaped-quote-secret"', "escaped-quote-secret"],
-    ['api_key="unterminated-secret tail', "unterminated-secret"]
+    ['api_key="unterminated-secret tail', "unterminated-secret"],
+    ['{\n  "client_secret":\n    "pretty-json-secret"\n}', "pretty-json-secret"],
+    ["Authorization:\n  Basic\n  folded-authorization-secret", "folded-authorization-secret"],
+    ['client_secret:\n  "unterminated-multiline-secret\nnext line', "unterminated-multiline-secret"],
+    ["client_secret=\n  first-multiline-secret extra-multiline-secret", "extra-multiline-secret"],
+    ["Authorization:\n  Basic\n  first-folded-secret extra-folded-secret", "extra-folded-secret"]
   ] as const
 
   for (const [diagnostic, secret] of cases) {
