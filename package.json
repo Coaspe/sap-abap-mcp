@@ -48,6 +48,7 @@
     "build:mcpb": "bash scripts/build-mcpb.sh",
     "publish:smithery": "bash scripts/publish-smithery.sh",
     "benchmark:surface": "node scripts/benchmark-mcp-surface.mjs",
+    "contract:v0:update": "npm run build && node scripts/update-v0-contract.mjs",
     "sync:mcpb-tools": "npm run build && node scripts/sync-mcpb-tools.mjs --write",
     "test": "npm run build && node --test dist/test/*.test.js",
     "start": "node dist/src/index.js",

@@ -1,0 +1,3389 @@
+[
+  {
+    "name": "abap_activate",
+    "title": "Activate ABAP Object(s)",
+    "description": "Activate one legacy object or one same-connection batch of 1 through 100 ABAP objects.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "url": {
+          "description": "One ABAP workspace URI to activate",
+          "minLength": 1,
+          "type": "string"
+        },
+        "urls": {
+          "description": "One through 100 same-connection ABAP workspace URIs to activate in one batch",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "abap_debug_breakpoint",
+    "title": "ABAP Debug Breakpoint",
+    "description": "Set or remove line breakpoints for an adt:// ABAP source URI.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "default": "set",
+          "enum": [
+            "set",
+            "remove"
+          ],
+          "type": "string"
+        },
+        "condition": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "filePath": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "lineNumbers": {
+          "items": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "connectionId",
+        "filePath",
+        "lineNumbers"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "abap_debug_session",
+    "title": "ABAP Debug Session",
+    "description": "Start a non-blocking SAP debugger listener, stop it, or inspect its state. A separate stateful ADT client is used after a debuggee attaches.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "default": "start",
+          "enum": [
+            "start",
+            "stop",
+            "status"
+          ],
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "debugUser": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "terminalMode": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "abap_debug_stack",
+    "title": "ABAP Debug Stack",
+    "description": "Get the current attached debuggee stack and stable frame IDs.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "threadId": {
+          "default": 1,
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "abap_debug_status",
+    "title": "ABAP Debug Status",
+    "description": "Return listener, debuggee attachment, and breakpoint state for a connection.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "abap_debug_step",
+    "title": "ABAP Debug Step",
+    "description": "Continue or step an attached ABAP debuggee and return the new raw stack.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "stepType": {
+          "enum": [
+            "continue",
+            "stepInto",
+            "stepOver",
+            "stepReturn",
+            "jumpToLine"
+          ],
+          "type": "string"
+        },
+        "targetLine": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "threadId": {
+          "default": 1,
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connectionId",
+        "stepType"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "abap_debug_variable",
+    "title": "ABAP Debug Variable",
+    "description": "Read variables or evaluate an ABAP expression in a selected stack frame. Call abap_debug_stack first for frameId.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "expandStructures": {
+          "default": false,
+          "type": "boolean"
+        },
+        "expandTables": {
+          "default": false,
+          "type": "boolean"
+        },
+        "expression": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "filter": {
+          "type": "string"
+        },
+        "filterPattern": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "frameId": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxVariables": {
+          "default": 100,
+          "maximum": 5000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "rowCount": {
+          "default": 50,
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "rowStart": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scopeName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "threadId": {
+          "default": 1,
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "variableName": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "connectionId",
+        "frameId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "abap_download",
+    "title": "Download ABAP Resource",
+    "description": "Download one ABAP source object or the readable objects in a package to an absolute local folder.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "includeFileList": {
+          "default": false,
+          "type": "boolean"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "overwrite": {
+          "default": false,
+          "type": "boolean"
+        },
+        "source": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "target": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "target"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "abap_fs_documentation",
+    "title": "ABAP FS Documentation",
+    "description": "Read or search the bundled ABAP FS compatibility and sap-abap-mcp settings reference.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "get_documentation",
+            "search_documentation",
+            "get_settings",
+            "search_settings"
+          ],
+          "type": "string"
+        },
+        "lineCount": {
+          "default": 50,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "searchQuery": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startLine": {
+          "default": 1,
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "adt_discovery_export",
+    "title": "ADT Discovery Export",
+    "description": "Return an ADT capability summary, explicitly return full discovery data, or export it to a local JSON file.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "mode": {
+          "default": "summary",
+          "enum": [
+            "summary",
+            "full",
+            "file"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "analyze_abap_dumps",
+    "title": "Analyze ABAP Dumps",
+    "description": "List SAP runtime dumps or retrieve and normalize one dump's HTML content.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "list_dumps",
+            "analyze_dump"
+          ],
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "contentLength": {
+          "default": 4000,
+          "maximum": 20000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "contentOffset": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "dumpId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "includeFullContent": {
+          "default": false,
+          "type": "boolean"
+        },
+        "maxResults": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "action",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "analyze_abap_traces",
+    "title": "Analyze ABAP Traces",
+    "description": "List SAP trace runs/configurations or inspect a trace summary, statements, or aggregated hit list.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "list_runs",
+            "list_configurations",
+            "analyze_run",
+            "get_statements",
+            "get_hitlist"
+          ],
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "includeDetails": {
+          "default": false,
+          "type": "boolean"
+        },
+        "maxResults": {
+          "default": 20,
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "traceId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "compare_abap_systems",
+    "title": "Compare ABAP Across Systems",
+    "description": "Compare the same active ABAP object on two configured SAP systems with a bounded unified diff.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "ignoreWhitespace": {
+          "default": false,
+          "type": "boolean"
+        },
+        "maxPatchLines": {
+          "default": 200,
+          "maximum": 2000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "sourceConnectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "targetConnectionId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "objectName",
+        "sourceConnectionId",
+        "targetConnectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "create_mermaid_diagram",
+    "title": "Create Mermaid Diagram",
+    "description": "Validate Mermaid code and create an interactive local HTML viewer with zoom controls and SVG export.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "diagramType": {
+          "default": "auto",
+          "enum": [
+            "flowchart",
+            "sequence",
+            "class",
+            "state",
+            "er",
+            "journey",
+            "gantt",
+            "pie",
+            "gitgraph",
+            "mindmap",
+            "timeline",
+            "sankey",
+            "xychart",
+            "block",
+            "packet",
+            "auto"
+          ],
+          "type": "string"
+        },
+        "theme": {
+          "default": "forest",
+          "enum": [
+            "default",
+            "dark",
+            "forest",
+            "neutral"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "create_object_programmatically",
+    "title": "Create ABAP Object Programmatically",
+    "description": "Validate and create an ADT repository object. Create-time source writing and activation are currently supported only for BDEF/BDO. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "activate": {
+          "default": false,
+          "description": "Activate after create-time source writing; currently supported only for BDEF/BDO",
+          "type": "boolean"
+        },
+        "additionalOptions": {
+          "properties": {
+            "bindingCategory": {
+              "enum": [
+                "0",
+                "1"
+              ],
+              "type": "string"
+            },
+            "bindingType": {
+              "const": "ODATA",
+              "type": "string"
+            },
+            "packageType": {
+              "enum": [
+                "development",
+                "structure",
+                "main"
+              ],
+              "type": "string"
+            },
+            "serviceDefinition": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "softwareComponent": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "transportLayer": {
+              "type": "string"
+            },
+            "transportRequest": {
+              "oneOf": [
+                {
+                  "properties": {
+                    "number": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": {
+                      "const": "existing",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "number"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "properties": {
+                    "description": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": {
+                      "const": "new",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "description"
+                  ],
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 60,
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "description": "Creatable ADT type such as PROG/P or CLAS/OC",
+          "minLength": 1,
+          "type": "string"
+        },
+        "packageName": {
+          "default": "$TMP",
+          "minLength": 1,
+          "type": "string"
+        },
+        "parentName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "source": {
+          "description": "Create-time source; currently supported only for BDEF/BDO",
+          "type": "string"
+        }
+      },
+      "required": [
+        "objectType",
+        "name",
+        "description",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "create_test_documentation",
+    "title": "Create Test Documentation",
+    "description": "Create a styled Word report from test scenarios and screenshots, returning the local DOCX path.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "reportTitle": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "scenarios": {
+          "items": {
+            "properties": {
+              "scenarioDescription": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "scenarioId": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "scenarioName": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "screenshots": {
+                "items": {
+                  "properties": {
+                    "description": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "filePath": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "filePath",
+                    "description"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "scenarioId",
+              "scenarioName",
+              "scenarioDescription",
+              "screenshots"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "testDate": {
+          "pattern": "^\\d{2}-\\d{2}-\\d{4}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenarios"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "create_test_include",
+    "title": "Create ABAP Test Include",
+    "description": "Create a class test include under a package permitted by the profile's optional allowlist. A transport is required outside $TMP.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "className": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "transport": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "detect_mermaid_diagram_type",
+    "title": "Detect Mermaid Diagram Type",
+    "description": "Parse Mermaid code and return its normalized and native Mermaid diagram types.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "execute_data_query",
+    "title": "Execute ABAP Data Query",
+    "description": "Run a read-only SAP ADT data-preview query, process supplied structured data, return a bounded headless result, or export CSV/XLSX.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "data": {
+          "properties": {
+            "columns": {
+              "items": {
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "type"
+                ],
+                "type": "object"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "values": {
+              "items": {
+                "additionalProperties": {},
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "columns",
+            "values"
+          ],
+          "type": "object"
+        },
+        "displayMode": {
+          "enum": [
+            "internal",
+            "ui",
+            "download_to_file"
+          ],
+          "type": "string"
+        },
+        "filePath": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "fileType": {
+          "enum": [
+            "xlsx",
+            "csv"
+          ],
+          "type": "string"
+        },
+        "filters": {
+          "items": {
+            "properties": {
+              "column": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "column",
+              "value"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "maxRows": {
+          "default": 1000,
+          "maximum": 50000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "resetFilters": {
+          "type": "boolean"
+        },
+        "resetSorting": {
+          "type": "boolean"
+        },
+        "rowRange": {
+          "properties": {
+            "end": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "start": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "start",
+            "end"
+          ],
+          "type": "object"
+        },
+        "sortColumns": {
+          "items": {
+            "properties": {
+              "column": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "direction": {
+                "enum": [
+                  "asc",
+                  "desc"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "column",
+              "direction"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "sql": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "webviewId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "displayMode",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "find_where_used",
+    "title": "Find Where Used",
+    "description": "Find ADT usage references for an ABAP object or a symbol position, with filtering, pagination, and optional snippets.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "character": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "filter": {
+          "properties": {
+            "excludeSystemObjects": {
+              "type": "boolean"
+            },
+            "objectNamePattern": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "objectTypes": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "includeSnippets": {
+          "default": false,
+          "type": "boolean"
+        },
+        "line": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxResults": {
+          "default": 50,
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "searchTerm": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "objectName",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_abap_dependency_graph",
+    "title": "Get ABAP Dependency Graph",
+    "description": "Build a bounded where-used dependency graph. Edges point from each dependent object to the object it uses.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "column": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "customOnly": {
+          "default": false,
+          "type": "boolean"
+        },
+        "depth": {
+          "default": 1,
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "line": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxNodes": {
+          "default": 100,
+          "maximum": 500,
+          "minimum": 2,
+          "type": "integer"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "objectName",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_abap_diagnostics",
+    "title": "Get ABAP Diagnostics",
+    "description": "Run SAP ADT syntax checking for the current source identified by an adt:// workspace URI or ADT path.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "fileUri": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxResults": {
+          "default": 100,
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "severity": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fileUri"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_abap_object_info",
+    "title": "Get ABAP Object Info",
+    "description": "Get core repository metadata, source URI, and active source line count; optionally include the full ADT structure.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "includeStructure": {
+          "default": false,
+          "type": "boolean"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "enum": [
+            "FUNC",
+            "CLAS",
+            "TABL",
+            "PROG",
+            "INTF",
+            "DTEL",
+            "DDLS",
+            "DOMA",
+            "TTYP",
+            "ENQU",
+            "MSAG",
+            "FUGR",
+            "DEVC",
+            "TRAN",
+            "VIEW",
+            "SICF",
+            "WDYN",
+            "SPRX",
+            "XSLT",
+            "TRANSFORMATIONS",
+            "SUSH",
+            "SUSC",
+            "PINF",
+            "ENHC",
+            "ENHS",
+            "BADI",
+            "BADII",
+            "SAMC",
+            "SAPC",
+            "SFSW",
+            "SFBF",
+            "SFBS",
+            "JOBD",
+            "NROB",
+            "ENHO",
+            "SUSO",
+            "BDEF",
+            "SRVB"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "objectName",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_abap_object_lines",
+    "title": "Get ABAP Object Lines",
+    "description": "Read active ABAP source lines. objectType disambiguates objects; methodName extracts one class method.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "lineCount": {
+          "default": 50,
+          "maximum": 5000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "methodName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "enum": [
+            "FUNC",
+            "CLAS",
+            "TABL",
+            "PROG",
+            "INTF",
+            "DTEL",
+            "DDLS",
+            "DOMA",
+            "TTYP",
+            "ENQU",
+            "MSAG",
+            "FUGR",
+            "DEVC",
+            "TRAN",
+            "VIEW",
+            "SICF",
+            "WDYN",
+            "SPRX",
+            "XSLT",
+            "TRANSFORMATIONS",
+            "SUSH",
+            "SUSC",
+            "PINF",
+            "ENHC",
+            "ENHS",
+            "BADI",
+            "BADII",
+            "SAMC",
+            "SAPC",
+            "SFSW",
+            "SFBF",
+            "SFBS",
+            "JOBD",
+            "NROB",
+            "ENHO",
+            "SUSO",
+            "BDEF",
+            "SRVB"
+          ],
+          "type": "string"
+        },
+        "startLine": {
+          "default": 1,
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "objectName",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_abap_object_url",
+    "title": "Get ABAP Object URL",
+    "description": "Generate a SAP WebGUI URL for an ABAP report, class, or function module.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "default": "PROG/P",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "objectName",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_abap_object_workspace_uri",
+    "title": "Get ABAP Object Workspace URI",
+    "description": "Resolve an exact ABAP object to a stable adt:// URI usable by headless source-edit tools.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "objectName",
+        "objectType",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_abap_sql_syntax",
+    "title": "Get ABAP SQL Syntax",
+    "description": "Return the safe SAP ADT data-preview SQL rules used by execute_data_query.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {},
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_atc_decorations",
+    "title": "Get ATC Decorations",
+    "description": "Return cached headless ATC findings from run_atc_analysis, optionally for one workspace URI.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "fileUri": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxResults": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_batch_lines",
+    "title": "Get Batch Lines",
+    "description": "Read active source ranges from multiple ABAP objects. startLine is zero-based for ABAP FS compatibility.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "requests": {
+          "items": {
+            "properties": {
+              "lineCount": {
+                "default": 10,
+                "maximum": 5000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "objectName": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "startLine": {
+                "default": 0,
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "objectName"
+            ],
+            "type": "object"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "requests",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_connected_systems",
+    "title": "Get Connected SAP Systems",
+    "description": "List configured SAP connection IDs and whether credentials are available. Call this first if connectionId is unknown.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {},
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_mermaid_documentation",
+    "title": "Get Mermaid Documentation",
+    "description": "Get bundled syntax, keywords, and usage tips for supported Mermaid diagram types.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "diagramType": {
+          "default": "all",
+          "enum": [
+            "all",
+            "flowchart",
+            "sequence",
+            "class",
+            "state",
+            "er",
+            "journey",
+            "gantt",
+            "pie",
+            "gitgraph",
+            "mindmap",
+            "timeline",
+            "sankey",
+            "xychart",
+            "block",
+            "packet"
+          ],
+          "type": "string"
+        },
+        "includeExamples": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_object_by_uri",
+    "title": "Get ABAP Object by URI",
+    "description": "Read active ABAP source directly by ADT object or source URI. startLine is zero-based for ABAP FS compatibility.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "lineCount": {
+          "default": 50,
+          "maximum": 5000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "startLine": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "uri": {
+          "pattern": "^\\/sap\\/bc\\/adt\\/.*",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uri",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_sap_capabilities",
+    "title": "Get SAP Capabilities",
+    "description": "Report implemented, missing, supported, unsupported, and live-unverified SAP development capabilities for one connection.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "category": {
+          "enum": [
+            "connection",
+            "repository",
+            "execution",
+            "semantic",
+            "quality",
+            "debugging",
+            "insight"
+          ],
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "includeEvidence": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_sap_system_info",
+    "title": "Get SAP System Info",
+    "description": "Get SAP client, system type, release, timezone, and optionally the full software component list.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "description": "SAP profile/connection ID, for example DEV100",
+          "minLength": 1,
+          "type": "string"
+        },
+        "includeComponents": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "get_version_history",
+    "title": "Get ABAP Version History",
+    "description": "List repository revisions, retrieve source at a revision, or compare two revision snapshots.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "default": "list_versions",
+          "enum": [
+            "list_versions",
+            "get_version_source",
+            "compare_versions"
+          ],
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "lineCount": {
+          "default": 200,
+          "maximum": 5000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxResults": {
+          "default": 200,
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxVersions": {
+          "default": 20,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "startLine": {
+          "default": 1,
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "version1": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "version2": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "versionNumber": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "objectName",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "inspect_abap_code",
+    "title": "Inspect ABAP Code",
+    "description": "Use SAP ADT semantic services for completion, documentation, type hierarchy, components, definition, safe quick-fix discovery, or formatter preview. line is one-based and column is zero-based.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "completion",
+            "definition",
+            "quick_fixes",
+            "format_preview",
+            "completion_element",
+            "documentation",
+            "type_hierarchy",
+            "components"
+          ],
+          "type": "string"
+        },
+        "column": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "endColumn": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "fileUri": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "implementation": {
+          "default": false,
+          "type": "boolean"
+        },
+        "line": {
+          "default": 1,
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxResults": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "superTypes": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action",
+        "fileUri"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "manage_abap_versions",
+    "title": "Manage ABAP Inactive and Version Source",
+    "description": "List inactive objects, read inactive source, or preview and execute restoration of a historical source revision.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "list_inactive",
+            "get_inactive_source",
+            "preview_restore",
+            "execute_restore"
+          ],
+          "type": "string"
+        },
+        "activate": {
+          "default": false,
+          "type": "boolean"
+        },
+        "confirmation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "lineCount": {
+          "default": 200,
+          "maximum": 5000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxResults": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "planId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "startLine": {
+          "default": 1,
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "transport": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "versionNumber": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "action",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "manage_abapgit",
+    "title": "Manage abapGit",
+    "description": "List, inspect, create, pull, unlink, stage, push, check, or switch abapGit repositories. Credentials come only from the secret store. Create confirmation is PACKAGE:CANONICAL_URL; other mutations use repositoryId.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "list_repositories",
+            "remote_info",
+            "create_repository",
+            "pull_repository",
+            "unlink_repository",
+            "stage_repository",
+            "push_repository",
+            "check_repository",
+            "switch_branch"
+          ],
+          "type": "string"
+        },
+        "authorEmail": {
+          "format": "email",
+          "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+          "type": "string"
+        },
+        "authorName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "branch": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "comment": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "committerEmail": {
+          "format": "email",
+          "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+          "type": "string"
+        },
+        "committerName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "confirmation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "createBranch": {
+          "default": false,
+          "type": "boolean"
+        },
+        "maxResults": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "objectKeys": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "type": "array"
+        },
+        "packageName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "repositoryId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "repositoryUrl": {
+          "format": "uri",
+          "type": "string"
+        },
+        "stageAll": {
+          "default": false,
+          "type": "boolean"
+        },
+        "stageId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "transport": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "manage_heartbeat",
+    "title": "Manage Heartbeat",
+    "description": "Manage an in-process monitoring watchlist, trigger safe SAP connection/query checks, and inspect history.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "status",
+            "start",
+            "stop",
+            "trigger",
+            "history",
+            "add_task",
+            "remove_task",
+            "update_task",
+            "enable_task",
+            "disable_task",
+            "list_tasks",
+            "get_watchlist"
+          ],
+          "type": "string"
+        },
+        "alertThreshold": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "category": {
+          "enum": [
+            "transport",
+            "dump",
+            "job",
+            "idoc",
+            "performance",
+            "reminder",
+            "custom"
+          ],
+          "type": "string"
+        },
+        "checkInstructions": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "condition": {
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "cooldownMinutes": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "count": {
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "expiresAt": {
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+          "type": "string"
+        },
+        "includeDetails": {
+          "default": false,
+          "type": "boolean"
+        },
+        "lastNotifiedAt": {
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+          "type": "string"
+        },
+        "lastNotifiedFindings": {
+          "type": "string"
+        },
+        "maxChecks": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxResults": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "modifiedBy": {
+          "enum": [
+            "user",
+            "heartbeat",
+            "agent"
+          ],
+          "type": "string"
+        },
+        "priority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "reminderOnly": {
+          "type": "boolean"
+        },
+        "removeWhenDone": {
+          "type": "boolean"
+        },
+        "result": {
+          "type": "string"
+        },
+        "sampleQuery": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startAt": {
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+          "type": "string"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "taskId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "manage_rap_generator",
+    "title": "Manage RAP Generator",
+    "description": "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "availability",
+            "get_schema",
+            "get_defaults",
+            "validate",
+            "preview",
+            "generate",
+            "publish",
+            "unpublish",
+            "service_details"
+          ],
+          "type": "string"
+        },
+        "confirmation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "content": {
+          "properties": {
+            "businessObject": {
+              "properties": {
+                "behavior": {
+                  "properties": {
+                    "draftTable": {
+                      "type": "string"
+                    },
+                    "implementationClass": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "implementationType": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "implementationType",
+                    "implementationClass",
+                    "draftTable"
+                  ],
+                  "type": "object"
+                },
+                "dataModelEntity": {
+                  "properties": {
+                    "cdsName": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "entityName": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "cdsName"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "dataModelEntity",
+                "behavior"
+              ],
+              "type": "object"
+            },
+            "businessService": {
+              "properties": {
+                "serviceBinding": {
+                  "properties": {
+                    "bindingType": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "name": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "bindingType"
+                  ],
+                  "type": "object"
+                },
+                "serviceDefinition": {
+                  "properties": {
+                    "name": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "serviceDefinition",
+                "serviceBinding"
+              ],
+              "type": "object"
+            },
+            "general": {
+              "properties": {
+                "description": {
+                  "type": "string"
+                },
+                "referenceObjectName": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "description"
+              ],
+              "type": "object"
+            },
+            "metadata": {
+              "properties": {
+                "masterLanguage": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "package": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "package"
+              ],
+              "type": "object"
+            },
+            "serviceProjection": {
+              "properties": {
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "general",
+            "businessObject",
+            "serviceProjection",
+            "businessService"
+          ],
+          "type": "object"
+        },
+        "contentLength": {
+          "default": 10000,
+          "maximum": 50000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "contentOffset": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "generatorId": {
+          "enum": [
+            "uiservice",
+            "webapiservice"
+          ],
+          "type": "string"
+        },
+        "packageName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "referenceObjectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "referenceObjectType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "serviceBindingName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "serviceName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "serviceVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "transport": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "manage_text_elements",
+    "title": "Manage ABAP Text Elements",
+    "description": "Read or merge-create/update REPT text-pool symbols, selection texts, and headings using ADT locking, transport enforcement, and activation.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "read",
+            "create",
+            "update"
+          ],
+          "type": "string"
+        },
+        "category": {
+          "default": "symbols",
+          "enum": [
+            "symbols",
+            "selections",
+            "headings"
+          ],
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "enum": [
+            "PROGRAM",
+            "CLASS",
+            "FUNCTION_GROUP"
+          ],
+          "type": "string"
+        },
+        "textElements": {
+          "items": {
+            "properties": {
+              "id": {
+                "pattern": "^[A-Z0-9_]{1,8}$",
+                "type": "string"
+              },
+              "maxLength": {
+                "maximum": 255,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "text": {
+                "maxLength": 255,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "text"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "transport": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "objectName",
+        "objectType",
+        "action",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "manage_transport_requests",
+    "title": "Manage Transport Requests",
+    "description": "List, inspect, assess, compare, create, release, delete, reassign, add objects (including LIMU DYNP/REPT subobjects), and resolve SAP transports. assess_transport is read-only and can emit JSON, SARIF, and JUnit reports. release/delete confirmation is the request number; owner/user confirmation is NUMBER:USER; object confirmation is NUMBER:PGMID:TYPE:NAME.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "get_user_transports",
+            "get_transport_details",
+            "get_transport_objects",
+            "assess_transport",
+            "compare_transports",
+            "create_transport",
+            "release_transport",
+            "delete_transport",
+            "set_owner",
+            "add_user",
+            "add_object",
+            "list_system_users",
+            "resolve_object"
+          ],
+          "type": "string"
+        },
+        "checks": {
+          "default": [
+            "atc",
+            "unit_tests"
+          ],
+          "items": {
+            "enum": [
+              "atc",
+              "unit_tests",
+              "target_compare"
+            ],
+            "type": "string"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "type": "array"
+        },
+        "confirmation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "failOnAtcWarnings": {
+          "default": false,
+          "type": "boolean"
+        },
+        "ignoreAtc": {
+          "default": false,
+          "type": "boolean"
+        },
+        "ignoreLocks": {
+          "default": false,
+          "type": "boolean"
+        },
+        "includeObjects": {
+          "default": false,
+          "type": "boolean"
+        },
+        "maxObjects": {
+          "default": 20,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxResults": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "packageName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "pgmid": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "reportDirectory": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "reportFormats": {
+          "default": [
+            "json"
+          ],
+          "items": {
+            "enum": [
+              "json",
+              "sarif",
+              "junit"
+            ],
+            "type": "string"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "type": "array"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "targetConnectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "targetUser": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "transportLayer": {
+          "type": "string"
+        },
+        "transportNumber": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "transportNumbers": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 2,
+          "type": "array"
+        },
+        "user": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "open_object",
+    "title": "Open ABAP Object",
+    "description": "Resolve an ABAP object in headless mode and return its ADT and workspace URIs for subsequent reads or edits.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "objectName",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "read_deferred_result",
+    "title": "Read Deferred MCP Result",
+    "description": "Read the next UTF-8 chunk of a large MCP result using the resultId and nextOffset returned by another tool.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "maxBytes": {
+          "description": "Requested chunk size in bytes, up to 24576",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        "offset": {
+          "description": "UTF-8 byte offset; use the returned nextOffset",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        "resultId": {
+          "description": "Deferred result ID returned by another MCP tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "resultId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "refactor_abap_code",
+    "title": "Refactor ABAP Code",
+    "description": "Preview or execute SAP rename, package move, method extraction, quick-fix, formatting, or deletion. Execute only a fresh plan and copy its exact confirmation value.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "preview_rename",
+            "preview_change_package",
+            "preview_extract_method",
+            "preview_quick_fix",
+            "preview_format",
+            "preview_delete",
+            "execute"
+          ],
+          "type": "string"
+        },
+        "activate": {
+          "default": false,
+          "type": "boolean"
+        },
+        "column": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "confirmation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "endColumn": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "endLine": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "fileUri": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "line": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "methodName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "newName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "newPackage": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "planId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "proposalIndex": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "transport": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "replace_string_in_abap_object",
+    "title": "Replace String in ABAP Object",
+    "description": "Replace exactly one source fragment, using a fresh read and an under-lock compare before saving. SAP syntax diagnostics are returned. Non-local packages require transport.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "activate": {
+          "default": false,
+          "type": "boolean"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "fileUri": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "newString": {
+          "type": "string"
+        },
+        "oldString": {
+          "type": "string"
+        },
+        "transport": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "fileUri",
+        "oldString",
+        "newString"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "run_abap_application",
+    "title": "Run ABAP Application",
+    "description": "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "enum": [
+            "repl_health",
+            "preview_class",
+            "preview_snippet",
+            "execute"
+          ],
+          "type": "string"
+        },
+        "className": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "code": {
+          "maxLength": 98304,
+          "minLength": 1,
+          "type": "string"
+        },
+        "confirmation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "planId": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "run_atc_analysis",
+    "title": "Run ATC Analysis",
+    "description": "Run the system ATC check variant for an exact object, or retrieve documentation for a prior finding.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "action": {
+          "default": "run_analysis",
+          "enum": [
+            "run_analysis",
+            "get_documentation"
+          ],
+          "type": "string"
+        },
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "documentationLength": {
+          "default": 4000,
+          "maximum": 20000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "documentationOffset": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "docUri": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxResults": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "objectUri": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "scope": {
+          "default": "object",
+          "enum": [
+            "object",
+            "package",
+            "transport"
+          ],
+          "type": "string"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "useActiveFile": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "run_sap_transaction",
+    "title": "Run SAP Transaction",
+    "description": "Build a validated SAP WebGUI transaction URL, or launch it with the local default browser. Parameter values use a restricted injection-safe character set.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "mode": {
+          "default": "url",
+          "enum": [
+            "url",
+            "launch"
+          ],
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "transactionCode": {
+          "minLength": 2,
+          "type": "string"
+        }
+      },
+      "required": [
+        "connectionId",
+        "transactionCode"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "run_unit_tests",
+    "title": "Run ABAP Unit Tests",
+    "description": "Run SAP ABAP Unit for an exact repository object and return structured results.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "detailLevel": {
+          "default": "failures",
+          "enum": [
+            "summary",
+            "failures",
+            "all"
+          ],
+          "type": "string"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "objectName",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  {
+    "name": "search_abap_object_lines",
+    "title": "Search ABAP Object Lines",
+    "description": "Search literal text or a regular expression in active main source and enhancements. Class includes are read separately by URI. Wildcard object names can scan up to 10 objects.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "contextLines": {
+          "default": 3,
+          "maximum": 50,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "isRegexp": {
+          "default": false,
+          "type": "boolean"
+        },
+        "maxObjects": {
+          "default": 1,
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxResults": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "objectName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "searchTerm": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "objectName",
+        "searchTerm",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "search_abap_objects",
+    "title": "Search ABAP Objects",
+    "description": "Search ABAP repository objects by name pattern. Supports SAP ADT wildcards such as * and ?.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "connectionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxResults": {
+          "default": 20,
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "pattern": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "types": {
+          "items": {
+            "enum": [
+              "FUNC",
+              "CLAS",
+              "TABL",
+              "PROG",
+              "INTF",
+              "DTEL",
+              "DDLS",
+              "DOMA",
+              "TTYP",
+              "ENQU",
+              "MSAG",
+              "FUGR",
+              "DEVC",
+              "TRAN",
+              "VIEW",
+              "SICF",
+              "WDYN",
+              "SPRX",
+              "XSLT",
+              "TRANSFORMATIONS",
+              "SUSH",
+              "SUSC",
+              "PINF",
+              "ENHC",
+              "ENHS",
+              "BADI",
+              "BADII",
+              "SAMC",
+              "SAPC",
+              "SFSW",
+              "SFBF",
+              "SFBS",
+              "JOBD",
+              "NROB",
+              "ENHO",
+              "SUSO",
+              "BDEF",
+              "SRVB"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "pattern",
+        "types",
+        "connectionId"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "validate_mermaid_syntax",
+    "title": "Validate Mermaid Syntax",
+    "description": "Parse Mermaid code without rendering and return the normalized diagram type.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "suppressErrors": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    }
+  }
+]
