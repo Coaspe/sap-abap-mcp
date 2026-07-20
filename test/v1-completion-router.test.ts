@@ -3,15 +3,14 @@ import test from "node:test"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
+import {
+  CompleteRequestSchema,
+  ErrorCode,
+  McpError
+} from "@modelcontextprotocol/sdk/types.js"
 import { installV1CompletionRouter } from "../src/mcp/v1/completion-router.js"
 
-async function connectedRouter() {
-  const server = new McpServer({
-    name: "v1-completion-router-test",
-    version: "1.0.0"
-  })
-  const router = installV1CompletionRouter(server)
+async function connectedClient(server: McpServer) {
   const client = new Client({
     name: "v1-completion-router-test-client",
     version: "1.0.0"
@@ -21,12 +20,20 @@ async function connectedRouter() {
   await client.connect(clientTransport)
   return {
     client,
-    router,
     async close() {
       await client.close()
       await server.close()
     }
   }
+}
+
+async function connectedRouter() {
+  const server = new McpServer({
+    name: "v1-completion-router-test",
+    version: "1.0.0"
+  })
+  const router = installV1CompletionRouter(server)
+  return { ...await connectedClient(server), router }
 }
 
 test("resource references reach only the resource provider and preserve completion bounds", async t => {
@@ -179,4 +186,54 @@ test("a duplicate prompt provider is rejected without replacing the first", asyn
     argument: { name: "system", value: "D" }
   })
   assert.deepEqual(result.completion.values, ["first"])
+})
+
+test("a second router installation is rejected without replacing the first", async t => {
+  const server = new McpServer({
+    name: "v1-completion-router-test",
+    version: "1.0.0"
+  })
+  const router = installV1CompletionRouter(server)
+  router.setResourceProvider(async () => ["first"])
+
+  assert.throws(
+    () => installV1CompletionRouter(server),
+    /A request handler for completion\/complete already exists/
+  )
+
+  const connection = await connectedClient(server)
+  t.after(() => connection.close())
+  const result = await connection.client.complete({
+    ref: { type: "ref/resource", uri: "memo://{name}" },
+    argument: { name: "name", value: "v" }
+  })
+  assert.deepEqual(result.completion.values, ["first"])
+})
+
+test("router installation rejects and preserves an unrelated completion handler", async t => {
+  const server = new McpServer({
+    name: "v1-completion-router-test",
+    version: "1.0.0"
+  })
+  server.server.registerCapabilities({ completions: {} })
+  server.server.setRequestHandler(CompleteRequestSchema, async () => ({
+    completion: {
+      values: ["unrelated"],
+      total: 1,
+      hasMore: false
+    }
+  }))
+
+  assert.throws(
+    () => installV1CompletionRouter(server),
+    /A request handler for completion\/complete already exists/
+  )
+
+  const connection = await connectedClient(server)
+  t.after(() => connection.close())
+  const result = await connection.client.complete({
+    ref: { type: "ref/resource", uri: "memo://{name}" },
+    argument: { name: "name", value: "v" }
+  })
+  assert.deepEqual(result.completion.values, ["unrelated"])
 })
