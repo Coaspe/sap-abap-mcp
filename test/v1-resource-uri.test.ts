@@ -97,6 +97,31 @@ test("URI parsers reject raw WHATWG preprocessing characters", () => {
   }
 })
 
+test("ADT URI parser rejects a leading NUL", () => {
+  assertInvalid(() => parseAdtResourceUri(
+    "\u0000adt://dev100/sap/bc/adt/oo/classes/zcl_demo"
+  ))
+})
+
+test("ADT URI parser rejects a trailing form feed", () => {
+  assertInvalid(() => parseAdtResourceUri(
+    "adt://dev100/sap/bc/adt/oo/classes/zcl_demo\u000c"
+  ))
+})
+
+test("ADT URI builder rejects a trailing form feed", () => {
+  assertInvalid(() => toAdtResourceUri(
+    "DEV100",
+    "/sap/bc/adt/oo/classes/zcl_demo\u000c"
+  ))
+})
+
+test("capability URI parser rejects the upper C0 control boundary", () => {
+  assertInvalid(() => parseCapabilityResourceUri(
+    "sap-capability://dev100\u001f"
+  ))
+})
+
 test("ADT URI functions reject non-ADT paths and malformed percent escapes", () => {
   for (const path of ["/not/adt", "/sap/bc/adt/oo/classes/%ZZ"]) {
     assertInvalid(() => toAdtResourceUri("DEV100", path))
