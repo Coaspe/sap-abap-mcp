@@ -3857,7 +3857,11 @@ test("MCP initialize reports the npm package version", async t => {
 })
 
 test("API version modes preserve v0 and expose the first v1 system tools", async () => {
-  const v1Names = ["sap.system.list", "sap.system.inspect"]
+  const v1Names = [
+    "sap.system.list",
+    "sap.system.inspect",
+    "sap.system.capabilities"
+  ]
   assert.deepEqual((await toolNames()).sort(), [...IMPLEMENTED_TOOL_NAMES].sort())
   assert.deepEqual(
     (await toolNames({ apiVersion: "v0" })).sort(),

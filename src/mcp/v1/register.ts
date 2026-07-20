@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { V1_MIGRATION_CATALOG } from "./migration-catalog.js"
+import { registerV1Resources } from "./resources.js"
 import type { V1ReadService } from "./service.js"
 import {
   registerV1SystemTools,
@@ -32,8 +33,13 @@ export function registerV1Tools(
   service: V1ReadService,
   options: V1RegistrationOptions = {}
 ): void {
-  const systemToolNames = ["sap.system.list", "sap.system.inspect"].filter(name =>
+  const systemToolNames = [
+    "sap.system.list",
+    "sap.system.inspect",
+    "sap.system.capabilities"
+  ].filter(name =>
     isV1ToolEnabled(name, options.enabledV0Tools)
   )
   registerV1SystemTools(server, service, new Set(systemToolNames))
+  registerV1Resources(server, service)
 }
