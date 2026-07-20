@@ -96,6 +96,70 @@ test("failure redacts secrets and bounds details by UTF-8 bytes", () => {
   assert.ok(Buffer.byteLength(JSON.stringify(payload.details), "utf8") <= 8 * 1024)
 })
 
+test("failure redacts a standalone bearer credential in its message", () => {
+  const result = v1Failure(new Error("Upstream rejected Bearer message-secret"))
+  const serialized = result.content[0]?.type === "text" ? result.content[0].text : ""
+
+  assert.equal(serialized.includes("message-secret"), false)
+})
+
+test("failure redacts a standalone bearer credential in nested detail text", () => {
+  const result = v1Failure(new AppError("SAP_OPERATION_FAILED", "SAP failed", {
+    nested: { diagnostic: "Upstream rejected Bearer detail-secret" }
+  }))
+  const serialized = result.content[0]?.type === "text" ? result.content[0].text : ""
+
+  assert.equal(serialized.includes("detail-secret"), false)
+})
+
+test("success derives text and structured content from one JSON-safe envelope", () => {
+  const result = v1Success({
+    kept: "value",
+    omitted: undefined,
+    transformed: Number.NaN
+  })
+  const payload = textPayload(result)
+
+  assert.deepEqual(result.structuredContent, payload)
+  assert.deepEqual(payload.data, { kept: "value", transformed: null })
+})
+
+test("success rejects data that cannot be represented as JSON", () => {
+  assert.throws(
+    () => v1Success({ count: 1n }),
+    (error: unknown) => error instanceof AppError && error.code === "V1_RESULT_INVALID"
+  )
+})
+
+test("success rejects fields outside its declared schema", () => {
+  const invalidOptions = [
+    { requestId: "" },
+    { systemId: "" },
+    { warnings: [{ code: "", message: "warning" }] },
+    { warnings: [{ code: "WARNING", message: "" }] },
+    { page: { returned: -1 } },
+    { page: { returned: 1, nextCursor: "" } }
+  ]
+
+  for (const options of invalidOptions) {
+    assert.throws(
+      () => v1Success({}, options),
+      (error: unknown) => error instanceof AppError && error.code === "V1_RESULT_INVALID"
+    )
+  }
+})
+
+test("failure normalizes empty terminal fields to its declared schema", () => {
+  const payload = V1_ERROR_SCHEMA.parse(textPayload(v1Failure(
+    new AppError("", ""),
+    "" as never
+  )))
+
+  assert.notEqual(payload.requestId, "")
+  assert.equal(payload.code, "INTERNAL_ERROR")
+  assert.equal(payload.message, "Internal operation failed")
+})
+
 test("resource links follow rather than replace the parity text block", () => {
   const result = v1Success(
     { source: "CLASS zcl_demo DEFINITION." },
