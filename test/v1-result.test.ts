@@ -8,6 +8,7 @@ import {
 } from "../src/mcp/v1/contracts.js"
 import {
   runV1Tool,
+  sanitizeV1Message,
   v1Failure,
   v1Success
 } from "../src/mcp/v1/result.js"
@@ -110,6 +111,38 @@ test("failure redacts a standalone bearer credential in nested detail text", () 
   const serialized = result.content[0]?.type === "text" ? result.content[0].text : ""
 
   assert.equal(serialized.includes("detail-secret"), false)
+})
+
+test("the shared sanitizer redacts adversarial sensitive key spellings", () => {
+  const cases = [
+    ["client_secret=client-secret-value", "client-secret-value"],
+    ["clientsecret=compact-secret-value", "compact-secret-value"],
+    ["api_key=api-key-value", "api-key-value"],
+    ["Proxy-Authorization: Basic proxy-secret-value", "proxy-secret-value"],
+    ['client_secret="prefix\\"escaped-quote-secret"', "escaped-quote-secret"],
+    ['api_key="unterminated-secret tail', "unterminated-secret"]
+  ] as const
+
+  for (const [diagnostic, secret] of cases) {
+    assert.equal(sanitizeV1Message(diagnostic).includes(secret), false)
+  }
+
+  const structured = v1Failure(new AppError("SAP_OPERATION_FAILED", "SAP failed", {
+    client_secret: "structured-client-secret",
+    clientsecret: "structured-compact-secret",
+    api_key: "structured-api-key",
+    "Proxy-Authorization": "Basic structured-proxy-secret"
+  }))
+  const serialized = structured.content[0]?.type === "text" ? structured.content[0].text : ""
+
+  for (const secret of [
+    "structured-client-secret",
+    "structured-compact-secret",
+    "structured-api-key",
+    "structured-proxy-secret"
+  ]) {
+    assert.equal(serialized.includes(secret), false)
+  }
 })
 
 test("failure does not execute an enumerable root toJSON after redaction", () => {
