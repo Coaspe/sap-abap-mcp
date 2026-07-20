@@ -12,6 +12,19 @@ const V1_TOOL_NAMES = [
   "sap.source.read"
 ] as const
 
+function assertUnversionedServeArgs(args: readonly string[]): void {
+  assert.equal(
+    args.includes("--api-version"),
+    false,
+    "launch args must not include --api-version"
+  )
+  assert.equal(
+    args.at(-1),
+    "serve",
+    "launch args must end with unversioned serve"
+  )
+}
+
 test("v1 migration guide documents the opt-in read-only contract", async () => {
   const guide = await readFile("docs/v1-migration.md", "utf8")
 
@@ -32,14 +45,42 @@ test("v1 migration guide documents the opt-in read-only contract", async () => {
 })
 
 test("published launch defaults stay on v0", async () => {
-  for (const file of [
-    "plugins/sap-abap-mcp/.mcp.json",
-    "mcpb/manifest.json",
-    "server.json"
-  ]) {
-    const manifest = await readFile(file, "utf8")
-    assert.doesNotMatch(manifest, /"--api-version"/)
+  const plugin = JSON.parse(
+    await readFile("plugins/sap-abap-mcp/.mcp.json", "utf8")
+  ) as { mcpServers: { "sap-abap": { args: string[] } } }
+  const mcpb = JSON.parse(
+    await readFile("mcpb/manifest.json", "utf8")
+  ) as { server: { mcp_config: { args: string[] } } }
+  const registry = JSON.parse(
+    await readFile("server.json", "utf8")
+  ) as {
+    packages: Array<{
+      packageArguments: Array<{ type: string, value: string }>
+    }>
   }
+  const registryPackage = registry.packages[0]
+  assert.ok(registryPackage)
+  const registryArguments = registryPackage.packageArguments
+  assert.ok(registryArguments.every(argument => argument.type === "positional"))
+
+  for (const args of [
+    plugin.mcpServers["sap-abap"].args,
+    mcpb.server.mcp_config.args,
+    registryArguments.map(argument => argument.value)
+  ]) {
+    assertUnversionedServeArgs(args)
+  }
+})
+
+test("published launch guard rejects versioned or post-serve arguments", () => {
+  assert.throws(
+    () => assertUnversionedServeArgs(["serve", "--profile", "DEV"]),
+    /unversioned serve/
+  )
+  assert.throws(
+    () => assertUnversionedServeArgs(["serve", "--api-version", "v1"]),
+    /--api-version/
+  )
 })
 
 test("published package includes the v1 stdio smoke implementation", async () => {
