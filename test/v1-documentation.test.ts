@@ -42,6 +42,14 @@ test("published launch defaults stay on v0", async () => {
   }
 })
 
+test("published package includes the v1 stdio smoke implementation", async () => {
+  const packageJson = JSON.parse(await readFile("package.json", "utf8")) as {
+    files: string[]
+  }
+
+  assert.ok(packageJson.files.includes("scripts/smoke-v1-stdio.mjs"))
+})
+
 test("v1 surfaces stay within the documented schema budget and counts", async () => {
   const enabledTools = toolsForToolsets(["all"])
   const v1Tools = await advertisedTools({ apiVersion: "v1", enabledTools })
