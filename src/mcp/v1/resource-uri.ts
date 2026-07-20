@@ -15,13 +15,17 @@ function invalidUri(message: string): never {
   throw new AppError("INVALID_ADT_URI", message)
 }
 
-function parseUrl(value: string): URL {
+export function assertRawV1ResourceUri(value: string): void {
   if (MALFORMED_PERCENT_PATTERN.test(value)) {
-    return invalidUri("URI contains a malformed percent escape")
+    invalidUri("URI contains a malformed percent escape")
   }
   if (RAW_C0_CONTROL_PATTERN.test(value)) {
-    return invalidUri("URI contains a disallowed preprocessing character")
+    invalidUri("URI contains a disallowed preprocessing character")
   }
+}
+
+function parseUrl(value: string): URL {
+  assertRawV1ResourceUri(value)
   assertNoRawAuthoritySyntax(value)
 
   try {

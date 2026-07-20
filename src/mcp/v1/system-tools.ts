@@ -6,7 +6,11 @@ import {
   normalizeV1SystemId,
   toCapabilityResourceUri
 } from "./resource-uri.js"
-import { runV1Tool, v1Success } from "./result.js"
+import {
+  runV1Tool,
+  sanitizeV1Message,
+  v1Success
+} from "./result.js"
 import type { V1ReadService } from "./service.js"
 
 const SYSTEM_LIST_TOOL = "sap.system.list"
@@ -132,7 +136,7 @@ export function registerV1SystemTools(
         annotations: V1_READ_ONLY_ANNOTATIONS
       },
       async ({ systemId, includeComponents }) => runV1Tool(async () => {
-        const normalizedSystemId = systemId.trim().toUpperCase()
+        const normalizedSystemId = normalizeV1SystemId(systemId)
         const info = await service.getSapSystemInfo(normalizedSystemId, includeComponents)
         const {
           profileId: _profileId,
@@ -158,9 +162,9 @@ export function registerV1SystemTools(
     server.registerTool(
       SYSTEM_CAPABILITIES_TOOL,
       {
-        title: "Discover SAP System Capabilities",
+        title: "Inspect SAP Capabilities",
         description:
-          "Read normalized SAP development capabilities with optional bounded evidence.",
+          "Read implemented, advertised, authorized, and observed capabilities for one SAP system.",
         inputSchema: {
           systemId: z.string().min(1),
           category: z.enum(CAPABILITY_CATEGORIES).optional(),
@@ -185,6 +189,17 @@ export function registerV1SystemTools(
           adapterVersion,
           capabilities
         } = result
+        const sanitizedCapabilities = capabilities.map(capability => {
+          const evidence = (capability as typeof capability & {
+            evidence?: string[]
+          }).evidence
+          return {
+            ...capability,
+            ...(evidence === undefined
+              ? {}
+              : { evidence: evidence.map(sanitizeV1Message) })
+          }
+        })
         const warnings = rawWarnings.map(message => ({
           code: "SAP_SYSTEM_WARNING",
           message
@@ -194,7 +209,7 @@ export function registerV1SystemTools(
           adapterVersion,
           resourceUri,
           systemMetadata,
-          capabilities
+          capabilities: sanitizedCapabilities
         }, {
           systemId: normalizedSystemId,
           ...(warnings.length > 0 ? { status: "partial" as const } : {}),
