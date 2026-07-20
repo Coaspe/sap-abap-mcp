@@ -49,6 +49,22 @@ const SECRET_VALUES = [
   "folded-authorization-secret"
 ]
 
+const MULTILINE_SECRET_DIAGNOSTIC = `{
+  "client_secret"
+  :
+  "newline-colon-secret"
+}
+Authorization:
+  Basic
+  first-continuation-secret
+  second-continuation-secret`
+
+const MULTILINE_SECRET_VALUES = [
+  "newline-colon-secret",
+  "first-continuation-secret",
+  "second-continuation-secret"
+]
+
 const RAW_ABAP_SOURCE = [
   "REPORT z_secret_literals.",
   "DATA(url) = 'https://code-user:code-pass@example.test'.",
@@ -137,6 +153,7 @@ async function connectedClient(
   await server.connect(serverTransport)
   await client.connect(clientTransport)
   return {
+    server,
     client,
     async close() {
       await client.close()
@@ -157,8 +174,13 @@ function resourceText(result: { contents: Array<{ text: string } | { blob: strin
   return content && "text" in content ? content.text : ""
 }
 
-function assertSecretsAbsent(serialized: string): void {
-  for (const secret of SECRET_VALUES) assert.equal(serialized.includes(secret), false)
+function assertSecretsAbsent(
+  serialized: string,
+  secrets: readonly string[] = SECRET_VALUES
+): void {
+  for (const secret of secrets) {
+    assert.equal(serialized.includes(secret), false)
+  }
 }
 
 async function assertResourceError(
@@ -176,19 +198,82 @@ async function assertResourceError(
   return captured
 }
 
-test("v1 tool errors sanitize URL userinfo and Basic/Bearer credentials", async t => {
-  const connection = await connectedClient(baseService({
-    async getSapSystemInfo() { throw new Error(SECRET_DIAGNOSTIC) }
-  }))
-  t.after(() => connection.close())
+async function completionValues(
+  client: Client,
+  uri: string,
+  argumentName: string
+): Promise<string[]> {
+  return (await client.complete({
+    ref: { type: "ref/resource", uri },
+    argument: { name: argumentName, value: "v" }
+  })).completion.values
+}
 
-  const result = await connection.client.callTool({
-    name: "sap.system.inspect",
-    arguments: { systemId: "DEV100" }
-  }) as CallToolResult
+async function assertInvalidCompletion(
+  client: Client,
+  uri: string,
+  argumentName: string
+): Promise<void> {
+  await assertResourceError(
+    () => client.complete({
+      ref: { type: "ref/resource", uri },
+      argument: { name: argumentName, value: "v" }
+    }),
+    ErrorCode.InvalidParams
+  )
+}
 
-  assert.equal(result.isError, true)
-  assertSecretsAbsent(text(result))
+function completionTemplate(
+  uriTemplate: string,
+  argumentName: string,
+  suffix: string
+): ResourceTemplate {
+  return new ResourceTemplate(uriTemplate, {
+    list: undefined,
+    complete: { [argumentName]: value => [`${value}-${suffix}`] }
+  })
+}
+
+function registerDynamicPair(
+  server: McpServer,
+  label: "modern" | "deprecated"
+): void {
+  const fixedCallback = async (uri: URL) => ({
+    contents: [{ uri: uri.href, text: `${label} fixed` }]
+  })
+  const templateCallback = async (uri: URL) => ({
+    contents: [{ uri: uri.href, text: `${label} template` }]
+  })
+  const template = completionTemplate(
+    `${label}-template://{name}`,
+    "name",
+    label
+  )
+  if (label === "deprecated") {
+    server.resource(`${label}-fixed`, `${label}-fixed://one`, fixedCallback)
+    server.resource(`${label}-template`, template, templateCallback)
+    return
+  }
+  server.registerResource(`${label}-fixed`, `${label}-fixed://one`, {}, fixedCallback)
+  server.registerResource(`${label}-template`, template, {}, templateCallback)
+}
+
+test("v1 tool errors sanitize direct and multiline credentials", async t => {
+  for (const [diagnostic, secrets] of [
+    [SECRET_DIAGNOSTIC, SECRET_VALUES],
+    [MULTILINE_SECRET_DIAGNOSTIC, MULTILINE_SECRET_VALUES]
+  ] as const) {
+    const connection = await connectedClient(baseService({
+      async getSapSystemInfo() { throw new Error(diagnostic) }
+    }))
+    t.after(() => connection.close())
+    const result = await connection.client.callTool({
+      name: "sap.system.inspect",
+      arguments: { systemId: "DEV100" }
+    }) as CallToolResult
+    assert.equal(result.isError, true)
+    assertSecretsAbsent(text(result), secrets)
+  }
 })
 
 test("v1 partial warnings use the shared bounded sanitizer", async t => {
@@ -353,6 +438,44 @@ test("Resource service failures have one exact client-side MCP prefix", async t 
   )
 
   assert.equal(error.message, "MCP error -32603: upstream unavailable")
+})
+
+test("async Resource list, read, and completion failures sanitize multiline secrets", async t => {
+  const failAsync = async () => {
+    await Promise.resolve()
+    throw new Error(MULTILINE_SECRET_DIAGNOSTIC)
+  }
+  const connection = await connectedClient(baseService(), server => {
+    server.registerResource(
+      "async-read-error",
+      "error-fixed://one",
+      {},
+      failAsync
+    )
+    server.registerResource(
+      "async-template-error",
+      new ResourceTemplate("error-template://{name}", {
+        list: failAsync,
+        complete: { name: failAsync }
+      }),
+      {},
+      async uri => ({ contents: [{ uri: uri.href, text: "unused" }] })
+    )
+  })
+  t.after(() => connection.close())
+
+  for (const operation of [
+    () => connection.client.listResources(),
+    () => connection.client.readResource({ uri: "error-fixed://one" }),
+    () => connection.client.complete({
+      ref: { type: "ref/resource" as const, uri: "error-template://{name}" },
+      argument: { name: "name", value: "v" }
+    })
+  ]) {
+    const error = await assertResourceError(operation, ErrorCode.InternalError)
+    assertSecretsAbsent(error.message, MULTILINE_SECRET_VALUES)
+    assert.equal((error.message.match(/MCP error -32603:/g) ?? []).length, 1)
+  }
 })
 
 test("raw C0 controls in Resource authorities and paths are invalid params with zero SAP calls", async t => {
@@ -536,11 +659,11 @@ test("exact fixed ADT and capability Resources win before built-in templates", a
   assert.equal(sapCalls, 0)
 })
 
-test("a fixed Resource registered after server creation is listed and readable", async t => {
+test("a dynamic fixed Resource uses canonical identity for reads and duplicates", async t => {
   const connection = await connectedClient(baseService(), server => {
     server.registerResource(
       "third-fixed-resource",
-      "memo://example/third",
+      "HTTP://EXAMPLE.com:80/item",
       {
         title: "Third Fixed Resource",
         description: "A fixed Resource registered by a caller.",
@@ -560,12 +683,18 @@ test("a fixed Resource registered after server creation is listed and readable",
     name: "third-fixed-resource",
     title: "Third Fixed Resource",
     description: "A fixed Resource registered by a caller.",
-    uri: "memo://example/third",
+    uri: "HTTP://EXAMPLE.com:80/item",
     mimeType: "text/plain"
   })
 
-  const read = await connection.client.readResource({ uri: "memo://example/third" })
+  const read = await connection.client.readResource({ uri: "http://example.com/item" })
   assert.equal(read.contents[0] && "text" in read.contents[0] ? read.contents[0].text : "", "third content")
+  assert.throws(() => connection.server.registerResource(
+    "third-fixed-duplicate",
+    "http://example.com/item",
+    {},
+    async uri => ({ contents: [{ uri: uri.href, text: "duplicate" }] })
+  ))
 })
 
 test("post-creation fixed and template Resources retain update, enable, disable, and remove behavior", async t => {
@@ -582,7 +711,7 @@ test("post-creation fixed and template Resources retain update, enable, disable,
     )
     template = server.registerResource(
       "lifecycle-template",
-      new ResourceTemplate("memo-template://{name}", { list: undefined }),
+      completionTemplate("memo-template://{name}", "name", "original"),
       { mimeType: "text/plain" },
       async (uri, variables) => ({
         contents: [{ uri: uri.href, text: `template-original:${variables.name}` }]
@@ -592,6 +721,10 @@ test("post-creation fixed and template Resources retain update, enable, disable,
   t.after(() => connection.close())
   assert.ok(fixed)
   assert.ok(template)
+  assert.deepEqual(
+    await completionValues(connection.client, "memo-template://{name}", "name"),
+    ["v-original"]
+  )
 
   fixed.update({
     name: "lifecycle-fixed-updated",
@@ -606,6 +739,10 @@ test("post-creation fixed and template Resources retain update, enable, disable,
   assert.equal(
     resourceText(await connection.client.readResource({ uri: "memo://example/updated" })),
     "fixed-updated"
+  )
+  assert.deepEqual(
+    await completionValues(connection.client, "memo://example/updated", "unused"),
+    []
   )
   const fixedAfterUpdate = await connection.client.listResources()
   assert.equal(fixedAfterUpdate.resources.some(resource =>
@@ -630,6 +767,35 @@ test("post-creation fixed and template Resources retain update, enable, disable,
     () => connection.client.readResource({ uri: "memo://example/original" }),
     ErrorCode.InvalidParams
   )
+  await assertInvalidCompletion(
+    connection.client,
+    "memo://example/original",
+    "unused"
+  )
+  assert.ok(lifecycleServer)
+  const oldFixedReplacement = lifecycleServer.registerResource(
+    "replacement-fixed-original",
+    "memo://example/original",
+    { mimeType: "text/plain" },
+    async uri => ({ contents: [{ uri: uri.href, text: "replacement original" }] })
+  )
+  assert.equal(
+    resourceText(await connection.client.readResource({ uri: "memo://example/original" })),
+    "replacement original"
+  )
+  assert.deepEqual(
+    await completionValues(connection.client, "memo://example/original", "unused"),
+    []
+  )
+  oldFixedReplacement.remove()
+  assert.equal((await connection.client.listResources()).resources.some(resource =>
+    resource.uri === "memo://example/original"
+  ), false)
+  await assertInvalidCompletion(
+    connection.client,
+    "memo://example/original",
+    "unused"
+  )
   fixed.disable()
   await assertResourceError(
     () => connection.client.readResource({ uri: "memo://example/updated" }),
@@ -644,7 +810,7 @@ test("post-creation fixed and template Resources retain update, enable, disable,
   template.update({
     name: "lifecycle-template-updated",
     title: "Template updated",
-    template: new ResourceTemplate("note-template://{name}", { list: undefined }),
+    template: completionTemplate("note-template://{name}", "name", "updated"),
     metadata: {
       description: "Template updated description",
       mimeType: "text/updated"
@@ -657,9 +823,18 @@ test("post-creation fixed and template Resources retain update, enable, disable,
     () => connection.client.readResource({ uri: "memo-template://first" }),
     ErrorCode.InvalidParams
   )
+  await assertInvalidCompletion(connection.client, "memo-template://{name}", "name")
   assert.equal(
     resourceText(await connection.client.readResource({ uri: "note-template://second" })),
     "template-updated:second"
+  )
+  assert.deepEqual(
+    await completionValues(
+      connection.client,
+      "note-template://{name}",
+      "name"
+    ),
+    ["v-updated"]
   )
   const templatesAfterUpdate = await connection.client.listResourceTemplates()
   assert.equal(templatesAfterUpdate.resourceTemplates.some(entry =>
@@ -707,6 +882,11 @@ test("post-creation fixed and template Resources retain update, enable, disable,
     () => connection.client.readResource({ uri: "note-template://third" }),
     ErrorCode.InvalidParams
   )
+  await assertInvalidCompletion(
+    connection.client,
+    "note-template://{name}",
+    "name"
+  )
 
   assert.ok(lifecycleServer)
   lifecycleServer.registerResource(
@@ -717,7 +897,7 @@ test("post-creation fixed and template Resources retain update, enable, disable,
   )
   lifecycleServer.registerResource(
     "lifecycle-template-updated",
-    new ResourceTemplate("note-template://{name}", { list: undefined }),
+    completionTemplate("note-template://{name}", "name", "replacement"),
     { mimeType: "text/plain" },
     async uri => ({ contents: [{ uri: uri.href, text: "replacement template" }] })
   )
@@ -729,28 +909,76 @@ test("post-creation fixed and template Resources retain update, enable, disable,
     resourceText(await connection.client.readResource({ uri: "note-template://fourth" })),
     "replacement template"
   )
+  assert.deepEqual(
+    await completionValues(connection.client, "note-template://{name}", "name"),
+    ["v-replacement"]
+  )
 })
 
-test("template list callbacks merge template metadata with listed Resource metadata", async t => {
+test("modern and deprecated dynamic Resources share discovery, reads, and completion", async t => {
   const connection = await connectedClient(baseService(), server => {
-    server.registerResource(
+    registerDynamicPair(server, "modern")
+    registerDynamicPair(server, "deprecated")
+  })
+  t.after(() => connection.close())
+
+  const resources = await connection.client.listResources()
+  const templates = await connection.client.listResourceTemplates()
+  for (const label of ["modern", "deprecated"] as const) {
+    assert.equal(resources.resources.some(resource =>
+      resource.name === `${label}-fixed`
+    ), true)
+    assert.equal(templates.resourceTemplates.some(template =>
+      template.name === `${label}-template`
+    ), true)
+    for (const kind of ["fixed", "template"] as const) {
+      assert.equal(resourceText(await connection.client.readResource({
+        uri: `${label}-${kind}://one`
+      })), `${label} ${kind}`)
+    }
+    assert.deepEqual(
+      await completionValues(
+        connection.client,
+        `${label}-template://{name}`,
+        "name"
+      ),
+      [`v-${label}`]
+    )
+  }
+})
+
+test("Template discovery merges metadata and excludes disabled callbacks", async t => {
+  let template: RegisteredResourceTemplate | undefined
+  let listCalls = 0
+  let readCalls = 0
+  let completionCalls = 0
+  const connection = await connectedClient(baseService(), server => {
+    template = server.registerResource(
       "catalog-template",
       new ResourceTemplate("catalog://{name}", {
-        list: async () => ({
-          resources: [{
+        list: async () => {
+          listCalls += 1
+          return { resources: [{
             uri: "catalog://one",
             name: "catalog-one",
             title: "Listed title",
             mimeType: "text/plain"
-          }]
-        })
+          }] }
+        },
+        complete: { name: async value => {
+          completionCalls += 1
+          return [`${value}-catalog`]
+        } }
       }),
       {
         title: "Template title",
         description: "Template description",
         mimeType: "application/json"
       },
-      async uri => ({ contents: [{ uri: uri.href, text: "catalog" }] })
+      async uri => {
+        readCalls += 1
+        return { contents: [{ uri: uri.href, text: "catalog" }] }
+      }
     )
   })
   t.after(() => connection.close())
@@ -765,6 +993,20 @@ test("template list callbacks merge template metadata with listed Resource metad
     description: "Template description",
     mimeType: "text/plain"
   })
+  assert.equal(listCalls, 1)
+  assert.ok(template)
+  template.disable()
+  assert.equal((await connection.client.listResources()).resources.some(resource =>
+    resource.uri === "catalog://one"
+  ), false)
+  assert.equal((await connection.client.listResourceTemplates()).resourceTemplates.some(
+    candidate => candidate.name === "catalog-template"
+  ), false)
+  await assertResourceError(() => connection.client.readResource({
+    uri: "catalog://one"
+  }), ErrorCode.InvalidParams)
+  await assertInvalidCompletion(connection.client, "catalog://{name}", "name")
+  assert.deepEqual([listCalls, readCalls, completionCalls], [1, 0, 0])
 })
 
 test("sap.system.inspect rejects malformed canonical IDs before service calls", async t => {
