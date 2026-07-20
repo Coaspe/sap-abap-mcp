@@ -3,7 +3,7 @@ import { AppError } from "../../errors.js"
 const SYSTEM_ID_PATTERN = /^[A-Z0-9_-]+$/
 const ADT_PATH_PREFIX = "/sap/bc/adt/"
 const MALFORMED_PERCENT_PATTERN = /%(?![0-9A-Fa-f]{2})/
-const URL_PREPROCESSING_PATTERN = /[\t\n\r]/
+const RAW_C0_CONTROL_PATTERN = /[\u0000-\u001F]/
 
 export interface ParsedAdtResourceUri {
   systemId: string
@@ -19,7 +19,7 @@ function parseUrl(value: string): URL {
   if (MALFORMED_PERCENT_PATTERN.test(value)) {
     return invalidUri("URI contains a malformed percent escape")
   }
-  if (URL_PREPROCESSING_PATTERN.test(value)) {
+  if (RAW_C0_CONTROL_PATTERN.test(value)) {
     return invalidUri("URI contains a disallowed preprocessing character")
   }
   assertNoRawAuthoritySyntax(value)
