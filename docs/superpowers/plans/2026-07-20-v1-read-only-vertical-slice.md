@@ -27,6 +27,11 @@
   because its selected v0 tools are still exposed.
 - Runtime tool failures use the v1 error envelope. Input rejected before callback invocation remains the MCP SDK's standard input-validation error; document this protocol-layer distinction in the approved design rather than weakening the advertised input schemas.
 - Implement test-first. Run the named focused test after every production change and `npm run check` before the final commit.
+- When a test introduces a brand-new TypeScript module or exported symbol, a
+  compiler failure caused solely by that missing API is an accepted RED. Record
+  the exact missing-module or missing-export diagnostic before implementation.
+  Syntax errors, incorrect imports, fixture errors, and unrelated build failures
+  are not accepted RED evidence.
 - Every commit must leave the TypeScript build and all tests green.
 
 Use these exact discovery labels:
@@ -355,7 +360,12 @@ export const V1_MIGRATION_CATALOG = {
 } as const satisfies Record<V0ToolName, V1MigrationEntry>
 ```
 
-- [ ] **Step 1: Write the failing v0 snapshot test**
+- [ ] **Step 1: Add the test-only surface helper and write the failing v0 snapshot test**
+
+Implement `advertisedTools` and `stableToolSurface` in
+`test/helpers/mcp-surface.ts` first. This is test infrastructure, not production
+behavior. It must use the real `McpServer`, SDK `Client`, and
+`InMemoryTransport`; it must not mock the advertised tool list.
 
 ```ts
 test("unversioned MCP retains the committed v0 tool surface", async () => {
@@ -368,9 +378,9 @@ test("unversioned MCP retains the committed v0 tool surface", async () => {
 
 Run: `npm run build && node --test dist/test/v0-contract.test.js`
 
-Expected: FAIL because `test/fixtures/v0-tool-surface.json` does not exist.
+Expected: FAIL only because `test/fixtures/v0-tool-surface.json` does not exist.
 
-- [ ] **Step 2: Add the deterministic snapshot helper and updater**
+- [ ] **Step 2: Add the deterministic snapshot updater**
 
 `stableToolSurface` must sort tools by `name`, recursively preserve array order, and sort object keys before serialization. It must omit only `undefined`; it must not normalize away schema constraints or annotations.
 
@@ -1502,7 +1512,6 @@ Expected: both exit 0; the dry-run contains `dist/src/mcp/v1/*` through the exis
 ```bash
 npm run build
 node --test dist/test/v0-contract.test.js dist/test/v1-migration-catalog.test.js dist/test/v1-documentation.test.js
-rg -n '"@coaspe/sap-abap-mcp@latest",[[:space:]]*"serve"|"args": \["\$\{__dirname\}/server/index.mjs", "serve"\]' plugins mcpb
 ```
 
 Expected:
@@ -1511,7 +1520,8 @@ Expected:
 - migration catalog: 53 mapped/dispositioned v0 tools;
 - v1: 5 tools and 2 Resource templates;
 - all: 58 unique tools;
-- existing launch entries still end at unversioned `serve`.
+- the JSON-parsing assertions in `v1-documentation.test.ts` prove existing
+  launch entries still end at unversioned `serve`.
 
 - [ ] **Step 5: Inspect the diff for scope**
 
