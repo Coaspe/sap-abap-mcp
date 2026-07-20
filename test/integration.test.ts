@@ -3861,7 +3861,8 @@ test("API version modes preserve v0 and expose the first v1 system tools", async
     "sap.system.list",
     "sap.system.inspect",
     "sap.system.capabilities",
-    "sap.repository.search"
+    "sap.repository.search",
+    "sap.source.read"
   ]
   assert.deepEqual((await toolNames()).sort(), [...IMPLEMENTED_TOOL_NAMES].sort())
   assert.deepEqual(

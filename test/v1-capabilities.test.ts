@@ -13,7 +13,8 @@ const V1_TOOL_NAMES = [
   "sap.system.list",
   "sap.system.inspect",
   "sap.system.capabilities",
-  "sap.repository.search"
+  "sap.repository.search",
+  "sap.source.read"
 ] as const
 
 const CAPABILITY_CATEGORIES = [
@@ -260,13 +261,15 @@ test("v1 capability resource template reads complete evidence from the shared se
   t.after(() => connection.close())
 
   const templates = await connection.client.listResourceTemplates()
-  assert.deepEqual(templates.resourceTemplates, [{
+  assert.deepEqual(templates.resourceTemplates.find(template =>
+    template.uriTemplate === "sap-capability://{system}"
+  ), {
     name: "sap-capability-evidence",
     title: "SAP Capability Evidence",
     description: "Complete capability discovery evidence for one SAP system.",
     uriTemplate: "sap-capability://{system}",
     mimeType: "application/json"
-  }])
+  })
 
   const resource = await connection.client.readResource({
     uri: "sap-capability://dev100"
@@ -319,6 +322,6 @@ test("capability resources are absent from v0 mode and present in all mode", asy
   assert.equal(v0.client.getServerCapabilities()?.resources, undefined)
   assert.deepEqual(
     (await all.client.listResourceTemplates()).resourceTemplates.map(item => item.uriTemplate),
-    ["sap-capability://{system}"]
+    ["sap-capability://{system}", "adt://{system}/{+adtPath}"]
   )
 })

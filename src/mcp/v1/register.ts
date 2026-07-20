@@ -3,6 +3,7 @@ import { V1_MIGRATION_CATALOG } from "./migration-catalog.js"
 import { registerV1RepositoryTools } from "./repository-tools.js"
 import { registerV1Resources } from "./resources.js"
 import type { V1ReadService } from "./service.js"
+import { registerV1SourceTools } from "./source-tools.js"
 import {
   registerV1SystemTools,
   V1_READ_ONLY_ANNOTATIONS
@@ -46,5 +47,9 @@ export function registerV1Tools(
     isV1ToolEnabled(name, options.enabledV0Tools)
   )
   registerV1RepositoryTools(server, service, new Set(repositoryToolNames))
+  const sourceToolNames = ["sap.source.read"].filter(name =>
+    isV1ToolEnabled(name, options.enabledV0Tools)
+  )
+  registerV1SourceTools(server, service, new Set(sourceToolNames))
   registerV1Resources(server, service)
 }

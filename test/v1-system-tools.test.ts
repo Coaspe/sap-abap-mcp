@@ -19,7 +19,8 @@ const V1_SYSTEM_TOOL_NAMES = [
   "sap.system.list",
   "sap.system.inspect",
   "sap.system.capabilities",
-  "sap.repository.search"
+  "sap.repository.search",
+  "sap.source.read"
 ] as const
 const V0_INSTRUCTIONS = "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
 
