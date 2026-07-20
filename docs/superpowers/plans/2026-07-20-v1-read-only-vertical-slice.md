@@ -8,6 +8,9 @@
 
 **Tech Stack:** TypeScript 7, Node.js 20+, `@modelcontextprotocol/sdk` 1.29.0, Zod 4, Node test runner, in-memory MCP transport.
 
+**Implementation note (2026-07-21):** The hybrid v1 Resource dispatcher was
+replaced by the approved [v1 Resource Registry redesign](../specs/2026-07-20-v1-resource-registry-redesign.md). Historical RED/GREEN evidence below is unchanged.
+
 ## Global Constraints
 
 - Unversioned `serve` and every existing package, MCPB, and plugin launch command remain v0 for the complete 1.x line.
