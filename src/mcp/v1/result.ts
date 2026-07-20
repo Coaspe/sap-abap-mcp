@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
+import {
+  isAdtError,
+  isAdtException,
+  isHttpError,
+  isLoginError,
+  type AdtException
+} from "abap-adt-api"
 import { z } from "zod"
 import { AppError, errorPayload } from "../../errors.js"
 import {
@@ -10,6 +17,8 @@ import {
 } from "./contracts.js"
 
 const ERROR_DETAIL_BYTE_LIMIT = 8 * 1024
+const DIAGNOSTIC_TEXT_BYTE_LIMIT = 512
+const TRUNCATION_MARKER = "[TRUNCATED]"
 const V1_SUCCESS_SCHEMA = z.object({
   ...V1_SUCCESS_SHAPE,
   data: z.record(z.string(), z.unknown())
@@ -63,12 +72,16 @@ function redactSensitiveHeaders(value: string): string {
 }
 
 function redactSensitiveText(value: string): string {
-  const bearerRedacted = value.replace(
+  const userinfoRedacted = value.replace(
+    /\b([a-z][a-z0-9+.-]*:\/\/)([^/\s@]+)@/gi,
+    "$1[REDACTED]@"
+  )
+  const bearerRedacted = userinfoRedacted.replace(
     /\bBearer\s+[^\s,;&#}\]]+/gi,
     "Bearer [REDACTED]"
   )
   const redacted = bearerRedacted.replace(
-    /(^|[^a-z0-9_-])(["']?)(x-csrf-token|set-cookie|access_token|refresh_token|csrf[-_]token|session_id|password|authorization|token|cookie|csrf|session)\2(\s*[:=]\s*)(?:(["'])([\s\S]*?)\5|((?:Bearer\s+)?[^\s,;&#}\]]+))/gi,
+    /(^|[^a-z0-9_-])(["']?)(x-csrf-token|set-cookie|access_token|refresh_token|csrf[-_]token|session_id|password|authorization|token|cookie|csrf|session)\2(\s*[:=]\s*)(?:(["'])([\s\S]*?)\5|((?:(?:Basic|Bearer)\s+)?[^\s,;&#}\]]+))/gi,
     (_match, prefix, labelQuote, label, delimiter, valueQuote) =>
       `${prefix}${labelQuote}${label}${labelQuote}${delimiter}` +
       (valueQuote ? `${valueQuote}[REDACTED]${valueQuote}` : "[REDACTED]")
@@ -76,24 +89,43 @@ function redactSensitiveText(value: string): string {
   return redactSensitiveHeaders(redacted)
 }
 
+function truncateUtf8(value: string, byteLimit: number): string {
+  if (Buffer.byteLength(value, "utf8") <= byteLimit) return value
+
+  const markerBytes = Buffer.byteLength(TRUNCATION_MARKER, "utf8")
+  let bytes = 0
+  let preview = ""
+  for (const character of value) {
+    const characterBytes = Buffer.byteLength(character, "utf8")
+    if (bytes + characterBytes + markerBytes > byteLimit) break
+    preview += character
+    bytes += characterBytes
+  }
+  return preview + TRUNCATION_MARKER
+}
+
+export function sanitizeV1Message(value: string): string {
+  return truncateUtf8(redactSensitiveText(value), DIAGNOSTIC_TEXT_BYTE_LIMIT)
+}
+
 function isSensitiveKey(key: string): boolean {
   return /authorization|cookie|token|password|secret|csrf|session/i.test(key)
 }
 
-function redactValue(value: unknown, seen: WeakSet<object>): unknown {
+function sanitizeDiagnosticValue(value: unknown, seen: WeakSet<object>): unknown {
   if (
     value === undefined ||
     typeof value === "function" ||
     typeof value === "symbol"
   ) return undefined
-  if (typeof value === "string") return redactSensitiveText(value)
+  if (typeof value === "string") return sanitizeV1Message(value)
   if (typeof value === "bigint") return String(value)
   if (value === null || typeof value !== "object") return value
   if (seen.has(value)) return "[Circular]"
 
   seen.add(value)
   if (Array.isArray(value)) {
-    const result = value.map(item => redactValue(item, seen))
+    const result = value.map(item => sanitizeDiagnosticValue(item, seen))
     seen.delete(value)
     return result
   }
@@ -102,11 +134,15 @@ function redactValue(value: unknown, seen: WeakSet<object>): unknown {
   for (const [key, child] of Object.entries(value)) {
     const redacted = isSensitiveKey(key)
       ? "[REDACTED]"
-      : redactValue(child, seen)
+      : sanitizeDiagnosticValue(child, seen)
     if (redacted !== undefined) result[key] = redacted
   }
   seen.delete(value)
   return result
+}
+
+function sanitizeV1DiagnosticValue(value: unknown): unknown {
+  return sanitizeDiagnosticValue(value, new WeakSet())
 }
 
 function invalidSuccessResult(): never {
@@ -133,7 +169,7 @@ function canonicalSuccess(
 }
 
 function boundedDetails(details: Record<string, unknown>): Record<string, unknown> {
-  const candidate = redactValue(details, new WeakSet())
+  const candidate = sanitizeV1DiagnosticValue(details)
   const redacted = candidate && typeof candidate === "object" && !Array.isArray(candidate)
     ? candidate as Record<string, unknown>
     : {}
@@ -163,6 +199,29 @@ function boundedDetails(details: Record<string, unknown>): Record<string, unknow
   return result
 }
 
+function adtHttpStatus(error: AdtException): number | undefined {
+  if (isHttpError(error)) return error.status > 0 ? error.status : undefined
+  if (isAdtError(error)) {
+    const status = error.response?.status ?? error.err
+    return status > 0 ? status : undefined
+  }
+  return undefined
+}
+
+function normalizeV1Error(error: unknown): unknown {
+  if (error instanceof AppError || !isAdtException(error)) return error
+
+  const httpStatus = adtHttpStatus(error)
+  const details = httpStatus === undefined ? undefined : { httpStatus }
+  if (httpStatus === 401 || isLoginError(error)) {
+    return new AppError("AUTH_REQUIRED", error.message, details)
+  }
+  if (httpStatus === 403) {
+    return new AppError("SAP_AUTHORIZATION_DENIED", error.message, details)
+  }
+  return new AppError("SAP_OPERATION_FAILED", error.message, details)
+}
+
 export function v1Success(
   data: Record<string, unknown>,
   options: V1SuccessOptions = {}
@@ -173,8 +232,13 @@ export function v1Success(
     status: options.status ?? "succeeded",
     ...(options.systemId !== undefined ? { systemId: options.systemId } : {}),
     data,
-    warnings: options.warnings ?? [],
-    ...(options.evidence !== undefined ? { evidence: options.evidence } : {}),
+    warnings: (options.warnings ?? []).map(warning => ({
+      ...warning,
+      message: sanitizeV1Message(warning.message)
+    })),
+    ...(options.evidence !== undefined
+      ? { evidence: sanitizeV1DiagnosticValue(options.evidence) }
+      : {}),
     ...(options.page !== undefined ? { page: options.page } : {})
   }
   const { envelope, text } = canonicalSuccess(candidate)
@@ -193,22 +257,23 @@ export function v1Success(
 }
 
 export function v1Failure(error: unknown, requestId?: string): CallToolResult {
-  const payload = errorPayload(error)
+  const normalizedError = normalizeV1Error(error)
+  const payload = errorPayload(normalizedError)
   const code = typeof payload.code === "string" && payload.code.length > 0
     ? payload.code
     : "INTERNAL_ERROR"
   const redactedMessage = typeof payload.message === "string"
-    ? redactSensitiveText(payload.message)
+    ? sanitizeV1Message(payload.message)
     : ""
   const message = redactedMessage.length > 0
     ? redactedMessage
     : "Internal operation failed"
-  const category = error instanceof AppError
+  const category = normalizedError instanceof AppError
     ? ERROR_CATEGORIES[code] ?? "internal"
     : "internal"
-  const retryable = error instanceof AppError &&
-    error.code === "SAP_OPERATION_FAILED" &&
-    RETRYABLE_SAP_STATUSES.has(error.details?.httpStatus as number)
+  const retryable = normalizedError instanceof AppError &&
+    normalizedError.code === "SAP_OPERATION_FAILED" &&
+    RETRYABLE_SAP_STATUSES.has(normalizedError.details?.httpStatus as number)
   const envelope = V1_ERROR_SCHEMA.parse({
     schemaVersion: V1_SCHEMA_VERSION,
     requestId: typeof requestId === "string" && requestId.length > 0

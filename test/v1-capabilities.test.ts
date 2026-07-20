@@ -108,6 +108,11 @@ test("v1 capability discovery advertises the exact tool contract", async () => {
 
   const tool = tools.find(candidate => candidate.name === "sap.system.capabilities")
   assert.ok(tool)
+  assert.equal(tool.title, "Inspect SAP Capabilities")
+  assert.equal(
+    tool.description,
+    "Read implemented, advertised, authorized, and observed capabilities for one SAP system."
+  )
   assert.deepEqual(tool.annotations, V1_READ_ONLY_ANNOTATIONS)
   assert.deepEqual(tool.inputSchema.required, ["systemId"])
   assert.deepEqual(Object.keys(tool.inputSchema.properties ?? {}), [
