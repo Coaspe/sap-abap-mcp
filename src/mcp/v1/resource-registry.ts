@@ -375,14 +375,11 @@ export function installV1ResourceRegistry(
         }
 
         for (const entry of templateEntries) {
-          if (entry.name === null) continue
+          if (entry.name === null || !entry.resource.enabled) continue
           const variables = entry.resource.resourceTemplate.uriTemplate.match(
             canonicalUri
           )
           if (variables === null) continue
-          if (!entry.resource.enabled) {
-            throw invalidParams(`Resource ${canonicalUri} is disabled`)
-          }
           return await entry.resource.readCallback(uri, variables, extra)
         }
         throw invalidParams("Resource URI is not registered")
@@ -394,13 +391,28 @@ export function installV1ResourceRegistry(
 
   const completeResource: V1ResourceCompletionProvider = async request => {
     const reference = request.params.ref.uri
+    assertRawV1ResourceUri(reference)
+    let canonicalUri: string | undefined
+    try {
+      canonicalUri = canonicalResourceUrl(reference).toString()
+    } catch (error) {
+      if (!UriTemplate.isTemplate(reference)) throw error
+    }
+
+    const fixed = canonicalUri === undefined
+      ? undefined
+      : fixedEntries.find(entry => entry.canonicalUri === canonicalUri)
+    if (fixed !== undefined) {
+      if (!fixed.resource.enabled) {
+        throw invalidParams(`Resource ${canonicalUri} is disabled`)
+      }
+      return []
+    }
+
     for (const entry of templateEntries) {
-      if (entry.name === null) continue
+      if (entry.name === null || !entry.resource.enabled) continue
       if (entry.resource.resourceTemplate.uriTemplate.toString() !== reference) {
         continue
-      }
-      if (!entry.resource.enabled) {
-        throw invalidParams(`Resource template ${reference} is disabled`)
       }
       const callback = entry.resource.resourceTemplate.completeCallback(
         request.params.argument.name
@@ -413,15 +425,8 @@ export function installV1ResourceRegistry(
       return await callback(request.params.argument.value, context)
     }
 
-    if (UriTemplate.isTemplate(reference)) {
-      throw invalidParams(`Resource template ${reference} is not registered`)
-    }
-    const canonicalUri = canonicalResourceUrl(reference).toString()
-    const fixed = fixedEntries.find(entry => entry.canonicalUri === canonicalUri)
-    if (fixed !== undefined && !fixed.resource.enabled) {
-      throw invalidParams(`Resource ${canonicalUri} is disabled`)
-    }
-    return []
+    const kind = UriTemplate.isTemplate(reference) ? "template" : "URI"
+    throw invalidParams(`Resource ${kind} ${reference} is not registered`)
   }
   router.setResourceProvider(completeResource)
 

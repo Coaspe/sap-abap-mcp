@@ -4,7 +4,11 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
   McpServer,
-  ResourceTemplate
+  ResourceTemplate,
+  type ReadResourceCallback,
+  type ReadResourceTemplateCallback,
+  type RegisteredResource,
+  type RegisteredResourceTemplate
 } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
 import { installV1CompletionRouter } from "../src/mcp/v1/completion-router.js"
@@ -68,7 +72,299 @@ async function assertResourceError(
   })
 }
 
-test("fixed Resources use canonical identity and support atomic lifecycle updates", async t => {
+async function readText(client: Client, uri: string): Promise<string> {
+  return resourceText(await client.readResource({ uri }))
+}
+
+async function assertInvalidRead(client: Client, uri: string): Promise<void> {
+  await assertResourceError(
+    () => client.readResource({ uri }),
+    ErrorCode.InvalidParams
+  )
+}
+
+async function completeValues(
+  client: Client,
+  uri: string,
+  name: string
+): Promise<string[]> {
+  return (await client.complete({
+    ref: { type: "ref/resource", uri },
+    argument: { name, value: "v" }
+  })).completion.values
+}
+
+async function assertInvalidCompletion(
+  client: Client,
+  uri: string,
+  name: string
+): Promise<void> {
+  await assertResourceError(
+    () => client.complete({
+      ref: { type: "ref/resource", uri },
+      argument: { name, value: "v" }
+    }),
+    ErrorCode.InvalidParams
+  )
+}
+
+type FixedRegistrar = (
+  server: McpServer,
+  name: string,
+  uri: string,
+  callback: ReadResourceCallback
+) => RegisteredResource
+
+type TemplateRegistrar = (
+  server: McpServer,
+  name: string,
+  template: ResourceTemplate,
+  callback: ReadResourceTemplateCallback
+) => RegisteredResourceTemplate
+
+async function verifyFixedLifecycle(
+  label: string,
+  register: FixedRegistrar
+): Promise<void> {
+  const { server } = registryServer()
+  const initialUri = `legacy-${label}://original`
+  const blockerUri = `legacy-${label}://blocker`
+  const updatedUri = `legacy-${label}://updated`
+  const initialMetadata = label === "metadata"
+    ? { title: "Legacy fixed", mimeType: "text/plain" }
+    : {}
+  const updatedMetadata = {
+    description: "updated fixed metadata",
+    mimeType: "text/updated"
+  }
+  const initialCallback: ReadResourceCallback = uri => ({
+    contents: [{ uri: uri.href, text: "initial fixed" }]
+  })
+  const fixed = register(server, `fixed-${label}`, initialUri, initialCallback)
+  server.resource(
+    `fixed-blocker-${label}`,
+    blockerUri,
+    uri => ({ contents: [{ uri: uri.href, text: "blocker" }] })
+  )
+  const connection = await connectedClient(server)
+
+  try {
+    assert.equal(await readText(connection.client, initialUri), "initial fixed")
+    assert.throws(() => fixed.update({
+      name: `mutated-${label}`,
+      title: "Mutated fixed",
+      uri: blockerUri,
+      metadata: { mimeType: "text/mutated" },
+      callback: uri => ({ contents: [{ uri: uri.href, text: "mutated" }] }),
+      enabled: false
+    }))
+    assert.equal(fixed.name, `fixed-${label}`)
+    assert.equal(fixed.title, label === "metadata" ? "Legacy fixed" : undefined)
+    assert.deepEqual(fixed.metadata, initialMetadata)
+    assert.equal(fixed.readCallback, initialCallback)
+    assert.equal(fixed.enabled, true)
+    assert.equal(await readText(connection.client, initialUri), "initial fixed")
+
+    fixed.update({
+      name: `updated-${label}`,
+      title: "Updated fixed",
+      uri: updatedUri,
+      metadata: updatedMetadata,
+      callback: uri => ({ contents: [{ uri: uri.href, text: "updated fixed" }] }),
+      enabled: false
+    })
+    assert.equal(fixed.name, `updated-${label}`)
+    assert.equal(fixed.title, "Updated fixed")
+    assert.deepEqual(fixed.metadata, updatedMetadata)
+    await assertInvalidRead(connection.client, updatedUri)
+    await assertInvalidCompletion(connection.client, updatedUri, "unused")
+    assert.equal((await connection.client.listResources()).resources.some(
+      resource => resource.uri === updatedUri
+    ), false)
+    fixed.enable()
+    assert.equal(await readText(connection.client, updatedUri), "updated fixed")
+    assert.deepEqual(
+      await completeValues(connection.client, updatedUri, "unused"),
+      []
+    )
+    assert.deepEqual(
+      (await connection.client.listResources()).resources.find(resource =>
+        resource.uri === updatedUri
+      ),
+      {
+        uri: updatedUri,
+        name: `updated-${label}`,
+        title: "Updated fixed",
+        description: "updated fixed metadata",
+        mimeType: "text/updated"
+      }
+    )
+    fixed.disable()
+    await assertInvalidRead(connection.client, updatedUri)
+    fixed.enable()
+    fixed.remove()
+    await assertInvalidRead(connection.client, updatedUri)
+
+    const replacement = register(
+      server,
+      `replacement-${label}`,
+      updatedUri,
+      uri => ({ contents: [{ uri: uri.href, text: "replacement fixed" }] })
+    )
+    assert.equal(await readText(connection.client, updatedUri), "replacement fixed")
+    replacement.remove()
+  } finally {
+    await connection.close()
+  }
+}
+
+async function verifyTemplateLifecycle(
+  label: string,
+  register: TemplateRegistrar
+): Promise<void> {
+  const { server } = registryServer()
+  const initialPattern = `legacy-${label}://{name}`
+  const updatedPattern = `updated-${label}://{slug}`
+  const blockerName = `template-blocker-${label}`
+  const updatedName = `template-updated-${label}`
+  const initialMetadata = label === "metadata"
+    ? { title: "Legacy Template", mimeType: "text/plain" }
+    : {}
+  const updatedMetadata = {
+    description: "updated template metadata",
+    mimeType: "text/updated"
+  }
+  const initialTemplate = new ResourceTemplate(initialPattern, {
+    list: undefined,
+    complete: { name: value => [`${value}-initial`] }
+  })
+  const initialCallback: ReadResourceTemplateCallback = (uri, variables) => ({
+    contents: [{ uri: uri.href, text: `initial:${variables.name}` }]
+  })
+  let updatedListCalls = 0
+  const template = register(
+    server,
+    `template-${label}`,
+    initialTemplate,
+    initialCallback
+  )
+  server.resource(
+    blockerName,
+    new ResourceTemplate(`blocker-${label}://{name}`, { list: undefined }),
+    uri => ({ contents: [{ uri: uri.href, text: "blocker" }] })
+  )
+  const connection = await connectedClient(server)
+
+  try {
+    assert.equal(
+      await readText(connection.client, `legacy-${label}://one`),
+      "initial:one"
+    )
+    assert.throws(() => template.update({
+      name: blockerName,
+      title: "Mutated Template",
+      template: new ResourceTemplate(`mutated-${label}://{slug}`, {
+        list: undefined
+      }),
+      metadata: { mimeType: "text/mutated" },
+      callback: uri => ({ contents: [{ uri: uri.href, text: "mutated" }] }),
+      enabled: false
+    }))
+    assert.equal(template.resourceTemplate, initialTemplate)
+    assert.equal(
+      template.title,
+      label === "metadata" ? "Legacy Template" : undefined
+    )
+    assert.deepEqual(template.metadata, initialMetadata)
+    assert.equal(template.readCallback, initialCallback)
+    assert.equal(template.enabled, true)
+    assert.equal(
+      (await connection.client.listResourceTemplates()).resourceTemplates.find(
+        candidate => candidate.uriTemplate === initialPattern
+      )?.name,
+      `template-${label}`
+    )
+    assert.equal(
+      await readText(connection.client, `legacy-${label}://two`),
+      "initial:two"
+    )
+
+    const updatedTemplate = new ResourceTemplate(updatedPattern, {
+      list: () => {
+        updatedListCalls += 1
+        return { resources: [] }
+      },
+      complete: { slug: value => [`${value}-updated`] }
+    })
+    template.update({
+      name: updatedName,
+      title: "Updated Template",
+      template: updatedTemplate,
+      metadata: updatedMetadata,
+      callback: (uri, variables) => ({
+        contents: [{ uri: uri.href, text: `updated:${variables.slug}` }]
+      }),
+      enabled: false
+    })
+    assert.equal(template.resourceTemplate, updatedTemplate)
+    assert.equal(template.title, "Updated Template")
+    assert.deepEqual(template.metadata, updatedMetadata)
+    await assertInvalidRead(connection.client, `updated-${label}://three`)
+    await assertInvalidCompletion(connection.client, updatedPattern, "slug")
+    assert.equal((await connection.client.listResourceTemplates()).resourceTemplates.some(
+      candidate => candidate.name === updatedName
+    ), false)
+    await connection.client.listResources()
+    assert.equal(updatedListCalls, 0)
+    template.enable()
+    assert.equal(
+      await readText(connection.client, `updated-${label}://four`),
+      "updated:four"
+    )
+    assert.deepEqual(
+      await completeValues(connection.client, updatedPattern, "slug"),
+      ["v-updated"]
+    )
+    await connection.client.listResources()
+    assert.equal(updatedListCalls, 1)
+    assert.deepEqual(
+      (await connection.client.listResourceTemplates()).resourceTemplates.find(
+        candidate => candidate.name === updatedName
+      ),
+      {
+        name: updatedName,
+        uriTemplate: updatedPattern,
+        title: "Updated Template",
+        description: "updated template metadata",
+        mimeType: "text/updated"
+      }
+    )
+    template.disable()
+    await assertInvalidRead(connection.client, `updated-${label}://five`)
+    template.enable()
+    template.remove()
+    await assertInvalidRead(connection.client, `updated-${label}://six`)
+    await assertInvalidCompletion(connection.client, updatedPattern, "slug")
+
+    const replacement = register(
+      server,
+      updatedName,
+      new ResourceTemplate(`replacement-${label}://{name}`, { list: undefined }),
+      (uri, variables) => ({
+        contents: [{ uri: uri.href, text: `replacement:${variables.name}` }]
+      })
+    )
+    assert.equal(
+      await readText(connection.client, `replacement-${label}://six`),
+      "replacement:six"
+    )
+    replacement.remove()
+  } finally {
+    await connection.close()
+  }
+}
+
+test("fixed Resources canonicalize identity and keep the current title", async t => {
   const { server } = registryServer()
   const fixed = server.registerResource(
     "memo-fixed",
@@ -83,20 +379,12 @@ test("fixed Resources use canonical identity and support atomic lifecycle update
   const connection = await connectedClient(server)
   t.after(() => connection.close())
 
-  assert.equal(
-    resourceText(await connection.client.readResource({
-      uri: "http://example.com/item"
-    })),
-    "before"
+  assert.equal(await readText(connection.client, "http://example.com/item"), "before")
+  assert.deepEqual(
+    await completeValues(connection.client, "http://example.com/item", "unused"),
+    []
   )
-  assert.deepEqual((await connection.client.complete({
-    ref: { type: "ref/resource", uri: "http://example.com/item" },
-    argument: { name: "unused", value: "v" }
-  })).completion.values, [])
-  assert.deepEqual((await connection.client.complete({
-    ref: { type: "ref/resource", uri: "memo://missing" },
-    argument: { name: "unused", value: "v" }
-  })).completion.values, [])
+  await assertInvalidCompletion(connection.client, "memo://missing", "unused")
   assert.deepEqual((await connection.client.listResources()).resources, [{
     uri: "HTTP://EXAMPLE.com:80/item",
     name: "memo-fixed",
@@ -112,138 +400,164 @@ test("fixed Resources use canonical identity and support atomic lifecycle update
   ))
 
   fixed.update({
-    name: "memo-fixed-updated",
     title: "After",
-    uri: "memo://example/after",
     metadata: {
       title: "stale metadata title",
       description: "after description",
       mimeType: "text/updated"
-    },
-    callback: async uri => ({
-      contents: [{ uri: uri.href, text: "after" }]
-    })
+    }
   })
-
-  await assertResourceError(
-    () => connection.client.readResource({ uri: "http://example.com/item" }),
-    ErrorCode.InvalidParams
-  )
-  assert.equal(
-    resourceText(await connection.client.readResource({
-      uri: "memo://example/after"
-    })),
-    "after"
-  )
   assert.deepEqual((await connection.client.listResources()).resources, [{
-    uri: "memo://example/after",
-    name: "memo-fixed-updated",
+    uri: "HTTP://EXAMPLE.com:80/item",
+    name: "memo-fixed",
     title: "After",
     description: "after description",
     mimeType: "text/updated"
   }])
-
-  server.registerResource(
-    "old-identity-reused",
-    "http://example.com/item",
-    { mimeType: "text/plain" },
-    async uri => ({ contents: [{ uri: uri.href, text: "old identity" }] })
-  )
-  fixed.disable()
-  assert.equal((await connection.client.listResources()).resources.some(resource =>
-    resource.uri === "memo://example/after"
-  ), false)
-  await assertResourceError(
-    () => connection.client.readResource({ uri: "memo://example/after" }),
-    ErrorCode.InvalidParams
-  )
-  await assertResourceError(
-    () => connection.client.complete({
-      ref: { type: "ref/resource", uri: "memo://example/after" },
-      argument: { name: "unused", value: "v" }
-    }),
-    ErrorCode.InvalidParams
-  )
-  assert.throws(() => server.registerResource(
-    "disabled-duplicate",
-    "memo://example/after",
-    { mimeType: "text/plain" },
-    async uri => ({ contents: [{ uri: uri.href, text: "duplicate" }] })
-  ))
-
-  fixed.enable()
-  assert.equal(
-    resourceText(await connection.client.readResource({
-      uri: "memo://example/after"
-    })),
-    "after"
-  )
-  fixed.remove()
-  await assertResourceError(
-    () => connection.client.readResource({ uri: "memo://example/after" }),
-    ErrorCode.InvalidParams
-  )
-  server.registerResource(
-    "new-identity-reused",
-    "memo://example/after",
-    { mimeType: "text/plain" },
-    async uri => ({ contents: [{ uri: uri.href, text: "new identity" }] })
-  )
-  assert.equal(
-    resourceText(await connection.client.readResource({
-      uri: "memo://example/after"
-    })),
-    "new identity"
-  )
 })
 
-test("all four deprecated Resource overloads register, read, and remove", async t => {
+test("fixed canonical completion wins before an identical Template reference", async t => {
   const { server } = registryServer()
-  const fixedPlain = server.resource(
-    "legacy-plain",
-    "legacy://plain",
-    async uri => ({ contents: [{ uri: uri.href, text: "plain" }] })
+  let templateCalls = 0
+  server.registerResource(
+    "ambiguous-template",
+    new ResourceTemplate("memo://x/{name}", {
+      list: undefined,
+      complete: {
+        name: value => {
+          templateCalls += 1
+          return [`${value}-template`]
+        }
+      }
+    }),
+    {},
+    uri => ({ contents: [{ uri: uri.href, text: "template" }] })
   )
-  const fixedMetadata = server.resource(
-    "legacy-metadata",
-    "legacy://metadata",
-    { title: "Legacy", mimeType: "text/plain" },
-    async uri => ({ contents: [{ uri: uri.href, text: "metadata" }] })
-  )
-  const templatePlain = server.resource(
-    "legacy-template-plain",
-    new ResourceTemplate("legacy-plain://{name}", { list: undefined }),
-    async (uri, variables) => ({
-      contents: [{ uri: uri.href, text: `plain:${variables.name}` }]
-    })
-  )
-  const templateMetadata = server.resource(
-    "legacy-template-metadata",
-    new ResourceTemplate("legacy-meta://{name}", { list: undefined }),
-    { title: "Legacy Template", mimeType: "text/plain" },
-    async (uri, variables) => ({
-      contents: [{ uri: uri.href, text: `metadata:${variables.name}` }]
-    })
+  server.registerResource(
+    "brace-fixed",
+    "memo://x/{name}",
+    {},
+    uri => ({ contents: [{ uri: uri.href, text: "fixed" }] })
   )
   const connection = await connectedClient(server)
   t.after(() => connection.close())
 
-  const cases = [
-    ["legacy://plain", "plain"],
-    ["legacy://metadata", "metadata"],
-    ["legacy-plain://one", "plain:one"],
-    ["legacy-meta://two", "metadata:two"]
-  ] as const
-  for (const [uri, expected] of cases) {
-    assert.equal(resourceText(await connection.client.readResource({ uri })), expected)
+  for (const uri of ["memo://x/{name}", "memo://x/%7Bname%7D"]) {
+    assert.deepEqual((await connection.client.complete({
+      ref: { type: "ref/resource", uri },
+      argument: { name: "name", value: "v" }
+    })).completion.values, [])
   }
+  assert.equal(templateCalls, 0)
+})
 
-  fixedPlain.remove()
-  fixedMetadata.remove()
-  templatePlain.remove()
-  templateMetadata.remove()
-  assert.deepEqual((await connection.client.listResources()).resources, [])
-  assert.deepEqual((await connection.client.listResourceTemplates()).resourceTemplates, [])
+test("disabled overlapping Templates are skipped for read and completion", async t => {
+  const { server } = registryServer()
+  let firstReadCalls = 0
+  let firstCompletionCalls = 0
+  const first = server.registerResource(
+    "overlap-first",
+    new ResourceTemplate("overlap://{name}", {
+      list: undefined,
+      complete: {
+        name: value => {
+          firstCompletionCalls += 1
+          return [`${value}-first`]
+        }
+      }
+    }),
+    {},
+    (uri, variables) => {
+      firstReadCalls += 1
+      return { contents: [{ uri: uri.href, text: `first:${variables.name}` }] }
+    }
+  )
+  server.registerResource(
+    "overlap-second",
+    new ResourceTemplate("overlap://{name}", {
+      list: undefined,
+      complete: { name: value => [`${value}-second`] }
+    }),
+    {},
+    (uri, variables) => ({
+      contents: [{ uri: uri.href, text: `second:${variables.name}` }]
+    })
+  )
+  first.disable()
+  const connection = await connectedClient(server)
+  t.after(() => connection.close())
+
+  assert.equal(
+    resourceText(await connection.client.readResource({ uri: "overlap://one" })),
+    "second:one"
+  )
+  assert.deepEqual((await connection.client.complete({
+    ref: { type: "ref/resource", uri: "overlap://{name}" },
+    argument: { name: "name", value: "v" }
+  })).completion.values, ["v-second"])
+  assert.equal(firstReadCalls, 0)
+  assert.equal(firstCompletionCalls, 0)
+
+  first.enable()
+  assert.equal(
+    resourceText(await connection.client.readResource({ uri: "overlap://two" })),
+    "first:two"
+  )
+  assert.deepEqual((await connection.client.complete({
+    ref: { type: "ref/resource", uri: "overlap://{name}" },
+    argument: { name: "name", value: "v" }
+  })).completion.values, ["v-first"])
+})
+
+test("modern and deprecated Resource forms preserve the full lifecycle", async () => {
+  await verifyFixedLifecycle(
+    "modern-fixed",
+    (server, name, uri, callback) => server.registerResource(
+      name,
+      uri,
+      {},
+      callback
+    )
+  )
+  await verifyTemplateLifecycle(
+    "modern-template",
+    (server, name, template, callback) => server.registerResource(
+      name,
+      template,
+      {},
+      callback
+    )
+  )
+  await verifyFixedLifecycle(
+    "plain",
+    (server, name, uri, callback) => server.resource(name, uri, callback)
+  )
+  await verifyFixedLifecycle(
+    "metadata",
+    (server, name, uri, callback) => server.resource(
+      name,
+      uri,
+      { title: "Legacy fixed", mimeType: "text/plain" },
+      callback
+    )
+  )
+  await verifyTemplateLifecycle(
+    "plain",
+    (server, name, template, callback) => server.resource(
+      name,
+      template,
+      callback
+    )
+  )
+  await verifyTemplateLifecycle(
+    "metadata",
+    (server, name, template, callback) => server.resource(
+      name,
+      template,
+      { title: "Legacy Template", mimeType: "text/plain" },
+      callback
+    )
+  )
 })
 
 test("Resource Templates merge metadata and follow current lifecycle state", async t => {
@@ -304,101 +618,34 @@ test("Resource Templates merge metadata and follow current lifecycle state", asy
   })).completion.values, ["f-one", "f-two"])
 
   template.update({
-    name: "note-template",
     title: "Updated Template",
-    template: new ResourceTemplate("note://{slug}", {
-      list: async () => {
-        listCalls += 1
-        return {
-          resources: [{ uri: "note://two", name: "two" }]
-        }
-      },
-      complete: {
-        slug: async value => [`${value}-updated`]
-      }
-    }),
     metadata: {
       title: "stale template metadata title",
       description: "updated metadata",
       mimeType: "text/updated"
-    },
-    callback: async (uri, variables) => ({
-      contents: [{ uri: uri.href, text: `updated:${variables.slug}` }]
-    })
+    }
   })
-
-  await assertResourceError(
-    () => connection.client.readResource({ uri: "memo://first" }),
-    ErrorCode.InvalidParams
-  )
-  await assertResourceError(
-    () => connection.client.complete({
-      ref: { type: "ref/resource", uri: "memo://{name}" },
-      argument: { name: "name", value: "f" }
-    }),
-    ErrorCode.InvalidParams
-  )
-  assert.equal(
-    resourceText(await connection.client.readResource({ uri: "note://second" })),
-    "updated:second"
-  )
-  assert.deepEqual((await connection.client.complete({
-    ref: { type: "ref/resource", uri: "note://{slug}" },
-    argument: { name: "slug", value: "s" }
-  })).completion.values, ["s-updated"])
   assert.deepEqual((await connection.client.listResourceTemplates()).resourceTemplates, [{
-    name: "note-template",
-    uriTemplate: "note://{slug}",
+    name: "memo-template",
+    uriTemplate: "memo://{name}",
     title: "Updated Template",
     description: "updated metadata",
     mimeType: "text/updated"
   }])
-  assert.equal(
-    (await connection.client.listResources()).resources[0]?.uri,
-    "note://two"
-  )
+  assert.deepEqual((await connection.client.listResources()).resources, [{
+    uri: "memo://one",
+    name: "one",
+    title: "Listed title",
+    description: "updated metadata",
+    mimeType: "text/plain"
+  }])
+  assert.equal(listCalls, 2)
   assert.throws(() => server.registerResource(
-    "note-template",
+    "memo-template",
     new ResourceTemplate("duplicate://{name}", { list: undefined }),
     {},
     async uri => ({ contents: [{ uri: uri.href, text: "duplicate" }] })
   ))
-
-  template.disable()
-  assert.deepEqual((await connection.client.listResourceTemplates()).resourceTemplates, [])
-  assert.deepEqual((await connection.client.listResources()).resources, [])
-  assert.equal(listCalls, 2)
-  await assertResourceError(
-    () => connection.client.readResource({ uri: "note://second" }),
-    ErrorCode.InvalidParams
-  )
-  await assertResourceError(
-    () => connection.client.complete({
-      ref: { type: "ref/resource", uri: "note://{slug}" },
-      argument: { name: "slug", value: "s" }
-    }),
-    ErrorCode.InvalidParams
-  )
-
-  template.enable()
-  assert.equal(
-    resourceText(await connection.client.readResource({ uri: "note://third" })),
-    "updated:third"
-  )
-  template.remove()
-  assert.deepEqual((await connection.client.listResourceTemplates()).resourceTemplates, [])
-  server.registerResource(
-    "note-template",
-    new ResourceTemplate("replacement://{name}", { list: undefined }),
-    {},
-    async (uri, variables) => ({
-      contents: [{ uri: uri.href, text: `replacement:${variables.name}` }]
-    })
-  )
-  assert.equal(
-    resourceText(await connection.client.readResource({ uri: "replacement://four" })),
-    "replacement:four"
-  )
 })
 
 test("reserved fixed Resources canonicalize identity and beat broad Templates", async t => {
@@ -582,7 +829,7 @@ test("failed identity updates leave fixed and Template Resources unchanged", asy
   )
 })
 
-test("list, read, and completion failures are sanitized while success is unchanged", async t => {
+test("synchronous callback failures are sanitized while success is unchanged", async t => {
   const { server } = registryServer()
   const rawSuccess = [
     "REPORT z_raw.",
@@ -602,18 +849,18 @@ test("list, read, and completion failures are sanitized while success is unchang
     "read-error",
     "memo://read-error",
     {},
-    async () => {
+    () => {
       throw new Error("client_secret:\n  read-first\n  read-second")
     }
   )
   server.registerResource(
     "error-template",
     new ResourceTemplate("error://{name}", {
-      list: async () => {
+      list: () => {
         throw new Error("Authorization:\n  Basic\n  list-first\n  list-second")
       },
       complete: {
-        name: async () => {
+        name: () => {
           throw new Error("client_secret:\n  completion-first\n  completion-second")
         }
       }
