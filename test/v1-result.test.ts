@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
 import { AppError } from "../src/errors.js"
 import {
@@ -9,6 +10,7 @@ import {
 import {
   runV1Tool,
   sanitizeV1Message,
+  toV1ProtocolError,
   v1Failure,
   v1Success
 } from "../src/mcp/v1/result.js"
@@ -132,6 +134,30 @@ test("the shared sanitizer redacts adversarial sensitive key spellings", () => {
     assert.equal(sanitizeV1Message(diagnostic).includes(secret), false)
   }
 
+  const multilineCases = [
+    [
+      "Authorization:\n  Basic\n  first-secret\n  second-secret",
+      ["first-secret", "second-secret"]
+    ],
+    [
+      "client_secret=\n  first-secret\n  second-secret",
+      ["first-secret", "second-secret"]
+    ],
+    [
+      "{\n  \"client_secret\"\n  :\n  \"json-secret\"\n}",
+      ["json-secret"]
+    ],
+    [
+      "client_secret:\n  \"unterminated-secret\n  continuation-secret",
+      ["unterminated-secret", "continuation-secret"]
+    ]
+  ] as const
+
+  for (const [diagnostic, secrets] of multilineCases) {
+    const sanitized = sanitizeV1Message(diagnostic)
+    for (const secret of secrets) assert.equal(sanitized.includes(secret), false)
+  }
+
   const structured = v1Failure(new AppError("SAP_OPERATION_FAILED", "SAP failed", {
     client_secret: "structured-client-secret",
     clientsecret: "structured-compact-secret",
@@ -148,6 +174,16 @@ test("the shared sanitizer redacts adversarial sensitive key spellings", () => {
   ]) {
     assert.equal(serialized.includes(secret), false)
   }
+})
+
+test("protocol conversion preserves codes and sanitizes its message", () => {
+  const converted = toV1ProtocolError(
+    new McpError(ErrorCode.InvalidParams, "client_secret:\n  protocol-secret")
+  )
+
+  assert.equal(converted.code, ErrorCode.InvalidParams)
+  assert.equal(converted.message.includes("protocol-secret"), false)
+  assert.equal(converted.message.startsWith("MCP error"), false)
 })
 
 test("failure does not execute an enumerable root toJSON after redaction", () => {
