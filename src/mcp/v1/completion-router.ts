@@ -36,6 +36,8 @@ function completionResult(suggestions: string[]) {
 export function installV1CompletionRouter(
   server: McpServer
 ): V1CompletionRouter {
+  server.server.assertCanSetRequestHandler("completion/complete")
+
   let resourceProvider: V1ResourceCompletionProvider | undefined
   let promptProvider: V1PromptCompletionProvider | undefined
 
