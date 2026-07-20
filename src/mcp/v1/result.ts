@@ -178,9 +178,20 @@ function findSensitiveAssignment(
       !isAssignmentWhitespace(value[index]) &&
       !",;&#}]".includes(value[index] ?? "")
     ) index += 1
+    let lineEnd = index
+    while (lineEnd < value.length && value[lineEnd] !== "\r" && value[lineEnd] !== "\n") {
+      lineEnd += 1
+    }
+    let continuationStart = lineEnd
+    if (value[continuationStart] === "\r") continuationStart += 1
+    if (value[continuationStart] === "\n") continuationStart += 1
+    if (value[continuationStart] === " " || value[continuationStart] === "\t") {
+      return { valueStart, valueEnd: value.length, replacement: "[REDACTED]" }
+    }
     if (delimiter === "=") {
       return { valueStart, valueEnd: index, replacement: "[REDACTED]" }
     }
+    index = lineEnd
   }
 
   if (multiline) {
@@ -218,7 +229,7 @@ function redactSensitiveAssignments(value: string): string {
 
 function redactSensitiveText(value: string): string {
   const userinfoRedacted = value.replace(
-    /\b([a-z][a-z0-9+.-]*:\/\/)([^/\s@]+)@/gi,
+    /\b([a-z][a-z0-9+.-]*:\/\/)[^/\s?#]*@/gi,
     "$1[REDACTED]@"
   )
   const bearerRedacted = userinfoRedacted.replace(
