@@ -97,7 +97,7 @@ const CAPABILITY_DEFINITIONS: SapCapabilityDefinition[] = [
   { id: "connection.auth.certificate", category: "connection", implementation: "missing" },
   { id: "connection.auth.kerberos", category: "connection", implementation: "missing" },
   { id: "connection.auth.browser_sso", category: "connection", implementation: "missing" },
-  { id: "connection.auth.oauth", category: "connection", implementation: "missing" },
+  { id: "connection.auth.oauth", category: "connection", implementation: "implemented" },
   { id: "connection.auth.btp_cloud", category: "connection", implementation: "missing" },
   { id: "quality.abap_cleaner", category: "quality", implementation: "missing" },
   { id: "quality.atc_exemptions", category: "quality", implementation: "missing" },

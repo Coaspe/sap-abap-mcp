@@ -33,6 +33,18 @@ npx @coaspe/sap-abap-mcp@latest setup remove DEV100
 
 Use `/mcp` to confirm that the plugin process is connected. That status alone does not prove that SAP authentication succeeded; the setup skill runs `doctor` for live ADT verification.
 
+OAuth client credentials are an explicit advanced profile type; the wizard continues to create Basic Auth profiles. Ask the setup skill for the local `profile add --auth-type oauth-client-credentials` workflow. Client secrets stay in the same protected local secret store or Linux environment variable, and access tokens remain in process memory.
+
+## Assess a transport before release
+
+Run the bundled change-assurance skill:
+
+```text
+/sap-abap-mcp:sap-abap-change-assurance
+```
+
+It uses the read-only `assess_transport` action to combine ATC, ABAP Unit, and optional target-system comparison without releasing the transport. CI workflows can request JSON, SARIF 2.1.0, and JUnit XML evidence. A truncated or failed check returns `incomplete`, never a pass.
+
 ## Codex
 
 ```bash

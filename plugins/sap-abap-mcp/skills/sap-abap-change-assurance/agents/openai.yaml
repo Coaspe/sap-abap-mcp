@@ -1,0 +1,11 @@
+interface:
+  display_name: "SAP ABAP Change Assurance"
+  short_description: "Assess transports before release with CI evidence"
+  default_prompt: "Use $sap-abap-change-assurance to assess an SAP transport before release."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "sap-abap-mcp"
+      description: "Local SAP ADT tools for transport, ATC, ABAP Unit, and system comparison"
+policy:
+  allow_implicit_invocation: true

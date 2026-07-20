@@ -1,10 +1,10 @@
 # MCP response token audit
 
-Audit date: 2026-07-16
+Audit date: 2026-07-20
 
 ## Scope and method
 
-This audit covers all 53 advertised tools and 149 response variants. A variant is an action, mode, or opt-in detail branch that can materially change the response shape. `test/response-audit.test.ts` fails if an advertised tool is missing from the catalog or the reviewed variant count changes unnoticed.
+This audit covers all 53 advertised tools and 150 response variants. A variant is an action, mode, or opt-in detail branch that can materially change the response shape. `test/response-audit.test.ts` fails if an advertised tool is missing from the catalog or the reviewed variant count changes unnoticed.
 
 The audit used four checks for every return path:
 
@@ -56,7 +56,7 @@ Legend: **reduced** means this audit changed the default response; **bounded** m
 | `manage_text_elements` | read, create, update | reduced object identity; text elements retained as primary state |
 | `run_unit_tests` | summary, failures, all | reduced object identity; successful details explicit |
 | `create_test_include` | create, already exists | reduced object identity |
-| `manage_transport_requests` | 12 actions | reduced parent object metadata; lists paged; release reports retained |
+| `manage_transport_requests` | 13 actions | reduced parent object metadata; lists paged; release and assurance evidence retained |
 | `manage_abapgit` | 9 actions | lists/staging paged; mutation receipts compact |
 | `manage_rap_generator` | 9 actions | reduced reference metadata; schema paged; generated/preview objects retained |
 | `manage_abap_versions` | 4 actions | reduced restore object metadata; inactive/source lists paged |
@@ -103,4 +103,4 @@ Earlier representative fixtures also measured 65.5% reduction for object info an
 
 ## Tool schema cost
 
-The serialized MCP tool definitions measure 51,177 bytes for all 53 tools and 14,253 bytes for the 18-tool `core` set. The default remains `all` because hiding write, debug, transport, Git, RAP, and operations tools would remove real functionality and break existing clients. Hosts that preload every schema and need a smaller context should launch with `--toolsets core` or another explicit combination. The full schema remains guarded below 64 KiB by tests.
+The serialized MCP tool definitions measure 52,259 bytes for all 53 tools and 14,313 bytes for the 18-tool `core` set. The default remains `all` because hiding write, debug, transport, Git, RAP, and operations tools would remove real functionality and break existing clients. Hosts that preload every schema and need a smaller context should launch with `--toolsets core` or another explicit combination. The full schema remains guarded below 64 KiB by tests. Re-run `npm run benchmark:surface` to reproduce the current measurements for every toolset.

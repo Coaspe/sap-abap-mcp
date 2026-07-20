@@ -44,7 +44,7 @@ const RESPONSE_AUDIT: Record<
   run_unit_tests: { variants: ["summary", "failures", "all"], policy: "explicit-detail" },
   create_test_include: { variants: ["create", "alreadyExists"], policy: "compact" },
   manage_transport_requests: {
-    variants: ["get_user_transports", "get_transport_details", "get_transport_objects", "compare_transports", "create_transport", "release_transport", "delete_transport", "set_owner", "add_user", "add_object", "list_system_users", "resolve_object"],
+    variants: ["get_user_transports", "get_transport_details", "get_transport_objects", "assess_transport", "compare_transports", "create_transport", "release_transport", "delete_transport", "set_owner", "add_user", "add_object", "list_system_users", "resolve_object"],
     policy: "paged"
   },
   manage_abapgit: {
@@ -89,7 +89,7 @@ const ACTION_AUDIT: Record<string, readonly string[]> = {
   abap_fs_documentation: ["get_documentation", "search_documentation", "get_settings", "search_settings"],
   run_atc_analysis: ["run_analysis", "get_documentation"],
   manage_text_elements: ["read", "create", "update"],
-  manage_transport_requests: ["get_user_transports", "get_transport_details", "get_transport_objects", "compare_transports", "create_transport", "release_transport", "delete_transport", "set_owner", "add_user", "add_object", "list_system_users", "resolve_object"],
+  manage_transport_requests: ["get_user_transports", "get_transport_details", "get_transport_objects", "assess_transport", "compare_transports", "create_transport", "release_transport", "delete_transport", "set_owner", "add_user", "add_object", "list_system_users", "resolve_object"],
   get_version_history: ["list_versions", "get_version_source", "compare_versions"],
   abap_debug_session: ["start", "stop", "status"],
   abap_debug_breakpoint: ["set", "remove"],
@@ -117,7 +117,7 @@ test("response audit covers every documented action branch", () => {
   const variantCount = Object.values(RESPONSE_AUDIT)
     .reduce((sum, item) => sum + item.variants.length, 0)
 
-  assert.equal(variantCount, 149)
+  assert.equal(variantCount, 150)
 })
 
 test("response audit action lists match the schemas advertised by MCP", async () => {

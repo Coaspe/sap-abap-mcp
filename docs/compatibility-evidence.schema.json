@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Coaspe/sap-abap-mcp/blob/main/docs/compatibility-evidence.schema.json",
+  "title": "SAP ABAP MCP compatibility evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "productVersion",
+    "sourceCommit",
+    "scope",
+    "connection",
+    "system",
+    "capability",
+    "status",
+    "observedAt",
+    "operation",
+    "sanitizedResult"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "productVersion": { "type": "string", "minLength": 1 },
+    "sourceCommit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "scope": { "enum": ["live-sap", "automated-fixture"] },
+    "connection": { "type": "string", "minLength": 1 },
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sapRelease", "systemType"],
+      "properties": {
+        "sapRelease": { "type": "string", "minLength": 1 },
+        "systemType": { "type": "string", "minLength": 1 }
+      }
+    },
+    "capability": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["supported", "unsupported", "unverified"] },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "operation": { "type": "string", "minLength": 1 },
+    "sanitizedResult": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "scope": { "const": "automated-fixture" } },
+        "required": ["scope"]
+      },
+      "then": {
+        "properties": { "status": { "const": "unverified" } }
+      }
+    }
+  ]
+}

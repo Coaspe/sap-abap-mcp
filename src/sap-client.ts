@@ -178,6 +178,10 @@ export interface SapSystemInfo {
   queryTimestamp: string
 }
 
+export type SapCredential =
+  | { type: "basic"; password: string }
+  | { type: "bearer"; fetchToken: () => Promise<string> }
+
 export interface SapClient {
   readonly profile: SapProfile
   login(): Promise<void>
@@ -205,7 +209,8 @@ export interface SapClient {
     source: string,
     transport?: string,
     activate?: boolean,
-    mainProgram?: string
+    mainProgram?: string,
+    syntaxObjectUri?: string
   ): Promise<SapSourceMutationResult>
   activateObject(
     objectName: string,
@@ -439,7 +444,7 @@ export interface SapClient {
   getSystemInfo(includeComponents?: boolean): Promise<SapSystemInfo>
 }
 
-export type SapClientFactory = (profile: SapProfile, password: string) => SapClient
+export type SapClientFactory = (profile: SapProfile, credential: SapCredential) => SapClient
 
 function mapSearchResult(result: SearchResult): SapObjectReference {
   return {
@@ -489,21 +494,27 @@ function parseUtcOffset(rawOffset: string): string {
 
 export class AdtSapClient implements SapClient {
   private readonly client: ADTClient
+  private readonly credential: SapCredential
   private mutationQueue: Promise<void> = Promise.resolve()
   private debugRuntime: DebugRuntime | undefined
   private debugGeneration = 0
 
   constructor(
     readonly profile: SapProfile,
-    private readonly password: string
+    credential: SapCredential | string
   ) {
-    if (!profile.username) {
+    this.credential = typeof credential === "string"
+      ? { type: "basic", password: credential }
+      : credential
+    if (!profile.username && this.credential.type === "basic") {
       throw new AppError("USERNAME_REQUIRED", `SAP profile ${profile.id} has no username`)
     }
     this.client = new ADTClient(
       profile.url,
-      profile.username,
-      password,
+      profile.username ?? "OAUTH",
+      this.credential.type === "basic"
+        ? this.credential.password
+        : this.credential.fetchToken,
       profile.client,
       profile.language
     )
@@ -638,7 +649,8 @@ export class AdtSapClient implements SapClient {
     source: string,
     transport?: string,
     activate = false,
-    mainProgram?: string
+    mainProgram?: string,
+    syntaxObjectUri?: string
   ): Promise<SapSourceMutationResult> {
     return this.serializeMutation(async () => {
       const previousSessionType = this.client.stateful
@@ -655,7 +667,12 @@ export class AdtSapClient implements SapClient {
           )
         }
         await this.client.setObjectSource(sourceUri, source, lockHandle, transport)
-        const diagnostics = await this.checkSyntax(objectUri, sourceUri, source, mainProgram)
+        const diagnostics = await this.checkSyntax(
+          syntaxObjectUri ?? objectUri,
+          sourceUri,
+          source,
+          mainProgram
+        )
         const hasSyntaxErrors = diagnostics.some(item =>
           /^(E|ERROR)$/i.test(item.severity.trim())
         )
@@ -1549,8 +1566,10 @@ export class AdtSapClient implements SapClient {
 
         const executionClient = new ADTClient(
           this.profile.url,
-          this.profile.username as string,
-          this.password,
+          this.profile.username ?? "OAUTH",
+          this.credential.type === "basic"
+            ? this.credential.password
+            : this.credential.fetchToken,
           this.profile.client,
           this.profile.language
         )
@@ -1675,5 +1694,5 @@ export class AdtSapClient implements SapClient {
   }
 }
 
-export const defaultSapClientFactory: SapClientFactory = (profile, password) =>
-  new AdtSapClient(profile, password)
+export const defaultSapClientFactory: SapClientFactory = (profile, credential) =>
+  new AdtSapClient(profile, credential)

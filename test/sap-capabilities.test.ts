@@ -69,6 +69,18 @@ test("missing backlog capabilities never claim support", () => {
   assert.equal(record.status, "unsupported")
 })
 
+test("OAuth client credentials is implemented but remains live-unverified", () => {
+  const registry = new SapCapabilityRegistry()
+  const record = capability(registry, "BTP100", "connection.auth.oauth", "connection")
+
+  assert.equal(record.implementation, "implemented")
+  assert.equal(record.status, "unverified")
+  assert.equal(
+    capability(registry, "BTP100", "connection.auth.browser_sso", "connection").implementation,
+    "missing"
+  )
+})
+
 test("capability IDs are normalized without changing canonical record IDs", () => {
   const registry = new SapCapabilityRegistry()
 

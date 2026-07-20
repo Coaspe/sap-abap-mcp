@@ -6,7 +6,7 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Version: `0.4.14`
+- Version: `0.4.15`
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -54,16 +54,16 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| npm | Live at 0.4.14 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 0.4.14 on `latest`; the manual `Publish npm` workflow uses npm Trusted Publishing |
-| Official MCP Registry | Live at 0.4.12 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) reports version 0.4.12 active and latest; the manual `Publish MCP Registry` workflow uses GitHub OIDC |
-| Smithery | Live and listed | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); version 0.4.12 deploys the validated local MCPB bundle and exposes all 53 runtime tools. The listing is not publisher-verified |
-| Glama | Live; 0.4.12 refresh submitted | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp) is claimed and author-verified. A fresh repository submission was accepted on 2026-07-16; the public page still shows 0.4.11 at commit `921fa7f` while Glama review and re-indexing are pending |
+| npm | Live at 0.4.15 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 0.4.15 on `latest`; the manual `Publish npm` workflow uses npm Trusted Publishing |
+| Official MCP Registry | Live at 0.4.15 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) reports version 0.4.15 active and latest; the manual `Publish MCP Registry` workflow uses GitHub OIDC |
+| Smithery | Live and listed | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); version 0.4.15 deploys the validated local MCPB bundle and exposes all 53 runtime tools. The listing is not publisher-verified |
+| Glama | Live; 0.4.15 refresh submitted | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp) is claimed and author-verified. A fresh repository submission was accepted for 0.4.15; public re-indexing may lag behind the repository release |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
 | MCP Server Hub | Submitted | Awaiting directory review |
 | Awesome MCP Servers | Ready for review | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129); submission check passes and the PR is cleanly mergeable |
 | Claude Code Community Marketplace | Submitted; review pending | Submitted through the Anthropic Console on 2026-07-15 as `Coaspe ABAP MCP` for Claude Code; the public GitHub plugin validates and installs as `sap-abap-mcp@coaspe-sap` |
 | Claude Desktop MCPB directory | Submitted; review pending | Submitted the validated `sap-abap-mcp-0.4.4.mcpb` through Anthropic's official local-extension form on 2026-07-15; the form confirmed that the response was recorded |
-| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap` and resolves the npm `latest` runtime; no separate marketplace publication was performed for 0.4.14 |
+| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap` and resolves the npm `latest` runtime; no separate marketplace publication was performed for 0.4.15 |
 | Codex universal plugin directory | Blocked by prerequisites | The official `With MCP` flow requires completed OpenAI developer identity verification and a production public HTTPS MCP endpoint; the current local `stdio` server cannot be submitted as-is |
 | LobeHub | Live | [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp), generated from the GitHub repository on 2026-07-15 |
 | mcp.so | Submitted; review queued | [Submission `cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64`](https://mcp.so/settings/submissions/cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64/edit); canonical metadata and the local `stdio` configuration were saved after automated extraction |

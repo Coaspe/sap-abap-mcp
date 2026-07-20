@@ -40,6 +40,18 @@ read -rsp "SAP password: " SAP_ABAP_MCP_PASSWORD_DEV100; echo; export SAP_ABAP_M
 
 Replace `DEV100` with the normalized Server name. Do not ask the user to paste the variable value into chat or write it to the profile file.
 
+## OAuth client credentials
+
+The interactive wizard manages Basic Auth profiles. When the user explicitly requests OAuth client credentials, do not route that profile through the wizard. Tell the user to run the explicit local CLI command with their real non-secret values:
+
+```text
+<npx> @coaspe/sap-abap-mcp@latest profile add <server-name> --url <sap-url> --client <nnn> --auth-type oauth-client-credentials --token-url <token-url> --client-id <client-id> [--scope <scope>] --login
+```
+
+The hidden prompt collects the OAuth client secret on Windows or macOS. Never request the secret in chat or append it to the command. On Linux, omit `--login`, set the profile-specific `SAP_ABAP_MCP_PASSWORD_<NORMALIZED_SERVER_NAME>` variable to the client secret in the trusted launch shell, and restart the MCP client from that environment. The legacy variable name contains `PASSWORD` for backward compatibility.
+
+OAuth does not parse a BTP service-key JSON document and does not implement browser SSO, MFA, certificates, Kerberos, or static bearer profiles. Require `doctor` to succeed before treating the selected profile as authenticated.
+
 ## Verify and use
 
 1. Run `<npx> --yes --prefer-online @coaspe/sap-abap-mcp@latest auth status <server-name>`.

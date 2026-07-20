@@ -120,7 +120,7 @@ export function createMcpServer(
   const server = new McpServer(
     {
       name: "sap-abap-mcp",
-      version: "0.4.14",
+      version: "0.4.15",
       title: "SAP ABAP MCP",
       description:
         "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
@@ -580,7 +580,7 @@ export function createMcpServer(
     {
       title: "Create ABAP Object Programmatically",
       description:
-        "Validate and create an ADT repository object. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package.",
+        "Validate and create an ADT repository object. Create-time source writing and activation are currently supported only for BDEF/BDO. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package.",
       inputSchema: {
         objectType: z.string().min(1).describe("Creatable ADT type such as PROG/P or CLAS/OC"),
         name: z.string().min(1),
@@ -588,8 +588,12 @@ export function createMcpServer(
         packageName: z.string().min(1).default("$TMP"),
         parentName: z.string().min(1).optional(),
         connectionId: z.string().min(1),
-        source: z.string().optional(),
-        activate: z.boolean().default(false),
+        source: z.string().optional().describe(
+          "Create-time source; currently supported only for BDEF/BDO"
+        ),
+        activate: z.boolean().default(false).describe(
+          "Activate after create-time source writing; currently supported only for BDEF/BDO"
+        ),
         additionalOptions: z.object({
           serviceDefinition: z.string().min(1).optional(),
           bindingType: z.literal("ODATA").optional(),
@@ -1004,12 +1008,13 @@ export function createMcpServer(
     {
       title: "Manage Transport Requests",
       description:
-        "List, inspect, compare, create, release, delete, reassign, add objects (including LIMU DYNP/REPT subobjects), and resolve SAP transports. release/delete confirmation is the request number; owner/user confirmation is NUMBER:USER; object confirmation is NUMBER:PGMID:TYPE:NAME.",
+        "List, inspect, assess, compare, create, release, delete, reassign, add objects (including LIMU DYNP/REPT subobjects), and resolve SAP transports. assess_transport is read-only and can emit JSON, SARIF, and JUnit reports. release/delete confirmation is the request number; owner/user confirmation is NUMBER:USER; object confirmation is NUMBER:PGMID:TYPE:NAME.",
       inputSchema: {
         action: z.enum([
           "get_user_transports",
           "get_transport_details",
           "get_transport_objects",
+          "assess_transport",
           "compare_transports",
           "create_transport",
           "release_transport",
@@ -1034,6 +1039,18 @@ export function createMcpServer(
         ignoreLocks: z.boolean().default(false),
         ignoreAtc: z.boolean().default(false),
         confirmation: z.string().min(1).optional(),
+        checks: z.array(z.enum(["atc", "unit_tests", "target_compare"]))
+          .min(1)
+          .max(3)
+          .default(["atc", "unit_tests"]),
+        targetConnectionId: z.string().min(1).optional(),
+        failOnAtcWarnings: z.boolean().default(false),
+        maxObjects: z.number().int().min(1).max(200).default(20),
+        reportFormats: z.array(z.enum(["json", "sarif", "junit"]))
+          .min(1)
+          .max(3)
+          .default(["json"]),
+        reportDirectory: z.string().min(1).optional(),
         startIndex: z.number().int().min(0).default(0),
         maxResults: z.number().int().min(1).max(500).default(50),
         includeObjects: z.boolean().default(false)
@@ -1060,7 +1077,13 @@ export function createMcpServer(
           ...(input.objectName ? { objectName: input.objectName } : {}),
           ...(input.ignoreLocks !== undefined ? { ignoreLocks: input.ignoreLocks } : {}),
           ...(input.ignoreAtc !== undefined ? { ignoreAtc: input.ignoreAtc } : {}),
-          ...(input.confirmation ? { confirmation: input.confirmation } : {})
+          ...(input.confirmation ? { confirmation: input.confirmation } : {}),
+          checks: input.checks,
+          ...(input.targetConnectionId ? { targetConnectionId: input.targetConnectionId } : {}),
+          failOnAtcWarnings: input.failOnAtcWarnings,
+          maxObjects: input.maxObjects,
+          reportFormats: input.reportFormats,
+          ...(input.reportDirectory ? { reportDirectory: input.reportDirectory } : {})
         })
       )
   )

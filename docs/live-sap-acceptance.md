@@ -30,22 +30,38 @@ CLASS zcl_mcp_runner IMPLEMENTATION.
 ENDCLASS.
 ```
 
+For class fixtures, Create `CLAS/OC` without `source` and with `activate: false`. Read the generated class skeleton, replace that exact source through `replace_string_in_abap_object`, run diagnostics, and activate only after diagnostics contain no errors. Create-time `source` writing and `activate: true` in `create_object_programmatically` are currently supported only for `BDEF/BDO`.
+
+When preparing the two-object batch activation, insert the harmless inactive marker inside a method body. Do not add a comment between class sections or declarations, because that does not exercise the same syntax path as a method include.
+
+For semantic definition validation, use `completion_element` at the referenced method token and call `definition` with the cursor inside the referenced class identifier while omitting `endColumn`. The service must expand the identifier range before calling ADT.
+
 ## Evidence record
 
 Store one sanitized record per step using exactly these fields:
 
 ```json
 {
+  "schemaVersion": "1.0",
+  "productVersion": "<NPM_PACKAGE_VERSION>",
+  "sourceCommit": "<GIT_COMMIT_SHA>",
+  "scope": "live-sap",
   "connection": "DEV100",
-  "sapRelease": "<SAP_RELEASE>",
+  "system": {
+    "sapRelease": "<SAP_RELEASE>",
+    "systemType": "<SYSTEM_TYPE>"
+  },
   "capability": "<CAPABILITY_ID>",
   "status": "<supported|unsupported|unverified>",
-  "timestamp": "<ISO-8601_TIMESTAMP>",
+  "observedAt": "<ISO-8601_TIMESTAMP>",
+  "operation": "<MCP_TOOL_AND_ACTION>",
   "sanitizedResult": {}
 }
 ```
 
 Remove SAP users, host names, cookies, authorization values, tokens, CSRF values, and session identifiers from `sanitizedResult`. Capability observations are held in process memory and belong to the selected connection, so capture evidence in the same server process in which the operation ran. Choose `supported` only after the relevant operation succeeds and a fresh `get_sap_capabilities` read for the same connection reports `supported`. Otherwise record the observed `unverified` or `unsupported` status.
+
+Validate retained evidence against [`compatibility-evidence.schema.json`](compatibility-evidence.schema.json). Automated doubles use `scope: "automated-fixture"` and must keep `status: "unverified"`; they prove implementation behavior, not live SAP compatibility.
 
 ## 1. Establish the system and capability baseline
 
