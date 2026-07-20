@@ -12,7 +12,8 @@ import { advertisedTools } from "./helpers/mcp-surface.js"
 const V1_TOOL_NAMES = [
   "sap.system.list",
   "sap.system.inspect",
-  "sap.system.capabilities"
+  "sap.system.capabilities",
+  "sap.repository.search"
 ] as const
 
 const CAPABILITY_CATEGORIES = [
