@@ -115,6 +115,29 @@ test("failure redacts a standalone bearer credential in nested detail text", () 
   assert.equal(serialized.includes("detail-secret"), false)
 })
 
+test("the shared sanitizer fail-closes folded credential continuations", () => {
+  for (const scheme of ["Basic", "Bearer"]) {
+    const sanitized = sanitizeV1Message(
+      `Authorization: ${scheme} first-secret\r\n second-secret\r\n third-secret`
+    )
+
+    for (const secret of ["first-secret", "second-secret", "third-secret"]) {
+      assert.equal(sanitized.includes(secret), false)
+    }
+  }
+})
+
+test("the shared sanitizer redacts multi-at URL userinfo through the last authority at", () => {
+  const sanitized = sanitizeV1Message(
+    "https://url-user:url-pass@password-tail@sap.example.test/path"
+  )
+
+  for (const secret of ["url-user", "url-pass", "password-tail"]) {
+    assert.equal(sanitized.includes(secret), false)
+  }
+  assert.equal(sanitized.includes("sap.example.test/path"), true)
+})
+
 test("the shared sanitizer redacts adversarial sensitive key spellings", () => {
   const cases = [
     ["client_secret=client-secret-value", "client-secret-value"],
