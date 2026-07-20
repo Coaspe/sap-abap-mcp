@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url"
 import { AppError, errorPayload } from "./errors.js"
 import { ConnectionManager } from "./connection-manager.js"
 import { createMcpServer, startStdioServer } from "./mcp-server.js"
+import { parseMcpApiVersion } from "./mcp/api-version.js"
+import { V1_FIRST_SLICE_V0_TOOL_NAMES } from "./mcp/v1/migration-catalog.js"
 import {
   TOOLSET_NAMES,
   toolsForToolsets,
@@ -51,7 +53,7 @@ Commands:
   abapgit auth status <id> --repository-url <url>
   abapgit auth logout <id> --repository-url <url>
   doctor <id> [--include-components]
-  serve [--profile <id>] [--toolsets core,write,analysis,debug,operations,artifacts|all]
+  serve [--profile <id>] [--api-version v0|v1|all] [--toolsets core,write,analysis,debug,operations,artifacts|all]
 `
 
 interface ParsedArguments {
@@ -438,6 +440,11 @@ async function setupCommand(
 }
 
 async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, secrets: SecretStore) {
+  const rawApiVersion = parsed.options.get("api-version")
+  if (rawApiVersion === true) {
+    throw new AppError("OPTION_REQUIRED", "--api-version requires a value")
+  }
+  const apiVersion = parseMcpApiVersion(rawApiVersion)
   const profileId = option(parsed, "profile")
   if (profileId) await profiles.get(profileId)
   const toolsetsValue = option(parsed, "toolsets")
@@ -457,10 +464,19 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
     enabledTools = toolsForToolsets(toolsets as ToolsetName[])
   }
 
+  if (apiVersion === "v1" && enabledTools &&
+    !V1_FIRST_SLICE_V0_TOOL_NAMES.some(name => enabledTools.has(name))) {
+    throw new AppError(
+      "V1_TOOLSET_EMPTY",
+      "The selected toolsets contain no implemented v1 tools",
+      { available: ["core", "all"] }
+    )
+  }
+
   const manager = new ConnectionManager(profiles, secrets, undefined, profileId)
   const server = createMcpServer(
     new AbapToolService(manager, secrets),
-    enabledTools ? { enabledTools } : {}
+    { apiVersion, ...(enabledTools ? { enabledTools } : {}) }
   )
   let closing = false
   const close = async () => {
