@@ -48,6 +48,10 @@ Replace `DEV100` with the Server name selected in the wizard. Restart the client
 
 Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#claude-code-and-codex-plugin-marketplaces); the included setup skill guides the same local wizard without putting the SAP password in chat. See the detailed [Windows](#detailed-setup-on-windows), [macOS](#detailed-setup-on-macos), and [Linux](#linux-and-containers) sections for platform-specific behavior and server management.
 
+### v1 opt-in preview
+
+An explicit, read-only MCP v1 first slice is available without changing the v0 default. See the [v1 migration preview](docs/v1-migration.md) for commands, mappings, and current limitations.
+
 ## ABAP FS parity status
 
 The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless feature extensions and `read_deferred_result`, this server advertises 53 tools in total.

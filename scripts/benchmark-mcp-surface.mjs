@@ -14,13 +14,14 @@ if (requestedOutputIndex >= 0 && !requestedOutput) {
   throw new Error("--output requires a file path")
 }
 
-async function measure(toolset) {
+async function measure(toolset, apiVersion) {
   const service = new AbapToolService({
     async listConnections() { return [] },
     async getClient() { throw new Error("No SAP call is allowed during schema benchmarking") }
   })
   const server = createMcpServer(service, {
-    enabledTools: toolsForToolsets([toolset])
+    enabledTools: toolsForToolsets([toolset]),
+    apiVersion
   })
   const client = new Client({ name: "sap-abap-mcp-benchmark", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -33,6 +34,7 @@ async function measure(toolset) {
       bytes: Buffer.byteLength(JSON.stringify(tool), "utf8")
     })).sort((left, right) => right.bytes - left.bytes)
     return {
+      apiVersion,
       toolset,
       toolCount: tools.length,
       schemaBytes: Buffer.byteLength(JSON.stringify(tools), "utf8"),
@@ -49,11 +51,15 @@ const report = {
   generatedAt: new Date().toISOString(),
   measurement: "minified UTF-8 MCP listTools payload",
   liveSapCalls: 0,
-  toolsets: []
+  toolsets: [],
+  versionedSurfaces: []
 }
 for (const toolset of ["all", "core", "write", "analysis", "debug", "operations", "artifacts"]) {
-  report.toolsets.push(await measure(toolset))
+  const { apiVersion: _apiVersion, ...measurement } = await measure(toolset, "v0")
+  report.toolsets.push(measurement)
 }
+report.versionedSurfaces.push(await measure("all", "v1"))
+report.versionedSurfaces.push(await measure("all", "all"))
 
 const serialized = `${JSON.stringify(report, null, 2)}\n`
 if (requestedOutput) {
