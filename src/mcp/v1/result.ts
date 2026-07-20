@@ -79,7 +79,10 @@ function isSensitiveKey(key: string): boolean {
   return SENSITIVE_KEY_PARTS.some(part => normalized.includes(part))
 }
 
-function quotedValueEnd(value: string, start: number): number | undefined {
+function quotedValue(
+  value: string,
+  start: number
+): { end: number; closed: boolean } | undefined {
   const quote = value[start]
   if (quote !== '"' && quote !== "'") return undefined
 
@@ -89,23 +92,31 @@ function quotedValueEnd(value: string, start: number): number | undefined {
       index += 1
       continue
     }
-    if (character === quote) return index + 1
-    if (character === "\r" || character === "\n") return index
+    if (character === quote) return { end: index + 1, closed: true }
+    if (character === "\r" || character === "\n") {
+      return { end: value.length, closed: false }
+    }
   }
-  return value.length
+  return { end: value.length, closed: false }
 }
 
-function unquotedValueEnd(value: string, start: number): number {
-  const credential = /^(?:Basic|Bearer)[ \t]+/i.exec(value.slice(start))
-  let index = start + (credential?.[0].length ?? 0)
+function credentialValueEnd(value: string, start: number): number | undefined {
+  const credential = /^(?:Basic|Bearer)\s+/i.exec(value.slice(start))
+  if (!credential) return undefined
+  let index = start + credential[0].length
   while (index < value.length && !/[\s,;&#}\]]/.test(value[index] ?? "")) {
     index += 1
   }
   return index
 }
 
+function lineValueEnd(value: string, start: number): number {
+  const lineEnd = value.slice(start).search(/[\r\n]/)
+  return lineEnd < 0 ? value.length : start + lineEnd
+}
+
 function redactSensitiveAssignments(value: string): string {
-  const assignment = /(^|[^a-z0-9_-])(["']?)([a-z][a-z0-9_-]*)\2([ \t]*[:=][ \t]*)/gi
+  const assignment = /(^|[^a-z0-9_-])(["']?)([a-z][a-z0-9_-]*)\2([ \t]*[:=]\s*)/gi
   let cursor = 0
   let result = ""
   let match: RegExpExecArray | null
@@ -116,19 +127,26 @@ function redactSensitiveAssignments(value: string): string {
 
     const valueStart = assignment.lastIndex
     const quote = value[valueStart]
-    const quotedEnd = quotedValueEnd(value, valueStart)
+    const quoted = quotedValue(value, valueStart)
+    const credentialEnd = credentialValueEnd(value, valueStart)
+    const delimiter = match[4] ?? ""
+    const multiline = /[\r\n]/.test(delimiter)
     let valueEnd: number
     let replacement: string
-    if (quotedEnd !== undefined) {
-      valueEnd = quotedEnd
-      const closed = quotedEnd > valueStart && value[quotedEnd - 1] === quote
-      replacement = `${quote}[REDACTED]${closed ? quote : ""}`
-    } else if ((match[4] ?? "").includes(":")) {
-      const lineEnd = value.slice(valueStart).search(/[\r\n]/)
-      valueEnd = lineEnd < 0 ? value.length : valueStart + lineEnd
+    if (quoted !== undefined) {
+      valueEnd = quoted.end
+      replacement = `${quote}[REDACTED]${quoted.closed ? quote : ""}`
+    } else if (credentialEnd !== undefined) {
+      valueEnd = multiline || delimiter.includes(":")
+        ? lineValueEnd(value, credentialEnd)
+        : credentialEnd
+      replacement = "[REDACTED]"
+    } else if (multiline || delimiter.includes(":")) {
+      valueEnd = lineValueEnd(value, valueStart)
       replacement = "[REDACTED]"
     } else {
-      valueEnd = unquotedValueEnd(value, valueStart)
+      const lineEnd = value.slice(valueStart).search(/[\s,;&#}\]]/)
+      valueEnd = lineEnd < 0 ? value.length : valueStart + lineEnd
       replacement = "[REDACTED]"
     }
 

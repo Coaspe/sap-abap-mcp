@@ -29,7 +29,9 @@ const SECRET_DIAGNOSTIC = [
   "clientsecret=compact-secret-value",
   "api_key=api-key-value",
   "Proxy-Authorization: Basic proxy-secret-value",
-  'client_secret="prefix\\"escaped-quote-secret"'
+  'client_secret="prefix\\"escaped-quote-secret"',
+  '{\n  "client_secret":\n    "pretty-json-secret"\n}',
+  "Authorization:\n  Basic\n  folded-authorization-secret"
 ].join("\n")
 
 const SECRET_VALUES = [
@@ -42,7 +44,9 @@ const SECRET_VALUES = [
   "compact-secret-value",
   "api-key-value",
   "proxy-secret-value",
-  "escaped-quote-secret"
+  "escaped-quote-secret",
+  "pretty-json-secret",
+  "folded-authorization-secret"
 ]
 
 const RAW_ABAP_SOURCE = [
@@ -52,7 +56,11 @@ const RAW_ABAP_SOURCE = [
   "DATA(client_secret) = 'raw-client-secret'.",
   "DATA(api_key) = 'raw-api-key'.",
   "DATA(proxy_auth) = 'Proxy-Authorization: Basic raw-proxy-secret'.",
-  `'client_secret="raw-prefix\\"raw-escaped-secret"'.`
+  `'client_secret="raw-prefix\\"raw-escaped-secret"'.`,
+  "* client_secret:",
+  "*   'raw-multiline-secret'.",
+  "* Authorization:",
+  "*   Basic raw-folded-secret."
 ].join("\n")
 
 function unused<T>(name: string): T {
@@ -486,6 +494,48 @@ test("Resource URI validation is invalid params while preserving template metada
   )
 })
 
+test("exact fixed ADT and capability Resources win before built-in templates", async t => {
+  let sapCalls = 0
+  const connection = await connectedClient(baseService({
+    async getSapCapabilities() {
+      sapCalls += 1
+      return capabilityResult([], [])
+    },
+    async getObjectByUri() {
+      sapCalls += 1
+      throw new Error("built-in ADT callback must not run")
+    }
+  }), server => {
+    server.registerResource(
+      "exact-fixed-adt",
+      "adt://dev100/sap/bc/adt/oo/classes/zcl_exact",
+      { mimeType: "text/plain" },
+      async uri => ({ contents: [{ uri: uri.href, text: "fixed ADT" }] })
+    )
+    server.registerResource(
+      "exact-fixed-capability",
+      "sap-capability://dev100",
+      { mimeType: "text/plain" },
+      async uri => ({ contents: [{ uri: uri.href, text: "fixed capability" }] })
+    )
+  })
+  t.after(() => connection.close())
+
+  assert.equal(
+    resourceText(await connection.client.readResource({
+      uri: "adt://dev100/sap/bc/adt/oo/classes/zcl_exact"
+    })),
+    "fixed ADT"
+  )
+  assert.equal(
+    resourceText(await connection.client.readResource({
+      uri: "sap-capability://dev100"
+    })),
+    "fixed capability"
+  )
+  assert.equal(sapCalls, 0)
+})
+
 test("a fixed Resource registered after server creation is listed and readable", async t => {
   const connection = await connectedClient(baseService(), server => {
     server.registerResource(
@@ -521,7 +571,9 @@ test("a fixed Resource registered after server creation is listed and readable",
 test("post-creation fixed and template Resources retain update, enable, disable, and remove behavior", async t => {
   let fixed: RegisteredResource | undefined
   let template: RegisteredResourceTemplate | undefined
+  let lifecycleServer: McpServer | undefined
   const connection = await connectedClient(baseService(), server => {
+    lifecycleServer = server
     fixed = server.registerResource(
       "lifecycle-fixed",
       "memo://example/original",
@@ -542,13 +594,38 @@ test("post-creation fixed and template Resources retain update, enable, disable,
   assert.ok(template)
 
   fixed.update({
+    name: "lifecycle-fixed-updated",
+    title: "Fixed updated",
     uri: "memo://example/updated",
+    metadata: {
+      description: "Fixed updated description",
+      mimeType: "text/updated"
+    },
     callback: async uri => ({ contents: [{ uri: uri.href, text: "fixed-updated" }] })
   })
   assert.equal(
     resourceText(await connection.client.readResource({ uri: "memo://example/updated" })),
     "fixed-updated"
   )
+  const fixedAfterUpdate = await connection.client.listResources()
+  assert.equal(fixedAfterUpdate.resources.some(resource =>
+    resource.uri === "memo://example/original"
+  ), false)
+  assert.deepEqual(fixedAfterUpdate.resources.find(resource =>
+    resource.uri === "memo://example/updated"
+  ), {
+    uri: "memo://example/updated",
+    name: "lifecycle-fixed-updated",
+    title: "Fixed updated",
+    description: "Fixed updated description",
+    mimeType: "text/updated"
+  })
+  assert.throws(() => lifecycleServer?.registerResource(
+    "duplicate-fixed",
+    "memo://example/updated",
+    { mimeType: "text/plain" },
+    async uri => ({ contents: [{ uri: uri.href, text: "duplicate" }] })
+  ))
   await assertResourceError(
     () => connection.client.readResource({ uri: "memo://example/original" }),
     ErrorCode.InvalidParams
@@ -565,7 +642,13 @@ test("post-creation fixed and template Resources retain update, enable, disable,
   )
 
   template.update({
+    name: "lifecycle-template-updated",
+    title: "Template updated",
     template: new ResourceTemplate("note-template://{name}", { list: undefined }),
+    metadata: {
+      description: "Template updated description",
+      mimeType: "text/updated"
+    },
     callback: async (uri, variables) => ({
       contents: [{ uri: uri.href, text: `template-updated:${variables.name}` }]
     })
@@ -578,6 +661,25 @@ test("post-creation fixed and template Resources retain update, enable, disable,
     resourceText(await connection.client.readResource({ uri: "note-template://second" })),
     "template-updated:second"
   )
+  const templatesAfterUpdate = await connection.client.listResourceTemplates()
+  assert.equal(templatesAfterUpdate.resourceTemplates.some(entry =>
+    entry.name === "lifecycle-template"
+  ), false)
+  assert.deepEqual(templatesAfterUpdate.resourceTemplates.find(entry =>
+    entry.name === "lifecycle-template-updated"
+  ), {
+    name: "lifecycle-template-updated",
+    uriTemplate: "note-template://{name}",
+    title: "Template updated",
+    description: "Template updated description",
+    mimeType: "text/updated"
+  })
+  assert.throws(() => lifecycleServer?.registerResource(
+    "lifecycle-template-updated",
+    new ResourceTemplate("duplicate-template://{name}", { list: undefined }),
+    { mimeType: "text/plain" },
+    async uri => ({ contents: [{ uri: uri.href, text: "duplicate" }] })
+  ))
   template.disable()
   await assertResourceError(
     () => connection.client.readResource({ uri: "note-template://second" }),
@@ -591,6 +693,12 @@ test("post-creation fixed and template Resources retain update, enable, disable,
 
   fixed.remove()
   template.remove()
+  assert.equal((await connection.client.listResources()).resources.some(resource =>
+    resource.uri === "memo://example/updated"
+  ), false)
+  assert.equal((await connection.client.listResourceTemplates()).resourceTemplates.some(entry =>
+    entry.name === "lifecycle-template-updated"
+  ), false)
   await assertResourceError(
     () => connection.client.readResource({ uri: "memo://example/updated" }),
     ErrorCode.InvalidParams
@@ -599,6 +707,64 @@ test("post-creation fixed and template Resources retain update, enable, disable,
     () => connection.client.readResource({ uri: "note-template://third" }),
     ErrorCode.InvalidParams
   )
+
+  assert.ok(lifecycleServer)
+  lifecycleServer.registerResource(
+    "replacement-fixed",
+    "memo://example/updated",
+    { mimeType: "text/plain" },
+    async uri => ({ contents: [{ uri: uri.href, text: "replacement fixed" }] })
+  )
+  lifecycleServer.registerResource(
+    "lifecycle-template-updated",
+    new ResourceTemplate("note-template://{name}", { list: undefined }),
+    { mimeType: "text/plain" },
+    async uri => ({ contents: [{ uri: uri.href, text: "replacement template" }] })
+  )
+  assert.equal(
+    resourceText(await connection.client.readResource({ uri: "memo://example/updated" })),
+    "replacement fixed"
+  )
+  assert.equal(
+    resourceText(await connection.client.readResource({ uri: "note-template://fourth" })),
+    "replacement template"
+  )
+})
+
+test("template list callbacks merge template metadata with listed Resource metadata", async t => {
+  const connection = await connectedClient(baseService(), server => {
+    server.registerResource(
+      "catalog-template",
+      new ResourceTemplate("catalog://{name}", {
+        list: async () => ({
+          resources: [{
+            uri: "catalog://one",
+            name: "catalog-one",
+            title: "Listed title",
+            mimeType: "text/plain"
+          }]
+        })
+      }),
+      {
+        title: "Template title",
+        description: "Template description",
+        mimeType: "application/json"
+      },
+      async uri => ({ contents: [{ uri: uri.href, text: "catalog" }] })
+    )
+  })
+  t.after(() => connection.close())
+
+  const listed = (await connection.client.listResources()).resources.find(resource =>
+    resource.uri === "catalog://one"
+  )
+  assert.deepEqual(listed, {
+    uri: "catalog://one",
+    name: "catalog-one",
+    title: "Listed title",
+    description: "Template description",
+    mimeType: "text/plain"
+  })
 })
 
 test("sap.system.inspect rejects malformed canonical IDs before service calls", async t => {
