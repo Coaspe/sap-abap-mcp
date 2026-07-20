@@ -112,6 +112,34 @@ test("failure redacts a standalone bearer credential in nested detail text", () 
   assert.equal(serialized.includes("detail-secret"), false)
 })
 
+test("failure does not execute an enumerable root toJSON after redaction", () => {
+  const result = v1Failure(new AppError("SAP_OPERATION_FAILED", "SAP failed", {
+    diagnostic: "safe root diagnostic",
+    toJSON() {
+      return { access_token: "root-to-json-secret" }
+    }
+  }))
+  const serialized = result.content[0]?.type === "text" ? result.content[0].text : ""
+
+  assert.equal(serialized.includes("root-to-json-secret"), false)
+  assert.equal(serialized.includes("safe root diagnostic"), true)
+})
+
+test("failure does not execute an enumerable nested toJSON after redaction", () => {
+  const result = v1Failure(new AppError("SAP_OPERATION_FAILED", "SAP failed", {
+    nested: {
+      diagnostic: "safe nested diagnostic",
+      toJSON() {
+        return { authorization: "Bearer nested-to-json-secret" }
+      }
+    }
+  }))
+  const serialized = result.content[0]?.type === "text" ? result.content[0].text : ""
+
+  assert.equal(serialized.includes("nested-to-json-secret"), false)
+  assert.equal(serialized.includes("safe nested diagnostic"), true)
+})
+
 test("success derives text and structured content from one JSON-safe envelope", () => {
   const result = v1Success({
     kept: "value",

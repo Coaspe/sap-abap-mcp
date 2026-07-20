@@ -81,6 +81,11 @@ function isSensitiveKey(key: string): boolean {
 }
 
 function redactValue(value: unknown, seen: WeakSet<object>): unknown {
+  if (
+    value === undefined ||
+    typeof value === "function" ||
+    typeof value === "symbol"
+  ) return undefined
   if (typeof value === "string") return redactSensitiveText(value)
   if (typeof value === "bigint") return String(value)
   if (value === null || typeof value !== "object") return value
@@ -95,9 +100,10 @@ function redactValue(value: unknown, seen: WeakSet<object>): unknown {
 
   const result: Record<string, unknown> = {}
   for (const [key, child] of Object.entries(value)) {
-    result[key] = isSensitiveKey(key)
+    const redacted = isSensitiveKey(key)
       ? "[REDACTED]"
       : redactValue(child, seen)
+    if (redacted !== undefined) result[key] = redacted
   }
   seen.delete(value)
   return result
@@ -127,7 +133,10 @@ function canonicalSuccess(
 }
 
 function boundedDetails(details: Record<string, unknown>): Record<string, unknown> {
-  const redacted = redactValue(details, new WeakSet()) as Record<string, unknown>
+  const candidate = redactValue(details, new WeakSet())
+  const redacted = candidate && typeof candidate === "object" && !Array.isArray(candidate)
+    ? candidate as Record<string, unknown>
+    : {}
   const serialized = JSON.stringify(redacted)
   const originalBytes = Buffer.byteLength(serialized, "utf8")
   if (originalBytes <= ERROR_DETAIL_BYTE_LIMIT) return redacted
