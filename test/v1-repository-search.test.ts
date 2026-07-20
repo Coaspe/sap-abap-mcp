@@ -18,7 +18,8 @@ const V1_TOOL_NAMES = [
   "sap.system.list",
   "sap.system.inspect",
   "sap.system.capabilities",
-  "sap.repository.search"
+  "sap.repository.search",
+  "sap.source.read"
 ] as const
 
 function unused<T>(name: string): T {
