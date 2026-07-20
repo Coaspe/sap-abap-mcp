@@ -18,6 +18,8 @@ knowledge held by this repository's owner.
 - Preserve the current 53-tool contract as the v0 compatibility surface.
 - Introduce a separate v1 contract and run v0 and v1 in parallel during a
   documented migration window.
+- Keep an unversioned `serve` invocation on v0 for the complete 1.x line. v1
+  requires the explicit `--api-version v1` flag.
 - Use an open core, SAP adapter, policy, MCP contract, and conformance design.
 - Keep local `stdio` as the default deployment and security boundary.
 - Add only code boundaries in v1.0; do not split the repository into multiple
@@ -159,19 +161,24 @@ serve --api-version all
 
 The exact flag is part of the public CLI contract and will be tested.
 
-- v0 remains the default through the 0.x beta releases.
-- v1 is opt-in while its schemas and mappings are being validated.
+- An unversioned `serve` invocation remains v0 throughout the 0.x and 1.x
+  releases. This preserves existing `@latest serve` configurations.
+- v1 is always selected explicitly with `--api-version v1` in the 1.x line.
 - `all` is intended for migration testing and schema comparison. It is not the
   recommended daily configuration because it exposes duplicate capabilities.
-- At 1.0.0, v1 becomes the default only after every v0 tool and action has a
-  tested v1 equivalent or an explicit extension or v0-only disposition. Until
-  that gate passes, releases remain pre-1.0 and v0 remains the default.
-- v0 receives compatibility and security fixes for at least two v1 minor
-  releases and no less than six months after 1.0.0.
-- Removal requires a major release and an earlier deprecation notice.
+- At 1.0.0, v1 becomes stable but remains opt-in. The release requires every v0
+  tool and action to have a tested v1 equivalent or an explicit extension or
+  v0-only disposition.
+- v0 receives compatibility and security fixes throughout the 1.x line.
+- Changing the unversioned default or removing v0 requires the next major
+  release, an earlier deprecation notice, at least two v1 minor releases, and no
+  less than six months of public migration time.
 
-The package, MCPB, and plugins select an API version explicitly once v1 becomes
-stable so a future default change cannot silently alter their tool surface.
+Existing package, MCPB, and plugin configurations without a version flag remain
+on v0. Official v1 installation instructions and new v1-specific distribution
+entries include `--api-version v1` explicitly. An existing plugin identifier is
+not silently changed to v1; its user must perform an explicit migration or
+install an explicitly labeled v1 distribution entry.
 
 ## v1 Tool Design Rules
 
@@ -667,9 +674,9 @@ target the same behavior later without copying internal code.
 1. Add PR CI and supply-chain artifacts.
 2. Publish migration, security, contribution, and support policies.
 3. Complete the host and platform matrix.
-4. Release candidates retain v0 as the default until the v1 gates pass.
-5. Release 1.0.0 with v1 as the explicit default and the documented v0 support
-   window.
+4. Release candidates and unversioned `serve` retain v0 as the default.
+5. Release 1.0.0 with v1 stable behind `--api-version v1` and v0 preserved for
+   unversioned invocations throughout the 1.x line.
 
 ## Post-v1.0 Roadmap
 
@@ -724,6 +731,13 @@ as separate evidence dimensions.
 Changing empty allowlist semantics can either break users or preserve unsafe
 defaults. Require explicit v1 profile review, keep v0 behavior during its support
 window, and never silently convert an empty list to unrestricted writes.
+
+### Silent default migration
+
+Current public setup commands use `@latest serve` without an API-version flag.
+Changing that invocation to v1 would bypass the intended parallel transition.
+Keep it on v0 for the 1.x line, require an explicit v1 flag or distribution
+entry, and test the unversioned default as part of the public CLI contract.
 
 ### Host feature inconsistency
 
