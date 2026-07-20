@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto"
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
+import {
+  ErrorCode,
+  McpError,
+  type CallToolResult
+} from "@modelcontextprotocol/sdk/types.js"
 import {
   isAdtError,
   isAdtException,
@@ -79,80 +83,134 @@ function isSensitiveKey(key: string): boolean {
   return SENSITIVE_KEY_PARTS.some(part => normalized.includes(part))
 }
 
-function quotedValue(
+interface SensitiveAssignment {
+  valueStart: number
+  valueEnd: number
+  replacement: string
+}
+
+function isAssignmentKeyCharacter(character: string | undefined): boolean {
+  return character !== undefined && /[A-Za-z0-9_-]/.test(character)
+}
+
+function isAssignmentWhitespace(character: string | undefined): boolean {
+  return character !== undefined && /\s/.test(character)
+}
+
+function findSensitiveAssignment(
   value: string,
   start: number
-): { end: number; closed: boolean } | undefined {
-  const quote = value[start]
-  if (quote !== '"' && quote !== "'") return undefined
+): SensitiveAssignment | undefined {
+  if (start > 0 && isAssignmentKeyCharacter(value[start - 1])) return undefined
 
-  for (let index = start + 1; index < value.length; index += 1) {
-    const character = value[index]
-    if (character === "\\") {
-      index += 1
-      continue
-    }
-    if (character === quote) return { end: index + 1, closed: true }
-    if (character === "\r" || character === "\n") {
-      return { end: value.length, closed: false }
-    }
-  }
-  return { end: value.length, closed: false }
-}
+  let index = start
+  const keyQuote = value[index] === '"' || value[index] === "'"
+    ? value[index++]
+    : undefined
+  const keyStart = index
+  while (isAssignmentKeyCharacter(value[index])) index += 1
+  if (index === keyStart) return undefined
 
-function credentialValueEnd(value: string, start: number): number | undefined {
-  const credential = /^(?:Basic|Bearer)\s+/i.exec(value.slice(start))
-  if (!credential) return undefined
-  let index = start + credential[0].length
-  while (index < value.length && !/[\s,;&#}\]]/.test(value[index] ?? "")) {
+  const key = value.slice(keyStart, index)
+  if (keyQuote !== undefined) {
+    if (value[index] !== keyQuote) return undefined
     index += 1
   }
-  return index
-}
 
-function lineValueEnd(value: string, start: number): number {
-  const lineEnd = value.slice(start).search(/[\r\n]/)
-  return lineEnd < 0 ? value.length : start + lineEnd
+  let multiline = false
+  while (isAssignmentWhitespace(value[index])) {
+    multiline ||= value[index] === "\r" || value[index] === "\n"
+    index += 1
+  }
+  const delimiter = value[index]
+  if (delimiter !== ":" && delimiter !== "=") return undefined
+  index += 1
+  while (isAssignmentWhitespace(value[index])) {
+    multiline ||= value[index] === "\r" || value[index] === "\n"
+    index += 1
+  }
+  if (!isSensitiveKey(key)) return undefined
+
+  const valueStart = index
+  const valueQuote = value[index]
+  if (valueQuote === '"' || valueQuote === "'") {
+    let closed = false
+    index += 1
+    while (index < value.length) {
+      const character = value[index]
+      if (character === "\r" || character === "\n") break
+      if (character === "\\") {
+        index += 1
+        if (value[index] === "\r" || value[index] === "\n") break
+      } else if (character === valueQuote) {
+        index += 1
+        closed = true
+        break
+      }
+      index += 1
+    }
+
+    return {
+      valueStart,
+      valueEnd: multiline || !closed ? value.length : index,
+      replacement: `${valueQuote}[REDACTED]${closed ? valueQuote : ""}`
+    }
+  }
+
+  const scheme = value.slice(index, index + 6).toLowerCase()
+  const schemeLength = scheme.startsWith("basic")
+    ? 5
+    : scheme.startsWith("bearer")
+      ? 6
+      : 0
+  if (schemeLength > 0 && isAssignmentWhitespace(value[index + schemeLength])) {
+    index += schemeLength
+    let folded = false
+    while (isAssignmentWhitespace(value[index])) {
+      folded ||= value[index] === "\r" || value[index] === "\n"
+      index += 1
+    }
+    if (multiline || folded) {
+      return { valueStart, valueEnd: value.length, replacement: "[REDACTED]" }
+    }
+    while (
+      index < value.length &&
+      !isAssignmentWhitespace(value[index]) &&
+      !",;&#}]".includes(value[index] ?? "")
+    ) index += 1
+    if (delimiter === "=") {
+      return { valueStart, valueEnd: index, replacement: "[REDACTED]" }
+    }
+  }
+
+  if (multiline) {
+    return { valueStart, valueEnd: value.length, replacement: "[REDACTED]" }
+  }
+  if (delimiter === ":") {
+    while (index < value.length && value[index] !== "\r" && value[index] !== "\n") {
+      index += 1
+    }
+    return { valueStart, valueEnd: index, replacement: "[REDACTED]" }
+  }
+  while (
+    index < value.length &&
+    !isAssignmentWhitespace(value[index]) &&
+    !",;&#}]".includes(value[index] ?? "")
+  ) index += 1
+  return { valueStart, valueEnd: index, replacement: "[REDACTED]" }
 }
 
 function redactSensitiveAssignments(value: string): string {
-  const assignment = /(^|[^a-z0-9_-])(["']?)([a-z][a-z0-9_-]*)\2([ \t]*[:=]\s*)/gi
   let cursor = 0
   let result = ""
-  let match: RegExpExecArray | null
 
-  while ((match = assignment.exec(value)) !== null) {
-    const key = match[3] ?? ""
-    if (!isSensitiveKey(key)) continue
+  for (let start = 0; start < value.length; start += 1) {
+    const assignment = findSensitiveAssignment(value, start)
+    if (assignment === undefined) continue
 
-    const valueStart = assignment.lastIndex
-    const quote = value[valueStart]
-    const quoted = quotedValue(value, valueStart)
-    const credentialEnd = credentialValueEnd(value, valueStart)
-    const delimiter = match[4] ?? ""
-    const multiline = /[\r\n]/.test(delimiter)
-    let valueEnd: number
-    let replacement: string
-    if (quoted !== undefined) {
-      valueEnd = quoted.end
-      replacement = `${quote}[REDACTED]${quoted.closed ? quote : ""}`
-    } else if (credentialEnd !== undefined) {
-      valueEnd = multiline || delimiter.includes(":")
-        ? lineValueEnd(value, credentialEnd)
-        : credentialEnd
-      replacement = "[REDACTED]"
-    } else if (multiline || delimiter.includes(":")) {
-      valueEnd = lineValueEnd(value, valueStart)
-      replacement = "[REDACTED]"
-    } else {
-      const lineEnd = value.slice(valueStart).search(/[\s,;&#}\]]/)
-      valueEnd = lineEnd < 0 ? value.length : valueStart + lineEnd
-      replacement = "[REDACTED]"
-    }
-
-    result += value.slice(cursor, valueStart) + replacement
-    cursor = valueEnd
-    assignment.lastIndex = valueEnd
+    result += value.slice(cursor, assignment.valueStart) + assignment.replacement
+    cursor = assignment.valueEnd
+    start = Math.max(start, assignment.valueEnd - 1)
   }
 
   return result + value.slice(cursor)
@@ -186,7 +244,39 @@ function truncateUtf8(value: string, byteLimit: number): string {
 }
 
 export function sanitizeV1Message(value: string): string {
-  return truncateUtf8(redactSensitiveText(value), DIAGNOSTIC_TEXT_BYTE_LIMIT)
+  const redacted = redactSensitiveText(value)
+  const originalWasOversized = Buffer.byteLength(value, "utf8") > DIAGNOSTIC_TEXT_BYTE_LIMIT
+  const redactedFits = Buffer.byteLength(redacted, "utf8") <= DIAGNOSTIC_TEXT_BYTE_LIMIT
+  return truncateUtf8(
+    originalWasOversized && redactedFits ? redacted + TRUNCATION_MARKER : redacted,
+    DIAGNOSTIC_TEXT_BYTE_LIMIT
+  )
+}
+
+function stripRepeatedMcpPrefix(message: string, code: number): string {
+  const prefix = `MCP error ${code}: `
+  while (message.startsWith(prefix)) message = message.slice(prefix.length)
+  return message
+}
+
+export function toV1ProtocolError(
+  error: unknown,
+  fallbackMessage = "Operation failed"
+): McpError {
+  const raw = error instanceof McpError
+    ? stripRepeatedMcpPrefix(error.message, error.code)
+    : error instanceof Error
+      ? error.message
+      : String(error)
+  const message = sanitizeV1Message(raw) || fallbackMessage
+  const code = error instanceof McpError
+    ? error.code
+    : error instanceof AppError && error.code === "INVALID_ADT_URI"
+      ? ErrorCode.InvalidParams
+      : ErrorCode.InternalError
+  const converted = new McpError(code, message)
+  converted.message = message
+  return converted
 }
 
 function sanitizeDiagnosticValue(value: unknown, seen: WeakSet<object>): unknown {
