@@ -357,6 +357,11 @@ A timeout or lost connection after a mutation begins is `retryable: false` until
 the application service re-reads SAP state. v1 never automatically retries a
 mutation merely because the network failed.
 
+Input rejected by the MCP SDK before a tool callback runs is reported through
+the protocol's standard input-validation path. The v1 error envelope applies to
+failures after a valid request enters the operation. This preserves strict,
+machine-readable input schemas instead of advertising a permissive catch-all.
+
 ## Resources and Prompts
 
 v1.0 implements only Resources that remove repeated context or provide a stable
