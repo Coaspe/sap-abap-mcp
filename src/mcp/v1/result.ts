@@ -63,12 +63,81 @@ export interface V1SuccessOptions {
   }>
 }
 
-function redactSensitiveHeaders(value: string): string {
-  return value.replace(
-    /(^|[^a-z0-9-])(x-csrf-token|set-cookie|authorization|cookie)(\s*:\s*)[^\r\n]*/gi,
-    (_match, prefix, header, delimiter) =>
-      `${prefix}${header}${delimiter}[REDACTED]`
-  )
+const SENSITIVE_KEY_PARTS = [
+  "authorization",
+  "cookie",
+  "token",
+  "password",
+  "secret",
+  "csrf",
+  "session",
+  "apikey"
+] as const
+
+function isSensitiveKey(key: string): boolean {
+  const normalized = key.toLowerCase().replace(/[-_]/g, "")
+  return SENSITIVE_KEY_PARTS.some(part => normalized.includes(part))
+}
+
+function quotedValueEnd(value: string, start: number): number | undefined {
+  const quote = value[start]
+  if (quote !== '"' && quote !== "'") return undefined
+
+  for (let index = start + 1; index < value.length; index += 1) {
+    const character = value[index]
+    if (character === "\\") {
+      index += 1
+      continue
+    }
+    if (character === quote) return index + 1
+    if (character === "\r" || character === "\n") return index
+  }
+  return value.length
+}
+
+function unquotedValueEnd(value: string, start: number): number {
+  const credential = /^(?:Basic|Bearer)[ \t]+/i.exec(value.slice(start))
+  let index = start + (credential?.[0].length ?? 0)
+  while (index < value.length && !/[\s,;&#}\]]/.test(value[index] ?? "")) {
+    index += 1
+  }
+  return index
+}
+
+function redactSensitiveAssignments(value: string): string {
+  const assignment = /(^|[^a-z0-9_-])(["']?)([a-z][a-z0-9_-]*)\2([ \t]*[:=][ \t]*)/gi
+  let cursor = 0
+  let result = ""
+  let match: RegExpExecArray | null
+
+  while ((match = assignment.exec(value)) !== null) {
+    const key = match[3] ?? ""
+    if (!isSensitiveKey(key)) continue
+
+    const valueStart = assignment.lastIndex
+    const quote = value[valueStart]
+    const quotedEnd = quotedValueEnd(value, valueStart)
+    let valueEnd: number
+    let replacement: string
+    if (quotedEnd !== undefined) {
+      valueEnd = quotedEnd
+      const closed = quotedEnd > valueStart && value[quotedEnd - 1] === quote
+      replacement = `${quote}[REDACTED]${closed ? quote : ""}`
+    } else if ((match[4] ?? "").includes(":")) {
+      const lineEnd = value.slice(valueStart).search(/[\r\n]/)
+      valueEnd = lineEnd < 0 ? value.length : valueStart + lineEnd
+      replacement = "[REDACTED]"
+    } else {
+      valueEnd = unquotedValueEnd(value, valueStart)
+      replacement = "[REDACTED]"
+    }
+
+    result += value.slice(cursor, valueStart) + replacement
+    cursor = valueEnd
+    assignment.lastIndex = valueEnd
+  }
+
+  return result + value.slice(cursor)
 }
 
 function redactSensitiveText(value: string): string {
@@ -80,13 +149,7 @@ function redactSensitiveText(value: string): string {
     /\bBearer\s+[^\s,;&#}\]]+/gi,
     "Bearer [REDACTED]"
   )
-  const redacted = bearerRedacted.replace(
-    /(^|[^a-z0-9_-])(["']?)(x-csrf-token|set-cookie|access_token|refresh_token|csrf[-_]token|session_id|password|authorization|token|cookie|csrf|session)\2(\s*[:=]\s*)(?:(["'])([\s\S]*?)\5|((?:(?:Basic|Bearer)\s+)?[^\s,;&#}\]]+))/gi,
-    (_match, prefix, labelQuote, label, delimiter, valueQuote) =>
-      `${prefix}${labelQuote}${label}${labelQuote}${delimiter}` +
-      (valueQuote ? `${valueQuote}[REDACTED]${valueQuote}` : "[REDACTED]")
-  )
-  return redactSensitiveHeaders(redacted)
+  return redactSensitiveAssignments(bearerRedacted)
 }
 
 function truncateUtf8(value: string, byteLimit: number): string {
@@ -106,10 +169,6 @@ function truncateUtf8(value: string, byteLimit: number): string {
 
 export function sanitizeV1Message(value: string): string {
   return truncateUtf8(redactSensitiveText(value), DIAGNOSTIC_TEXT_BYTE_LIMIT)
-}
-
-function isSensitiveKey(key: string): boolean {
-  return /authorization|cookie|token|password|secret|csrf|session/i.test(key)
 }
 
 function sanitizeDiagnosticValue(value: unknown, seen: WeakSet<object>): unknown {

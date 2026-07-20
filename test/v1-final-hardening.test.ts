@@ -3,6 +3,12 @@ import test from "node:test"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
+  ResourceTemplate,
+  type McpServer,
+  type RegisteredResource,
+  type RegisteredResourceTemplate
+} from "@modelcontextprotocol/sdk/server/mcp.js"
+import {
   ErrorCode,
   McpError,
   type CallToolResult
@@ -18,7 +24,12 @@ const SECRET_DIAGNOSTIC = [
   "GET https://url-user:url-pass@sap.example.test failed",
   "Authorization=Basic basic-assignment-secret",
   "Authorization: Bearer bearer-header-secret",
-  "token=bearer-assignment-secret"
+  "token=bearer-assignment-secret",
+  "client_secret=client-secret-value",
+  "clientsecret=compact-secret-value",
+  "api_key=api-key-value",
+  "Proxy-Authorization: Basic proxy-secret-value",
+  'client_secret="prefix\\"escaped-quote-secret"'
 ].join("\n")
 
 const SECRET_VALUES = [
@@ -26,13 +37,22 @@ const SECRET_VALUES = [
   "url-pass",
   "basic-assignment-secret",
   "bearer-header-secret",
-  "bearer-assignment-secret"
+  "bearer-assignment-secret",
+  "client-secret-value",
+  "compact-secret-value",
+  "api-key-value",
+  "proxy-secret-value",
+  "escaped-quote-secret"
 ]
 
 const RAW_ABAP_SOURCE = [
   "REPORT z_secret_literals.",
   "DATA(url) = 'https://code-user:code-pass@example.test'.",
-  "DATA(auth) = 'Authorization=Basic code-secret'."
+  "DATA(auth) = 'Authorization=Basic code-secret'.",
+  "DATA(client_secret) = 'raw-client-secret'.",
+  "DATA(api_key) = 'raw-api-key'.",
+  "DATA(proxy_auth) = 'Proxy-Authorization: Basic raw-proxy-secret'.",
+  `'client_secret="raw-prefix\\"raw-escaped-secret"'.`
 ].join("\n")
 
 function unused<T>(name: string): T {
@@ -98,8 +118,12 @@ function capabilityResult(warnings: string[], evidence: string[]) {
   }
 }
 
-async function connectedClient(service: V1ReadService | AbapToolService) {
+async function connectedClient(
+  service: V1ReadService | AbapToolService,
+  configure?: (server: McpServer) => void
+) {
   const server = createMcpServer(service as AbapToolService, { apiVersion: "v1" })
+  configure?.(server)
   const client = new Client({ name: "v1-final-hardening", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   await server.connect(serverTransport)
@@ -118,6 +142,11 @@ function text(result: CallToolResult): string {
   assert.equal(content?.type, "text")
   if (content?.type !== "text") throw new Error("expected text content")
   return content.text
+}
+
+function resourceText(result: { contents: Array<{ text: string } | { blob: string }> }): string {
+  const content = result.contents[0]
+  return content && "text" in content ? content.text : ""
 }
 
 function assertSecretsAbsent(serialized: string): void {
@@ -300,7 +329,22 @@ test("both Resource service failures stay Resource errors with sanitized message
       ErrorCode.InternalError
     )
     assertSecretsAbsent(error.message)
+    assert.equal((error.message.match(/MCP error -32603:/g) ?? []).length, 1)
   }
+})
+
+test("Resource service failures have one exact client-side MCP prefix", async t => {
+  const connection = await connectedClient(baseService({
+    async getSapCapabilities() { throw new Error("upstream unavailable") }
+  }))
+  t.after(() => connection.close())
+
+  const error = await assertResourceError(
+    () => connection.client.readResource({ uri: "sap-capability://dev100" }),
+    ErrorCode.InternalError
+  )
+
+  assert.equal(error.message, "MCP error -32603: upstream unavailable")
 })
 
 test("raw C0 controls in Resource authorities and paths are invalid params with zero SAP calls", async t => {
@@ -334,6 +378,69 @@ test("raw C0 controls in Resource authorities and paths are invalid params with 
         ErrorCode.InvalidParams
       )
     }
+  }
+
+  assert.equal(calls, 0)
+})
+
+test("actual ADT Resource reads preserve ordinary and trailing path spaces", async t => {
+  const requestedPaths: string[] = []
+  const connection = await connectedClient(baseService({
+    async getObjectByUri(input) {
+      requestedPaths.push(input.uri)
+      return {
+        connectionId: input.connectionId,
+        requestedUri: input.uri,
+        sourceUri: input.uri,
+        startLine: 0,
+        endLine: 1,
+        totalLines: 1,
+        truncated: false,
+        nextLine: null,
+        code: "REPORT zspace."
+      }
+    }
+  }))
+  t.after(() => connection.close())
+
+  const uri = "adt://dev100/sap/bc/adt/oo/classes/zcl demo/source/main "
+  const result = await connection.client.readResource({ uri })
+
+  assert.deepEqual(requestedPaths, [
+    "/sap/bc/adt/oo/classes/zcl%20demo/source/main%20"
+  ])
+  assert.equal(
+    result.contents[0]?.uri,
+    "adt://dev100/sap/bc/adt/oo/classes/zcl%20demo/source/main%20"
+  )
+})
+
+test("actual v1 Resource reads reject explicit empty userinfo and port syntax", async t => {
+  let calls = 0
+  const connection = await connectedClient(baseService({
+    async getSapCapabilities() {
+      calls += 1
+      return capabilityResult([], [])
+    },
+    async getObjectByUri() {
+      calls += 1
+      throw new Error("must not be called")
+    }
+  }))
+  t.after(() => connection.close())
+
+  for (const uri of [
+    "adt://@dev100/sap/bc/adt/oo/classes/zcl_demo",
+    "adt://:@dev100/sap/bc/adt/oo/classes/zcl_demo",
+    "adt://dev100:/sap/bc/adt/oo/classes/zcl_demo",
+    "sap-capability://@dev100",
+    "sap-capability://:@dev100",
+    "sap-capability://dev100:"
+  ]) {
+    await assertResourceError(
+      () => connection.client.readResource({ uri }),
+      ErrorCode.InvalidParams
+    )
   }
 
   assert.equal(calls, 0)
@@ -376,6 +483,121 @@ test("Resource URI validation is invalid params while preserving template metada
       uriTemplate: "adt://{system}/{+adtPath}",
       mimeType: "text/x-abap"
     }]
+  )
+})
+
+test("a fixed Resource registered after server creation is listed and readable", async t => {
+  const connection = await connectedClient(baseService(), server => {
+    server.registerResource(
+      "third-fixed-resource",
+      "memo://example/third",
+      {
+        title: "Third Fixed Resource",
+        description: "A fixed Resource registered by a caller.",
+        mimeType: "text/plain"
+      },
+      async uri => ({
+        contents: [{ uri: uri.href, mimeType: "text/plain", text: "third content" }]
+      })
+    )
+  })
+  t.after(() => connection.close())
+
+  const listed = (await connection.client.listResources()).resources.find(
+    resource => resource.name === "third-fixed-resource"
+  )
+  assert.deepEqual(listed, {
+    name: "third-fixed-resource",
+    title: "Third Fixed Resource",
+    description: "A fixed Resource registered by a caller.",
+    uri: "memo://example/third",
+    mimeType: "text/plain"
+  })
+
+  const read = await connection.client.readResource({ uri: "memo://example/third" })
+  assert.equal(read.contents[0] && "text" in read.contents[0] ? read.contents[0].text : "", "third content")
+})
+
+test("post-creation fixed and template Resources retain update, enable, disable, and remove behavior", async t => {
+  let fixed: RegisteredResource | undefined
+  let template: RegisteredResourceTemplate | undefined
+  const connection = await connectedClient(baseService(), server => {
+    fixed = server.registerResource(
+      "lifecycle-fixed",
+      "memo://example/original",
+      { mimeType: "text/plain" },
+      async uri => ({ contents: [{ uri: uri.href, text: "fixed-original" }] })
+    )
+    template = server.registerResource(
+      "lifecycle-template",
+      new ResourceTemplate("memo-template://{name}", { list: undefined }),
+      { mimeType: "text/plain" },
+      async (uri, variables) => ({
+        contents: [{ uri: uri.href, text: `template-original:${variables.name}` }]
+      })
+    )
+  })
+  t.after(() => connection.close())
+  assert.ok(fixed)
+  assert.ok(template)
+
+  fixed.update({
+    uri: "memo://example/updated",
+    callback: async uri => ({ contents: [{ uri: uri.href, text: "fixed-updated" }] })
+  })
+  assert.equal(
+    resourceText(await connection.client.readResource({ uri: "memo://example/updated" })),
+    "fixed-updated"
+  )
+  await assertResourceError(
+    () => connection.client.readResource({ uri: "memo://example/original" }),
+    ErrorCode.InvalidParams
+  )
+  fixed.disable()
+  await assertResourceError(
+    () => connection.client.readResource({ uri: "memo://example/updated" }),
+    ErrorCode.InvalidParams
+  )
+  fixed.enable()
+  assert.equal(
+    resourceText(await connection.client.readResource({ uri: "memo://example/updated" })),
+    "fixed-updated"
+  )
+
+  template.update({
+    template: new ResourceTemplate("note-template://{name}", { list: undefined }),
+    callback: async (uri, variables) => ({
+      contents: [{ uri: uri.href, text: `template-updated:${variables.name}` }]
+    })
+  })
+  await assertResourceError(
+    () => connection.client.readResource({ uri: "memo-template://first" }),
+    ErrorCode.InvalidParams
+  )
+  assert.equal(
+    resourceText(await connection.client.readResource({ uri: "note-template://second" })),
+    "template-updated:second"
+  )
+  template.disable()
+  await assertResourceError(
+    () => connection.client.readResource({ uri: "note-template://second" }),
+    ErrorCode.InvalidParams
+  )
+  template.enable()
+  assert.equal(
+    resourceText(await connection.client.readResource({ uri: "note-template://third" })),
+    "template-updated:third"
+  )
+
+  fixed.remove()
+  template.remove()
+  await assertResourceError(
+    () => connection.client.readResource({ uri: "memo://example/updated" }),
+    ErrorCode.InvalidParams
+  )
+  await assertResourceError(
+    () => connection.client.readResource({ uri: "note-template://third" }),
+    ErrorCode.InvalidParams
   )
 })
 
