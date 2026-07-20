@@ -3,6 +3,7 @@ import { AppError } from "../../errors.js"
 const SYSTEM_ID_PATTERN = /^[A-Z0-9_-]+$/
 const ADT_PATH_PREFIX = "/sap/bc/adt/"
 const MALFORMED_PERCENT_PATTERN = /%(?![0-9A-Fa-f]{2})/
+const URL_PREPROCESSING_PATTERN = /[\t\n\r]/
 
 export interface ParsedAdtResourceUri {
   systemId: string
@@ -18,11 +19,30 @@ function parseUrl(value: string): URL {
   if (MALFORMED_PERCENT_PATTERN.test(value)) {
     return invalidUri("URI contains a malformed percent escape")
   }
+  if (URL_PREPROCESSING_PATTERN.test(value)) {
+    return invalidUri("URI contains a disallowed preprocessing character")
+  }
+  assertNoRawAuthoritySyntax(value)
 
   try {
-    return new URL(value)
+    return new URL(value.replaceAll(" ", "%20"))
   } catch {
     return invalidUri("URI is malformed")
+  }
+}
+
+function assertNoRawAuthoritySyntax(value: string): void {
+  const schemeEnd = value.indexOf("://")
+  if (schemeEnd === -1) return
+
+  const authorityStart = schemeEnd + 3
+  const pathStart = value.indexOf("/", authorityStart)
+  const authority = value.slice(
+    authorityStart,
+    pathStart === -1 ? value.length : pathStart
+  )
+  if (authority.includes("@") || authority.includes(":")) {
+    invalidUri("URI userinfo and port syntax are not allowed")
   }
 }
 

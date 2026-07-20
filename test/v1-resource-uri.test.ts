@@ -69,6 +69,34 @@ test("ADT URI parser canonicalizes scheme, authority, and spaces", () => {
   )
 })
 
+test("ADT URI functions preserve trailing path spaces as encoded data", () => {
+  const canonicalUri = "adt://dev100/sap/bc/adt/oo/classes/zcl_demo%20"
+
+  assert.equal(
+    toAdtResourceUri("DEV100", "/sap/bc/adt/oo/classes/zcl_demo "),
+    canonicalUri
+  )
+  assert.deepEqual(
+    parseAdtResourceUri("adt://dev100/sap/bc/adt/oo/classes/zcl_demo "),
+    {
+      systemId: "DEV100",
+      adtPath: "/sap/bc/adt/oo/classes/zcl_demo%20",
+      canonicalUri
+    }
+  )
+})
+
+test("URI parsers reject raw WHATWG preprocessing characters", () => {
+  for (const character of ["\t", "\n", "\r"]) {
+    assertInvalid(() => parseAdtResourceUri(
+      `adt://dev${character}100/sap/bc/adt/oo/classes/zcl_demo`
+    ))
+    assertInvalid(() => parseCapabilityResourceUri(
+      `sap-capability://dev${character}100`
+    ))
+  }
+})
+
 test("ADT URI functions reject non-ADT paths and malformed percent escapes", () => {
   for (const path of ["/not/adt", "/sap/bc/adt/oo/classes/%ZZ"]) {
     assertInvalid(() => toAdtResourceUri("DEV100", path))
@@ -101,6 +129,16 @@ test("ADT URI parser rejects a non-canonical profile authority", () => {
   ))
 })
 
+test("ADT URI parser rejects explicit empty userinfo and port syntax", () => {
+  for (const uri of [
+    "adt://@dev100/sap/bc/adt/oo/classes/zcl_demo",
+    "adt://:@dev100/sap/bc/adt/oo/classes/zcl_demo",
+    "adt://dev100:/sap/bc/adt/oo/classes/zcl_demo"
+  ]) {
+    assertInvalid(() => parseAdtResourceUri(uri))
+  }
+})
+
 test("capability URI builder and parser use canonical system identities", () => {
   assert.equal(toCapabilityResourceUri("DEV100"), "sap-capability://dev100")
   assert.deepEqual(parseCapabilityResourceUri("SAP-CAPABILITY://DEV100"), {
@@ -120,6 +158,16 @@ test("capability URI parser rejects authority-changing and extra components", ()
     "sap-capability://dev100#detail",
     "sap-capability://dev%ZZ",
     "adt://dev100"
+  ]) {
+    assertInvalid(() => parseCapabilityResourceUri(uri))
+  }
+})
+
+test("capability URI parser rejects explicit empty userinfo and port syntax", () => {
+  for (const uri of [
+    "sap-capability://@dev100",
+    "sap-capability://:@dev100",
+    "sap-capability://dev100:"
   ]) {
     assertInvalid(() => parseCapabilityResourceUri(uri))
   }
