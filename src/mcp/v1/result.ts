@@ -1,12 +1,19 @@
 import { randomUUID } from "node:crypto"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
+import { z } from "zod"
 import { AppError, errorPayload } from "../../errors.js"
 import {
   V1_SCHEMA_VERSION,
+  V1_ERROR_SCHEMA,
+  V1_SUCCESS_SHAPE,
   type V1ErrorCategory
 } from "./contracts.js"
 
 const ERROR_DETAIL_BYTE_LIMIT = 8 * 1024
+const V1_SUCCESS_SCHEMA = z.object({
+  ...V1_SUCCESS_SHAPE,
+  data: z.record(z.string(), z.unknown())
+})
 
 const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
   AUTH_REQUIRED: "authentication",
@@ -56,7 +63,11 @@ function redactSensitiveHeaders(value: string): string {
 }
 
 function redactSensitiveText(value: string): string {
-  const redacted = value.replace(
+  const bearerRedacted = value.replace(
+    /\bBearer\s+[^\s,;&#}\]]+/gi,
+    "Bearer [REDACTED]"
+  )
+  const redacted = bearerRedacted.replace(
     /(^|[^a-z0-9_-])(["']?)(x-csrf-token|set-cookie|access_token|refresh_token|csrf[-_]token|session_id|password|authorization|token|cookie|csrf|session)\2(\s*[:=]\s*)(?:(["'])([\s\S]*?)\5|((?:Bearer\s+)?[^\s,;&#}\]]+))/gi,
     (_match, prefix, labelQuote, label, delimiter, valueQuote) =>
       `${prefix}${labelQuote}${label}${labelQuote}${delimiter}` +
@@ -92,6 +103,29 @@ function redactValue(value: unknown, seen: WeakSet<object>): unknown {
   return result
 }
 
+function invalidSuccessResult(): never {
+  throw new AppError(
+    "V1_RESULT_INVALID",
+    "v1 success result does not match its declared schema"
+  )
+}
+
+function canonicalSuccess(
+  candidate: Record<string, unknown>
+): { envelope: Record<string, unknown>; text: string } {
+  let jsonSafe: unknown
+  try {
+    jsonSafe = JSON.parse(JSON.stringify(candidate)) as unknown
+  } catch {
+    return invalidSuccessResult()
+  }
+
+  const parsed = V1_SUCCESS_SCHEMA.safeParse(jsonSafe)
+  if (!parsed.success) return invalidSuccessResult()
+  const envelope: Record<string, unknown> = parsed.data
+  return { envelope, text: JSON.stringify(envelope) }
+}
+
 function boundedDetails(details: Record<string, unknown>): Record<string, unknown> {
   const redacted = redactValue(details, new WeakSet()) as Record<string, unknown>
   const serialized = JSON.stringify(redacted)
@@ -124,7 +158,7 @@ export function v1Success(
   data: Record<string, unknown>,
   options: V1SuccessOptions = {}
 ): CallToolResult {
-  const envelope: Record<string, unknown> = {
+  const candidate: Record<string, unknown> = {
     schemaVersion: V1_SCHEMA_VERSION,
     requestId: options.requestId ?? randomUUID(),
     status: options.status ?? "succeeded",
@@ -134,6 +168,7 @@ export function v1Success(
     ...(options.evidence !== undefined ? { evidence: options.evidence } : {}),
     ...(options.page !== undefined ? { page: options.page } : {})
   }
+  const { envelope, text } = canonicalSuccess(candidate)
   const links = (options.resourceLinks ?? []).map(link => ({
     type: "resource_link" as const,
     uri: link.uri,
@@ -143,28 +178,39 @@ export function v1Success(
   }))
 
   return {
-    content: [{ type: "text", text: JSON.stringify(envelope) }, ...links],
+    content: [{ type: "text", text }, ...links],
     structuredContent: envelope
   }
 }
 
-export function v1Failure(error: unknown, requestId = randomUUID()): CallToolResult {
+export function v1Failure(error: unknown, requestId?: string): CallToolResult {
   const payload = errorPayload(error)
+  const code = typeof payload.code === "string" && payload.code.length > 0
+    ? payload.code
+    : "INTERNAL_ERROR"
+  const redactedMessage = typeof payload.message === "string"
+    ? redactSensitiveText(payload.message)
+    : ""
+  const message = redactedMessage.length > 0
+    ? redactedMessage
+    : "Internal operation failed"
   const category = error instanceof AppError
-    ? ERROR_CATEGORIES[payload.code] ?? "internal"
+    ? ERROR_CATEGORIES[code] ?? "internal"
     : "internal"
   const retryable = error instanceof AppError &&
     error.code === "SAP_OPERATION_FAILED" &&
     RETRYABLE_SAP_STATUSES.has(error.details?.httpStatus as number)
-  const envelope: Record<string, unknown> = {
+  const envelope = V1_ERROR_SCHEMA.parse({
     schemaVersion: V1_SCHEMA_VERSION,
-    requestId,
-    code: payload.code,
+    requestId: typeof requestId === "string" && requestId.length > 0
+      ? requestId
+      : randomUUID(),
+    code,
     category,
-    message: redactSensitiveText(payload.message),
+    message,
     retryable,
     ...(payload.details ? { details: boundedDetails(payload.details) } : {})
-  }
+  })
 
   return {
     content: [{ type: "text", text: JSON.stringify(envelope) }],
