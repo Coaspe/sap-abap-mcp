@@ -1,0 +1,65 @@
+name: Professional services inquiry
+description: Ask about a paid compatibility assessment or DEV/QAS pilot without sharing confidential information.
+title: "Professional services inquiry: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only for non-confidential background. Do not post SAP host names, credentials, source code, tokens, customer data, or internal architecture.
+  - type: dropdown
+    id: service
+    attributes:
+      label: Service
+      options:
+        - Compatibility assessment
+        - Five-day DEV/QAS pilot
+        - Ongoing adoption support
+        - Not sure yet
+    validations:
+      required: true
+  - type: input
+    id: organization
+    attributes:
+      label: Organization type
+      description: For example, SAP partner, internal ERP team, or independent consultant. A company name is optional.
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Intended outcome
+      description: Describe the workflow you want to evaluate without confidential system details.
+      placeholder: Evaluate read-only ABAP inspection and ATC from Codex in a DEV environment.
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Authorized environment
+      options:
+        - DEV only
+        - DEV and QAS
+        - No environment available yet
+        - Other non-production environment
+    validations:
+      required: true
+  - type: input
+    id: timezone
+    attributes:
+      label: Timezone and preferred working hours
+      placeholder: Asia/Seoul, weekdays 09:00-18:00
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Non-confidential constraints
+      description: Mention known restrictions such as VPN-only access, SSO-only authentication, or unavailable ADT. Do not include endpoints or account details.
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have not included credentials, source code, tokens, customer data, host names, or internal architecture in this public issue.
+          required: true

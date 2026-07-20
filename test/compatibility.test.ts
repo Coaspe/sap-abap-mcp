@@ -115,10 +115,27 @@ test("bundled documentation states exact parity, verification, and runtime bound
 test("published guides preserve current counts and live acceptance safety boundaries", () => {
   const readme = readFileSync("README.md", "utf8")
   const acceptance = readFileSync("docs/live-sap-acceptance.md", "utf8")
+  const matrix = readFileSync("docs/compatibility-matrix.md", "utf8")
+  const evidenceSchema = JSON.parse(
+    readFileSync("docs/compatibility-evidence.schema.json", "utf8")
+  )
 
   assert.match(readme, /complete 53-tool schema/)
   assert.doesNotMatch(readme, /50-tool|eight grouped|eight extension|all 42 MCP tools/)
   assert.match(acceptance, /"status": "<supported\|unsupported\|unverified>"/)
+  assert.match(acceptance, /"scope": "live-sap"/)
+  assert.match(acceptance, /compatibility-evidence\.schema\.json/)
+  assert.match(matrix, /does not prove support for a particular SAP release/)
+  assert.match(matrix, /Sanitized live evidence committed to this repository \| Not supplied/)
+  assert.match(matrix, /npm run benchmark:surface/)
+  assert.equal(evidenceSchema.properties.schemaVersion.const, "1.0")
+  assert.deepEqual(evidenceSchema.properties.status.enum, [
+    "supported", "unsupported", "unverified"
+  ])
+  assert.equal(
+    evidenceSchema.allOf[0].then.properties.status.const,
+    "unverified"
+  )
   assert.match(
     acceptance,
     /Choose `supported` only after the relevant operation succeeds and a fresh `get_sap_capabilities` read for the same connection reports `supported`\./
@@ -129,6 +146,9 @@ test("published guides preserve current counts and live acceptance safety bounda
   )
   assert.match(acceptance, /returned `environment` is `production`/)
   assert.doesNotMatch(acceptance, /SAP reports a production system/)
+  assert.match(acceptance, /Create `CLAS\/OC` without `source`/)
+  assert.match(acceptance, /inside a method body/)
+  assert.match(acceptance, /`completion_element` at the referenced method token/)
 
   for (const tool of [
     "create_object_programmatically", "abap_activate", "run_abap_application",

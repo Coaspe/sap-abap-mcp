@@ -48,3 +48,47 @@ test("ProfileStore removes a profile", async t => {
   assert.equal(await store.remove("dev"), false)
   assert.deepEqual(await store.list(), [])
 })
+
+test("ProfileStore persists OAuth client metadata without changing the basic default", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-profile-oauth-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const store = new ProfileStore(directory)
+
+  const profile = await store.upsert({
+    id: "btp-dev",
+    url: "https://abap.example.test",
+    client: "100",
+    authType: "oauth_client_credentials",
+    tokenUrl: "https://auth.example.test/oauth/token",
+    clientId: "mcp-client",
+    scope: "abap.read abap.write"
+  })
+
+  assert.deepEqual(profile, {
+    id: "BTP-DEV",
+    url: "https://abap.example.test",
+    client: "100",
+    language: "EN",
+    environment: "development",
+    authType: "oauth_client_credentials",
+    tokenUrl: "https://auth.example.test/oauth/token",
+    clientId: "mcp-client",
+    scope: "abap.read abap.write",
+    allowedPackages: []
+  })
+  const storedText = await readFile(store.filePath, "utf8")
+  assert.equal(storedText.includes("clientSecret"), false)
+  assert.equal(storedText.includes("access_token"), false)
+})
+
+test("ProfileStore rejects OAuth token URLs containing embedded credentials or query data", async () => {
+  const store = new ProfileStore("/unused")
+  await assert.rejects(store.upsert({
+    id: "BTP",
+    url: "https://abap.example.test",
+    client: "100",
+    authType: "oauth_client_credentials",
+    tokenUrl: "https://client:secret@auth.example.test/oauth/token?secret=value",
+    clientId: "mcp-client"
+  }))
+})

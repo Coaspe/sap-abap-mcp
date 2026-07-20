@@ -320,3 +320,30 @@ test("setup wizard explains Linux environment authentication without collecting 
   assert.match(prompter.output.join("\n"), /SAP_ABAP_MCP_PASSWORD_DEV_100/)
   assert.equal((await profiles.get("DEV-100")).url, "https://sap.example.test")
 })
+
+test("setup wizard preserves an OAuth profile and redirects it to the explicit CLI", async t => {
+  const { profiles, secrets } = await setupStores(t)
+  const existing = await profiles.upsert({
+    id: "BTP100",
+    url: "https://abap.example.test",
+    client: "100",
+    authType: "oauth_client_credentials",
+    tokenUrl: "https://auth.example.test/oauth/token",
+    clientId: "mcp-client"
+  })
+  const prompter = new ScriptedPrompter(["BTP100"])
+
+  await assert.rejects(
+    runSetupWizard({
+      profiles,
+      secrets,
+      prompter,
+      platform: "darwin",
+      async validateCredentials() {
+        assert.fail("OAuth profile must not be changed by the Basic Auth wizard")
+      }
+    }),
+    error => error instanceof AppError && error.code === "PROFILE_AUTH_TYPE_UNSUPPORTED"
+  )
+  assert.deepEqual(await profiles.get("BTP100"), existing)
+})

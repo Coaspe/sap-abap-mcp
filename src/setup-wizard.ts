@@ -182,6 +182,13 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       prompter.write("No saved servers found. Let's add one.")
     }
 
+    if (existing?.authType === "oauth_client_credentials") {
+      throw new AppError(
+        "PROFILE_AUTH_TYPE_UNSUPPORTED",
+        "The interactive setup wizard manages Basic Auth profiles. Use profile add and auth login to manage an OAuth client-credentials profile."
+      )
+    }
+
     const serverName = mode === "edit" && existing
       ? existing.id
       : await requiredInput(

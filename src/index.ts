@@ -39,6 +39,8 @@ Commands:
   setup remove [<server-name>]
   profile add <id> --url <url> --client <nnn> [--language EN]
       [--environment development|quality|production] [--username <user>]
+      [--auth-type basic|oauth-client-credentials]
+      [--token-url <url> --client-id <id> [--scope <scope>]]
       [--packages ZPKG1,ZPKG2] [--login [--password-stdin]]
   profile list
   profile remove <id>
@@ -182,11 +184,16 @@ export async function addProfile(
     await profiles.upsert(input)
     return { profile }
   }
-  if (!profile.username) {
+  if (profile.authType === "basic" && !profile.username) {
     throw new AppError("USERNAME_REQUIRED", "Provide --username when using --login")
   }
   if (!login.password) {
-    throw new AppError("PASSWORD_REQUIRED", "SAP password cannot be empty")
+    throw new AppError(
+      profile.authType === "basic" ? "PASSWORD_REQUIRED" : "CLIENT_SECRET_REQUIRED",
+      profile.authType === "basic"
+        ? "SAP password cannot be empty"
+        : "OAuth client secret cannot be empty"
+    )
   }
   await login.validateCredentials(profile, login.password)
   await profiles.upsert(input)
@@ -209,6 +216,16 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     const environment = option(parsed, "environment")
     const username = option(parsed, "username")
     const packages = option(parsed, "packages")
+    const authTypeOption = option(parsed, "auth-type") ?? "basic"
+    if (authTypeOption !== "basic" && authTypeOption !== "oauth-client-credentials") {
+      throw new AppError(
+        "AUTH_TYPE_INVALID",
+        "--auth-type must be basic or oauth-client-credentials"
+      )
+    }
+    const authType = authTypeOption === "oauth-client-credentials"
+      ? "oauth_client_credentials" as const
+      : "basic" as const
     const input: SapProfileInput = {
       id,
       url: requiredOption(parsed, "url"),
@@ -216,6 +233,14 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
       ...(language ? { language } : {}),
       ...(environment ? { environment: environment as SapProfile["environment"] } : {}),
       ...(username ? { username } : {}),
+      authType,
+      ...(authType === "oauth_client_credentials"
+        ? {
+            tokenUrl: requiredOption(parsed, "token-url"),
+            clientId: requiredOption(parsed, "client-id"),
+            ...(option(parsed, "scope") ? { scope: option(parsed, "scope") } : {})
+          }
+        : {}),
       ...(packages ? { allowedPackages: packages.split(",") } : {})
     }
     if (!parsed.options.has("login")) {
@@ -224,12 +249,14 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     }
 
     const candidate = normalizeProfile(input)
-    if (!candidate.username) {
+    if (candidate.authType === "basic" && !candidate.username) {
       throw new AppError("USERNAME_REQUIRED", "Provide --username when using --login")
     }
     const password = parsed.options.has("password-stdin")
       ? await readAllStdin()
-      : await promptSecret("SAP password: ")
+      : await promptSecret(
+          candidate.authType === "basic" ? "SAP password: " : "OAuth client secret: "
+        )
     const manager = new ConnectionManager(profiles, secrets)
     writeJson(await addProfile(input, profiles, secrets, {
       password,
@@ -258,6 +285,7 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
     const profile = await profiles.get(id)
     writeJson({
       profileId: profile.id,
+      authType: profile.authType,
       username: profile.username ?? null,
       credentialAvailable: Boolean(await secrets.get(profile.id))
     })
@@ -274,21 +302,35 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
   if (action === "login") {
     const storedProfile = await profiles.get(id)
     const username = option(parsed, "username") ?? storedProfile.username
-    if (!username) {
+    if (storedProfile.authType === "basic" && !username) {
       throw new AppError("USERNAME_REQUIRED", "Provide --username or store it in the profile")
     }
 
-    const profile = withUsername(storedProfile, username)
+    const profile = username ? withUsername(storedProfile, username) : storedProfile
     const password = parsed.options.has("password-stdin")
       ? await readAllStdin()
-      : await promptSecret("SAP password: ")
-    if (!password) throw new AppError("PASSWORD_REQUIRED", "SAP password cannot be empty")
+      : await promptSecret(
+          profile.authType === "basic" ? "SAP password: " : "OAuth client secret: "
+        )
+    if (!password) {
+      throw new AppError(
+        profile.authType === "basic" ? "PASSWORD_REQUIRED" : "CLIENT_SECRET_REQUIRED",
+        profile.authType === "basic"
+          ? "SAP password cannot be empty"
+          : "OAuth client secret cannot be empty"
+      )
+    }
 
     const manager = new ConnectionManager(profiles, secrets)
     await manager.validateCredentials(profile, password)
     await profiles.upsert(profile)
     await secrets.set(profile.id, password)
-    writeJson({ profileId: profile.id, username: profile.username, credentialStored: true })
+    writeJson({
+      profileId: profile.id,
+      authType: profile.authType,
+      username: profile.username ?? null,
+      credentialStored: true
+    })
     return
   }
 

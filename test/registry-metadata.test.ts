@@ -8,7 +8,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
   const serverJson = JSON.parse(readFileSync("server.json", "utf8"))
 
-  assert.equal(packageJson.version, "0.4.14")
+  assert.equal(packageJson.version, "0.4.15")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
@@ -26,6 +26,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
     "TERMS.md",
     "server.json",
     "llms-install.md",
+    "scripts/benchmark-mcp-surface.mjs",
     "assets"
   ]) {
     assert.ok(packageJson.files.includes(packagedFile), `missing packaged file: ${packagedFile}`)
@@ -205,6 +206,14 @@ test("plugin onboarding keeps credentials local and verifies SAP explicitly", ()
     "utf8"
   )
   const agentInstall = readFileSync("llms-install.md", "utf8")
+  const assuranceSkill = readFileSync(
+    "plugins/sap-abap-mcp/skills/sap-abap-change-assurance/SKILL.md",
+    "utf8"
+  )
+  const assuranceAgent = readFileSync(
+    "plugins/sap-abap-mcp/skills/sap-abap-change-assurance/agents/openai.yaml",
+    "utf8"
+  )
 
   for (const document of [pluginReadme, agentInstall]) {
     assert.match(document, /\/sap-abap-mcp:sap-abap-setup/)
@@ -221,4 +230,10 @@ test("plugin onboarding keeps credentials local and verifies SAP explicitly", ()
   assert.match(setupSkill, /SAP_ABAP_MCP_PASSWORD_<NORMALIZED_SERVER_NAME>/)
   assert.match(setupSkill, /SAP_ABAP_MCP_PASSWORD_DEV100/)
   assert.match(setupSkill, /get_connected_systems/)
+  assert.match(setupSkill, /oauth-client-credentials/)
+  assert.match(pluginReadme, /\/sap-abap-mcp:sap-abap-change-assurance/)
+  assert.match(assuranceSkill, /action: "assess_transport"/)
+  assert.match(assuranceSkill, /Do not call `release_transport`/)
+  assert.match(assuranceSkill, /JSON, SARIF, and JUnit/)
+  assert.match(assuranceAgent, /\$sap-abap-change-assurance/)
 })

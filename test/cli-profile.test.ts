@@ -95,3 +95,33 @@ test("profile add login failure preserves the existing profile and password", as
   assert.equal(await secrets.get("DEV100"), "old-secret")
 })
 
+test("profile add login accepts OAuth client credentials without a SAP username", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-cli-oauth-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const profiles = new ProfileStore(directory)
+  const secrets = new MemorySecretStore()
+
+  const result = await addProfile(
+    {
+      id: "btp100",
+      url: "https://abap.example.test",
+      client: "100",
+      authType: "oauth_client_credentials",
+      tokenUrl: "https://auth.example.test/oauth/token",
+      clientId: "mcp-client"
+    },
+    profiles,
+    secrets,
+    {
+      password: "client-secret",
+      async validateCredentials(profile, secret) {
+        assert.equal(profile.authType, "oauth_client_credentials")
+        assert.equal(profile.username, undefined)
+        assert.equal(secret, "client-secret")
+      }
+    }
+  )
+
+  assert.equal(result.profile.authType, "oauth_client_credentials")
+  assert.equal(await secrets.get("BTP100"), "client-secret")
+})

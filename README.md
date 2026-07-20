@@ -4,6 +4,10 @@ A local Model Context Protocol server that lets Codex and Claude work with SAP A
 
 It can inspect and edit ABAP source, run quality checks, manage transports, use abapGit and the RAP generator, inspect runtime data, compare systems, and perform repository refactorings without VS Code, SAP GUI, or an ABAP FS virtual workspace.
 
+Need help evaluating it in a controlled SAP DEV/QAS environment? See the
+[professional services and five-day pilot](SERVICES.md). Do not include SAP
+credentials, source code, or other confidential information in a public issue.
+
 ## Quick start
 
 You need Node.js 20 or later, network or VPN access to SAP, and an SAP HTTPS URL, three-digit client number, username, and ADT Basic Auth permission.
@@ -58,13 +62,13 @@ The server provides all 42 strict-compatible headless tools from the pinned ABAP
 
 | Area | Capabilities |
 |---|---|
-| Connections | Multiple SAP profiles, lazy login, system metadata, ADT discovery export |
+| Connections | Multiple SAP profiles, Basic Auth, opt-in OAuth client credentials, lazy login, system metadata, ADT discovery export |
 | Repository reads | Search, metadata, source ranges, batch reads, URI reads, source search, enhancements |
 | Semantic services | Completion details, definition lookup, documentation, type hierarchy, components, quick-fix discovery, SAP formatter preview |
 | Source writes | Exact source replacement, BDEF source creation, syntax diagnostics, single- and one-request batch activation, text elements |
 | Refactoring | Rename, package move, extract method, quick-fix application, formatting, deletion |
 | Quality | ABAP Unit, ATC, diagnostics, test-include creation |
-| Transports | List, details, objects, compare, create, release, delete, owner/user management, object resolution |
+| Transports | List, details, objects, read-only release assessment, JSON/SARIF/JUnit evidence, compare, create, release, delete, owner/user management, object resolution |
 | Versions | Active revision history, revision comparison, inactive source, guarded revision restore |
 | abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch |
 | RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details and publication |
@@ -90,6 +94,14 @@ The ten grouped extension tools are:
 
 Grouping related actions keeps the tool-schema footprint lower than exposing every operation as a separate MCP tool.
 `read_deferred_result` is the additional infrastructure tool; it reads the remaining UTF-8 chunks of a large result without repeating the SAP operation.
+
+## Transport change assurance
+
+`manage_transport_requests` keeps transport review inside the existing grouped tool. Its read-only `assess_transport` action can run ATC and ABAP Unit for each supported transport object, optionally compare the same objects with a target connection, and emit JSON, SARIF 2.1.0, and JUnit XML reports.
+
+The returned gate is `passed`, `failed`, or `incomplete`. Truncated object coverage, truncated ATC findings, failed check execution, empty transports, and classes without discoverable tests prevent a pass. A target-system difference is recorded as landscape evidence rather than automatically treated as a failure. Assessment never releases the transport; `release_transport` remains a separate confirmed mutation.
+
+The plugin includes `sap-abap-change-assurance` for this workflow. In Claude Code run `/sap-abap-mcp:sap-abap-change-assurance`; in Codex ask to use `$sap-abap-change-assurance`.
 
 ## MCP directories and registries
 
@@ -132,6 +144,26 @@ codex plugin marketplace add Coaspe/sap-abap-mcp
 ```
 
 Then install **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace in the Codex app and start a new task. Ask Codex to set up SAP ABAP MCP; the included `sap-abap-setup` skill keeps passwords out of chat and guides profile creation, authentication, and live ADT verification.
+
+The plugin also includes `sap-abap-change-assurance`, which assesses an existing transport without releasing it and returns CI-native evidence paths.
+
+## OAuth client credentials
+
+The interactive `setup` wizard remains the Basic Auth path. OAuth client credentials are an explicit advanced profile type and do not change the defaults for newly created profiles. Create and verify one on Windows or macOS with:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest profile add BTP100 \
+  --url https://abap.example.com --client 100 \
+  --auth-type oauth-client-credentials \
+  --token-url https://auth.example.com/oauth/token \
+  --client-id mcp-client --scope "abap.read abap.write" --login
+```
+
+The hidden prompt requests the OAuth client secret. The profile file stores the token URL, client ID, and optional scope, but never the client secret or access token. The token endpoint must use HTTPS and must not contain embedded credentials, query parameters, or a fragment. The client uses HTTP Basic client authentication, requires a Bearer token with a positive `expires_in`, and recreates the ADT client before the cached token expires because `abap-adt-api` 8.4.1 memoizes a bearer fetch.
+
+For automation, pipe the client secret and add `--password-stdin`. On Linux, create the profile without `--login`, place the client secret in the printed profile-specific `SAP_ABAP_MCP_PASSWORD_<PROFILE>` environment variable, and start the MCP process from that environment. The variable name is retained for backward compatibility even when its value is an OAuth client secret.
+
+This mode requires explicit token URL, client ID, and client secret fields; it does not parse a BTP service-key JSON document. Browser SSO, MFA flows, client certificates, Kerberos, and direct static-bearer profiles remain unsupported. OAuth implementation is still live-unverified for a particular SAP system until `doctor` succeeds there.
 
 ## Prerequisites
 
@@ -333,7 +365,7 @@ The server is designed to keep model context usage bounded without removing usef
 - Compact JSON through 16 KiB is normally returned unchanged. Larger results return a bounded structural summary, an exact UTF-8 preview, and an in-memory `resultId` in a `compact-v1` envelope no larger than 12 KiB.
 - `search_abap_object_lines` switches to its bounded summary at 16 KiB and keeps the exact compact result behind the same `resultId`.
 
-The complete 53-tool, 149-variant review and fixture measurements are in [`docs/response-token-audit.md`](docs/response-token-audit.md).
+The complete 53-tool, 150-variant review and fixture measurements are in [`docs/response-token-audit.md`](docs/response-token-audit.md). Re-run `npm run benchmark:surface` for a machine-readable schema-cost report; see [`docs/compatibility-matrix.md`](docs/compatibility-matrix.md) for the live-evidence boundary.
 
 Continue paged responses with fields such as `nextStartIndex`, `nextLine`, `nextRowStart`, and `nextContentOffset`.
 For a response with `format: "compact-v1"`, use `summary` first. Call `read_deferred_result` with its `resultId` and `nextOffset` only when omitted exact data is needed. A request may ask for up to 24 KiB, while the serialized chunk response remains within the 16 KiB inline budget; continue until `done` is true. Deferred results expire after ten minutes, are never written to disk, and reading them does not repeat the SAP request.
@@ -372,6 +404,8 @@ setup remove [<server-name>]
 profile add <id> --url <url> --client <nnn> [--language EN]
     [--environment development|quality|production]
     [--username <user>] [--packages ZPKG1,ZPKG2]
+    [--auth-type basic|oauth-client-credentials]
+    [--token-url <url> --client-id <id> [--scope <scope>]]
     [--login [--password-stdin]]
 profile list
 profile remove <id>
@@ -388,7 +422,7 @@ doctor <id> [--include-components]
 serve [--profile <id>] [--toolsets core,write,analysis,debug,operations,artifacts|all]
 ```
 
-Removing a profile also removes its SAP password and stored abapGit credential vault.
+Removing a profile also removes its SAP password or OAuth client secret and stored abapGit credential vault.
 
 ## Troubleshooting
 
@@ -397,7 +431,7 @@ Removing a profile also removes its SAP password and stored abapGit credential v
 | `node` is not found | Install Node.js 20 or later and reopen the terminal. |
 | npm cannot download the package | Check internet access, proxy configuration, and npm registry policy. |
 | `PROFILE_NOT_FOUND` | Run `setup` again and verify the Server name. |
-| SAP login fails | Verify URL, client, username, password, VPN, Basic Auth, and ADT activation. |
+| SAP login fails | For Basic Auth, verify URL, client, username, password, VPN, and ADT activation. For OAuth, verify the token URL, client ID, client secret, scope, Bearer response, and ADT authorization. |
 | Certificate or connection error | Check the corporate CA, proxy, VPN, and SAP HTTPS endpoint. |
 | Tools are missing | Confirm that the MCP command contains `@latest` and `--prefer-online`, restart it, and inspect `/mcp`. |
 | Writes return `PACKAGE_NOT_ALLOWED` | The profile has a non-empty `--packages` restriction; add the target package or remove the restriction. |
@@ -405,7 +439,7 @@ Removing a profile also removes its SAP password and stored abapGit credential v
 | RAP generator is unavailable | The SAP release or installed components may not expose the RAP generator endpoints. |
 | Private Git access fails | Store credentials for the exact canonical repository URL. |
 
-SSO-only or MFA-only SAP systems are not supported by this release. Ask the SAP administrator whether Basic Auth can be enabled for the ADT endpoint.
+Browser SSO-only, MFA-only, certificate-only, and Kerberos-only SAP systems are not supported by this release. Use Basic Auth or an explicitly configured OAuth client-credentials client accepted by the ADT endpoint.
 
 ## Local development
 
@@ -428,12 +462,12 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current source version: `0.4.14`
-- Published npm version: `0.4.14`
+- Current source version: `0.4.15`
+- Published npm version: `0.4.15`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
-- Authentication: SAP Basic Auth
+- Authentication: SAP Basic Auth by default; opt-in OAuth client credentials
 - Secret storage: macOS Keychain, Windows DPAPI, or read-only environment variables on Linux
 - SAP API client: `abap-adt-api` 8.4.1
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`

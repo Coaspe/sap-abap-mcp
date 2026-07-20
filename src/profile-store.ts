@@ -4,16 +4,34 @@ import { dirname, join } from "node:path"
 import { z } from "zod"
 import { AppError } from "./errors.js"
 
-const profileSchema = z.object({
+const baseProfileSchema = z.object({
   id: z.string().regex(/^[A-Z0-9_-]+$/),
   url: z.url(),
   client: z.string().regex(/^\d{3}$/),
   language: z.string().regex(/^[A-Z]{2}$/),
   environment: z.enum(["development", "quality", "production"]),
-  authType: z.literal("basic"),
-  username: z.string().min(1).optional(),
   allowedPackages: z.array(z.string().min(1)).default([])
 })
+
+const oauthTokenUrlSchema = z.url().refine(value => {
+  const url = new URL(value)
+  return url.protocol === "https:" &&
+    !url.username && !url.password && !url.search && !url.hash
+}, "OAuth token URL must use HTTPS and must not contain credentials, query parameters, or a fragment")
+
+const profileSchema = z.discriminatedUnion("authType", [
+  baseProfileSchema.extend({
+    authType: z.literal("basic"),
+    username: z.string().min(1).optional()
+  }),
+  baseProfileSchema.extend({
+    authType: z.literal("oauth_client_credentials"),
+    tokenUrl: oauthTokenUrlSchema,
+    clientId: z.string().min(1),
+    scope: z.string().min(1).optional(),
+    username: z.string().min(1).optional()
+  })
+])
 
 const profileFileSchema = z.object({
   version: z.literal(1),
@@ -28,9 +46,12 @@ export interface SapProfileInput {
   client: string
   language?: string
   environment?: SapProfile["environment"]
-  authType?: "basic"
-  username?: string
+  authType?: SapProfile["authType"]
+  username?: string | undefined
   allowedPackages?: string[]
+  tokenUrl?: string
+  clientId?: string
+  scope?: string | undefined
 }
 
 function defaultConfigDirectory(): string {
@@ -42,14 +63,22 @@ function defaultConfigDirectory(): string {
 }
 
 export function normalizeProfile(input: SapProfileInput): SapProfile {
+  const authType = input.authType ?? "basic"
   return profileSchema.parse({
     id: input.id.trim().toUpperCase(),
     url: input.url.trim().replace(/\/+$/, ""),
     client: input.client.trim().padStart(3, "0"),
     language: (input.language ?? "EN").trim().toUpperCase(),
     environment: input.environment ?? "development",
-    authType: input.authType ?? "basic",
+    authType,
     ...(input.username ? { username: input.username.trim() } : {}),
+    ...(authType === "oauth_client_credentials"
+      ? {
+          tokenUrl: input.tokenUrl?.trim(),
+          clientId: input.clientId?.trim(),
+          ...(input.scope?.trim() ? { scope: input.scope.trim() } : {})
+        }
+      : {}),
     allowedPackages: (input.allowedPackages ?? []).map(value => value.trim().toUpperCase())
   })
 }

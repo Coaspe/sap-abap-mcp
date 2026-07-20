@@ -42,6 +42,14 @@ import {
   type AbapGitCredentials
 } from "./abapgit-credentials.js"
 import { registerBdefType } from "./bdef-creator.js"
+import {
+  writeChangeAssuranceArtifacts,
+  type ChangeAssuranceCheck,
+  type ChangeAssuranceError,
+  type ChangeAssuranceFormat,
+  type ChangeAssuranceObjectResult,
+  type ChangeAssuranceReport
+} from "./change-assurance.js"
 import type { ConnectionSummary } from "./connection-manager.js"
 import {
   readAbapFsDocumentation,
@@ -250,6 +258,7 @@ export interface ManageTransportsInput {
     | "get_user_transports"
     | "get_transport_details"
     | "get_transport_objects"
+    | "assess_transport"
     | "compare_transports"
     | "create_transport"
     | "release_transport"
@@ -276,6 +285,12 @@ export interface ManageTransportsInput {
   startIndex: number
   maxResults: number
   includeObjects: boolean
+  checks?: ChangeAssuranceCheck[]
+  targetConnectionId?: string
+  failOnAtcWarnings?: boolean
+  maxObjects?: number
+  reportFormats?: ChangeAssuranceFormat[]
+  reportDirectory?: string
 }
 
 export interface VersionHistoryInput extends ObjectLocatorInput {
@@ -561,6 +576,7 @@ interface EditableTarget {
   client: SapClient
   object: SapObjectReference
   objectUri: string
+  syntaxObjectUri: string
   sourceUri: string
   source: string
   mainProgram?: string
@@ -915,12 +931,25 @@ function dependencyReference(reference: UsageReference) {
   }
   let name = parts[1]
   let parentClass: string | undefined
+  let member: string | undefined
   if (type === "PROG/I" && parts[2]) name = parts[2]
-  if ((type === "FUGR/FF" || type === "CLAS/OM") && reference["adtcore:name"]) {
+  if (type === "FUGR/FF" && reference["adtcore:name"]) {
     name = reference["adtcore:name"]
-    if (type === "CLAS/OM") parentClass = parts[1].split("=")[0]
+  }
+  if (type === "CLAS/OM" && reference["adtcore:name"]) {
+    member = reference["adtcore:name"]
+    parentClass = parts[1].replace(/=+.*$/, "")
+  } else if (type === "PROG/P") {
+    parentClass = (reference["adtcore:name"] || name).match(/^(.+?)=+CP$/i)?.[1]
+  }
+  if (parentClass) {
+    name = parentClass
+    type = "CLAS/OC"
   }
   const packageName = reference.packageRef?.["adtcore:name"] || ""
+  const uri = parentClass
+    ? objectUriFromSourceUri(reference.parentUri || reference.uri)
+    : reference.uri
   return {
     id: `${name}::${type}`,
     name,
@@ -929,11 +958,12 @@ function dependencyReference(reference: UsageReference) {
     responsible: reference["adtcore:responsible"] || null,
     packageName: packageName || null,
     custom: /^[ZY]/i.test(parentClass || name) || /^[ZY]/i.test(packageName),
-    canExpand: reference.canHaveChildren,
-    uri: reference.uri,
+    canExpand: parentClass ? true : reference.canHaveChildren,
+    uri,
     parentUri: reference.parentUri,
     objectIdentifier: reference.objectIdentifier,
-    usageInformation: reference.usageInformation || null
+    usageInformation: reference.usageInformation || null,
+    member
   }
 }
 
@@ -974,6 +1004,14 @@ function objectUriFromSourceUri(sourceUri: string): string {
   )
   if (classInclude?.[1]) return classInclude[1]
   return withoutQuery.replace(/\/source\/[^/]+$/i, "")
+}
+
+function syntaxObjectUriFromSourceUri(objectUri: string, sourceUri: string): string {
+  const normalized = sourceUri.replace(/[?#].*$/, "").replace(/\/+$/, "")
+  return /^\/sap\/bc\/adt\/oo\/(?:classes|interfaces)\/[^/]+\/includes\/[^/]+$/i
+    .test(normalized)
+    ? normalized
+    : objectUri
 }
 
 function canonicalActivationUri(value: unknown): string | undefined {
@@ -1048,6 +1086,42 @@ export function replaceExactlyOnce(content: string, oldString: string, newString
     "SOURCE_MATCH_NOT_FOUND",
     "oldString was not found exactly; read the current source and preserve whitespace"
   )
+}
+
+function abapIdentifierRange(source: string, line: number, column: number) {
+  const lineText = source.split(/\r?\n/)[line - 1] ?? ""
+  if (!lineText) return { startColumn: column, endColumn: column + 1 }
+  const cursor = Math.min(column, lineText.length - 1)
+
+  for (const match of lineText.matchAll(/\/[A-Za-z0-9_]+\/[A-Za-z0-9_]+/g)) {
+    const startColumn = match.index
+    const endColumn = startColumn + match[0].length
+    if (column >= startColumn && column <= endColumn) return { startColumn, endColumn }
+  }
+
+  const fieldStart = lineText.lastIndexOf("<", cursor)
+  const fieldEnd = lineText.indexOf(">", cursor)
+  if (
+    fieldStart >= 0 &&
+    fieldEnd >= cursor &&
+    /^[A-Za-z0-9_]+$/.test(lineText.slice(fieldStart + 1, fieldEnd))
+  ) {
+    return { startColumn: fieldStart, endColumn: fieldEnd + 1 }
+  }
+
+  const isIdentifier = (value: string | undefined) => Boolean(value?.match(/[A-Za-z0-9_]/))
+  const anchor = isIdentifier(lineText[cursor])
+    ? cursor
+    : cursor > 0 && isIdentifier(lineText[cursor - 1])
+      ? cursor - 1
+      : -1
+  if (anchor < 0) return { startColumn: cursor, endColumn: cursor + 1 }
+
+  let startColumn = anchor
+  let endColumn = anchor + 1
+  while (startColumn > 0 && isIdentifier(lineText[startColumn - 1])) startColumn -= 1
+  while (endColumn < lineText.length && isIdentifier(lineText[endColumn])) endColumn += 1
+  return { startColumn, endColumn }
 }
 
 function requireWritablePackage(client: SapClient, packageName?: string): string {
@@ -1162,6 +1236,19 @@ function transportObjects(transport: TransportRequest): TransportObject[] {
 
 function transportObjectKey(object: TransportObject): string {
   return `${object["tm:pgmid"]}.${object["tm:type"]}.${object["tm:name"]}`
+}
+
+function changeAssuranceError(
+  error: unknown,
+  check: ChangeAssuranceCheck,
+  objectKey: string
+): ChangeAssuranceError {
+  const normalized = normalizeCapabilityError(
+    error,
+    `change-assurance.${check}`,
+    objectKey
+  )
+  return { code: normalized.code, message: normalized.message }
 }
 
 function stripHtml(html: string): string {
@@ -1345,6 +1432,7 @@ export class AbapToolService {
     const client = existingClient ?? await this.connections.getClient(location.connectionId)
     const source = await client.readSourceByUri(location.path)
     const objectUri = objectUriFromSourceUri(source.sourceUri)
+    const syntaxObjectUri = syntaxObjectUriFromSourceUri(objectUri, source.sourceUri)
     const structure = await client.getObjectStructure(objectUri)
     const name = structure.metaData["adtcore:name"]
     const type = structure.metaData["adtcore:type"]
@@ -1371,6 +1459,7 @@ export class AbapToolService {
       client,
       object,
       objectUri,
+      syntaxObjectUri,
       sourceUri: source.sourceUri,
       source: source.source,
       ...(mainProgram ? { mainProgram } : {})
@@ -1676,12 +1765,15 @@ export class AbapToolService {
     }
 
     if (input.action === "definition") {
+      const range = input.endColumn === undefined
+        ? abapIdentifierRange(target.source, input.line, input.column)
+        : { startColumn: input.column, endColumn: input.endColumn }
       const definition = await target.client.findDefinition(
         target.sourceUri,
         target.source,
         input.line,
-        input.column,
-        input.endColumn ?? input.column,
+        range.startColumn,
+        range.endColumn,
         input.implementation,
         target.mainProgram
       )
@@ -1947,6 +2039,7 @@ export class AbapToolService {
         object: target.object,
         objectUri: target.objectUri,
         sourceUri: target.sourceUri,
+        syntaxObjectUri: target.syntaxObjectUri,
         before: target.source,
         after: formatted,
         transport: transport ?? "",
@@ -2070,6 +2163,7 @@ export class AbapToolService {
         transport: string
         activate: boolean
         mainProgram?: string
+        syntaxObjectUri: string
       }
       const result = await client.replaceSource(
         payload.object.name,
@@ -2079,7 +2173,8 @@ export class AbapToolService {
         payload.after,
         payload.transport || undefined,
         payload.activate,
-        payload.mainProgram
+        payload.mainProgram,
+        payload.syntaxObjectUri
       )
       return { executed: true, operation: plan.kind, diagnostics: result.diagnostics,
         activation: result.activation ?? null, activationSkipped: result.activationSkipped }
@@ -2109,12 +2204,14 @@ export class AbapToolService {
       object: SapObjectReference
       objectUri: string
       sourceUri: string
+      syntaxObjectUri: string
       before: string
       after: string
     }> = []
     for (const [uri, edits] of grouped) {
       const source = await client.readSourceByUri(uri)
       const objectUri = objectUriFromSourceUri(source.sourceUri)
+      const syntaxObjectUri = syntaxObjectUriFromSourceUri(objectUri, source.sourceUri)
       const structure = await client.getObjectStructure(objectUri)
       const object: SapObjectReference = {
         name: structure.metaData["adtcore:name"],
@@ -2129,7 +2226,7 @@ export class AbapToolService {
       const packageName = requireWritablePackage(client, object.packageName)
       requireTransport(packageName, transport)
       const after = applyDeltas(source.source, edits)
-      const diagnostics = await client.checkSyntax(objectUri, source.sourceUri, after)
+      const diagnostics = await client.checkSyntax(syntaxObjectUri, source.sourceUri, after)
       if (diagnostics.some(item => /^(E|ERROR)$/i.test(item.severity.trim()))) {
         throw new AppError(
           "QUICK_FIX_SYNTAX_ERROR",
@@ -2137,7 +2234,14 @@ export class AbapToolService {
           { diagnostics: diagnostics.slice(0, 100) }
         )
       }
-      changes.push({ object, objectUri, sourceUri: source.sourceUri, before: source.source, after })
+      changes.push({
+        object,
+        objectUri,
+        syntaxObjectUri,
+        sourceUri: source.sourceUri,
+        before: source.source,
+        after
+      })
     }
 
     const applied: typeof changes = []
@@ -2150,7 +2254,9 @@ export class AbapToolService {
           change.before,
           change.after,
           transport,
-          false
+          false,
+          undefined,
+          change.syntaxObjectUri
         )
         applied.push(change)
       }
@@ -2165,7 +2271,9 @@ export class AbapToolService {
             change.after,
             change.before,
             transport,
-            false
+            false,
+            undefined,
+            change.syntaxObjectUri
           )
         } catch {
           rollbackFailures.push(change.object.name)
@@ -2620,7 +2728,26 @@ export class AbapToolService {
     }
   }
 
+  private async systemAtcVariant(client: SapClient): Promise<string> {
+    const customizing = await client.getAtcCustomizing()
+    const variantProperty = customizing.properties.find(
+      property => property.name === "systemCheckVariant"
+    )
+    const variant = String(variantProperty?.value ?? "")
+    if (!variant || !(await client.checkAtcVariant(variant))) {
+      throw new AppError("ATC_VARIANT_NOT_FOUND", "No system ATC check variant is available")
+    }
+    return variant
+  }
+
   async runAtcAnalysis(input: RunAtcInput) {
+    return this.runAtcAnalysisWithVariant(input)
+  }
+
+  private async runAtcAnalysisWithVariant(
+    input: RunAtcInput,
+    preparedVariant?: string
+  ) {
     if (input.action === "get_documentation") {
       if (!input.connectionId || !input.docUri) {
         throw new AppError(
@@ -2667,14 +2794,7 @@ export class AbapToolService {
       )
     }
 
-    const customizing = await target.client.getAtcCustomizing()
-    const variantProperty = customizing.properties.find(
-      property => property.name === "systemCheckVariant"
-    )
-    const variant = String(variantProperty?.value ?? "")
-    if (!variant || !(await target.client.checkAtcVariant(variant))) {
-      throw new AppError("ATC_VARIANT_NOT_FOUND", "No system ATC check variant is available")
-    }
+    const variant = preparedVariant ?? await this.systemAtcVariant(target.client)
     const run = await target.client.runAtc(variant, target.sourceUri, 1000)
     const worklist = await target.client.getAtcWorklist(run)
     const findings = worklist.objects.flatMap(object =>
@@ -2936,6 +3056,296 @@ export class AbapToolService {
     }
   }
 
+  private async assessTransport(
+    client: SapClient,
+    input: ManageTransportsInput
+  ): Promise<ChangeAssuranceReport & {
+    reports: Awaited<ReturnType<typeof writeChangeAssuranceArtifacts>>
+  }> {
+    const transportNumber = input.transportNumber?.trim().toUpperCase()
+    if (!transportNumber) {
+      throw new AppError(
+        "TRANSPORT_NUMBER_REQUIRED",
+        "assess_transport requires transportNumber"
+      )
+    }
+    const checks = [...new Set(input.checks?.length
+      ? input.checks
+      : ["atc", "unit_tests"] as ChangeAssuranceCheck[])]
+    const targetConnectionId = input.targetConnectionId?.trim().toUpperCase()
+    if (checks.includes("target_compare")) {
+      if (!targetConnectionId) {
+        throw new AppError(
+          "TARGET_CONNECTION_REQUIRED",
+          "target_compare requires targetConnectionId"
+        )
+      }
+      if (targetConnectionId === input.connectionId.toUpperCase()) {
+        throw new AppError("SAME_CONNECTION", "Choose two different SAP connections")
+      }
+    }
+    const maxObjects = Math.max(1, Math.min(input.maxObjects ?? 20, 200))
+    const failOnAtcWarnings = input.failOnAtcWarnings ?? false
+    const transport = await client.getTransportDetails(transportNumber)
+    const uniqueObjects = [...new Map(
+      transportObjects(transport).map(item => [transportObjectKey(item), item])
+    ).values()]
+    const selectedObjects = uniqueObjects.slice(0, maxObjects)
+    const objects: ChangeAssuranceObjectResult[] = []
+    let atcVariant: string | undefined
+    let atcPreparationError: unknown
+    if (checks.includes("atc")) {
+      try {
+        atcVariant = await this.systemAtcVariant(client)
+      } catch (error) {
+        atcPreparationError = error
+      }
+    }
+
+    for (const transportObject of selectedObjects) {
+      const key = transportObjectKey(transportObject)
+      const type = transportObject["tm:type"].toUpperCase()
+      const name = transportObject["tm:name"].toUpperCase()
+      const uri = transportObject["tm:dummy_uri"]?.trim()
+      const result: ChangeAssuranceObjectResult = {
+        object: {
+          key,
+          pgmid: transportObject["tm:pgmid"].toUpperCase(),
+          type,
+          name,
+          ...(uri ? { uri } : {})
+        }
+      }
+
+      if (checks.includes("atc")) {
+        if (atcPreparationError || !atcVariant) {
+          result.atc = {
+            status: "error",
+            error: changeAssuranceError(
+              atcPreparationError ?? new AppError(
+                "ATC_VARIANT_NOT_FOUND",
+                "No system ATC check variant is available"
+              ),
+              "atc",
+              key
+            )
+          }
+        } else {
+          try {
+            const atc = await this.runAtcAnalysisWithVariant({
+              action: "run_analysis",
+              objectName: name,
+              objectType: type,
+              connectionId: input.connectionId,
+              startIndex: 0,
+              maxResults: 1000,
+              documentationOffset: 0,
+              documentationLength: 1
+            }, atcVariant)
+            if (!("summary" in atc)) {
+              throw new AppError("ATC_RESULT_INVALID", "ATC did not return an analysis result")
+            }
+            const failed = atc.summary.errors > 0 ||
+              (failOnAtcWarnings && atc.summary.warnings > 0)
+            result.atc = {
+              status: failed
+                ? "failed"
+                : atc.truncated
+                  ? "incomplete"
+                  : atc.summary.warnings > 0
+                    ? "warning"
+                    : "passed",
+              total: atc.summary.total,
+              errors: atc.summary.errors,
+              warnings: atc.summary.warnings,
+              infos: atc.summary.infos,
+              returned: atc.returned ?? 0,
+              truncated: atc.truncated,
+              findings: (atc.findings ?? []).map(finding => {
+                const { objectIndex: _objectIndex, ...details } = finding
+                return details
+              })
+            }
+          } catch (error) {
+            result.atc = {
+              status: "error",
+              error: changeAssuranceError(error, "atc", key)
+            }
+          }
+        }
+      }
+
+      if (checks.includes("unit_tests")) {
+        if (!/^CLAS(?:\/|$)/.test(type)) {
+          result.unitTests = { status: "not_applicable" }
+        } else {
+          try {
+            const unit = await this.runUnitTests(name, input.connectionId, "failures")
+            result.unitTests = unit.total === 0
+              ? {
+                  status: "no_tests",
+                  total: 0,
+                  passed: 0,
+                  failed: 0,
+                  allPassed: false
+                }
+              : {
+                  status: unit.allPassed ? "passed" : "failed",
+                  total: unit.total,
+                  passed: unit.passed,
+                  failed: unit.failed,
+                  allPassed: unit.allPassed,
+                  ...(unit.classes.length ? { failures: unit.classes } : {})
+                }
+          } catch (error) {
+            result.unitTests = {
+              status: "error",
+              error: changeAssuranceError(error, "unit_tests", key)
+            }
+          }
+        }
+      }
+
+      if (checks.includes("target_compare") && targetConnectionId) {
+        try {
+          const targetClient = await this.connections.getClient(targetConnectionId)
+          try {
+            await resolveObject(targetClient, name, type)
+          } catch (error) {
+            if (!(error instanceof AppError) || error.code !== "OBJECT_NOT_FOUND") throw error
+            result.targetComparison = {
+              status: "missing",
+              sourceConnectionId: input.connectionId.toUpperCase(),
+              targetConnectionId,
+              identical: false
+            }
+          }
+          if (!result.targetComparison) {
+            const comparison = await this.compareSystems({
+              objectName: name,
+              objectType: type,
+              sourceConnectionId: input.connectionId,
+              targetConnectionId,
+              ignoreWhitespace: false,
+              maxPatchLines: 100
+            })
+            result.targetComparison = {
+              status: comparison.changed ? "different" : "identical",
+              sourceConnectionId: comparison.source.connectionId,
+              targetConnectionId: comparison.target.connectionId,
+              identical: !comparison.changed,
+              addedLines: comparison.addedLines,
+              removedLines: comparison.removedLines,
+              patchTruncated: comparison.patchTruncated,
+              ...(comparison.changed ? { patch: comparison.patch } : {})
+            }
+          }
+        } catch (error) {
+          result.targetComparison = {
+            status: "error",
+            sourceConnectionId: input.connectionId.toUpperCase(),
+            targetConnectionId,
+            error: changeAssuranceError(error, "target_compare", key)
+          }
+        }
+      }
+      objects.push(result)
+    }
+
+    let passedChecks = 0
+    let warningChecks = 0
+    let failedChecks = 0
+    let incompleteChecks = 0
+    for (const item of objects) {
+      if (item.atc?.status === "passed") passedChecks += 1
+      if (item.atc?.status === "warning") warningChecks += 1
+      if (item.atc?.status === "failed") failedChecks += 1
+      if (item.atc?.status === "incomplete" || item.atc?.status === "error") {
+        incompleteChecks += 1
+      }
+      if (item.unitTests?.status === "passed") passedChecks += 1
+      if (item.unitTests?.status === "failed") failedChecks += 1
+      if (item.unitTests?.status === "no_tests" || item.unitTests?.status === "error") {
+        incompleteChecks += 1
+      }
+      if (
+        item.targetComparison?.status === "identical" ||
+        item.targetComparison?.status === "different"
+      ) {
+        passedChecks += 1
+      }
+      if (item.targetComparison?.status === "missing") warningChecks += 1
+      if (item.targetComparison?.status === "error") incompleteChecks += 1
+    }
+
+    const atcErrors = objects.reduce((sum, item) => sum + (item.atc?.errors ?? 0), 0)
+    const atcWarnings = objects.reduce((sum, item) => sum + (item.atc?.warnings ?? 0), 0)
+    const unitTests = objects.reduce((sum, item) => sum + (item.unitTests?.total ?? 0), 0)
+    const unitTestFailures = objects.reduce(
+      (sum, item) => sum + (item.unitTests?.failed ?? 0),
+      0
+    )
+    const targetDifferences = objects.filter(item =>
+      item.targetComparison?.status === "different" ||
+      item.targetComparison?.status === "missing"
+    ).length
+    const truncated = selectedObjects.length < uniqueObjects.length
+    const reasons: string[] = []
+    if (atcErrors > 0) reasons.push(`ATC reported ${atcErrors} error(s)`)
+    if (failOnAtcWarnings && atcWarnings > 0) {
+      reasons.push(`ATC warning policy blocked ${atcWarnings} warning(s)`)
+    }
+    if (unitTestFailures > 0) {
+      reasons.push(`ABAP Unit reported ${unitTestFailures} failed test(s)`)
+    }
+    if (incompleteChecks > 0) reasons.push(`${incompleteChecks} requested check(s) were incomplete`)
+    if (truncated) {
+      reasons.push(`Only ${selectedObjects.length} of ${uniqueObjects.length} objects were assessed`)
+    }
+    if (uniqueObjects.length === 0) reasons.push("The transport contains no objects")
+    const gateStatus = failedChecks > 0
+      ? "failed"
+      : incompleteChecks > 0 || truncated || uniqueObjects.length === 0
+        ? "incomplete"
+        : "passed"
+    const report: ChangeAssuranceReport = {
+      schemaVersion: "1.0",
+      generatedAt: new Date().toISOString(),
+      source: "live-sap-adt",
+      connectionId: input.connectionId.toUpperCase(),
+      ...(targetConnectionId ? { targetConnectionId } : {}),
+      transport: {
+        number: transport["tm:number"],
+        owner: transport["tm:owner"],
+        description: transport["tm:desc"],
+        status: transport["tm:status"],
+        totalObjects: uniqueObjects.length,
+        assessedObjects: selectedObjects.length,
+        truncated
+      },
+      policy: { checks, failOnAtcWarnings, maxObjects },
+      gate: { status: gateStatus, reasons },
+      summary: {
+        passedChecks,
+        warningChecks,
+        failedChecks,
+        incompleteChecks,
+        atcErrors,
+        atcWarnings,
+        unitTests,
+        unitTestFailures,
+        targetDifferences
+      },
+      objects
+    }
+    const reports = await writeChangeAssuranceArtifacts(
+      report,
+      input.reportFormats?.length ? input.reportFormats : ["json"],
+      input.reportDirectory
+    )
+    return { ...report, reports }
+  }
+
   async manageTransportRequests(input: ManageTransportsInput) {
     const client = await this.connections.getClient(input.connectionId)
     if (input.action === "get_user_transports") {
@@ -3008,6 +3418,9 @@ export class AbapToolService {
         nextStartIndex: page.nextStartIndex,
         objects: page.items
       }
+    }
+    if (input.action === "assess_transport") {
+      return this.assessTransport(client, input)
     }
     if (input.action === "list_system_users") {
       const users = await client.listSystemUsers()
@@ -3870,7 +4283,9 @@ export class AbapToolService {
       payload.before,
       payload.after,
       payload.transport || undefined,
-      payload.activate
+      payload.activate,
+      undefined,
+      syntaxObjectUriFromSourceUri(payload.object.uri, payload.sourceUri)
     )
     return {
       connectionId: plan.connectionId,
@@ -4677,7 +5092,8 @@ export class AbapToolService {
       updated,
       transport,
       input.activate,
-      target.mainProgram
+      target.mainProgram,
+      target.syntaxObjectUri
     )
     const diagnostics = result.diagnostics.slice(0, 100)
     return {
@@ -4699,7 +5115,7 @@ export class AbapToolService {
   async getAbapDiagnostics(input: DiagnosticsInput) {
     const target = await this.resolveEditableTarget(input)
     const diagnostics = await target.client.checkSyntax(
-      target.objectUri,
+      target.syntaxObjectUri,
       target.sourceUri,
       target.source,
       target.mainProgram
@@ -5408,7 +5824,8 @@ export class AbapToolService {
           edges.set(edgeKey, {
             source: parsed.id,
             target: current.id,
-            usageType: parsed.usageInformation
+            usageType: parsed.usageInformation,
+            ...(parsed.member ? { member: parsed.member } : {})
           })
         }
         if (parsed.canExpand && current.level + 1 < input.depth) {

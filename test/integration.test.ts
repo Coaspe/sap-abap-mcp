@@ -108,6 +108,13 @@ class FakeSapClient implements SapClient {
     nextSource: string
     transport?: string
     activate: boolean
+    syntaxObjectUri?: string
+  }> = []
+  syntaxCheckArgs: Array<{
+    objectUri: string
+    sourceUri: string
+    sourceText: string
+    mainProgram: string | undefined
   }> = []
   deleteObjectCalls = 0
   objectCreationOperations: string[] = []
@@ -129,6 +136,7 @@ class FakeSapClient implements SapClient {
     inactive: []
   }
   batchActivationError?: Error
+  usageReferencesResult?: any[]
   objectPackages = new Map([
     ["ZCL_FIRST", "Z_DEMO"],
     ["ZCL_SECOND", "Z_DEMO"],
@@ -186,6 +194,15 @@ class FakeSapClient implements SapClient {
   classComponentsResult: import("abap-adt-api").ClassComponent =
     structuredClone(DEVELOPMENT_PARITY_FIXTURES.components)
   classComponentsError?: Error
+  definitionArgs: Array<{
+    sourceUri: string
+    source: string
+    line: number
+    startColumn: number
+    endColumn: number
+    implementation: boolean
+    mainProgram: string | undefined
+  }> = []
   objectStructureType = object.type
 
   constructor(readonly profile: SapProfile) {}
@@ -248,7 +265,9 @@ class FakeSapClient implements SapClient {
     }
     return {
       source: this.currentSource,
-      sourceUri: uri.endsWith("/source/main") ? uri : `${uri}/source/main`
+      sourceUri: uri.endsWith("/source/main") || /\/includes\/[^/]+$/i.test(uri)
+        ? uri
+        : `${uri}/source/main`
     }
   }
 
@@ -287,7 +306,7 @@ class FakeSapClient implements SapClient {
   }
 
   async findUsageReferences(): Promise<any[]> {
-    return [
+    return this.usageReferencesResult ?? [
       {
         uri: "/sap/bc/adt/programs/programs/zrep_caller",
         objectIdentifier: "ABAPFullName;ZREP_CALLER",
@@ -327,10 +346,12 @@ class FakeSapClient implements SapClient {
   }
 
   async checkSyntax(
-    _objectUri: string,
+    objectUri: string,
     sourceUri: string,
-    sourceText: string
+    sourceText: string,
+    mainProgram?: string
   ): Promise<any[]> {
+    this.syntaxCheckArgs.push({ objectUri, sourceUri, sourceText, mainProgram })
     return sourceText.includes("SYNTAX_ERROR")
       ? [{ uri: sourceUri, line: 3, offset: 4, severity: "E", text: "Syntax error" }]
       : []
@@ -343,7 +364,9 @@ class FakeSapClient implements SapClient {
     expectedSource: string,
     nextSource: string,
     _transport?: string,
-    activate = false
+    activate = false,
+    _mainProgram?: string,
+    syntaxObjectUri?: string
   ): Promise<any> {
     this.replaceSourceCalls.push({
       objectName,
@@ -352,13 +375,19 @@ class FakeSapClient implements SapClient {
       expectedSource,
       nextSource,
       ...(_transport === undefined ? {} : { transport: _transport }),
-      activate
+      activate,
+      ...(syntaxObjectUri ? { syntaxObjectUri } : {})
     })
     this.objectCreationOperations.push("replace_source")
     if (this.replaceSourceError) throw this.replaceSourceError
     assert.equal(this.currentSource, expectedSource)
     this.currentSource = nextSource
-    const diagnostics = await this.checkSyntax("", sourceUri, nextSource)
+    const diagnostics = await this.checkSyntax(
+      syntaxObjectUri ?? objectUri,
+      sourceUri,
+      nextSource,
+      _mainProgram
+    )
     return {
       diagnostics,
       ...(activate && diagnostics.length === 0
@@ -685,7 +714,24 @@ class FakeSapClient implements SapClient {
     return this.replExecutionResult ?? { success: true, output: code, error: "", runtime_ms: 1 }
   }
 
-  async findDefinition(): Promise<any> {
+  async findDefinition(
+    sourceUri: string,
+    sourceText: string,
+    line: number,
+    startColumn: number,
+    endColumn: number,
+    implementation = false,
+    mainProgram?: string
+  ): Promise<any> {
+    this.definitionArgs.push({
+      sourceUri,
+      source: sourceText,
+      line,
+      startColumn,
+      endColumn,
+      implementation,
+      mainProgram
+    })
     return { url: object.uri, line: 1, column: 6 }
   }
 
@@ -2320,6 +2366,89 @@ test("ABAP source replacement requires one exact match", () => {
   )
 })
 
+test("class include diagnostics preserve the include syntax URI", async () => {
+  const { fake, service } = createBdefHarness()
+  const testIncludeUri = `${object.uri}/includes/testclasses`
+  fake.currentSource = [
+    "CLASS ltc_demo DEFINITION FOR TESTING.",
+    "ENDCLASS."
+  ].join("\n")
+
+  await service.getAbapDiagnostics({
+    fileUri: `adt://dev100${testIncludeUri}`,
+    connectionId: "DEV100",
+    startIndex: 0,
+    maxResults: 100
+  })
+
+  assert.deepEqual(fake.syntaxCheckArgs.at(-1), {
+    objectUri: testIncludeUri,
+    sourceUri: testIncludeUri,
+    sourceText: fake.currentSource,
+    mainProgram: undefined
+  })
+
+  await service.replaceStringInObject({
+    fileUri: `adt://dev100${testIncludeUri}`,
+    oldString: "ltc_demo",
+    newString: "ltc_demo_changed",
+    connectionId: "DEV100",
+    transport: "DEVK900123",
+    activate: false
+  })
+
+  assert.equal(fake.replaceSourceCalls.at(-1)?.objectUri, object.uri)
+  assert.equal(fake.replaceSourceCalls.at(-1)?.sourceUri, testIncludeUri)
+  assert.equal(fake.replaceSourceCalls.at(-1)?.syntaxObjectUri, testIncludeUri)
+})
+
+test("dependency graph normalizes method owners and class pools", async () => {
+  const { fake, service } = createBdefHarness()
+  const usageReference = (
+    owner: string,
+    type: "CLAS/OM" | "PROG/P",
+    name: string
+  ) => ({
+    uri: type === "CLAS/OM"
+      ? `/sap/bc/adt/oo/classes/${owner.toLowerCase()}/source/main#type=CLAS/OM;name=${name}`
+      : `/sap/bc/adt/programs/programs/${name.toLowerCase()}`,
+    objectIdentifier: `ABAPFullName;${owner}=========CP`,
+    parentUri: `/sap/bc/adt/oo/classes/${owner.toLowerCase()}`,
+    isResult: true,
+    canHaveChildren: false,
+    usageInformation: "method call",
+    "adtcore:responsible": "DEVELOPER",
+    "adtcore:name": name,
+    "adtcore:type": type,
+    packageRef: {
+      "adtcore:uri": "/sap/bc/adt/packages/z_demo",
+      "adtcore:name": "Z_DEMO"
+    }
+  })
+  fake.usageReferencesResult = [
+    usageReference("ZCL_FIRST", "CLAS/OM", "PING"),
+    usageReference("ZCL_SECOND", "CLAS/OM", "PING"),
+    usageReference("ZCL_FIRST", "PROG/P", "ZCL_FIRST=========CP")
+  ]
+
+  const graph = await service.dependencyGraph({
+    objectName: object.name,
+    objectType: object.type,
+    connectionId: "DEV100",
+    depth: 1,
+    maxNodes: 20,
+    customOnly: true
+  })
+
+  assert.deepEqual(
+    graph.nodes.map(node => String(node.id)).sort(),
+    ["ZCL_DEMO::CLAS/OC", "ZCL_FIRST::CLAS/OC", "ZCL_SECOND::CLAS/OC"].sort()
+  )
+  assert.equal(graph.nodes.some(node => node.id === "PING::CLAS/OM"), false)
+  assert.equal(graph.nodes.some(node => /=========CP/.test(String(node.name))), false)
+  assert.equal(graph.edges.some(edge => edge.member === "PING"), true)
+})
+
 test("BDEF create object writes exact source and activates after creation", async () => {
   const { fake, service } = createBdefHarness()
   const bdefSource = "managed implementation in class zbp_i_demo unique;"
@@ -3268,6 +3397,58 @@ test("capability execution preserves pre-call status and normalizes observations
   ])
 })
 
+test("definition expands the identifier range under the cursor", async () => {
+  const { fake, service } = createBdefHarness()
+  const fileUri = `adt://dev100${object.uri}/source/main`
+  const inspect = async (sourceText: string, column: number, endColumn?: number) => {
+    fake.currentSource = sourceText
+    await service.inspectCode({
+      action: "definition",
+      fileUri,
+      connectionId: "DEV100",
+      line: 1,
+      column,
+      ...(endColumn === undefined ? {} : { endColumn }),
+      implementation: false,
+      startIndex: 0,
+      maxResults: 20
+    })
+    return fake.definitionArgs.at(-1)!
+  }
+
+  const classReference = "  result = zcl_target=>ping( )."
+  assert.deepEqual(
+    (({ startColumn, endColumn }) => ({ startColumn, endColumn }))(
+      await inspect(classReference, 15)
+    ),
+    { startColumn: 11, endColumn: 21 }
+  )
+
+  const fieldSymbol = "<field_symbol> = value."
+  assert.deepEqual(
+    (({ startColumn, endColumn }) => ({ startColumn, endColumn }))(
+      await inspect(fieldSymbol, 5)
+    ),
+    { startColumn: 0, endColumn: 14 }
+  )
+
+  const namespaced = "  DATA value TYPE /NS/ZCL_TARGET."
+  const namespaceStart = namespaced.indexOf("/NS/ZCL_TARGET")
+  assert.deepEqual(
+    (({ startColumn, endColumn }) => ({ startColumn, endColumn }))(
+      await inspect(namespaced, namespaceStart + 4)
+    ),
+    { startColumn: namespaceStart, endColumn: namespaceStart + "/NS/ZCL_TARGET".length }
+  )
+
+  assert.deepEqual(
+    (({ startColumn, endColumn }) => ({ startColumn, endColumn }))(
+      await inspect(classReference, 13, 18)
+    ),
+    { startColumn: 13, endColumn: 18 }
+  )
+})
+
 test("semantic inspect actions use one SapClient call, paginate, and bound inline text", async () => {
   const harness = createBdefHarness()
   const fileUri = "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main"
@@ -3814,6 +3995,13 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     listed.tools.map(tool => tool.name).sort(),
     [...IMPLEMENTED_TOOL_NAMES].sort()
   )
+  const createTool = listed.tools.find(tool => tool.name === "create_object_programmatically")
+  const createProperties = createTool?.inputSchema.properties as Record<
+    string,
+    { description?: string }
+  > | undefined
+  assert.match(createProperties?.source?.description ?? "", /BDEF\/BDO/)
+  assert.match(createProperties?.activate?.description ?? "", /BDEF\/BDO/)
   const manifest = JSON.parse(await readFile("mcpb/manifest.json", "utf8")) as {
     tools_generated: boolean
     tools: Array<{ name: string; description: string }>
@@ -4416,6 +4604,40 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     transportNumber: "DEVK900123"
   })
   assert.equal(transport.objects[0]["tm:name"], "ZCL_DEMO")
+
+  const transportAssessment = await callJson("manage_transport_requests", {
+    action: "assess_transport",
+    connectionId: "DEV100",
+    transportNumber: "DEVK900123",
+    checks: ["atc", "unit_tests", "target_compare"],
+    targetConnectionId: "QAS100",
+    reportFormats: ["json", "sarif", "junit"],
+    maxObjects: 10
+  })
+  assert.equal(transportAssessment.gate.status, "passed")
+  assert.equal(transportAssessment.summary.atcWarnings, 1)
+  assert.equal(transportAssessment.summary.unitTests, 1)
+  assert.equal(transportAssessment.objects[0].targetComparison.status, "identical")
+  assert.deepEqual(
+    transportAssessment.reports.map((report: any) => report.format),
+    ["json", "sarif", "junit"]
+  )
+  t.after(() => rm(dirname(transportAssessment.reports[0].outputPath), {
+    recursive: true,
+    force: true
+  }))
+  assert.equal(
+    JSON.parse(await readFile(transportAssessment.reports[0].outputPath, "utf8")).gate.status,
+    "passed"
+  )
+  assert.equal(
+    JSON.parse(await readFile(transportAssessment.reports[1].outputPath, "utf8")).version,
+    "2.1.0"
+  )
+  assert.match(
+    await readFile(transportAssessment.reports[2].outputPath, "utf8"),
+    /<testsuite/
+  )
 
   const versions = await callJson("get_version_history", {
     objectName: "ZCL_DEMO",

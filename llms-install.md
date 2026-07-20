@@ -6,7 +6,7 @@ This package is a local `stdio` MCP server. It connects directly from the user's
 
 - Node.js 20 or later
 - Network or VPN access to the SAP system
-- SAP ADT HTTPS URL, client number, user name, and Basic Auth permission
+- SAP ADT HTTPS URL and client number, plus either a user name with Basic Auth permission or an explicitly configured OAuth client-credentials client
 
 ## Create and verify a local SAP profile
 
@@ -35,6 +35,8 @@ To change or remove a saved server, use the same local wizard. Omit the Server n
 ```
 
 Editing keeps the Server name fixed. On Windows and macOS it verifies SAP before replacing the saved values; Linux verifies when the matching password environment variable is available and otherwise prints the authentication steps again. Removal displays the selected server, defaults to `No`, and deletes its stored SAP and abapGit credentials after confirmation.
+
+The wizard creates Basic Auth profiles. For explicit OAuth client credentials, use `profile add --auth-type oauth-client-credentials --token-url <url> --client-id <id> [--scope <scope>] --login`; enter the client secret only at the hidden local prompt. On Linux omit `--login` and place the secret in the profile-specific environment variable printed by the setup guidance.
 
 On Linux, the wizard saves the non-secret server settings and prints the exact `SAP_ABAP_MCP_PASSWORD_<NORMALIZED_SERVER_NAME>` commands. Set it with a hidden shell prompt and start Claude Code from the same shell. For example, `DEV-100` uses `SAP_ABAP_MCP_PASSWORD_DEV_100`:
 

@@ -11,7 +11,7 @@ This policy applies to SAP ABAP MCP, including its npm package, MCP Bundle (MCPB
 SAP ABAP MCP processes only the data needed to perform user-requested operations, which may include:
 
 - SAP connection profile settings such as system URL, client, language, user name, environment, and allowed packages.
-- SAP credentials and abapGit credentials stored in the operating system's protected credential store.
+- SAP passwords, OAuth client secrets, and abapGit credentials stored in the operating system's protected credential store.
 - SAP repository source, metadata, diagnostics, test results, transports, runtime information, and other ADT responses requested by the user.
 - Local artifacts that the user explicitly asks the software to create.
 
@@ -27,7 +27,7 @@ The npm registry may be contacted when the user installs or updates the package.
 
 The publisher does not receive or retain SAP profiles, credentials, source code, tool inputs, tool results, or generated artifacts.
 
-Profile configuration and generated files remain on the user's computer until the user removes them. Passwords and tokens are stored in macOS Keychain or Windows DPAPI and remain there until the user logs out, removes the profile, or deletes the corresponding credential. On Linux, credentials are read only from profile-specific environment variables and are not persisted by the software. Temporary runtime data is held in process memory and is discarded when the process exits.
+Profile configuration and generated files remain on the user's computer until the user removes them. SAP passwords, OAuth client secrets, and abapGit passwords or tokens are stored in macOS Keychain or Windows DPAPI and remain there until the user logs out, removes the profile, or deletes the corresponding credential. OAuth access tokens are cached only in process memory until refresh or process exit. On Linux, credentials are read only from profile-specific environment variables and are not persisted by the software. Temporary runtime data is held in process memory and is discarded when the process exits.
 
 ## Sharing
 
