@@ -29,6 +29,8 @@ import type {
   ActivateObjectInput,
   RunAbapApplicationInput
 } from "./tool-service.js"
+import type { McpApiVersion } from "./mcp/api-version.js"
+import { registerV1Tools } from "./mcp/v1/register.js"
 
 export const ABAP_OBJECT_TYPES = [
   "FUNC",
@@ -104,6 +106,7 @@ function deferredErrorSummary(payload: ReturnType<typeof errorPayload>): Deferre
 
 export interface McpServerOptions {
   enabledTools?: ReadonlySet<string>
+  apiVersion?: McpApiVersion
 }
 
 interface ToolResultPolicy {
@@ -117,6 +120,8 @@ export function createMcpServer(
   tools: AbapToolService,
   options: McpServerOptions = {}
 ): McpServer {
+  const apiVersion = options.apiVersion ?? "v0"
+  const includeV0 = apiVersion === "v0" || apiVersion === "all"
   const server = new McpServer(
     {
       name: "sap-abap-mcp",
@@ -132,8 +137,9 @@ export function createMcpServer(
       }]
     },
     {
-      instructions:
-        "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
+      instructions: apiVersion === "v1"
+        ? "Call sap.system.list when systemId is unknown, then use sap.system.inspect for normalized SAP system metadata."
+        : "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
   )
   const deferredResults = new DeferredResultStore()
@@ -247,6 +253,7 @@ export function createMcpServer(
     },
     callback: ToolCallback<InputArgs>
   ): RegisteredTool | undefined => {
+    if (!includeV0) return undefined
     if (options.enabledTools && !options.enabledTools.has(name)) return undefined
     return server.registerTool(name, config, callback)
   }
@@ -1874,6 +1881,14 @@ export function createMcpServer(
       ...(input.parameters ? { parameters: input.parameters } : {})
     }))
   )
+
+  if (apiVersion === "v1" || apiVersion === "all") {
+    registerV1Tools(
+      server,
+      tools,
+      options.enabledTools ? { enabledV0Tools: options.enabledTools } : {}
+    )
+  }
 
   return server
 }

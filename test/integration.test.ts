@@ -7,12 +7,15 @@ import test from "node:test"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ConnectionManager, type ConnectionSummary } from "../src/connection-manager.js"
-import { IMPLEMENTED_TOOL_NAMES } from "../src/compat/abap-fs-tools.js"
+import {
+  IMPLEMENTED_TOOL_NAMES,
+  toolsForToolsets
+} from "../src/compat/abap-fs-tools.js"
 import {
   DEFERRED_RESULT_TOOL_NAME,
   type DeferredResultEnvelope
 } from "../src/deferred-results.js"
-import { createMcpServer } from "../src/mcp-server.js"
+import { createMcpServer, type McpServerOptions } from "../src/mcp-server.js"
 import { AppError } from "../src/errors.js"
 import { ProfileStore, type SapProfile } from "../src/profile-store.js"
 import { SapCapabilityRegistry } from "../src/sap-capabilities.js"
@@ -35,6 +38,11 @@ import {
   type ActivateObjectInput
 } from "../src/tool-service.js"
 import { DEVELOPMENT_PARITY_FIXTURES } from "./fixtures/development-parity.js"
+import { advertisedTools } from "./helpers/mcp-surface.js"
+
+async function toolNames(options?: McpServerOptions): Promise<string[]> {
+  return (await advertisedTools(options)).map(tool => tool.name)
+}
 
 const object: SapObjectReference = {
   name: "ZCL_DEMO",
@@ -3846,6 +3854,27 @@ test("MCP initialize reports the npm package version", async t => {
       sizes: ["400x400"]
     }]
   })
+})
+
+test("API version modes preserve v0 and expose the first v1 system tools", async () => {
+  const v1Names = ["sap.system.list", "sap.system.inspect"]
+  assert.deepEqual((await toolNames()).sort(), [...IMPLEMENTED_TOOL_NAMES].sort())
+  assert.deepEqual(
+    (await toolNames({ apiVersion: "v0" })).sort(),
+    [...IMPLEMENTED_TOOL_NAMES].sort()
+  )
+  assert.deepEqual(await toolNames({ apiVersion: "v1" }), v1Names)
+  assert.deepEqual(
+    (await toolNames({ apiVersion: "all" })).sort(),
+    [...IMPLEMENTED_TOOL_NAMES, ...v1Names].sort()
+  )
+  assert.deepEqual(
+    await toolNames({
+      apiVersion: "v1",
+      enabledTools: toolsForToolsets(["core"])
+    }),
+    v1Names
+  )
 })
 
 test("MCP run_abap_application exposes strict health, class, and snippet actions", async t => {
