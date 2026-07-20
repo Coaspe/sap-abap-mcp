@@ -779,6 +779,13 @@ test("post-creation fixed and template Resources retain update, enable, disable,
     { mimeType: "text/plain" },
     async uri => ({ contents: [{ uri: uri.href, text: "replacement original" }] })
   )
+  assert.deepEqual((await connection.client.listResources()).resources.find(resource =>
+    resource.uri === "memo://example/original"
+  ), {
+    uri: "memo://example/original",
+    name: "replacement-fixed-original",
+    mimeType: "text/plain"
+  })
   assert.equal(
     resourceText(await connection.client.readResource({ uri: "memo://example/original" })),
     "replacement original"
@@ -807,8 +814,12 @@ test("post-creation fixed and template Resources retain update, enable, disable,
     "fixed-updated"
   )
 
+  template.update({ name: "lifecycle-template-updated" })
+  assert.deepEqual(
+    await completionValues(connection.client, "memo-template://{name}", "name"),
+    ["v-original"]
+  )
   template.update({
-    name: "lifecycle-template-updated",
     title: "Template updated",
     template: completionTemplate("note-template://{name}", "name", "updated"),
     metadata: {
