@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { V1_MIGRATION_CATALOG } from "./migration-catalog.js"
+import { registerV1RepositoryTools } from "./repository-tools.js"
 import { registerV1Resources } from "./resources.js"
 import type { V1ReadService } from "./service.js"
 import {
@@ -41,5 +42,9 @@ export function registerV1Tools(
     isV1ToolEnabled(name, options.enabledV0Tools)
   )
   registerV1SystemTools(server, service, new Set(systemToolNames))
+  const repositoryToolNames = ["sap.repository.search"].filter(name =>
+    isV1ToolEnabled(name, options.enabledV0Tools)
+  )
+  registerV1RepositoryTools(server, service, new Set(repositoryToolNames))
   registerV1Resources(server, service)
 }

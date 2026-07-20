@@ -11,6 +11,7 @@ import type {
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
 import type { RapGeneratorContent } from "abap-adt-api"
+import { ABAP_OBJECT_TYPES } from "./abap-object-types.js"
 import {
   DEFERRED_RESULT_CHUNK_BYTE_LIMIT,
   DEFERRED_RESULT_TOOL_NAME,
@@ -32,46 +33,7 @@ import type {
 import type { McpApiVersion } from "./mcp/api-version.js"
 import { registerV1Tools } from "./mcp/v1/register.js"
 
-export const ABAP_OBJECT_TYPES = [
-  "FUNC",
-  "CLAS",
-  "TABL",
-  "PROG",
-  "INTF",
-  "DTEL",
-  "DDLS",
-  "DOMA",
-  "TTYP",
-  "ENQU",
-  "MSAG",
-  "FUGR",
-  "DEVC",
-  "TRAN",
-  "VIEW",
-  "SICF",
-  "WDYN",
-  "SPRX",
-  "XSLT",
-  "TRANSFORMATIONS",
-  "SUSH",
-  "SUSC",
-  "PINF",
-  "ENHC",
-  "ENHS",
-  "BADI",
-  "BADII",
-  "SAMC",
-  "SAPC",
-  "SFSW",
-  "SFBF",
-  "SFBS",
-  "JOBD",
-  "NROB",
-  "ENHO",
-  "SUSO",
-  "BDEF",
-  "SRVB"
-] as const
+export { ABAP_OBJECT_TYPES } from "./abap-object-types.js"
 
 function boundSummaryText(value: string, byteLimit: number): string {
   if (Buffer.byteLength(value, "utf8") <= byteLimit) return value
