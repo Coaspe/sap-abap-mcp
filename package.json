@@ -37,6 +37,7 @@
     "server.json",
     "llms-install.md",
     "scripts/benchmark-mcp-surface.mjs",
+    "scripts/smoke-v1-stdio.mjs",
     "assets"
   ],
   "publishConfig": {
