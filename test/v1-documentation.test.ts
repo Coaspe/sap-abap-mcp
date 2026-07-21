@@ -31,7 +31,7 @@ test("v1 migration guide documents the complete local contract and live boundary
     "The complete v1 surface contains 113 callable tools and seven Resources.",
     "All 53 v0 capabilities remain available through `--api-version v0`.",
     "Live SAP acceptance remains a separate gate",
-    "`--api-version all` is reserved for migration conformance because it exposes duplicate capabilities."
+    "The combined v0 + v1 surface is internal to automated parity tests and is not accepted by the CLI."
   ]) {
     assert.ok(guide.includes(statement), statement)
   }
@@ -42,7 +42,6 @@ test("v1 migration guide documents the complete local contract and live boundary
       "npx @coaspe/sap-abap-mcp@latest serve",
       "npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis",
       "npx @coaspe/sap-abap-mcp@latest serve --api-version v0",
-      "npx @coaspe/sap-abap-mcp@latest serve --api-version all",
     ]
   )
   for (const toolset of ["core", "write", "analysis", "debug", "operations", "artifacts"]) {
@@ -91,6 +90,7 @@ test("README documents current defaults, strict TMP ownership, and connection di
   ]) {
     assert.ok(readme.includes(statement), statement)
   }
+  assert.doesNotMatch(readme, /--api-version all|166 tools/)
 })
 
 test("published launch guard rejects versioned or post-serve arguments", () => {
@@ -122,6 +122,7 @@ test("Windows live prompt covers all tools with strict current-run TMP ownership
   assert.ok(guide.includes(
     'claude mcp add --transport stdio --scope user sap-abap-b4d-local -- node "C:\\src\\sap-abap-mcp-v1\\dist\\src\\index.js" serve --profile B4D'
   ))
+  assert.doesNotMatch(guide, /--api-version all|166개/)
   for (const statement of [
     "113행 ledger",
     "create receipt",

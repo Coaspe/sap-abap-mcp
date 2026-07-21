@@ -63,7 +63,6 @@ Normal clients should omit both `--api-version` and `--toolsets`.
 | `serve --profile DEV100` | Current v1, all 113 tools and seven Resources |
 | `serve --profile DEV100 --toolsets core,analysis` | Selected v1 toolsets only |
 | `serve --profile DEV100 --api-version v0` | Legacy 53-tool compatibility surface |
-| `serve --profile DEV100 --api-version all` | v0 + v1 migration/conformance surface |
 
 See the
 [v1 migration guide](docs/v1-migration.md) for contracts, Resources, and the
@@ -459,7 +458,7 @@ abapgit auth status <id> --repository-url <url>
 abapgit auth logout <id> --repository-url <url>
 
 doctor <id> [--include-components]
-serve [--profile <id>] [--api-version v0|v1|all]
+serve [--profile <id>] [--api-version v0|v1]
     [--toolsets core,write,analysis,debug,operations,artifacts|all]
 ```
 

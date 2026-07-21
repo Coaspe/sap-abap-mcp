@@ -237,6 +237,12 @@ test("API version CLI validation rejects before starting a transport", async () 
     (error: unknown) => error instanceof AppError && error.code === "INVALID_API_VERSION"
   )
   await assert.rejects(
+    runCli(["serve", "--api-version", "all"]),
+    (error: unknown) => error instanceof AppError &&
+      error.code === "INVALID_API_VERSION" &&
+      assert.deepEqual(error.details, { available: ["v0", "v1"] }) === undefined
+  )
+  await assert.rejects(
     runCli(["serve", "--api-version", "v1", "--toolsets", "future"]),
     (error: unknown) => error instanceof AppError &&
       error.code === "INVALID_TOOLSET" &&
