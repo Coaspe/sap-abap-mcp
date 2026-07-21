@@ -115,6 +115,30 @@ test("failure redacts a standalone bearer credential in nested detail text", () 
   assert.equal(serialized.includes("detail-secret"), false)
 })
 
+test("the shared sanitizer redacts standalone basic and bearer credentials", () => {
+  for (const [scheme, secret] of [
+    ["Basic", "basic-secret"],
+    ["Bearer", "bearer-secret"]
+  ] as const) {
+    assert.equal(
+      sanitizeV1Message(`Upstream rejected ${scheme} ${secret}`).includes(secret),
+      false
+    )
+  }
+})
+
+test("the shared sanitizer fail-closes folded standalone credentials", () => {
+  for (const scheme of ["Basic", "Bearer"]) {
+    const sanitized = sanitizeV1Message(
+      `Upstream rejected ${scheme} first-secret\r\n second-secret\r\n third-secret`
+    )
+
+    for (const secret of ["first-secret", "second-secret", "third-secret"]) {
+      assert.equal(sanitized.includes(secret), false)
+    }
+  }
+})
+
 test("the shared sanitizer fail-closes folded credential continuations", () => {
   for (const scheme of ["Basic", "Bearer"]) {
     const sanitized = sanitizeV1Message(

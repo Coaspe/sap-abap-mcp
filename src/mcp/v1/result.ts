@@ -232,11 +232,11 @@ function redactSensitiveText(value: string): string {
     /\b([a-z][a-z0-9+.-]*:\/\/)[^/\s?#]*@/gi,
     "$1[REDACTED]@"
   )
-  const bearerRedacted = userinfoRedacted.replace(
-    /\bBearer\s+[^\s,;&#}\]]+/gi,
-    "Bearer [REDACTED]"
+  const schemeRedacted = userinfoRedacted.replace(
+    /\b(Basic|Bearer)\s+[^\s,;&#}\]]+(?:\r?\n[ \t]+[^\r\n,;&#}\]]+)*/gi,
+    "$1 [REDACTED]"
   )
-  return redactSensitiveAssignments(bearerRedacted)
+  return redactSensitiveAssignments(schemeRedacted)
 }
 
 function truncateUtf8(value: string, byteLimit: number): string {
