@@ -28,7 +28,7 @@ test("v1 primary toolsets cover all 113 names exactly once", () => {
   assert.equal(new Set(grouped).size, 113)
   assert.deepEqual([...grouped].sort(), [...V1_TOOL_NAMES].sort())
   assert.deepEqual([...v1ToolsForToolsets(["all"])].sort(), [...V1_TOOL_NAMES].sort())
-  assert.ok(V1_IMPLEMENTED_TOOL_NAMES.every(name => V1_MCP_TOOLSETS.core.includes(name)))
+  assert.ok(V1_IMPLEMENTED_TOOL_NAMES.every(name => V1_TOOL_NAMES.includes(name)))
 })
 
 test("v1 Resource ownership is exact and evidence is available to every set", () => {
@@ -43,7 +43,12 @@ test("v1 Resource ownership is exact and evidence is available to every set", ()
   ])
   assert.deepEqual(V1_IMPLEMENTED_RESOURCE_NAMES, [
     "sap-adt-source",
-    "sap-capability-evidence"
+    "sap-capability-evidence",
+    "sap-docs-compat",
+    "sap-docs-data-query",
+    "sap-docs-mermaid",
+    "sap-evidence",
+    "sap-transport"
   ])
   assert.ok(Object.values(V1_RESOURCE_TOOLSETS).every(names =>
     names.includes("sap-evidence")

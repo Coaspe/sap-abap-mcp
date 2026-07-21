@@ -319,7 +319,7 @@ function sanitizeDiagnosticValue(value: unknown, seen: WeakSet<object>): unknown
   return result
 }
 
-function sanitizeV1DiagnosticValue(value: unknown): unknown {
+export function sanitizeV1DiagnosticValue(value: unknown): unknown {
   return sanitizeDiagnosticValue(value, new WeakSet())
 }
 

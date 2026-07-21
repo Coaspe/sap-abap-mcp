@@ -4,6 +4,8 @@ const SYSTEM_ID_PATTERN = /^[A-Z0-9_-]+$/
 const ADT_PATH_PREFIX = "/sap/bc/adt/"
 const MALFORMED_PERCENT_PATTERN = /%(?![0-9A-Fa-f]{2})/
 const RAW_C0_CONTROL_PATTERN = /[\u0000-\u001F]/
+const OPAQUE_SEGMENT_PATTERN = /^[a-z0-9_-]+$/
+const TRANSPORT_PATTERN = /^[A-Z0-9_-]+$/
 
 export interface ParsedAdtResourceUri {
   systemId: string
@@ -124,5 +126,91 @@ export function parseCapabilityResourceUri(value: string): {
   return {
     systemId,
     canonicalUri: `sap-capability://${systemId.toLowerCase()}`
+  }
+}
+
+function singlePathSegment(url: URL, label: string): string {
+  const raw = url.pathname.replace(/^\//, "")
+  if (!raw || raw.includes("/")) return invalidUri(`${label} must be one path segment`)
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return invalidUri(`${label} contains a malformed percent escape`)
+  }
+}
+
+export function parseTransportResourceUri(value: string): {
+  systemId: string
+  transport: string
+  canonicalUri: string
+} {
+  assertNoQueryOrFragment(value)
+  const url = parseUrl(value)
+  if (url.protocol !== "sap-transport:") {
+    return invalidUri("URI must use the sap-transport scheme")
+  }
+  assertNoExtraAuthorityParts(url)
+  const systemId = normalizeV1SystemId(url.hostname)
+  const transport = singlePathSegment(url, "Transport").toUpperCase()
+  if (!TRANSPORT_PATTERN.test(transport)) {
+    return invalidUri("Transport contains unsupported characters")
+  }
+  return {
+    systemId,
+    transport,
+    canonicalUri: `sap-transport://${systemId.toLowerCase()}/${transport}`
+  }
+}
+
+export function parseEvidenceResourceUri(value: string): {
+  runId: string
+  artifact: string
+  canonicalUri: string
+} {
+  assertNoQueryOrFragment(value)
+  const url = parseUrl(value)
+  if (url.protocol !== "sap-evidence:") {
+    return invalidUri("URI must use the sap-evidence scheme")
+  }
+  assertNoExtraAuthorityParts(url)
+  const runId = url.hostname.toLowerCase()
+  const artifact = singlePathSegment(url, "Evidence artifact").toLowerCase()
+  if (!OPAQUE_SEGMENT_PATTERN.test(runId) || !OPAQUE_SEGMENT_PATTERN.test(artifact)) {
+    return invalidUri("Evidence identifiers contain unsupported characters")
+  }
+  return {
+    runId,
+    artifact,
+    canonicalUri: `sap-evidence://${runId}/${artifact}`
+  }
+}
+
+export function parseDocsResourceUri(value: string): {
+  family: "data-query" | "compat" | "mermaid"
+  document?: string
+  canonicalUri: string
+} {
+  assertNoQueryOrFragment(value)
+  const url = parseUrl(value)
+  if (url.protocol !== "sap-docs:") {
+    return invalidUri("URI must use the sap-docs scheme")
+  }
+  assertNoExtraAuthorityParts(url)
+  const family = url.hostname.toLowerCase()
+  if (family === "data-query") {
+    if (url.pathname !== "") return invalidUri("Data-query documentation has no path")
+    return { family, canonicalUri: "sap-docs://data-query" }
+  }
+  if (family !== "compat" && family !== "mermaid") {
+    return invalidUri("Unknown documentation family")
+  }
+  const document = singlePathSegment(url, "Documentation name").toLowerCase()
+  if (!OPAQUE_SEGMENT_PATTERN.test(document)) {
+    return invalidUri("Documentation name contains unsupported characters")
+  }
+  return {
+    family,
+    document,
+    canonicalUri: `sap-docs://${family}/${document}`
   }
 }

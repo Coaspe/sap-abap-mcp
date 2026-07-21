@@ -12,6 +12,7 @@ export type V1MigrationDisposition =
 export interface V1MigrationEntry {
   targets: readonly string[]
   disposition: V1MigrationDisposition
+  implementedTargets?: readonly string[]
 }
 
 export const V1_MIGRATION_CATALOG = {
@@ -36,46 +37,46 @@ export const V1_MIGRATION_CATALOG = {
     disposition: "implemented"
   },
   search_abap_object_lines: {
-    targets: ["sap.source.search"], disposition: "planned"
+    targets: ["sap.source.search"], disposition: "implemented"
   },
   get_abap_object_info: {
-    targets: ["sap.repository.inspect"], disposition: "planned"
+    targets: ["sap.repository.inspect"], disposition: "implemented"
   },
   get_batch_lines: {
-    targets: ["sap.source.read_batch"], disposition: "planned"
+    targets: ["sap.source.read_batch"], disposition: "implemented"
   },
   get_object_by_uri: {
-    targets: ["sap.source.read"], disposition: "planned"
+    targets: ["sap.source.read"], disposition: "implemented"
   },
   get_abap_object_url: {
-    targets: ["sap.ui.object_url"], disposition: "extension"
+    targets: ["sap.ui.object_url"], disposition: "implemented"
   },
   get_abap_object_workspace_uri: {
-    targets: ["sap.repository.resolve"], disposition: "planned"
+    targets: ["sap.repository.resolve"], disposition: "implemented"
   },
   open_object: {
-    targets: ["sap.repository.resolve"], disposition: "planned"
+    targets: ["sap.repository.resolve"], disposition: "implemented"
   },
   find_where_used: {
-    targets: ["sap.repository.where_used"], disposition: "planned"
+    targets: ["sap.repository.where_used"], disposition: "implemented"
   },
   get_abap_dependency_graph: {
-    targets: ["sap.repository.dependency_graph"], disposition: "planned"
+    targets: ["sap.repository.dependency_graph"], disposition: "implemented"
   },
   compare_abap_systems: {
-    targets: ["sap.repository.compare"], disposition: "planned"
+    targets: ["sap.repository.compare"], disposition: "implemented"
   },
   create_object_programmatically: {
-    targets: ["sap.repository.create"], disposition: "planned"
+    targets: ["sap.repository.create"], disposition: "implemented"
   },
   replace_string_in_abap_object: {
-    targets: ["sap.source.patch"], disposition: "planned"
+    targets: ["sap.source.patch"], disposition: "implemented"
   },
   get_abap_diagnostics: {
-    targets: ["sap.source.diagnose"], disposition: "planned"
+    targets: ["sap.source.diagnose"], disposition: "implemented"
   },
   abap_activate: {
-    targets: ["sap.source.activate"], disposition: "planned"
+    targets: ["sap.source.activate"], disposition: "implemented"
   },
   inspect_abap_code: {
     targets: [
@@ -87,21 +88,21 @@ export const V1_MIGRATION_CATALOG = {
       "sap.semantic.quick_fixes",
       "sap.semantic.format_preview"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   refactor_abap_code: {
     targets: ["sap.refactor.preview", "sap.refactor.execute"],
-    disposition: "planned"
+    disposition: "implemented"
   },
   manage_text_elements: {
     targets: ["sap.text_elements.read", "sap.text_elements.write"],
-    disposition: "planned"
+    disposition: "implemented"
   },
   run_unit_tests: {
-    targets: ["sap.quality.unit_test"], disposition: "planned"
+    targets: ["sap.quality.unit_test"], disposition: "implemented"
   },
   create_test_include: {
-    targets: ["sap.quality.test_include.create"], disposition: "planned"
+    targets: ["sap.quality.test_include.create"], disposition: "implemented"
   },
   manage_transport_requests: {
     targets: [
@@ -118,7 +119,7 @@ export const V1_MIGRATION_CATALOG = {
       "sap.transport.user.list",
       "sap.transport.object.resolve"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   manage_abapgit: {
     targets: [
@@ -132,7 +133,7 @@ export const V1_MIGRATION_CATALOG = {
       "sap.git.check",
       "sap.git.branch.switch"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   manage_rap_generator: {
     targets: [
@@ -146,7 +147,7 @@ export const V1_MIGRATION_CATALOG = {
       "sap.rap.binding.publish",
       "sap.rap.binding.unpublish"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   manage_abap_versions: {
     targets: [
@@ -155,7 +156,7 @@ export const V1_MIGRATION_CATALOG = {
       "sap.version.restore.preview",
       "sap.version.restore.execute"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   get_version_history: {
     targets: [
@@ -163,18 +164,18 @@ export const V1_MIGRATION_CATALOG = {
       "sap.version.history.read",
       "sap.version.history.compare"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   run_atc_analysis: {
     targets: ["sap.quality.atc.run", "sap.quality.atc.documentation"],
-    disposition: "planned"
+    disposition: "implemented"
   },
   get_atc_decorations: {
-    targets: ["sap.quality.atc.cached"], disposition: "planned"
+    targets: ["sap.quality.atc.cached"], disposition: "implemented"
   },
   analyze_abap_dumps: {
     targets: ["sap.runtime.dump.list", "sap.runtime.dump.inspect"],
-    disposition: "planned"
+    disposition: "implemented"
   },
   analyze_abap_traces: {
     targets: [
@@ -184,7 +185,7 @@ export const V1_MIGRATION_CATALOG = {
       "sap.runtime.trace.statements",
       "sap.runtime.trace.hit_list"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   abap_debug_session: {
     targets: [
@@ -192,32 +193,33 @@ export const V1_MIGRATION_CATALOG = {
       "sap.debug.session.stop",
       "sap.debug.session.inspect"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   abap_debug_breakpoint: {
     targets: ["sap.debug.breakpoint.set", "sap.debug.breakpoint.remove"],
-    disposition: "planned"
+    disposition: "implemented"
   },
   abap_debug_step: {
-    targets: ["sap.debug.step"], disposition: "planned"
+    targets: ["sap.debug.step"], disposition: "implemented"
   },
   abap_debug_variable: {
-    targets: ["sap.debug.variables", "sap.debug.evaluate"], disposition: "planned"
+    targets: ["sap.debug.variables", "sap.debug.evaluate"], disposition: "implemented"
   },
   abap_debug_stack: {
-    targets: ["sap.debug.stack"], disposition: "planned"
+    targets: ["sap.debug.stack"], disposition: "implemented"
   },
   abap_debug_status: {
-    targets: ["sap.debug.status"], disposition: "planned"
+    targets: ["sap.debug.status"], disposition: "implemented"
   },
   execute_data_query: {
-    targets: ["sap.data.query", "sap.data.export"], disposition: "planned"
+    targets: ["sap.data.query", "sap.data.export"],
+    disposition: "implemented"
   },
   get_abap_sql_syntax: {
     targets: ["sap-docs://data-query"], disposition: "resource"
   },
   abap_download: {
-    targets: ["sap.source.export"], disposition: "extension"
+    targets: ["sap.source.export"], disposition: "implemented"
   },
   manage_heartbeat: {
     targets: [
@@ -234,15 +236,15 @@ export const V1_MIGRATION_CATALOG = {
       "sap.ops.watch.task.list",
       "sap.ops.watch.watchlist.read"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   adt_discovery_export: {
     targets: ["sap.system.discovery", "sap.system.discovery.export"],
-    disposition: "planned"
+    disposition: "implemented"
   },
   run_sap_transaction: {
     targets: ["sap.ui.transaction_url", "sap.ui.transaction_launch"],
-    disposition: "extension"
+    disposition: "implemented"
   },
   run_abap_application: {
     targets: [
@@ -250,25 +252,25 @@ export const V1_MIGRATION_CATALOG = {
       "sap.execution.preview",
       "sap.execution.execute"
     ],
-    disposition: "planned"
+    disposition: "implemented"
   },
   abap_fs_documentation: {
     targets: ["sap-docs://compat/{document}"], disposition: "resource"
   },
   create_mermaid_diagram: {
-    targets: ["sap.artifact.mermaid.create"], disposition: "extension"
+    targets: ["sap.artifact.mermaid.create"], disposition: "implemented"
   },
   validate_mermaid_syntax: {
-    targets: ["sap.artifact.mermaid.validate"], disposition: "extension"
+    targets: ["sap.artifact.mermaid.validate"], disposition: "implemented"
   },
   get_mermaid_documentation: {
     targets: ["sap-docs://mermaid/{document}"], disposition: "resource"
   },
   detect_mermaid_diagram_type: {
-    targets: ["sap.artifact.mermaid.detect"], disposition: "extension"
+    targets: ["sap.artifact.mermaid.detect"], disposition: "implemented"
   },
   create_test_documentation: {
-    targets: ["sap.artifact.test_document.create"], disposition: "extension"
+    targets: ["sap.artifact.test_document.create"], disposition: "implemented"
   }
 } as const satisfies Record<V0ToolName, V1MigrationEntry>
 
@@ -285,7 +287,12 @@ export const V1_TOOL_NAMES = uniqueToolTargets(
 )
 
 export const V1_IMPLEMENTED_TOOL_NAMES = uniqueToolTargets(
-  Object.values(V1_MIGRATION_CATALOG).filter(entry =>
-    entry.disposition === "implemented"
-  )
+  (Object.values(V1_MIGRATION_CATALOG) as V1MigrationEntry[]).map(entry => ({
+    targets: entry.disposition === "implemented"
+      ? entry.targets
+      : "implementedTargets" in entry
+        ? entry.implementedTargets
+        : [],
+    disposition: entry.disposition
+  }))
 )

@@ -32,7 +32,11 @@ import type {
 } from "./tool-service.js"
 import type { McpApiVersion } from "./mcp/api-version.js"
 import { registerV1Tools } from "./mcp/v1/register.js"
-import type { V1ResourceName } from "./mcp/v1/toolsets.js"
+import {
+  v1ResourcesForToolsets,
+  v1ToolsForToolsets,
+  type V1ResourceName
+} from "./mcp/v1/toolsets.js"
 
 export { ABAP_OBJECT_TYPES } from "./abap-object-types.js"
 
@@ -1848,13 +1852,17 @@ export function createMcpServer(
   )
 
   if (apiVersion === "v1" || apiVersion === "all") {
+    const defaultV1Tools = apiVersion === "v1"
+      ? v1ToolsForToolsets(["core"])
+      : undefined
+    const defaultV1Resources = apiVersion === "v1"
+      ? v1ResourcesForToolsets(["core"])
+      : undefined
+    const enabledTools = options.enabledV1Tools ?? defaultV1Tools
+    const enabledResources = options.enabledV1Resources ?? defaultV1Resources
     registerV1Tools(server, tools, {
-      ...(options.enabledV1Tools
-        ? { enabledTools: options.enabledV1Tools }
-        : {}),
-      ...(options.enabledV1Resources
-        ? { enabledResources: options.enabledV1Resources }
-        : {})
+      ...(enabledTools ? { enabledTools } : {}),
+      ...(enabledResources ? { enabledResources } : {})
     })
   }
 

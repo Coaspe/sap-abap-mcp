@@ -613,6 +613,12 @@ test("Resource URI validation is invalid params while preserving template metada
       description: "Complete active ABAP source for one canonical ADT resource.",
       uriTemplate: "adt://{system}/{+adtPath}",
       mimeType: "text/x-abap"
+    }, {
+      name: "sap-evidence",
+      title: "SAP Session Evidence",
+      description: "Bounded, redacted, session-owned artifact evidence.",
+      uriTemplate: "sap-evidence://{runId}/{artifact}",
+      mimeType: "application/json"
     }]
   )
 })

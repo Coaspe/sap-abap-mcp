@@ -16,7 +16,8 @@ import {
   type DeferredResultEnvelope
 } from "../src/deferred-results.js"
 import { createMcpServer, type McpServerOptions } from "../src/mcp-server.js"
-import { v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
+import { V1_IMPLEMENTED_TOOL_NAMES } from "../src/mcp/v1/migration-catalog.js"
+import { V1_MCP_TOOLSETS, v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import { AppError } from "../src/errors.js"
 import { ProfileStore, type SapProfile } from "../src/profile-store.js"
 import { SapCapabilityRegistry } from "../src/sap-capabilities.js"
@@ -3857,30 +3858,28 @@ test("MCP initialize reports the npm package version", async t => {
   })
 })
 
-test("API version modes preserve v0 and expose the first v1 system tools", async () => {
-  const v1Names = [
-    "sap.system.list",
-    "sap.system.inspect",
-    "sap.system.capabilities",
-    "sap.repository.search",
-    "sap.source.read"
-  ]
+test("API version modes preserve v0 and expose implemented v1 tools", async () => {
+  const v1Names = [...V1_IMPLEMENTED_TOOL_NAMES]
+  const v1CoreNames = [...V1_MCP_TOOLSETS.core]
   assert.deepEqual((await toolNames()).sort(), [...IMPLEMENTED_TOOL_NAMES].sort())
   assert.deepEqual(
     (await toolNames({ apiVersion: "v0" })).sort(),
     [...IMPLEMENTED_TOOL_NAMES].sort()
   )
-  assert.deepEqual(await toolNames({ apiVersion: "v1" }), v1Names)
+  assert.deepEqual(
+    (await toolNames({ apiVersion: "v1" })).sort(),
+    [...v1CoreNames].sort()
+  )
   assert.deepEqual(
     (await toolNames({ apiVersion: "all" })).sort(),
     [...IMPLEMENTED_TOOL_NAMES, ...v1Names].sort()
   )
   assert.deepEqual(
-    await toolNames({
+    (await toolNames({
       apiVersion: "v1",
       enabledV1Tools: v1ToolsForToolsets(["core"])
-    }),
-    v1Names
+    })).sort(),
+    [...v1CoreNames].sort()
   )
 })
 

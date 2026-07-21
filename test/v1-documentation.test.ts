@@ -9,14 +9,6 @@ import { V1_IMPLEMENTED_TOOL_NAMES } from "../src/mcp/v1/migration-catalog.js"
 import { v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
 
-const V1_TOOL_NAMES = [
-  "sap.system.list",
-  "sap.system.inspect",
-  "sap.system.capabilities",
-  "sap.repository.search",
-  "sap.source.read"
-] as const
-
 function assertUnversionedServeArgs(args: readonly string[]): void {
   assert.equal(
     args.includes("--api-version"),
@@ -30,14 +22,15 @@ function assertUnversionedServeArgs(args: readonly string[]): void {
   )
 }
 
-test("v1 migration guide documents the opt-in read-only contract", async () => {
+test("v1 migration guide documents the complete local contract and live boundary", async () => {
   const guide = await readFile("docs/v1-migration.md", "utf8")
 
   for (const statement of [
     "The unversioned `serve` remains the complete v0 compatibility surface.",
     "Explicit v1 mode defaults to the `core` toolset.",
-    "The complete v1 catalog contains 113 target tool names, but only implemented handlers are advertised.",
-    "Do not describe the preview as complete v1 until the 53-tool/150-variant parity gate passes.",
+    "The complete v1 surface contains 113 callable tools and seven Resources.",
+    "All 53 v0 capabilities remain available through the unchanged v0 compatibility surface.",
+    "Live SAP acceptance remains a separate gate",
     "`--api-version all` is reserved for migration conformance because it exposes duplicate capabilities."
   ]) {
     assert.ok(guide.includes(statement), statement)
@@ -49,13 +42,14 @@ test("v1 migration guide documents the opt-in read-only contract", async () => {
       "npx @coaspe/sap-abap-mcp@latest serve",
       "npx @coaspe/sap-abap-mcp@latest serve --api-version v1",
       "npx @coaspe/sap-abap-mcp@latest serve --api-version v1 --toolsets all",
-      "npx @coaspe/sap-abap-mcp@latest serve --api-version all"
+      "npx @coaspe/sap-abap-mcp@latest serve --api-version all",
+      "npx @coaspe/sap-abap-mcp@latest serve --api-version v1 --toolsets core,analysis"
     ]
   )
-  for (const toolName of V1_TOOL_NAMES) {
-    assert.match(guide, new RegExp(toolName.replaceAll(".", "\\.")))
+  for (const toolset of ["core", "write", "analysis", "debug", "operations", "artifacts"]) {
+    assert.match(guide, new RegExp(`\\b${toolset}\\b`))
   }
-  assert.match(guide, /read-only/i)
+  assert.doesNotMatch(guide, /only implemented handlers are advertised/i)
 })
 
 test("published launch defaults stay on v0", async () => {

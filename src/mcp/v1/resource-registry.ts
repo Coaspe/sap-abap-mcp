@@ -23,7 +23,10 @@ import type {
 import {
   assertRawV1ResourceUri,
   parseAdtResourceUri,
-  parseCapabilityResourceUri
+  parseCapabilityResourceUri,
+  parseDocsResourceUri,
+  parseEvidenceResourceUri,
+  parseTransportResourceUri
 } from "./resource-uri.js"
 import { toV1ProtocolError } from "./result.js"
 
@@ -79,6 +82,15 @@ function canonicalResourceUrl(value: string): URL {
   if (scheme === "adt") return new URL(parseAdtResourceUri(value).canonicalUri)
   if (scheme === "sap-capability") {
     return new URL(parseCapabilityResourceUri(value).canonicalUri)
+  }
+  if (scheme === "sap-docs") {
+    return new URL(parseDocsResourceUri(value).canonicalUri)
+  }
+  if (scheme === "sap-evidence") {
+    return new URL(parseEvidenceResourceUri(value).canonicalUri)
+  }
+  if (scheme === "sap-transport") {
+    return new URL(parseTransportResourceUri(value).canonicalUri)
   }
   try {
     return new URL(value)

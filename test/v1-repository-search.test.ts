@@ -11,16 +11,9 @@ import {
   V1_READ_ONLY_ANNOTATIONS
 } from "../src/mcp/v1/register.js"
 import type { V1ReadService } from "../src/mcp/v1/service.js"
+import { V1_MCP_TOOLSETS } from "../src/mcp/v1/toolsets.js"
 import type { AbapToolService } from "../src/tool-service.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
-
-const V1_TOOL_NAMES = [
-  "sap.system.list",
-  "sap.system.inspect",
-  "sap.system.capabilities",
-  "sap.repository.search",
-  "sap.source.read"
-] as const
 
 function unused<T>(name: string): T {
   return (async () => {
@@ -83,7 +76,10 @@ function textContent(result: CallToolResult): string {
 
 test("v1 repository search advertises the exact tool contract", async () => {
   const tools = await advertisedTools({ apiVersion: "v1" })
-  assert.deepEqual(tools.map(tool => tool.name), [...V1_TOOL_NAMES])
+  assert.deepEqual(
+    tools.map(tool => tool.name).sort(),
+    [...V1_MCP_TOOLSETS.core].sort()
+  )
 
   const tool = tools.find(candidate => candidate.name === "sap.repository.search")
   assert.ok(tool)

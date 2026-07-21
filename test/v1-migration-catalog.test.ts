@@ -6,6 +6,7 @@ import {
   V1_MIGRATION_CATALOG,
   V1_TOOL_NAMES
 } from "../src/mcp/v1/migration-catalog.js"
+import { V1_MCP_TOOLSETS } from "../src/mcp/v1/toolsets.js"
 
 const WATCH_TOOL_NAMES = [
   "sap.ops.watch.status",
@@ -50,16 +51,20 @@ test("watch and cached ATC mappings are exact parity targets", () => {
   )
   assert.deepEqual(V1_MIGRATION_CATALOG.get_atc_decorations, {
     targets: ["sap.quality.atc.cached"],
-    disposition: "planned"
+    disposition: "implemented"
   })
 })
 
-test("only the existing five read tools are implemented in this slice", () => {
-  assert.deepEqual(V1_IMPLEMENTED_TOOL_NAMES, [
-    "sap.repository.search",
-    "sap.source.read",
-    "sap.system.capabilities",
-    "sap.system.inspect",
-    "sap.system.list"
-  ])
+test("implemented target accounting matches the completed v1 registrars", () => {
+  assert.deepEqual(
+    [...V1_IMPLEMENTED_TOOL_NAMES].sort(),
+    [
+      ...V1_MCP_TOOLSETS.core,
+      ...V1_MCP_TOOLSETS.write,
+      ...V1_MCP_TOOLSETS.analysis,
+      ...V1_MCP_TOOLSETS.debug,
+      ...V1_MCP_TOOLSETS.operations,
+      ...V1_MCP_TOOLSETS.artifacts
+    ].sort()
+  )
 })

@@ -14,18 +14,12 @@ import {
 import type { V1ReadService } from "../src/mcp/v1/service.js"
 import {
   v1ResourcesForToolsets,
+  V1_MCP_TOOLSETS,
   v1ToolsForToolsets
 } from "../src/mcp/v1/toolsets.js"
 import type { AbapToolService } from "../src/tool-service.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
 
-const V1_SYSTEM_TOOL_NAMES = [
-  "sap.system.list",
-  "sap.system.inspect",
-  "sap.system.capabilities",
-  "sap.repository.search",
-  "sap.source.read"
-] as const
 const V0_INSTRUCTIONS = "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
 
 function sortedNames(names: Iterable<string>): string[] {
@@ -118,7 +112,10 @@ async function connectedClient(
 
 test("v1 system discovery advertises exact schemas and metadata", async () => {
   const tools = await advertisedTools({ apiVersion: "v1" })
-  assert.deepEqual(tools.map(tool => tool.name), [...V1_SYSTEM_TOOL_NAMES])
+  assert.deepEqual(
+    tools.map(tool => tool.name).sort(),
+    [...V1_MCP_TOOLSETS.core].sort()
+  )
 
   for (const tool of tools) {
     assert.ok(tool.title?.trim())
@@ -237,14 +234,16 @@ test("API version CLI validation rejects before starting a transport", async () 
     (error: unknown) => error instanceof AppError && error.code === "INVALID_API_VERSION"
   )
   await assert.rejects(
-    runCli(["serve", "--api-version", "v1", "--toolsets", "write"]),
+    runCli(["serve", "--api-version", "v1", "--toolsets", "future"]),
     (error: unknown) => error instanceof AppError &&
-      error.code === "V1_TOOLSET_EMPTY" &&
-      assert.deepEqual(error.details, { available: ["core", "all"] }) === undefined
+      error.code === "INVALID_TOOLSET" &&
+      assert.deepEqual(error.details, {
+        available: ["core", "write", "analysis", "debug", "operations", "artifacts", "all"]
+      }) === undefined
   )
 })
 
-test("all mode keeps v0 write toolsets valid without registering unmapped v1 tools", async () => {
+test("all mode exposes matching v0 and v1 write toolsets", async () => {
   const writeV0Tools = toolsForToolsets(["write"])
   const writeV1Tools = v1ToolsForToolsets(["write"])
   const tools = await advertisedTools({
@@ -255,6 +254,9 @@ test("all mode keeps v0 write toolsets valid without registering unmapped v1 too
   })
   assert.deepEqual(
     sortedNames(tools.map(tool => tool.name)),
-    sortedNames(IMPLEMENTED_TOOL_NAMES.filter(name => writeV0Tools.has(name)))
+    sortedNames([
+      ...IMPLEMENTED_TOOL_NAMES.filter(name => writeV0Tools.has(name)),
+      ...V1_MCP_TOOLSETS.write
+    ])
   )
 })

@@ -145,7 +145,12 @@ export type V1ResourceName = typeof V1_RESOURCE_NAMES[number]
 
 export const V1_IMPLEMENTED_RESOURCE_NAMES = [
   "sap-adt-source",
-  "sap-capability-evidence"
+  "sap-capability-evidence",
+  "sap-docs-compat",
+  "sap-docs-data-query",
+  "sap-docs-mermaid",
+  "sap-evidence",
+  "sap-transport"
 ] as const satisfies readonly V1ResourceName[]
 
 export const V1_RESOURCE_TOOLSETS: Record<
