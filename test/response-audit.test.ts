@@ -125,7 +125,7 @@ test("response audit action lists match the schemas advertised by MCP", async ()
     async listConnections() { return [] },
     async getClient() { throw new Error("not used while listing tools") }
   })
-  const server = createMcpServer(service)
+  const server = createMcpServer(service, { apiVersion: "v0" })
   const client = new Client({ name: "response-audit", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   await server.connect(serverTransport)

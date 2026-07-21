@@ -9,7 +9,11 @@ import {
 } from "../src/mcp/v1/migration-catalog.js"
 import { V1_READ_ONLY_ANNOTATIONS } from "../src/mcp/v1/register.js"
 import type { V1ReadService } from "../src/mcp/v1/service.js"
-import { V1_MCP_TOOLSETS } from "../src/mcp/v1/toolsets.js"
+import {
+  V1_MCP_TOOLSETS,
+  v1ResourcesForToolsets,
+  v1ToolsForToolsets
+} from "../src/mcp/v1/toolsets.js"
 import type { AbapToolService } from "../src/tool-service.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
 
@@ -74,7 +78,11 @@ function createSourceService() {
 }
 
 async function connectedClient(service: V1ReadService) {
-  const server = createMcpServer(service as AbapToolService, { apiVersion: "v1" })
+  const server = createMcpServer(service as AbapToolService, {
+    apiVersion: "v1",
+    enabledV1Tools: v1ToolsForToolsets(["core"]),
+    enabledV1Resources: v1ResourcesForToolsets(["core"])
+  })
   const client = new Client({ name: "v1-source-test", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   await server.connect(serverTransport)
@@ -96,7 +104,10 @@ function textContent(result: CallToolResult): string {
 }
 
 test("v1 source read advertises the exact implemented tool contract", async () => {
-  const v1Tools = await advertisedTools({ apiVersion: "v1" })
+  const v1Tools = await advertisedTools({
+    apiVersion: "v1",
+    enabledV1Tools: v1ToolsForToolsets(["core"])
+  })
   assert.deepEqual(
     v1Tools.map(tool => tool.name).sort(),
     [...V1_MCP_TOOLSETS.core].sort()

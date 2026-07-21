@@ -48,13 +48,14 @@ Replace `DEV100` with the Server name selected in the wizard. Restart the client
 
 Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#claude-code-and-codex-plugin-marketplaces); the included setup skill guides the same local wizard without putting the SAP password in chat. See the detailed [Windows](#detailed-setup-on-windows), [macOS](#detailed-setup-on-macos), and [Linux](#linux-and-containers) sections for platform-specific behavior and server management.
 
-### v1 opt-in surface
+### Current v1 surface
 
-An explicit MCP v1 surface is available without changing the v0 default. It
-maps the 53 v0 capabilities to 113 action-free tools and seven Resources,
-split across bounded `core`, `write`, `analysis`, `debug`, `operations`, and
-`artifacts` toolsets. Explicit v1 defaults to the 20-tool `core` surface;
-`--api-version v1 --toolsets all` selects all 113 tools. See the
+The unversioned `serve` command maps the 53 legacy capabilities to 113
+action-free v1 tools and seven Resources, split across bounded `core`, `write`,
+`analysis`, `debug`, `operations`, and `artifacts` toolsets. Omitting
+`--toolsets` selects all 113 tools. Use `--api-version v0` only for legacy
+client compatibility, or select toolsets explicitly when a host should
+advertise fewer schemas. See the
 [v1 migration guide](docs/v1-migration.md) for contracts, Resources, and the
 separate live-SAP verification boundary.
 
@@ -429,7 +430,8 @@ abapgit auth status <id> --repository-url <url>
 abapgit auth logout <id> --repository-url <url>
 
 doctor <id> [--include-components]
-serve [--profile <id>] [--toolsets core,write,analysis,debug,operations,artifacts|all]
+serve [--profile <id>] [--api-version v0|v1|all]
+    [--toolsets core,write,analysis,debug,operations,artifacts|all]
 ```
 
 Removing a profile also removes its SAP password or OAuth client secret and stored abapGit credential vault.

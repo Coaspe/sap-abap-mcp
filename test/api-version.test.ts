@@ -3,8 +3,8 @@ import test from "node:test"
 import { AppError } from "../src/errors.js"
 import { MCP_API_VERSIONS, parseMcpApiVersion } from "../src/mcp/api-version.js"
 
-test("an omitted API version remains v0", () => {
-  assert.equal(parseMcpApiVersion(), "v0")
+test("an omitted API version selects the current v1 API", () => {
+  assert.equal(parseMcpApiVersion(), "v1")
 })
 
 test("the three public API versions are accepted", () => {

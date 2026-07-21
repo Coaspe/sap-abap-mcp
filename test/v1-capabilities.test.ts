@@ -6,7 +6,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { createMcpServer, type McpServerOptions } from "../src/mcp-server.js"
 import { V1_READ_ONLY_ANNOTATIONS } from "../src/mcp/v1/register.js"
 import type { V1ReadService } from "../src/mcp/v1/service.js"
-import { V1_MCP_TOOLSETS } from "../src/mcp/v1/toolsets.js"
+import { V1_MCP_TOOLSETS, v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import type { AbapToolService } from "../src/tool-service.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
 
@@ -96,7 +96,10 @@ function textContent(result: CallToolResult): string {
 }
 
 test("v1 capability discovery advertises the exact tool contract", async () => {
-  const tools = await advertisedTools({ apiVersion: "v1" })
+  const tools = await advertisedTools({
+    apiVersion: "v1",
+    enabledV1Tools: v1ToolsForToolsets(["core"])
+  })
   assert.deepEqual(tools.map(tool => tool.name).sort(), [...V1_MCP_TOOLSETS.core].sort())
 
   const tool = tools.find(candidate => candidate.name === "sap.system.capabilities")
