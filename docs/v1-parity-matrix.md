@@ -20,7 +20,7 @@ invokes its shared `AbapToolService` method.
 
 The initial baseline build and automated suite passed 260/260 tests. The current
 parity gate discovers all 113 v1 handlers and all seven Resources, and the final
-local automated suite passes 281/281 tests.
+local automated suite passes 282/282 tests.
 
 ## Core (20 targets; 20 callable)
 
