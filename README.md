@@ -55,7 +55,17 @@ action-free v1 tools and seven Resources, split across bounded `core`, `write`,
 `analysis`, `debug`, `operations`, and `artifacts` toolsets. Omitting
 `--toolsets` selects all 113 tools. Use `--api-version v0` only for legacy
 client compatibility, or select toolsets explicitly when a host should
-advertise fewer schemas. See the
+advertise fewer schemas.
+Normal clients should omit both `--api-version` and `--toolsets`.
+
+| Invocation | Advertised surface |
+|---|---|
+| `serve --profile DEV100` | Current v1, all 113 tools and seven Resources |
+| `serve --profile DEV100 --toolsets core,analysis` | Selected v1 toolsets only |
+| `serve --profile DEV100 --api-version v0` | Legacy 53-tool compatibility surface |
+| `serve --profile DEV100 --api-version all` | v0 + v1 migration/conformance surface |
+
+See the
 [v1 migration guide](docs/v1-migration.md) for contracts, Resources, and the
 separate live-SAP verification boundary.
 
@@ -391,9 +401,28 @@ Available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `arti
 
 ## Real SAP acceptance testing
 
-Run acceptance tests first against a development system and dedicated packages, objects, transports, repositories, and RAP artifacts.
+Run acceptance tests first against a development system.
+Existing SAP objects may be used for reads, searches, and analysis.
+Creation, modification, activation, execution, restore, debugging mutation,
+and deletion must target only objects created by the current test run in SAP
+local package `$TMP`.
+
+A name, prefix, search result, or `$TMP` package membership is not ownership
+evidence. A candidate becomes `RUN_OWNED` only after both a successful create receipt and an immediate exact read-back confirm the same system, package,
+object type, name, and canonical URI. Every subsequent mutation requires an
+exact ledger match and another read-back. Cleanup may delete only those
+`RUN_OWNED` entries, using a fresh preview and exact confirmation.
+
+The strict B4D campaign records transport, abapGit remote, and RAP publication
+mutations as `SKIP-SCOPE`: `$TMP` object ownership does not establish ownership
+of those external or system-wide targets. It never converts a skipped mutation
+into a pass.
 
 For BDEF creation, batch activation, class execution, the fixed ABAP REPL contract, and detailed semantic inspection, follow the evidence and cleanup procedure in [`docs/live-sap-acceptance.md`](docs/live-sap-acceptance.md). Until those checks succeed on a selected connection, the capabilities remain `unverified`.
+
+For the complete Windows B4D campaign, use the
+[113-tool v1 `$TMP` acceptance prompt](docs/live-sap-v1-113-tool-tmp-test-prompt.ko.md)
+and the [Windows clone and connection guide](docs/live-sap-b4d-windows-local-test.ko.md).
 
 Recommended order:
 
@@ -445,6 +474,7 @@ Removing a profile also removes its SAP password or OAuth client secret and stor
 | `PROFILE_NOT_FOUND` | Run `setup` again and verify the Server name. |
 | SAP login fails | For Basic Auth, verify URL, client, username, password, VPN, and ADT activation. For OAuth, verify the token URL, client ID, client secret, scope, Bearer response, and ADT authorization. |
 | Certificate or connection error | Check the corporate CA, proxy, VPN, and SAP HTTPS endpoint. |
+| MCP `-32000` (`ConnectionClosed`) | The stdio process closed during initialization; this is not an SAP API status. Run `npm run smoke:v1`, then start `node dist/src/index.js serve --profile <id>` directly. If both work, inspect the saved command with `claude mcp get <name>` and start Claude with `claude --debug mcp`. |
 | Tools are missing | Confirm that the MCP command contains `@latest` and `--prefer-online`, restart it, and inspect `/mcp`. |
 | Writes return `PACKAGE_NOT_ALLOWED` | The profile has a non-empty `--packages` restriction; add the target package or remove the restriction. |
 | Writes return `TRANSPORT_REQUIRED` | Supply an open transport for non-local packages. |
