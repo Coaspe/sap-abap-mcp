@@ -33,13 +33,22 @@ function assertUnversionedServeArgs(args: readonly string[]): void {
 test("v1 migration guide documents the opt-in read-only contract", async () => {
   const guide = await readFile("docs/v1-migration.md", "utf8")
 
-  assert.match(guide, /unversioned `serve` remains v0 through 1\.x/i)
+  for (const statement of [
+    "The unversioned `serve` remains the complete v0 compatibility surface.",
+    "Explicit v1 mode defaults to the `core` toolset.",
+    "The complete v1 catalog contains 113 target tool names, but only implemented handlers are advertised.",
+    "Do not describe the preview as complete v1 until the 53-tool/150-variant parity gate passes.",
+    "`--api-version all` is reserved for migration conformance because it exposes duplicate capabilities."
+  ]) {
+    assert.ok(guide.includes(statement), statement)
+  }
   assert.deepEqual(
     [...guide.matchAll(/^npx @coaspe\/sap-abap-mcp@latest serve.*$/gm)]
       .map(match => match[0]),
     [
       "npx @coaspe/sap-abap-mcp@latest serve",
       "npx @coaspe/sap-abap-mcp@latest serve --api-version v1",
+      "npx @coaspe/sap-abap-mcp@latest serve --api-version v1 --toolsets all",
       "npx @coaspe/sap-abap-mcp@latest serve --api-version all"
     ]
   )
