@@ -48,9 +48,15 @@ Replace `DEV100` with the Server name selected in the wizard. Restart the client
 
 Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#claude-code-and-codex-plugin-marketplaces); the included setup skill guides the same local wizard without putting the SAP password in chat. See the detailed [Windows](#detailed-setup-on-windows), [macOS](#detailed-setup-on-macos), and [Linux](#linux-and-containers) sections for platform-specific behavior and server management.
 
-### v1 opt-in preview
+### v1 opt-in surface
 
-An explicit, read-only MCP v1 first slice is available without changing the v0 default. See the [v1 migration preview](docs/v1-migration.md) for commands, mappings, and current limitations.
+An explicit MCP v1 surface is available without changing the v0 default. It
+maps the 53 v0 capabilities to 113 action-free tools and seven Resources,
+split across bounded `core`, `write`, `analysis`, `debug`, `operations`, and
+`artifacts` toolsets. Explicit v1 defaults to the 20-tool `core` surface;
+`--api-version v1 --toolsets all` selects all 113 tools. See the
+[v1 migration guide](docs/v1-migration.md) for contracts, Resources, and the
+separate live-SAP verification boundary.
 
 ## ABAP FS parity status
 

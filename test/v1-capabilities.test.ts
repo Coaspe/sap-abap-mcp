@@ -6,16 +6,9 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { createMcpServer, type McpServerOptions } from "../src/mcp-server.js"
 import { V1_READ_ONLY_ANNOTATIONS } from "../src/mcp/v1/register.js"
 import type { V1ReadService } from "../src/mcp/v1/service.js"
+import { V1_MCP_TOOLSETS } from "../src/mcp/v1/toolsets.js"
 import type { AbapToolService } from "../src/tool-service.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
-
-const V1_TOOL_NAMES = [
-  "sap.system.list",
-  "sap.system.inspect",
-  "sap.system.capabilities",
-  "sap.repository.search",
-  "sap.source.read"
-] as const
 
 const CAPABILITY_CATEGORIES = [
   "connection",
@@ -104,7 +97,7 @@ function textContent(result: CallToolResult): string {
 
 test("v1 capability discovery advertises the exact tool contract", async () => {
   const tools = await advertisedTools({ apiVersion: "v1" })
-  assert.deepEqual(tools.map(tool => tool.name), [...V1_TOOL_NAMES])
+  assert.deepEqual(tools.map(tool => tool.name).sort(), [...V1_MCP_TOOLSETS.core].sort())
 
   const tool = tools.find(candidate => candidate.name === "sap.system.capabilities")
   assert.ok(tool)
@@ -325,8 +318,8 @@ test("capability resources are absent from v0 mode and present in all mode", asy
   })
 
   assert.equal(v0.client.getServerCapabilities()?.resources, undefined)
-  assert.deepEqual(
-    (await all.client.listResourceTemplates()).resourceTemplates.map(item => item.uriTemplate),
-    ["sap-capability://{system}", "adt://{system}/{+adtPath}"]
-  )
+  const templates = (await all.client.listResourceTemplates())
+    .resourceTemplates.map(item => item.uriTemplate)
+  assert.ok(templates.includes("sap-capability://{system}"))
+  assert.ok(templates.includes("adt://{system}/{+adtPath}"))
 })

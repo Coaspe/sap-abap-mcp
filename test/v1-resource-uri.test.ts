@@ -5,6 +5,9 @@ import {
   normalizeV1SystemId,
   parseAdtResourceUri,
   parseCapabilityResourceUri,
+  parseDocsResourceUri,
+  parseEvidenceResourceUri,
+  parseTransportResourceUri,
   toAdtResourceUri,
   toCapabilityResourceUri
 } from "../src/mcp/v1/resource-uri.js"
@@ -195,5 +198,50 @@ test("capability URI parser rejects explicit empty userinfo and port syntax", ()
     "sap-capability://dev100:"
   ]) {
     assertInvalid(() => parseCapabilityResourceUri(uri))
+  }
+})
+
+test("transport, evidence, and documentation URIs canonicalize exact identities", () => {
+  assert.deepEqual(
+    parseTransportResourceUri("SAP-TRANSPORT://DEV100/devk900001"),
+    {
+      systemId: "DEV100",
+      transport: "DEVK900001",
+      canonicalUri: "sap-transport://dev100/DEVK900001"
+    }
+  )
+  assert.deepEqual(
+    parseEvidenceResourceUri("SAP-EVIDENCE://RUN-1/Artifact-2"),
+    {
+      runId: "run-1",
+      artifact: "artifact-2",
+      canonicalUri: "sap-evidence://run-1/artifact-2"
+    }
+  )
+  assert.deepEqual(parseDocsResourceUri("SAP-DOCS://DATA-QUERY"), {
+    family: "data-query",
+    canonicalUri: "sap-docs://data-query"
+  })
+  assert.deepEqual(parseDocsResourceUri("SAP-DOCS://MERMAID/Flowchart"), {
+    family: "mermaid",
+    document: "flowchart",
+    canonicalUri: "sap-docs://mermaid/flowchart"
+  })
+})
+
+test("new v1 Resource URI families reject ambiguous or extra components", () => {
+  for (const uri of [
+    "sap-transport://dev100/a/b",
+    "sap-transport://user@dev100/DEVK900001",
+    "sap-evidence://run-1/artifact?raw=true",
+    "sap-evidence://run.1/artifact",
+    "sap-docs://data-query/extra",
+    "sap-docs://unknown/document"
+  ]) {
+    assertInvalid(() => {
+      if (uri.startsWith("sap-transport:")) return parseTransportResourceUri(uri)
+      if (uri.startsWith("sap-evidence:")) return parseEvidenceResourceUri(uri)
+      return parseDocsResourceUri(uri)
+    })
   }
 })

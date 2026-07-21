@@ -9,6 +9,7 @@ import {
 } from "../src/mcp/v1/migration-catalog.js"
 import { V1_READ_ONLY_ANNOTATIONS } from "../src/mcp/v1/register.js"
 import type { V1ReadService } from "../src/mcp/v1/service.js"
+import { V1_MCP_TOOLSETS } from "../src/mcp/v1/toolsets.js"
 import type { AbapToolService } from "../src/tool-service.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
 
@@ -98,30 +99,34 @@ test("v1 source read advertises the exact implemented tool contract", async () =
   const v1Tools = await advertisedTools({ apiVersion: "v1" })
   assert.deepEqual(
     v1Tools.map(tool => tool.name).sort(),
-    [...V1_IMPLEMENTED_TOOL_NAMES].sort()
+    [...V1_MCP_TOOLSETS.core].sort()
   )
 
   const allTools = await advertisedTools({ apiVersion: "all" })
-  assert.equal(allTools.length, 58)
-  assert.equal(new Set(allTools.map(tool => tool.name)).size, 58)
+  assert.equal(allTools.length, 53 + V1_IMPLEMENTED_TOOL_NAMES.length)
+  assert.equal(
+    new Set(allTools.map(tool => tool.name)).size,
+    53 + V1_IMPLEMENTED_TOOL_NAMES.length
+  )
 
   const tool = v1Tools.find(candidate => candidate.name === "sap.source.read")
   assert.ok(tool)
   assert.equal(tool.title, "Read ABAP Source")
   assert.equal(
     tool.description,
-    "Read a bounded active ABAP source range or one class method."
+    "Read a bounded active ABAP source range, one class method, or one canonical ADT Resource."
   )
   assert.deepEqual(tool.annotations, V1_READ_ONLY_ANNOTATIONS)
   assert.deepEqual(Object.keys(tool.inputSchema.properties ?? {}), [
     "systemId",
     "objectName",
+    "resourceUri",
     "objectType",
     "methodName",
     "startLine",
     "lineCount"
   ])
-  assert.deepEqual(tool.inputSchema.required, ["systemId", "objectName"])
+  assert.deepEqual(tool.inputSchema.required, ["systemId"])
   assert.equal(
     (tool.inputSchema.properties?.startLine as { default?: number }).default,
     1
@@ -138,7 +143,6 @@ test("v1 source read advertises the exact implemented tool contract", async () =
     }>
   }).properties?.data
   assert.deepEqual(data?.required, [
-    "object",
     "resourceUri",
     "startLine",
     "endLine",
@@ -247,6 +251,42 @@ test("v1 source read preserves the method contract without extra SAP calls", asy
   })
 })
 
+test("v1 source read accepts one canonical ADT Resource URI", async t => {
+  const { service, lineCalls, uriCalls } = createSourceService()
+  const connection = await connectedClient(service)
+  t.after(() => connection.close())
+
+  const result = await connection.client.callTool({
+    name: "sap.source.read",
+    arguments: {
+      systemId: " dev100 ",
+      resourceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+      startLine: 2,
+      lineCount: 2
+    }
+  }) as CallToolResult
+
+  assert.equal(result.isError, undefined)
+  assert.deepEqual(lineCalls, [])
+  assert.deepEqual(uriCalls, [{
+    connectionId: "DEV100",
+    uri: "/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    startLine: 1,
+    lineCount: 2
+  }])
+  assert.deepEqual(result.structuredContent, JSON.parse(textContent(result)))
+  assert.equal(result.structuredContent?.systemId, "DEV100")
+  assert.deepEqual(result.structuredContent?.data, {
+    resourceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    startLine: 2,
+    endLine: 3,
+    totalLines: 3,
+    truncated: false,
+    nextLine: null,
+    code: "CLASS zcl_demo IMPLEMENTATION.\n  METHOD greet.\n  ENDMETHOD."
+  })
+})
+
 test("v1 ADT source resource reads one complete canonical source", async t => {
   const { service, lineCalls, uriCalls } = createSourceService()
   const connection = await connectedClient(service)
@@ -255,7 +295,11 @@ test("v1 ADT source resource reads one complete canonical source", async t => {
   const templates = await connection.client.listResourceTemplates()
   assert.deepEqual(
     templates.resourceTemplates.map(template => template.uriTemplate).sort(),
-    ["adt://{system}/{+adtPath}", "sap-capability://{system}"]
+    [
+      "adt://{system}/{+adtPath}",
+      "sap-capability://{system}",
+      "sap-evidence://{runId}/{artifact}"
+    ]
   )
 
   const resource = await connection.client.readResource({
