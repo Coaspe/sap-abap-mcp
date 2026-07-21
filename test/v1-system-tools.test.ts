@@ -214,7 +214,7 @@ test("v1 tool filtering follows exact v0 migration sources", () => {
   )
   assert.equal(isV1ToolEnabled("sap.system.list", new Set(["get_sap_system_info"])), false)
   assert.equal(isV1ToolEnabled("sap-capability://DEV100", new Set(["get_sap_capabilities"])), false)
-  assert.equal(isV1ToolEnabled("sap.ops.watch.start", new Set(["manage_heartbeat"])), false)
+  assert.equal(isV1ToolEnabled("sap.ops.watch.start", new Set(["manage_heartbeat"])), true)
 })
 
 test("API version CLI validation rejects before starting a transport", async () => {

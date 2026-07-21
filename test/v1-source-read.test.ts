@@ -5,7 +5,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { createMcpServer } from "../src/mcp-server.js"
 import {
-  V1_FIRST_SLICE_TOOL_NAMES
+  V1_IMPLEMENTED_TOOL_NAMES
 } from "../src/mcp/v1/migration-catalog.js"
 import { V1_READ_ONLY_ANNOTATIONS } from "../src/mcp/v1/register.js"
 import type { V1ReadService } from "../src/mcp/v1/service.js"
@@ -94,9 +94,12 @@ function textContent(result: CallToolResult): string {
   return content.text
 }
 
-test("v1 source read advertises the exact first-slice tool contract", async () => {
+test("v1 source read advertises the exact implemented tool contract", async () => {
   const v1Tools = await advertisedTools({ apiVersion: "v1" })
-  assert.deepEqual(v1Tools.map(tool => tool.name), [...V1_FIRST_SLICE_TOOL_NAMES])
+  assert.deepEqual(
+    v1Tools.map(tool => tool.name).sort(),
+    [...V1_IMPLEMENTED_TOOL_NAMES].sort()
+  )
 
   const allTools = await advertisedTools({ apiVersion: "all" })
   assert.equal(allTools.length, 58)
