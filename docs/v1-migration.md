@@ -17,18 +17,12 @@ npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis
 
 # Explicit legacy compatibility surface: 53 v0 tools.
 npx @coaspe/sap-abap-mcp@latest serve --api-version v0
-
-# v0 and v1 together, for migration conformance only.
-npx @coaspe/sap-abap-mcp@latest serve --api-version all
 ```
 
 The complete v1 surface contains 113 callable tools and seven Resources. Each
 v1 tool has an action-free input contract, a declared output schema, the v1
 success/error envelope, and a thin adapter to the same `AbapToolService` used by
-v0. `--api-version all` advertises 166 tools: 53 v0 plus 113 v1.
-
-`--api-version all` is reserved for migration conformance because it exposes duplicate capabilities.
-It is not a long-term client configuration.
+v0. The combined v0 + v1 surface is internal to automated parity tests and is not accepted by the CLI.
 
 ## Toolsets
 

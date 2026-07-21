@@ -53,7 +53,7 @@ Commands:
   abapgit auth status <id> --repository-url <url>
   abapgit auth logout <id> --repository-url <url>
   doctor <id> [--include-components]
-  serve [--profile <id>] [--api-version v0|v1|all] [--toolsets core,write,analysis,debug,operations,artifacts|all]
+  serve [--profile <id>] [--api-version v0|v1] [--toolsets core,write,analysis,debug,operations,artifacts|all]
       Defaults: api-version v1, toolsets all
 `
 

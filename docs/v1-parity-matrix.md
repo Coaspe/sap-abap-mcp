@@ -15,12 +15,12 @@ invokes its shared `AbapToolService` method.
 | --- | ---: | ---: | ---: | --- |
 | v0 Tools | 53 | 53 | 0 | `--api-version v0` advertises 53 |
 | v1 Tools | 113 | 113 | 0 | unversioned `serve` advertises 113 |
-| `all` Tools | 166 | 166 | 0 | 53 v0 + 113 v1 |
+| Internal combined Tools | 166 | 166 | 0 | Programmatic parity tests only; not a CLI mode |
 | v1 Resources | 7 | 7 | 0 | One fixed Resource and six Resource Templates |
 
 The initial baseline build and automated suite passed 260/260 tests. The current
 parity gate discovers all 113 v1 handlers and all seven Resources, and the final
-local automated suite passes 282/282 tests.
+local automated suite passes 283/283 tests.
 
 ## Core (20 targets; 20 callable)
 
