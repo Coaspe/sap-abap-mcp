@@ -53,7 +53,62 @@ git clone --branch codex/v1-read-only-slice C:\Transfer\sap-abap-mcp-v1.bundle C
 Set-Location C:\src\sap-abap-mcp-v1
 ```
 
-## 2. Windows에서 로컬 소스 빌드
+## 2. Windows clone 업데이트
+
+pull 전에 현재 브랜치와 local 변경을 확인한다.
+
+```powershell
+Set-Location C:\src\sap-abap-mcp-v1
+git branch --show-current
+git status --short
+```
+
+브랜치는 `codex/v1-read-only-slice`여야 한다. `git status --short`에 직접
+수정한 파일이 표시되면 덮어쓰거나 삭제하지 말고 먼저 별도 commit 또는
+stash로 보존한다.
+
+### remote branch에서 clone한 경우
+
+```powershell
+git switch codex/v1-read-only-slice
+git pull --ff-only origin codex/v1-read-only-slice
+git log -1 --oneline
+npm.cmd ci
+npm.cmd run build
+npm.cmd test
+```
+
+`--ff-only`가 실패하면 강제 reset하지 않는다. local commit 또는 remote
+history가 갈라진 상태이므로 pull을 중단하고 이력을 먼저 검토한다.
+
+### Git bundle에서 clone한 경우
+
+원본 머신에서 같은 명령으로 최신 bundle을 다시 만들고 Windows의 새 파일로
+전달한다.
+
+```bash
+git bundle create sap-abap-mcp-v1-update.bundle codex/v1-read-only-slice
+git bundle verify sap-abap-mcp-v1-update.bundle
+```
+
+Windows clone에서 새 bundle의 branch를 가져온 후 fast-forward만 허용한다.
+
+```powershell
+Set-Location C:\src\sap-abap-mcp-v1
+git switch codex/v1-read-only-slice
+git status --short
+git fetch C:\Transfer\sap-abap-mcp-v1-update.bundle codex/v1-read-only-slice
+git merge --ff-only FETCH_HEAD
+git log -1 --oneline
+npm.cmd ci
+npm.cmd run build
+npm.cmd test
+```
+
+업데이트 후 이미 실행 중인 MCP process는 자동 교체되지 않는다. Codex 또는
+Claude Code를 완전히 종료하고 다시 시작하여 새 `dist`를 실행한다.
+
+## 3. Windows에서 로컬 소스 빌드
 
 Node.js 20 이상과 Git이 설치되어 있어야 한다.
 
@@ -69,7 +124,7 @@ git rev-parse HEAD
 `41fd55dc78293254c9ccffe1fcd29bd7131b2394` 이후다. 문서 commit이 추가될 수
 있으므로, 실제 테스트 보고서에는 실행한 exact `git rev-parse HEAD`를 기록한다.
 
-## 3. 이미 설정된 B4D profile 검증
+## 4. 이미 설정된 B4D profile 검증
 
 profile과 DPAPI credential은 Git repository 안에 있지 않다. setup을 수행한
 동일한 Windows 사용자와 동일한 머신에서 Codex 또는 Claude를 실행해야 한다.
@@ -96,7 +151,7 @@ node .\dist\src\index.js doctor B4D --include-components
 
 `/mcp`가 connected인 것만으로 SAP 인증 성공으로 판정하지 않는다.
 
-## 4. Codex MCP 연결
+## 5. Codex MCP 연결
 
 아래 예시는 MCP 이름을 `sap-abap-b4d-local` 하나로 고정한다. 모드를 바꿀
 때는 기존 연결을 제거하고 새 세션에서 다시 등록한다.
@@ -134,7 +189,7 @@ codex mcp list
 이 모드는 이름 inventory 확인에만 사용한다. 현재 기대값은 v0 53개와 v1
 5개, 합계 58개다. `$TMP` mutation은 더 단순한 v0 전용 세션에서 수행한다.
 
-## 5. Claude Code MCP 연결
+## 6. Claude Code MCP 연결
 
 Codex 대신 Claude Code를 사용하면 같은 로컬 Node command를 등록한다.
 
@@ -156,7 +211,7 @@ claude mcp get sap-abap-b4d-local
 
 등록 후 Claude Code를 재시작한다.
 
-## 6. 프롬프트 A — 현재 v1 실서버 검증
+## 7. 프롬프트 A — 현재 v1 실서버 검증
 
 v1 모드로 연결한 새 세션의 repository root에서 아래 블록을 그대로 붙여
 넣는다.
@@ -240,7 +295,7 @@ host가 raw Resource API를 제공하지 않으면 성공으로 추측하지 말
 실제 검증하지 못한 항목이 하나라도 있으면 PASS-V1이라고 말하지 마라.
 ~~~~
 
-## 7. 프롬프트 B — v0 53개와 `$TMP` 격리 mutation 검증
+## 8. 프롬프트 B — v0 53개와 `$TMP` 격리 mutation 검증
 
 v0 모드로 다시 연결한 **새 세션**에서 아래 블록을 붙여 넣는다. 이 프롬프트는
 repository에 포함된 상세 53-tool acceptance prompt를 실행 계약으로 사용한다.
@@ -328,7 +383,7 @@ repository에 포함된 상세 53-tool acceptance prompt를 실행 계약으로 
 cleanup 증거가 없으면 PASS-LOCAL 또는 PASS-CORE라고 말하지 마라.
 ~~~~
 
-## 8. 테스트 종료 후 MCP 정리
+## 9. 테스트 종료 후 MCP 정리
 
 테스트가 끝났을 때 로컬 MCP 등록만 제거한다. 이 명령은 SAP profile이나
 DPAPI credential을 삭제하지 않는다.
