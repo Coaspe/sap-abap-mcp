@@ -2,7 +2,7 @@ import type { IMPLEMENTED_TOOL_NAMES } from "../../compat/abap-fs-tools.js"
 
 export type V0ToolName = typeof IMPLEMENTED_TOOL_NAMES[number]
 export type V1MigrationDisposition =
-  | "first_slice"
+  | "implemented"
   | "planned"
   | "extension"
   | "resource"
@@ -19,21 +19,21 @@ export const V1_MIGRATION_CATALOG = {
     targets: ["resource-links", "cursor-pages"], disposition: "compatibility"
   },
   get_connected_systems: {
-    targets: ["sap.system.list"], disposition: "first_slice"
+    targets: ["sap.system.list"], disposition: "implemented"
   },
   get_sap_system_info: {
-    targets: ["sap.system.inspect"], disposition: "first_slice"
+    targets: ["sap.system.inspect"], disposition: "implemented"
   },
   get_sap_capabilities: {
     targets: ["sap.system.capabilities", "sap-capability://{system}"],
-    disposition: "first_slice"
+    disposition: "implemented"
   },
   search_abap_objects: {
-    targets: ["sap.repository.search"], disposition: "first_slice"
+    targets: ["sap.repository.search"], disposition: "implemented"
   },
   get_abap_object_lines: {
     targets: ["sap.source.read", "adt://{system}/{+adtPath}"],
-    disposition: "first_slice"
+    disposition: "implemented"
   },
   search_abap_object_lines: {
     targets: ["sap.source.search"], disposition: "planned"
@@ -170,7 +170,7 @@ export const V1_MIGRATION_CATALOG = {
     disposition: "planned"
   },
   get_atc_decorations: {
-    targets: ["sap.quality.atc.cached"], disposition: "v0_only"
+    targets: ["sap.quality.atc.cached"], disposition: "planned"
   },
   analyze_abap_dumps: {
     targets: ["sap.runtime.dump.list", "sap.runtime.dump.inspect"],
@@ -220,7 +220,21 @@ export const V1_MIGRATION_CATALOG = {
     targets: ["sap.source.export"], disposition: "extension"
   },
   manage_heartbeat: {
-    targets: ["sap.ops.watch.*"], disposition: "v0_only"
+    targets: [
+      "sap.ops.watch.status",
+      "sap.ops.watch.start",
+      "sap.ops.watch.stop",
+      "sap.ops.watch.trigger",
+      "sap.ops.watch.history",
+      "sap.ops.watch.task.add",
+      "sap.ops.watch.task.remove",
+      "sap.ops.watch.task.update",
+      "sap.ops.watch.task.enable",
+      "sap.ops.watch.task.disable",
+      "sap.ops.watch.task.list",
+      "sap.ops.watch.watchlist.read"
+    ],
+    disposition: "planned"
   },
   adt_discovery_export: {
     targets: ["sap.system.discovery", "sap.system.discovery.export"],
@@ -239,7 +253,7 @@ export const V1_MIGRATION_CATALOG = {
     disposition: "planned"
   },
   abap_fs_documentation: {
-    targets: ["sap-docs://compat/*"], disposition: "resource"
+    targets: ["sap-docs://compat/{document}"], disposition: "resource"
   },
   create_mermaid_diagram: {
     targets: ["sap.artifact.mermaid.create"], disposition: "extension"
@@ -248,7 +262,7 @@ export const V1_MIGRATION_CATALOG = {
     targets: ["sap.artifact.mermaid.validate"], disposition: "extension"
   },
   get_mermaid_documentation: {
-    targets: ["sap-docs://mermaid/*"], disposition: "resource"
+    targets: ["sap-docs://mermaid/{document}"], disposition: "resource"
   },
   detect_mermaid_diagram_type: {
     targets: ["sap.artifact.mermaid.detect"], disposition: "extension"
@@ -257,6 +271,24 @@ export const V1_MIGRATION_CATALOG = {
     targets: ["sap.artifact.test_document.create"], disposition: "extension"
   }
 } as const satisfies Record<V0ToolName, V1MigrationEntry>
+
+function uniqueToolTargets(
+  entries: readonly V1MigrationEntry[]
+): readonly string[] {
+  return Object.freeze([...new Set(entries.flatMap(entry =>
+    entry.targets.filter(target => target.startsWith("sap."))
+  ))].sort())
+}
+
+export const V1_TOOL_NAMES = uniqueToolTargets(
+  Object.values(V1_MIGRATION_CATALOG)
+)
+
+export const V1_IMPLEMENTED_TOOL_NAMES = uniqueToolTargets(
+  Object.values(V1_MIGRATION_CATALOG).filter(entry =>
+    entry.disposition === "implemented"
+  )
+)
 
 export const V1_FIRST_SLICE_TOOL_NAMES = [
   V1_MIGRATION_CATALOG.get_connected_systems.targets[0],
