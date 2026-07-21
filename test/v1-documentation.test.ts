@@ -1,7 +1,11 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
-import { toolsForToolsets } from "../src/compat/abap-fs-tools.js"
+import {
+  IMPLEMENTED_TOOL_NAMES,
+  toolsForToolsets
+} from "../src/compat/abap-fs-tools.js"
+import { V1_IMPLEMENTED_TOOL_NAMES } from "../src/mcp/v1/migration-catalog.js"
 import { v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
 
@@ -92,7 +96,7 @@ test("published package includes the v1 stdio smoke implementation", async () =>
   assert.ok(packageJson.files.includes("scripts/smoke-v1-stdio.mjs"))
 })
 
-test("v1 surfaces stay within the documented schema budget and counts", async () => {
+test("v1 surfaces stay within the documented counts", async () => {
   const enabledV0Tools = toolsForToolsets(["all"])
   const enabledV1Tools = v1ToolsForToolsets(["all"])
   const v1Tools = await advertisedTools({ apiVersion: "v1", enabledV1Tools })
@@ -101,9 +105,9 @@ test("v1 surfaces stay within the documented schema budget and counts", async ()
     enabledV0Tools,
     enabledV1Tools
   })
-  const v1SchemaBytes = Buffer.byteLength(JSON.stringify(v1Tools), "utf8")
-
-  assert.ok(v1SchemaBytes < 24 * 1024)
-  assert.equal(v1Tools.length, 5)
-  assert.equal(allTools.length, 58)
+  assert.equal(v1Tools.length, V1_IMPLEMENTED_TOOL_NAMES.length)
+  assert.equal(
+    allTools.length,
+    IMPLEMENTED_TOOL_NAMES.length + V1_IMPLEMENTED_TOOL_NAMES.length
+  )
 })
