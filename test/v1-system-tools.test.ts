@@ -111,7 +111,10 @@ async function connectedClient(
 }
 
 test("v1 system discovery advertises exact schemas and metadata", async () => {
-  const tools = await advertisedTools({ apiVersion: "v1" })
+  const tools = await advertisedTools({
+    apiVersion: "v1",
+    enabledV1Tools: v1ToolsForToolsets(["core"])
+  })
   assert.deepEqual(
     tools.map(tool => tool.name).sort(),
     [...V1_MCP_TOOLSETS.core].sort()

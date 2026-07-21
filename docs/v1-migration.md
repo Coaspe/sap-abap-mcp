@@ -1,21 +1,22 @@
 # MCP v1 migration
 
-The unversioned `serve` remains the complete v0 compatibility surface. Existing
-MCPB, plugin, and `@coaspe/sap-abap-mcp@latest serve` launch commands therefore
-continue to use the complete and unchanged v0 surface without configuration
-changes. All 53 v0 capabilities remain available through the unchanged v0 compatibility surface.
+The unversioned `serve` is the complete current v1 surface. Existing MCPB,
+plugin, and `@coaspe/sap-abap-mcp@latest serve` launch commands therefore use
+all 113 v1 tools and seven Resources without adding startup flags.
+With no `--toolsets`, all six v1 toolsets are enabled.
+All 53 v0 capabilities remain available through `--api-version v0`.
 
-Choose an API surface explicitly when migrating to v1:
+Normal use needs neither `--api-version` nor `--toolsets`:
 
 ```bash
-# Stable v0 surface; this is also the unversioned default.
+# Current v1 surface: 113 tools and seven Resources.
 npx @coaspe/sap-abap-mcp@latest serve
 
-# Explicit v1. Explicit v1 mode defaults to the `core` toolset.
-npx @coaspe/sap-abap-mcp@latest serve --api-version v1
+# Optional schema-budget control for hosts that should preload fewer tools.
+npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis
 
-# Complete 113-tool v1 surface.
-npx @coaspe/sap-abap-mcp@latest serve --api-version v1 --toolsets all
+# Explicit legacy compatibility surface: 53 v0 tools.
+npx @coaspe/sap-abap-mcp@latest serve --api-version v0
 
 # v0 and v1 together, for migration conformance only.
 npx @coaspe/sap-abap-mcp@latest serve --api-version all
@@ -31,8 +32,9 @@ It is not a long-term client configuration.
 
 ## Toolsets
 
-Explicit v1 mode defaults to the bounded `core` surface. Select one or more
-comma-separated toolsets when another capability family is needed.
+Toolsets are optional schema-budget controls, not feature levels. Omitting the
+flag enables `all`. Select one or more comma-separated toolsets only when a host
+should advertise a smaller surface.
 
 | Toolset | Tools | Scope |
 | --- | ---: | --- |
@@ -44,11 +46,7 @@ comma-separated toolsets when another capability family is needed.
 | `artifacts` | 7 | Mermaid/test documents, data/source/discovery exports |
 | `all` | 113 | Every v1 tool |
 
-The static split limits schema-token growth. For example:
-
-```bash
-npx @coaspe/sap-abap-mcp@latest serve --api-version v1 --toolsets core,analysis
-```
+The static split limits schema-token growth without changing handler behavior.
 
 ## Resources
 

@@ -89,7 +89,7 @@ export function createMcpServer(
   tools: AbapToolService,
   options: McpServerOptions = {}
 ): McpServer {
-  const apiVersion = options.apiVersion ?? "v0"
+  const apiVersion = options.apiVersion ?? "v1"
   const includeV0 = apiVersion === "v0" || apiVersion === "all"
   const server = new McpServer(
     {
@@ -1853,10 +1853,10 @@ export function createMcpServer(
 
   if (apiVersion === "v1" || apiVersion === "all") {
     const defaultV1Tools = apiVersion === "v1"
-      ? v1ToolsForToolsets(["core"])
+      ? v1ToolsForToolsets(["all"])
       : undefined
     const defaultV1Resources = apiVersion === "v1"
-      ? v1ResourcesForToolsets(["core"])
+      ? v1ResourcesForToolsets(["all"])
       : undefined
     const enabledTools = options.enabledV1Tools ?? defaultV1Tools
     const enabledResources = options.enabledV1Resources ?? defaultV1Resources

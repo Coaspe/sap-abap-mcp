@@ -22,8 +22,8 @@ export function resolveServeToolSelection(
   if (toolsets === undefined) {
     if (apiVersion !== "v1") return {}
     return {
-      enabledV1Tools: v1ToolsForToolsets(["core"]),
-      enabledV1Resources: v1ResourcesForToolsets(["core"])
+      enabledV1Tools: v1ToolsForToolsets(["all"]),
+      enabledV1Resources: v1ResourcesForToolsets(["all"])
     }
   }
 

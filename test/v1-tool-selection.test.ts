@@ -4,19 +4,19 @@ import { ABAP_MCP_TOOLSETS, IMPLEMENTED_TOOL_NAMES } from "../src/compat/abap-fs
 import { resolveServeToolSelection } from "../src/mcp/tool-selection.js"
 import { V1_MCP_TOOLSETS, V1_RESOURCE_NAMES } from "../src/mcp/v1/toolsets.js"
 
-test("unversioned and explicit v0 remain unfiltered all", () => {
+test("explicit v0 remains the unfiltered legacy surface", () => {
   assert.deepEqual(resolveServeToolSelection("v0"), {})
 })
 
-test("v1 defaults to core tools and core Resources", () => {
+test("v1 defaults to all tools and all Resources", () => {
   const selection = resolveServeToolSelection("v1")
   assert.deepEqual(
     [...selection.enabledV1Tools!].sort(),
-    [...V1_MCP_TOOLSETS.core].sort()
+    Object.values(V1_MCP_TOOLSETS).flat().sort()
   )
   assert.deepEqual(
     [...selection.enabledV1Resources!].sort(),
-    ["sap-adt-source", "sap-capability-evidence", "sap-evidence"]
+    [...V1_RESOURCE_NAMES].sort()
   )
   assert.equal(selection.enabledV0Tools, undefined)
 })

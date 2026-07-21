@@ -17,6 +17,10 @@ import { AdtErrorException } from "abap-adt-api"
 import { createMcpServer } from "../src/mcp-server.js"
 import { V1_ERROR_SCHEMA } from "../src/mcp/v1/contracts.js"
 import type { V1ReadService } from "../src/mcp/v1/service.js"
+import {
+  v1ResourcesForToolsets,
+  v1ToolsForToolsets
+} from "../src/mcp/v1/toolsets.js"
 import type { SapClient } from "../src/sap-client.js"
 import { AbapToolService } from "../src/tool-service.js"
 
@@ -146,7 +150,11 @@ async function connectedClient(
   service: V1ReadService | AbapToolService,
   configure?: (server: McpServer) => void
 ) {
-  const server = createMcpServer(service as AbapToolService, { apiVersion: "v1" })
+  const server = createMcpServer(service as AbapToolService, {
+    apiVersion: "v1",
+    enabledV1Tools: v1ToolsForToolsets(["core"]),
+    enabledV1Resources: v1ResourcesForToolsets(["core"])
+  })
   configure?.(server)
   const client = new Client({ name: "v1-final-hardening", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()

@@ -3757,7 +3757,7 @@ test("semantic inspect actions use one SapClient call, paginate, and bound inlin
 
 test("MCP semantic inspect actions expose fixtures and default superTypes to false", async t => {
   const harness = createBdefHarness()
-  const server = createMcpServer(harness.service)
+  const server = createMcpServer(harness.service, { apiVersion: "v0" })
   const client = new Client({ name: "semantic-test-client", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   t.after(async () => {
@@ -3861,14 +3861,14 @@ test("MCP initialize reports the npm package version", async t => {
 test("API version modes preserve v0 and expose implemented v1 tools", async () => {
   const v1Names = [...V1_IMPLEMENTED_TOOL_NAMES]
   const v1CoreNames = [...V1_MCP_TOOLSETS.core]
-  assert.deepEqual((await toolNames()).sort(), [...IMPLEMENTED_TOOL_NAMES].sort())
+  assert.deepEqual((await toolNames()).sort(), [...v1Names].sort())
   assert.deepEqual(
     (await toolNames({ apiVersion: "v0" })).sort(),
     [...IMPLEMENTED_TOOL_NAMES].sort()
   )
   assert.deepEqual(
     (await toolNames({ apiVersion: "v1" })).sort(),
-    [...v1CoreNames].sort()
+    [...v1Names].sort()
   )
   assert.deepEqual(
     (await toolNames({ apiVersion: "all" })).sort(),
@@ -3885,7 +3885,7 @@ test("API version modes preserve v0 and expose implemented v1 tools", async () =
 
 test("MCP run_abap_application exposes strict health, class, and snippet actions", async t => {
   const harness = createApplicationHarness()
-  const server = createMcpServer(harness.service)
+  const server = createMcpServer(harness.service, { apiVersion: "v0" })
   const client = new Client({ name: "application-test-client", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   t.after(async () => {
@@ -4015,7 +4015,7 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
       return fake
     }
   }, gitSecrets)
-  const server = createMcpServer(service)
+  const server = createMcpServer(service, { apiVersion: "v0" })
   const client = new Client({ name: "test-client", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   t.after(async () => {
@@ -4101,6 +4101,7 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     "array"
   )
   const filteredServer = createMcpServer(service, {
+    apiVersion: "v0",
     enabledV0Tools: new Set(["get_connected_systems"])
   })
   const filteredClient = new Client({ name: "filtered-test-client", version: "1.0.0" })
