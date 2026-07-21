@@ -9,16 +9,26 @@ async function committedV0Surface(): Promise<unknown> {
   )
 }
 
+async function committedV0Order(): Promise<unknown> {
+  return JSON.parse(
+    await readFile("test/fixtures/v0-tool-order.json", "utf8")
+  )
+}
+
 test("unversioned MCP retains the committed v0 tool surface", async () => {
+  const tools = await advertisedTools()
   assert.deepEqual(
-    stableToolSurface(await advertisedTools()),
+    stableToolSurface(tools),
     await committedV0Surface()
   )
+  assert.deepEqual(tools.map(tool => tool.name), await committedV0Order())
 })
 
 test("explicit v0 MCP is identical to the committed unversioned surface", async () => {
+  const tools = await advertisedTools({ apiVersion: "v0" })
   assert.deepEqual(
-    stableToolSurface(await advertisedTools({ apiVersion: "v0" })),
+    stableToolSurface(tools),
     await committedV0Surface()
   )
+  assert.deepEqual(tools.map(tool => tool.name), await committedV0Order())
 })
