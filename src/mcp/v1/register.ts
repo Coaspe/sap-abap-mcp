@@ -1,5 +1,4 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { V1_MIGRATION_CATALOG } from "./migration-catalog.js"
 import { registerV1RepositoryTools } from "./repository-tools.js"
 import { registerV1Resources } from "./resources.js"
 import type { V1ReadService } from "./service.js"
@@ -8,26 +7,20 @@ import {
   registerV1SystemTools,
   V1_READ_ONLY_ANNOTATIONS
 } from "./system-tools.js"
+import type { V1ResourceName } from "./toolsets.js"
 
 export { V1_READ_ONLY_ANNOTATIONS }
 
 export interface V1RegistrationOptions {
-  enabledV0Tools?: ReadonlySet<string>
+  enabledTools?: ReadonlySet<string>
+  enabledResources?: ReadonlySet<V1ResourceName>
 }
 
 export function isV1ToolEnabled(
   v1ToolName: string,
-  enabledV0Tools?: ReadonlySet<string>
+  enabledTools?: ReadonlySet<string>
 ): boolean {
-  if (!enabledV0Tools) return true
-  for (const [v0ToolName, entry] of Object.entries(V1_MIGRATION_CATALOG)) {
-    if (entry.targets.some(target =>
-      target === v1ToolName && !target.includes("://") && !target.includes("*")
-    )) {
-      return enabledV0Tools.has(v0ToolName)
-    }
-  }
-  return false
+  return enabledTools === undefined || enabledTools.has(v1ToolName)
 }
 
 export function registerV1Tools(
@@ -40,16 +33,16 @@ export function registerV1Tools(
     "sap.system.inspect",
     "sap.system.capabilities"
   ].filter(name =>
-    isV1ToolEnabled(name, options.enabledV0Tools)
+    isV1ToolEnabled(name, options.enabledTools)
   )
   registerV1SystemTools(server, service, new Set(systemToolNames))
   const repositoryToolNames = ["sap.repository.search"].filter(name =>
-    isV1ToolEnabled(name, options.enabledV0Tools)
+    isV1ToolEnabled(name, options.enabledTools)
   )
   registerV1RepositoryTools(server, service, new Set(repositoryToolNames))
   const sourceToolNames = ["sap.source.read"].filter(name =>
-    isV1ToolEnabled(name, options.enabledV0Tools)
+    isV1ToolEnabled(name, options.enabledTools)
   )
   registerV1SourceTools(server, service, new Set(sourceToolNames))
-  registerV1Resources(server, service)
+  registerV1Resources(server, service, options.enabledResources)
 }

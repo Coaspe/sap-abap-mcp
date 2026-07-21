@@ -141,7 +141,7 @@ test("MCP defers only large results and reads them without repeating the operati
     }
   } as unknown as AbapToolService
   const server = createMcpServer(service, {
-    enabledTools: new Set(["get_connected_systems", DEFERRED_RESULT_TOOL_NAME])
+    enabledV0Tools: new Set(["get_connected_systems", DEFERRED_RESULT_TOOL_NAME])
   })
   const client = new Client({ name: "deferred-result-test", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -224,7 +224,7 @@ test("MCP uses the search-specific summary for repeated context", async t => {
     }
   } as unknown as AbapToolService
   const server = createMcpServer(service, {
-    enabledTools: new Set(["search_abap_object_lines", DEFERRED_RESULT_TOOL_NAME])
+    enabledV0Tools: new Set(["search_abap_object_lines", DEFERRED_RESULT_TOOL_NAME])
   })
   const client = new Client({ name: "compact-search-test", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -288,7 +288,7 @@ test("MCP keeps error essentials inline and preserves full deferred error detail
     }
   } as unknown as AbapToolService
   const server = createMcpServer(service, {
-    enabledTools: new Set(["get_connected_systems", DEFERRED_RESULT_TOOL_NAME])
+    enabledV0Tools: new Set(["get_connected_systems", DEFERRED_RESULT_TOOL_NAME])
   })
   const client = new Client({ name: "deferred-error-test", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -339,7 +339,7 @@ test("MCP preserves inline behavior when deferred result reading is filtered out
     }
   } as unknown as AbapToolService
   const server = createMcpServer(service, {
-    enabledTools: new Set(["get_connected_systems"])
+    enabledV0Tools: new Set(["get_connected_systems"])
   })
   const client = new Client({ name: "inline-filter-test", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()

@@ -2,8 +2,8 @@ import { writeFile } from "node:fs/promises"
 import { resolve } from "node:path"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
-import { toolsForToolsets } from "../dist/src/compat/abap-fs-tools.js"
 import { createMcpServer } from "../dist/src/mcp-server.js"
+import { resolveServeToolSelection } from "../dist/src/mcp/tool-selection.js"
 import { AbapToolService } from "../dist/src/tool-service.js"
 
 const requestedOutputIndex = process.argv.indexOf("--output")
@@ -20,8 +20,8 @@ async function measure(toolset, apiVersion) {
     async getClient() { throw new Error("No SAP call is allowed during schema benchmarking") }
   })
   const server = createMcpServer(service, {
-    enabledTools: toolsForToolsets([toolset]),
-    apiVersion
+    apiVersion,
+    ...resolveServeToolSelection(apiVersion, [toolset])
   })
   const client = new Client({ name: "sap-abap-mcp-benchmark", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()

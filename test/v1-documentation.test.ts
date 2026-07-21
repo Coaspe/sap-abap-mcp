@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 import { toolsForToolsets } from "../src/compat/abap-fs-tools.js"
+import { v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
 
 const V1_TOOL_NAMES = [
@@ -92,9 +93,14 @@ test("published package includes the v1 stdio smoke implementation", async () =>
 })
 
 test("v1 surfaces stay within the documented schema budget and counts", async () => {
-  const enabledTools = toolsForToolsets(["all"])
-  const v1Tools = await advertisedTools({ apiVersion: "v1", enabledTools })
-  const allTools = await advertisedTools({ apiVersion: "all", enabledTools })
+  const enabledV0Tools = toolsForToolsets(["all"])
+  const enabledV1Tools = v1ToolsForToolsets(["all"])
+  const v1Tools = await advertisedTools({ apiVersion: "v1", enabledV1Tools })
+  const allTools = await advertisedTools({
+    apiVersion: "all",
+    enabledV0Tools,
+    enabledV1Tools
+  })
   const v1SchemaBytes = Buffer.byteLength(JSON.stringify(v1Tools), "utf8")
 
   assert.ok(v1SchemaBytes < 24 * 1024)

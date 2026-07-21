@@ -12,6 +12,10 @@ import {
   V1_READ_ONLY_ANNOTATIONS
 } from "../src/mcp/v1/register.js"
 import type { V1ReadService } from "../src/mcp/v1/service.js"
+import {
+  v1ResourcesForToolsets,
+  v1ToolsForToolsets
+} from "../src/mcp/v1/toolsets.js"
 import type { AbapToolService } from "../src/tool-service.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
 
@@ -167,7 +171,8 @@ test("v1 system tools reuse shared service methods and return canonical envelope
   const { service, calls } = createServiceStub()
   const connection = await connectedClient(service, {
     apiVersion: "all",
-    enabledTools: new Set(["get_connected_systems", "get_sap_system_info"])
+    enabledV0Tools: new Set(["get_connected_systems", "get_sap_system_info"]),
+    enabledV1Tools: new Set(["sap.system.list", "sap.system.inspect"])
   })
   t.after(() => connection.close())
 
@@ -206,15 +211,20 @@ test("v1 system tools reuse shared service methods and return canonical envelope
   assert.equal("warnings" in data, false)
 })
 
-test("v1 tool filtering follows exact v0 migration sources", () => {
+test("v1 tool filtering uses exact v1 names", () => {
   assert.equal(isV1ToolEnabled("sap.system.list"), true)
   assert.equal(
-    isV1ToolEnabled("sap.system.list", new Set(["get_connected_systems"])),
+    isV1ToolEnabled("sap.system.list", new Set(["sap.system.list"])),
     true
   )
-  assert.equal(isV1ToolEnabled("sap.system.list", new Set(["get_sap_system_info"])), false)
-  assert.equal(isV1ToolEnabled("sap-capability://DEV100", new Set(["get_sap_capabilities"])), false)
-  assert.equal(isV1ToolEnabled("sap.ops.watch.start", new Set(["manage_heartbeat"])), true)
+  assert.equal(
+    isV1ToolEnabled("sap.system.list", new Set(["sap.system.inspect"])),
+    false
+  )
+  assert.equal(
+    isV1ToolEnabled("sap.ops.watch.start", new Set(["sap.ops.watch.start"])),
+    true
+  )
 })
 
 test("API version CLI validation rejects before starting a transport", async () => {
@@ -235,10 +245,16 @@ test("API version CLI validation rejects before starting a transport", async () 
 })
 
 test("all mode keeps v0 write toolsets valid without registering unmapped v1 tools", async () => {
-  const writeTools = toolsForToolsets(["write"])
-  const tools = await advertisedTools({ apiVersion: "all", enabledTools: writeTools })
+  const writeV0Tools = toolsForToolsets(["write"])
+  const writeV1Tools = v1ToolsForToolsets(["write"])
+  const tools = await advertisedTools({
+    apiVersion: "all",
+    enabledV0Tools: writeV0Tools,
+    enabledV1Tools: writeV1Tools,
+    enabledV1Resources: v1ResourcesForToolsets(["write"])
+  })
   assert.deepEqual(
     sortedNames(tools.map(tool => tool.name)),
-    sortedNames(IMPLEMENTED_TOOL_NAMES.filter(name => writeTools.has(name)))
+    sortedNames(IMPLEMENTED_TOOL_NAMES.filter(name => writeV0Tools.has(name)))
   )
 })

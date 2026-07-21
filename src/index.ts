@@ -7,10 +7,10 @@ import { AppError, errorPayload } from "./errors.js"
 import { ConnectionManager } from "./connection-manager.js"
 import { createMcpServer, startStdioServer } from "./mcp-server.js"
 import { parseMcpApiVersion } from "./mcp/api-version.js"
-import { V1_FIRST_SLICE_V0_TOOL_NAMES } from "./mcp/v1/migration-catalog.js"
+import { resolveServeToolSelection } from "./mcp/tool-selection.js"
+import { V1_IMPLEMENTED_TOOL_NAMES } from "./mcp/v1/migration-catalog.js"
 import {
   TOOLSET_NAMES,
-  toolsForToolsets,
   type ToolsetName
 } from "./compat/abap-fs-tools.js"
 import {
@@ -448,7 +448,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
   const profileId = option(parsed, "profile")
   if (profileId) await profiles.get(profileId)
   const toolsetsValue = option(parsed, "toolsets")
-  let enabledTools: ReadonlySet<string> | undefined
+  let selectedToolsets: ToolsetName[] | undefined
   if (toolsetsValue) {
     const toolsets = toolsetsValue.split(",").map(value => value.trim()).filter(Boolean)
     const invalid = toolsets.filter(value =>
@@ -461,11 +461,12 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
         { available: TOOLSET_NAMES }
       )
     }
-    enabledTools = toolsForToolsets(toolsets as ToolsetName[])
+    selectedToolsets = toolsets as ToolsetName[]
   }
 
-  if (apiVersion === "v1" && enabledTools &&
-    !V1_FIRST_SLICE_V0_TOOL_NAMES.some(name => enabledTools.has(name))) {
+  const selection = resolveServeToolSelection(apiVersion, selectedToolsets)
+  if (apiVersion === "v1" && selection.enabledV1Tools &&
+    !V1_IMPLEMENTED_TOOL_NAMES.some(name => selection.enabledV1Tools!.has(name))) {
     throw new AppError(
       "V1_TOOLSET_EMPTY",
       "The selected toolsets contain no implemented v1 tools",
@@ -476,7 +477,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
   const manager = new ConnectionManager(profiles, secrets, undefined, profileId)
   const server = createMcpServer(
     new AbapToolService(manager, secrets),
-    { apiVersion, ...(enabledTools ? { enabledTools } : {}) }
+    { apiVersion, ...selection }
   )
   let closing = false
   const close = async () => {

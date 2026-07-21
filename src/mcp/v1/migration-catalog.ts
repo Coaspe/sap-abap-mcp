@@ -289,19 +289,3 @@ export const V1_IMPLEMENTED_TOOL_NAMES = uniqueToolTargets(
     entry.disposition === "implemented"
   )
 )
-
-export const V1_FIRST_SLICE_TOOL_NAMES = [
-  V1_MIGRATION_CATALOG.get_connected_systems.targets[0],
-  V1_MIGRATION_CATALOG.get_sap_system_info.targets[0],
-  V1_MIGRATION_CATALOG.get_sap_capabilities.targets[0],
-  V1_MIGRATION_CATALOG.search_abap_objects.targets[0],
-  V1_MIGRATION_CATALOG.get_abap_object_lines.targets[0]
-] as const
-
-export const V1_FIRST_SLICE_V0_TOOL_NAMES = [
-  "get_connected_systems",
-  "get_sap_system_info",
-  "get_sap_capabilities",
-  "search_abap_objects",
-  "get_abap_object_lines"
-] as const

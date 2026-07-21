@@ -11,6 +11,7 @@ import {
 import { installV1ResourceRegistry } from "./resource-registry.js"
 import { sanitizeV1Message } from "./result.js"
 import type { V1ReadService } from "./service.js"
+import type { V1ResourceName } from "./toolsets.js"
 
 async function readCapabilityResource(
   value: string,
@@ -73,33 +74,49 @@ async function readAdtResource(
   }
 }
 
+function resourceEnabled(
+  name: V1ResourceName,
+  enabled?: ReadonlySet<V1ResourceName>
+): boolean {
+  return enabled === undefined || enabled.has(name)
+}
+
 export function registerV1Resources(
   server: McpServer,
-  service: V1ReadService
+  service: V1ReadService,
+  enabled?: ReadonlySet<V1ResourceName>
 ): void {
+  const capabilityEnabled = resourceEnabled("sap-capability-evidence", enabled)
+  const sourceEnabled = resourceEnabled("sap-adt-source", enabled)
+  if (!capabilityEnabled && !sourceEnabled) return
+
   const completionRouter = installV1CompletionRouter(server)
   installV1ResourceRegistry(server, completionRouter)
 
-  server.registerResource(
-    "sap-capability-evidence",
-    new ResourceTemplate("sap-capability://{system}", { list: undefined }),
-    {
-      title: "SAP Capability Evidence",
-      description: "Complete capability discovery evidence for one SAP system.",
-      mimeType: "application/json"
-    },
-    uri => readCapabilityResource(uri.toString(), service)
-  )
+  if (capabilityEnabled) {
+    server.registerResource(
+      "sap-capability-evidence",
+      new ResourceTemplate("sap-capability://{system}", { list: undefined }),
+      {
+        title: "SAP Capability Evidence",
+        description: "Complete capability discovery evidence for one SAP system.",
+        mimeType: "application/json"
+      },
+      uri => readCapabilityResource(uri.toString(), service)
+    )
+  }
 
-  server.registerResource(
-    "sap-adt-source",
-    new ResourceTemplate("adt://{system}/{+adtPath}", { list: undefined }),
-    {
-      title: "SAP ABAP Source",
-      description: "Complete active ABAP source for one canonical ADT resource.",
-      mimeType: "text/x-abap"
-    },
-    uri => readAdtResource(uri.toString(), service)
-  )
+  if (sourceEnabled) {
+    server.registerResource(
+      "sap-adt-source",
+      new ResourceTemplate("adt://{system}/{+adtPath}", { list: undefined }),
+      {
+        title: "SAP ABAP Source",
+        description: "Complete active ABAP source for one canonical ADT resource.",
+        mimeType: "text/x-abap"
+      },
+      uri => readAdtResource(uri.toString(), service)
+    )
+  }
 
 }

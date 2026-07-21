@@ -32,6 +32,7 @@ import type {
 } from "./tool-service.js"
 import type { McpApiVersion } from "./mcp/api-version.js"
 import { registerV1Tools } from "./mcp/v1/register.js"
+import type { V1ResourceName } from "./mcp/v1/toolsets.js"
 
 export { ABAP_OBJECT_TYPES } from "./abap-object-types.js"
 
@@ -67,7 +68,9 @@ function deferredErrorSummary(payload: ReturnType<typeof errorPayload>): Deferre
 }
 
 export interface McpServerOptions {
-  enabledTools?: ReadonlySet<string>
+  enabledV0Tools?: ReadonlySet<string>
+  enabledV1Tools?: ReadonlySet<string>
+  enabledV1Resources?: ReadonlySet<V1ResourceName>
   apiVersion?: McpApiVersion
 }
 
@@ -105,8 +108,8 @@ export function createMcpServer(
     }
   )
   const deferredResults = new DeferredResultStore()
-  const deferredResultsEnabled = !options.enabledTools ||
-    options.enabledTools.has(DEFERRED_RESULT_TOOL_NAME)
+  const deferredResultsEnabled = !options.enabledV0Tools ||
+    options.enabledV0Tools.has(DEFERRED_RESULT_TOOL_NAME)
   const result = (
     value: unknown,
     isError = false,
@@ -216,7 +219,7 @@ export function createMcpServer(
     callback: ToolCallback<InputArgs>
   ): RegisteredTool | undefined => {
     if (!includeV0) return undefined
-    if (options.enabledTools && !options.enabledTools.has(name)) return undefined
+    if (options.enabledV0Tools && !options.enabledV0Tools.has(name)) return undefined
     return server.registerTool(name, config, callback)
   }
 
@@ -1845,11 +1848,14 @@ export function createMcpServer(
   )
 
   if (apiVersion === "v1" || apiVersion === "all") {
-    registerV1Tools(
-      server,
-      tools,
-      options.enabledTools ? { enabledV0Tools: options.enabledTools } : {}
-    )
+    registerV1Tools(server, tools, {
+      ...(options.enabledV1Tools
+        ? { enabledTools: options.enabledV1Tools }
+        : {}),
+      ...(options.enabledV1Resources
+        ? { enabledResources: options.enabledV1Resources }
+        : {})
+    })
   }
 
   return server

@@ -16,6 +16,7 @@ import {
   type DeferredResultEnvelope
 } from "../src/deferred-results.js"
 import { createMcpServer, type McpServerOptions } from "../src/mcp-server.js"
+import { v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import { AppError } from "../src/errors.js"
 import { ProfileStore, type SapProfile } from "../src/profile-store.js"
 import { SapCapabilityRegistry } from "../src/sap-capabilities.js"
@@ -3877,7 +3878,7 @@ test("API version modes preserve v0 and expose the first v1 system tools", async
   assert.deepEqual(
     await toolNames({
       apiVersion: "v1",
-      enabledTools: toolsForToolsets(["core"])
+      enabledV1Tools: v1ToolsForToolsets(["core"])
     }),
     v1Names
   )
@@ -4101,7 +4102,7 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     "array"
   )
   const filteredServer = createMcpServer(service, {
-    enabledTools: new Set(["get_connected_systems"])
+    enabledV0Tools: new Set(["get_connected_systems"])
   })
   const filteredClient = new Client({ name: "filtered-test-client", version: "1.0.0" })
   const [filteredClientTransport, filteredServerTransport] =
