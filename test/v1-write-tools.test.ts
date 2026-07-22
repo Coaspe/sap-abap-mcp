@@ -84,7 +84,7 @@ const RAP_CONTENT = {
   }
 }
 
-test("the write toolset advertises 23 action-free v1 contracts", async () => {
+test("the write toolset advertises 24 action-free v1 contracts", async () => {
   const tools = await advertisedTools({
     apiVersion: "v1",
     enabledV1Tools: v1ToolsForToolsets(["write"]),
@@ -94,7 +94,7 @@ test("the write toolset advertises 23 action-free v1 contracts", async () => {
     tools.map(tool => tool.name).sort(),
     [...V1_MCP_TOOLSETS.write].sort()
   )
-  assert.equal(tools.length, 23)
+  assert.equal(tools.length, 24)
   for (const tool of tools) {
     assert.ok(tool.outputSchema, `${tool.name} outputSchema`)
     assert.equal("action" in (tool.inputSchema.properties ?? {}), false, tool.name)
@@ -105,6 +105,8 @@ test("the write toolset advertises 23 action-free v1 contracts", async () => {
   }
   const transportCreate = tools.find(tool => tool.name === "sap.transport.create")
   assert.ok(transportCreate?.inputSchema.required?.includes("packageName"))
+  const deleteExecute = tools.find(tool => tool.name === "sap.repository.delete.execute")
+  assert.ok(deleteExecute?.description?.includes("delete"))
 })
 
 test("write adapters inject fixed service actions and preserve safety inputs", async t => {
@@ -189,6 +191,10 @@ test("write adapters inject fixed service actions and preserve safety inputs", a
     {
       name: "sap.refactor.execute",
       arguments: { planId: "PLAN", confirmation: "CONFIRM" }
+    },
+    {
+      name: "sap.repository.delete.execute",
+      arguments: { planId: "DELETE-PLAN", confirmation: "ZDEMO" }
     },
     {
       name: "sap.repository.create",
@@ -285,13 +291,13 @@ test("write adapters inject fixed service actions and preserve safety inputs", a
     assert.deepEqual(result.structuredContent, JSON.parse(firstText(result)), invocation.name)
   }
 
-  assert.equal(calls.length, 23)
+  assert.equal(calls.length, 24)
   assert.deepEqual(calls.map(call => call.method), [
     "runAbapApplication",
     ...Array(6).fill("manageAbapGit"),
     "createTestInclude",
     ...Array(3).fill("manageRap"),
-    "refactorCode",
+    ...Array(2).fill("refactorCode"),
     "createObjectProgrammatically",
     "activateObject",
     "replaceStringInObject",
@@ -315,7 +321,7 @@ test("write adapters inject fixed service actions and preserve safety inputs", a
       "publish",
       "unpublish",
       "generate",
-      "execute",
+      "execute", "execute",
       "update",
       "create_transport",
       "delete_transport",
@@ -331,8 +337,10 @@ test("write adapters inject fixed service actions and preserve safety inputs", a
     const systemId = input.connectionId
     if (systemId !== undefined) assert.equal(systemId, "DEV100", call.method)
   }
-  assert.equal((calls[20]?.input as { ignoreLocks: boolean }).ignoreLocks, true)
-  assert.equal((calls[20]?.input as { ignoreAtc: boolean }).ignoreAtc, true)
+  assert.equal((calls[11]?.input as { expectedPlanKind: string }).expectedPlanKind, "refactor")
+  assert.equal((calls[12]?.input as { expectedPlanKind: string }).expectedPlanKind, "delete")
+  assert.equal((calls[21]?.input as { ignoreLocks: boolean }).ignoreLocks, true)
+  assert.equal((calls[21]?.input as { ignoreAtc: boolean }).ignoreAtc, true)
   assert.equal((calls[4]?.input as { authorName?: string }).authorName, undefined)
   assert.equal((calls[4]?.input as { committerName?: string }).committerName, undefined)
 })

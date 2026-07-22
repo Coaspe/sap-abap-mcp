@@ -3092,12 +3092,23 @@ test("mutation plans reject stale SAP state and transport writes reject producti
     transport: "DEVK900123",
     activate: false
   }) as { planId: string; confirmation: string }
+  await assert.rejects(
+    service.refactorCode({
+      action: "execute",
+      planId: preview.planId,
+      confirmation: preview.confirmation,
+      expectedPlanKind: "delete"
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "PLAN_TOOL_MISMATCH"
+  )
   fake.currentSource = `${source}\n" changed after preview`
   await assert.rejects(
     service.refactorCode({
       action: "execute",
       planId: preview.planId,
-      confirmation: preview.confirmation
+      confirmation: preview.confirmation,
+      expectedPlanKind: "refactor"
     }),
     error => typeof error === "object" && error !== null &&
       "code" in error && error.code === "REFACTORING_CHANGED"
@@ -3133,6 +3144,34 @@ test("mutation plans reject stale SAP state and transport writes reject producti
     error => typeof error === "object" && error !== null &&
       "code" in error && error.code === "RESTORE_STATE_CHANGED"
   )
+
+  const deletePreview = await service.refactorCode({
+    action: "preview_delete",
+    connectionId: "DEV100",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    transport: "DEVK900123",
+    activate: false
+  }) as { planId: string; confirmation: string }
+  await assert.rejects(
+    service.refactorCode({
+      action: "execute",
+      planId: deletePreview.planId,
+      confirmation: deletePreview.confirmation,
+      expectedPlanKind: "refactor"
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "PLAN_TOOL_MISMATCH"
+  )
+  const deleted = await service.refactorCode({
+    action: "execute",
+    planId: deletePreview.planId,
+    confirmation: deletePreview.confirmation,
+    expectedPlanKind: "delete"
+  }) as { executed: boolean; operation: string }
+  assert.deepEqual({ executed: deleted.executed, operation: deleted.operation }, {
+    executed: true,
+    operation: "delete"
+  })
 
   const productionFake = new FakeSapClient({ ...profile, id: "PRD100", environment: "production" })
   const productionService = new AbapToolService({

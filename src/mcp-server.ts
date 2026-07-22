@@ -107,7 +107,7 @@ export function createMcpServer(
     },
     {
       instructions: apiVersion === "v1"
-        ? "Call sap.system.list when systemId is unknown, then use sap.system.inspect for normalized SAP system metadata."
+        ? "Call sap.system.list when systemId is unknown, then use sap.system.inspect for normalized SAP system metadata. Delete one exact repository object only by calling sap.repository.delete.preview first, then pass its unchanged planId and confirmation to sap.repository.delete.execute."
         : "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
   )

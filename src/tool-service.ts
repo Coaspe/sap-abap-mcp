@@ -348,6 +348,7 @@ export interface ExecuteRefactoringInput {
   action: "execute"
   planId: string
   confirmation: string
+  expectedPlanKind?: "refactor" | "delete"
 }
 
 export type RefactorCodeInput = PreviewRefactoringInput | ExecuteRefactoringInput
@@ -1330,7 +1331,11 @@ export class AbapToolService {
     return cached
   }
 
-  private takePlan(planId: string, confirmation: string): RefactorPlan {
+  private takePlan(
+    planId: string,
+    confirmation: string,
+    expectedPlanKind?: ExecuteRefactoringInput["expectedPlanKind"]
+  ): RefactorPlan {
     const plan = this.refactorPlans.get(planId)
     if (!plan || plan.expiresAt <= Date.now()) {
       this.refactorPlans.delete(planId)
@@ -1340,6 +1345,16 @@ export class AbapToolService {
       throw new AppError(
         "CONFIRMATION_MISMATCH",
         `Confirmation must exactly equal ${plan.confirmation}`
+      )
+    }
+    const matchesExpectedKind = expectedPlanKind === undefined ||
+      (expectedPlanKind === "delete"
+        ? plan.kind === "delete"
+        : plan.kind !== "delete" && plan.kind !== "restore_version")
+    if (!matchesExpectedKind) {
+      throw new AppError(
+        "PLAN_TOOL_MISMATCH",
+        `Plan kind ${plan.kind} cannot be executed as ${expectedPlanKind}`
       )
     }
     this.refactorPlans.delete(planId)
@@ -2109,7 +2124,11 @@ export class AbapToolService {
       return this.planResponse(plan, built.summary)
     }
 
-    const plan = this.takePlan(input.planId, input.confirmation)
+    const plan = this.takePlan(
+      input.planId,
+      input.confirmation,
+      input.expectedPlanKind
+    )
     if (plan.kind === "restore_version") {
       throw new AppError(
         "PLAN_TOOL_MISMATCH",

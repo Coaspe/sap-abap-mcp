@@ -15,7 +15,7 @@ export const V1_SURFACE_BUDGETS: Record<ToolsetName, SurfaceBudget> = {
   debug: { maxTools: 32, maxSchemaBytes: 64 * 1024 },
   operations: { maxTools: 32, maxSchemaBytes: 64 * 1024 },
   artifacts: { maxTools: 32, maxSchemaBytes: 64 * 1024 },
-  all: { maxTools: 113, maxSchemaBytes: 384 * 1024 }
+  all: { maxTools: 115, maxSchemaBytes: 384 * 1024 }
 }
 
 export function measureToolSurface(tools: readonly Tool[]) {
