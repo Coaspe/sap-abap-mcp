@@ -26,6 +26,6 @@ test("explicit v0 MCP retains the committed v0 tool surface", async () => {
 
 test("the default MCP surface contains only current v1 tool names", async () => {
   const tools = await advertisedTools()
-  assert.equal(tools.length, 113)
+  assert.equal(tools.length, 115)
   assert.ok(tools.every(tool => tool.name.startsWith("sap.")))
 })

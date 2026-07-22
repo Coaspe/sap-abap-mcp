@@ -50,17 +50,17 @@ Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#cla
 
 ### Current v1 surface
 
-The unversioned `serve` command maps the 53 legacy capabilities to 113
+The unversioned `serve` command maps the 53 legacy capabilities to 115
 action-free v1 tools and seven Resources, split across bounded `core`, `write`,
 `analysis`, `debug`, `operations`, and `artifacts` toolsets. Omitting
-`--toolsets` selects all 113 tools. Use `--api-version v0` only for legacy
+`--toolsets` selects all 115 tools. Use `--api-version v0` only for legacy
 client compatibility, or select toolsets explicitly when a host should
 advertise fewer schemas.
 Normal clients should omit both `--api-version` and `--toolsets`.
 
 | Invocation | Advertised surface |
 |---|---|
-| `serve --profile DEV100` | Current v1, all 113 tools and seven Resources |
+| `serve --profile DEV100` | Current v1, all 115 tools and seven Resources |
 | `serve --profile DEV100 --toolsets core,analysis` | Selected v1 toolsets only |
 | `serve --profile DEV100 --api-version v0` | Legacy 53-tool compatibility surface |
 
@@ -420,7 +420,7 @@ into a pass.
 For BDEF creation, batch activation, class execution, the fixed ABAP REPL contract, and detailed semantic inspection, follow the evidence and cleanup procedure in [`docs/live-sap-acceptance.md`](docs/live-sap-acceptance.md). Until those checks succeed on a selected connection, the capabilities remain `unverified`.
 
 For the complete Windows B4D campaign, use the
-[113-tool v1 `$TMP` acceptance prompt](docs/live-sap-v1-113-tool-tmp-test-prompt.ko.md)
+[115-tool v1 `$TMP` acceptance prompt](docs/live-sap-v1-115-tool-tmp-test-prompt.ko.md)
 and the [Windows clone and connection guide](docs/live-sap-b4d-windows-local-test.ko.md).
 
 Recommended order:

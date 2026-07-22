@@ -40,7 +40,7 @@ test("explicit toolsets resolve independently for v0 and v1", () => {
 test("explicit all selects both complete catalogs", () => {
   const selection = resolveServeToolSelection("all", ["all"])
   assert.equal(selection.enabledV0Tools!.size, IMPLEMENTED_TOOL_NAMES.length)
-  assert.equal(selection.enabledV1Tools!.size, 113)
+  assert.equal(selection.enabledV1Tools!.size, 115)
   assert.deepEqual(
     [...selection.enabledV1Resources!].sort(),
     [...V1_RESOURCE_NAMES].sort()

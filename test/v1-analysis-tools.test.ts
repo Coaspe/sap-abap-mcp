@@ -78,14 +78,14 @@ const RAP_CONTENT = {
   }
 }
 
-test("the analysis toolset advertises 29 action-free v1 contracts", async () => {
+test("the analysis toolset advertises 30 action-free v1 contracts", async () => {
   const tools = await advertisedTools({
     apiVersion: "v1",
     enabledV1Tools: v1ToolsForToolsets(["analysis"]),
     enabledV1Resources: new Set()
   })
   assert.deepEqual(tools.map(tool => tool.name).sort(), [...V1_MCP_TOOLSETS.analysis].sort())
-  assert.equal(tools.length, 29)
+  assert.equal(tools.length, 30)
   for (const tool of tools) {
     assert.ok(tool.outputSchema, `${tool.name} outputSchema`)
     assert.equal("action" in (tool.inputSchema.properties ?? {}), false, tool.name)
@@ -95,8 +95,11 @@ test("the analysis toolset advertises 29 action-free v1 contracts", async () => 
   const preview = tools.find(tool => tool.name === "sap.refactor.preview")
   assert.deepEqual(
     (preview?.inputSchema.properties?.kind as { enum?: string[] })?.enum,
-    ["rename", "change_package", "extract_method", "quick_fix", "format", "delete"]
+    ["rename", "change_package", "extract_method", "quick_fix", "format"]
   )
+  const deletePreview = tools.find(tool => tool.name === "sap.repository.delete.preview")
+  assert.ok(deletePreview?.description?.includes("delete"))
+  assert.deepEqual(deletePreview?.inputSchema.required?.sort(), ["fileUri", "systemId"])
   const dataQuery = tools.find(tool => tool.name === "sap.data.query")
   assert.ok(dataQuery?.inputSchema.properties?.data)
   assert.ok(dataQuery?.inputSchema.properties?.webviewId)
@@ -175,6 +178,7 @@ test("analysis adapters call shared service capabilities with fixed actions", as
     { name: "sap.rap.schema", arguments: { systemId: "dev100", generatorId: "uiservice", referenceObjectName: "ZI_DEMO", packageName: "$TMP" } },
     { name: "sap.rap.validate", arguments: { systemId: "dev100", generatorId: "uiservice", referenceObjectName: "ZI_DEMO", packageName: "$TMP" } },
     { name: "sap.refactor.preview", arguments: { systemId: "dev100", fileUri: "adt://dev100/source", kind: "format" } },
+    { name: "sap.repository.delete.preview", arguments: { systemId: "dev100", fileUri: "adt://dev100/source", transport: "DEVK900001" } },
     { name: "sap.repository.compare", arguments: { sourceSystemId: "dev100", targetSystemId: "qas100", objectName: "ZCL_DEMO" } },
     { name: "sap.repository.dependency_graph", arguments: { systemId: "dev100", objectName: "ZCL_DEMO" } },
     { name: "sap.transport.assess", arguments: { systemId: "dev100", transportNumber: "DEVK900001" } },
@@ -195,8 +199,14 @@ test("analysis adapters call shared service capabilities with fixed actions", as
     const result = await connection.client.callTool(invocation) as CallToolResult
     assert.equal(result.isError, undefined, invocation.name)
     assert.deepEqual(result.structuredContent, JSON.parse((result.content[0] as { text: string }).text))
+    if (invocation.name === "sap.repository.delete.preview") {
+      assert.equal(
+        (result.structuredContent?.data as Record<string, unknown>).nextTool,
+        "sap.repository.delete.execute"
+      )
+    }
   }
-  assert.equal(calls.length, 29)
+  assert.equal(calls.length, 30)
   assert.deepEqual(calls.map(call => call.method), [
     "executeDataQuery",
     ...Array(3).fill("manageAbapGit"),
@@ -204,7 +214,7 @@ test("analysis adapters call shared service capabilities with fixed actions", as
     ...Array(2).fill("runAtcAnalysis"),
     "runUnitTests",
     ...Array(6).fill("manageRap"),
-    "refactorCode",
+    ...Array(2).fill("refactorCode"),
     "compareSystems",
     "dependencyGraph",
     ...Array(6).fill("manageTransportRequests"),
@@ -220,7 +230,7 @@ test("analysis adapters call shared service capabilities with fixed actions", as
       "check_repository", "remote_info", "list_repositories",
       "get_documentation", "run_analysis",
       "availability", "service_details", "get_defaults", "preview", "get_schema", "validate",
-      "preview_format",
+      "preview_format", "preview_delete",
       "assess_transport", "compare_transports", "get_transport_details",
       "get_user_transports", "resolve_object", "list_system_users",
       "compare_versions", "list_versions", "get_version_source",
@@ -228,7 +238,14 @@ test("analysis adapters call shared service capabilities with fixed actions", as
     ]
   )
   assert.equal((calls[13]?.input as { content?: unknown }).content, undefined)
-  assert.deepEqual(calls[21]?.input, {
+  assert.deepEqual(calls[15]?.input, {
+    action: "preview_delete",
+    connectionId: "DEV100",
+    fileUri: "adt://dev100/source",
+    transport: "DEVK900001",
+    activate: false
+  })
+  assert.deepEqual(calls[22]?.input, {
     action: "resolve_object",
     connectionId: "DEV100",
     startIndex: 0,
@@ -239,6 +256,6 @@ test("analysis adapters call shared service capabilities with fixed actions", as
     objectType: "CLAS",
     objectName: "ZCL_DEMO"
   })
-  assert.equal((calls[28]?.input as { transport: string }).transport, "DEVK900001")
-  assert.equal((calls[28]?.input as { activate: boolean }).activate, true)
+  assert.equal((calls[29]?.input as { transport: string }).transport, "DEVK900001")
+  assert.equal((calls[29]?.input as { activate: boolean }).activate, true)
 })

@@ -33,7 +33,7 @@ test("the complete v1 catalog is implemented by runtime Tools and Resources", as
   try {
     const tools = (await client.listTools()).tools
     assert.deepEqual(sorted(tools.map(tool => tool.name)), sorted(V1_TOOL_NAMES))
-    assert.equal(tools.length, 113)
+    assert.equal(tools.length, 115)
     for (const tool of tools) {
       assert.ok(tool.inputSchema, `${tool.name} inputSchema`)
       assert.ok(tool.outputSchema, `${tool.name} outputSchema`)

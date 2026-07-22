@@ -415,7 +415,7 @@ export function registerV1AnalysisTools(
     z.object({
       systemId: SYSTEM_ID.optional(),
       fileUri: NON_EMPTY,
-      kind: z.enum(["rename", "change_package", "extract_method", "quick_fix", "format", "delete"]),
+      kind: z.enum(["rename", "change_package", "extract_method", "quick_fix", "format"]),
       line: z.number().int().min(1).optional(),
       column: z.number().int().min(0).optional(),
       endLine: z.number().int().min(1).optional(),
@@ -443,6 +443,27 @@ export function registerV1AnalysisTools(
         ? { proposalIndex: input.proposalIndex }
         : {}),
       ...(input.transport ? { transport: input.transport } : {})
+    }))
+  )
+
+  registerTool(
+    "sap.repository.delete.preview",
+    "Preview SAP Repository Object Deletion",
+    "Preview how to safely delete one exact SAP repository object without changing it.",
+    z.object({
+      systemId: SYSTEM_ID,
+      fileUri: NON_EMPTY,
+      transport: NON_EMPTY.optional()
+    }).strict(),
+    input => serviceResult(input.systemId, async systemId => ({
+      ...await service.refactorCode({
+        action: "preview_delete",
+        connectionId: systemId!,
+        fileUri: input.fileUri,
+        ...(input.transport ? { transport: input.transport } : {}),
+        activate: false
+      }) as Record<string, unknown>,
+      nextTool: "sap.repository.delete.execute"
     }))
   )
 

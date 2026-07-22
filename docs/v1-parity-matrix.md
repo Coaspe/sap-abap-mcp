@@ -1,6 +1,6 @@
 # SAP ABAP MCP v1 parity matrix
 
-Date: 2026-07-21
+Date: 2026-07-22
 
 This matrix began with a runtime audit at base commit
 `ae95ed7d7a8c2dad0448aa7f7903e7fffb09b188` and now records the implementation
@@ -14,12 +14,12 @@ invokes its shared `AbapToolService` method.
 | Surface | Catalog | Callable now | Missing handler/schema | Runtime result |
 | --- | ---: | ---: | ---: | --- |
 | v0 Tools | 53 | 53 | 0 | `--api-version v0` advertises 53 |
-| v1 Tools | 113 | 113 | 0 | unversioned `serve` advertises 113 |
-| Internal combined Tools | 166 | 166 | 0 | Programmatic parity tests only; not a CLI mode |
+| v1 Tools | 115 | 115 | 0 | unversioned `serve` advertises 115 |
+| Internal combined Tools | 168 | 168 | 0 | Programmatic parity tests only; not a CLI mode |
 | v1 Resources | 7 | 7 | 0 | One fixed Resource and six Resource Templates |
 
 The initial baseline build and automated suite passed 260/260 tests. The current
-parity gate discovers all 113 v1 handlers and all seven Resources, and the final
+parity gate discovers all 115 v1 handlers and all seven Resources, and the final
 local automated suite passes 283/283 tests.
 
 ## Core (20 targets; 20 callable)
@@ -47,7 +47,7 @@ local automated suite passes 283/283 tests.
 | `sap.text_elements.read` | `manage_text_elements`: read | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
 | `sap.ui.object_url` | `get_abap_object_url`: url | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
 
-## Write (23 targets; 23 callable)
+## Write (24 targets; 24 callable)
 
 | v1 target | v0 source capability | Current handler | Current input/output schema | Current test state |
 | --- | --- | --- | --- | --- |
@@ -64,6 +64,7 @@ local automated suite passes 283/283 tests.
 | `sap.rap.generate` | `manage_rap_generator`: generate | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
 | `sap.refactor.execute` | `refactor_abap_code`: execute | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
 | `sap.repository.create` | `create_object_programmatically`: create, createWithSource | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
+| `sap.repository.delete.execute` | `refactor_abap_code`: execute a confirmed delete plan | `src/mcp/v1/write-tools.ts` | Strict planId/confirmation input + destructive v1 success envelope | Contract + plan-kind routing: `test/v1-write-tools.test.ts`, `test/integration.test.ts` |
 | `sap.source.activate` | `abap_activate`: single, batch | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
 | `sap.source.patch` | `replace_string_in_abap_object`: replace | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
 | `sap.text_elements.write` | `manage_text_elements`: create, update | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
@@ -75,7 +76,7 @@ local automated suite passes 283/283 tests.
 | `sap.transport.user.add` | `manage_transport_requests`: add_user | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
 | `sap.version.restore.execute` | `manage_abap_versions`: execute_restore | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
 
-## Analysis (29 targets; 29 callable)
+## Analysis (30 targets; 30 callable)
 
 | v1 target | v0 source capability | Current handler | Current input/output schema | Current test state |
 | --- | --- | --- | --- | --- |
@@ -93,8 +94,9 @@ local automated suite passes 283/283 tests.
 | `sap.rap.preview` | `manage_rap_generator`: preview | `src/mcp/v1/analysis-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |
 | `sap.rap.schema` | `manage_rap_generator`: get_schema | `src/mcp/v1/analysis-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |
 | `sap.rap.validate` | `manage_rap_generator`: validate | `src/mcp/v1/analysis-tools.ts` | Strict initial validation input with optional generated content + v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |
-| `sap.refactor.preview` | `refactor_abap_code`: six preview_* variants | `src/mcp/v1/analysis-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |
+| `sap.refactor.preview` | `refactor_abap_code`: five non-delete preview_* variants | `src/mcp/v1/analysis-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |
 | `sap.repository.compare` | `compare_abap_systems`: diff | `src/mcp/v1/analysis-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |
+| `sap.repository.delete.preview` | `refactor_abap_code`: preview_delete | `src/mcp/v1/analysis-tools.ts` | Strict systemId/fileUri/transport input + read-only v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |
 | `sap.repository.dependency_graph` | `get_abap_dependency_graph`: graph | `src/mcp/v1/analysis-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |
 | `sap.transport.assess` | `manage_transport_requests`: assess_transport | `src/mcp/v1/analysis-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |
 | `sap.transport.compare` | `manage_transport_requests`: compare_transports | `src/mcp/v1/analysis-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-analysis-tools.test.ts` |

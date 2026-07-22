@@ -2,14 +2,14 @@
 
 The unversioned `serve` is the complete current v1 surface. Existing MCPB,
 plugin, and `@coaspe/sap-abap-mcp@latest serve` launch commands therefore use
-all 113 v1 tools and seven Resources without adding startup flags.
+all 115 v1 tools and seven Resources without adding startup flags.
 With no `--toolsets`, all six v1 toolsets are enabled.
 All 53 v0 capabilities remain available through `--api-version v0`.
 
 Normal use needs neither `--api-version` nor `--toolsets`:
 
 ```bash
-# Current v1 surface: 113 tools and seven Resources.
+# Current v1 surface: 115 tools and seven Resources.
 npx @coaspe/sap-abap-mcp@latest serve
 
 # Optional schema-budget control for hosts that should preload fewer tools.
@@ -19,7 +19,7 @@ npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis
 npx @coaspe/sap-abap-mcp@latest serve --api-version v0
 ```
 
-The complete v1 surface contains 113 callable tools and seven Resources. Each
+The complete v1 surface contains 115 callable tools and seven Resources. Each
 v1 tool has an action-free input contract, a declared output schema, the v1
 success/error envelope, and a thin adapter to the same `AbapToolService` used by
 v0. The combined v0 + v1 surface is internal to automated parity tests and is not accepted by the CLI.
@@ -33,12 +33,12 @@ should advertise a smaller surface.
 | Toolset | Tools | Scope |
 | --- | ---: | --- |
 | `core` | 20 | Systems, repository/source reads, semantic inspection, text reads, object URLs |
-| `write` | 23 | Repository/source mutations, transport/Git/RAP writes, confirmed execution |
-| `analysis` | 29 | Quality, comparisons, versions, transport review, read-only data queries |
+| `write` | 24 | Repository/source mutations, transport/Git/RAP writes, confirmed execution |
+| `analysis` | 30 | Quality, comparisons, versions, transport review, read-only data queries |
 | `debug` | 10 | Debug sessions, breakpoints, stepping, stack and variables |
 | `operations` | 24 | Runtime dumps/traces, watch tasks, execution preview, discovery, transaction URLs |
 | `artifacts` | 7 | Mermaid/test documents, data/source/discovery exports |
-| `all` | 113 | Every v1 tool |
+| `all` | 115 | Every v1 tool |
 
 The static split limits schema-token growth without changing handler behavior.
 
@@ -69,13 +69,16 @@ server run.
   artifact evidence.
 - Preserve confirmation values and plan IDs exactly for mutation and execution
   tools. v1 adapters use the existing v0 safety and policy enforcement.
+- Delete one exact repository object through `sap.repository.delete.preview`,
+  then pass its unchanged `planId` and `confirmation` to
+  `sap.repository.delete.execute`. Generic refactoring tools reject delete plans.
 
 The complete row-by-row mapping is in
 [`v1-parity-matrix.md`](v1-parity-matrix.md).
 
 ## Verification boundary
 
-The local implementation gate covers 53 unchanged v0 tools, all 113 callable
+The local implementation gate covers 53 unchanged v0 tools, all 115 callable
 v1 tools, all seven Resources, per-toolset schema budgets, and the full
 automated regression suite. Live SAP acceptance remains a separate gate; local
 completion does not claim that every optional ADT endpoint is supported or

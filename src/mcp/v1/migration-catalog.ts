@@ -91,7 +91,12 @@ export const V1_MIGRATION_CATALOG = {
     disposition: "implemented"
   },
   refactor_abap_code: {
-    targets: ["sap.refactor.preview", "sap.refactor.execute"],
+    targets: [
+      "sap.refactor.preview",
+      "sap.refactor.execute",
+      "sap.repository.delete.preview",
+      "sap.repository.delete.execute"
+    ],
     disposition: "implemented"
   },
   manage_text_elements: {

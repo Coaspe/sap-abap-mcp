@@ -404,7 +404,22 @@ export function registerV1WriteTools(
     input => serviceResult(undefined, () => service.refactorCode({
       action: "execute",
       planId: input.planId,
-      confirmation: input.confirmation
+      confirmation: input.confirmation,
+      expectedPlanKind: "refactor"
+    }))
+  )
+
+  registerTool(
+    "sap.repository.delete.execute",
+    "Delete SAP Repository Object",
+    "Execute one confirmed fresh object-deletion plan from sap.repository.delete.preview.",
+    z.object({ planId: NON_EMPTY, confirmation: NON_EMPTY }).strict(),
+    MUTATION_ANNOTATIONS,
+    input => serviceResult(undefined, () => service.refactorCode({
+      action: "execute",
+      planId: input.planId,
+      confirmation: input.confirmation,
+      expectedPlanKind: "delete"
     }))
   )
 
