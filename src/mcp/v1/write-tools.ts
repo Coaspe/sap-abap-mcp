@@ -342,12 +342,12 @@ export function registerV1WriteTools(
   registerTool(
     "sap.rap.binding.unpublish",
     "Unpublish RAP Binding",
-    "Unpublish one confirmed RAP V2 service.",
+    "Unpublish one confirmed RAP service. V2 bindings identify the service via serviceName and serviceVersion; V4 bindings are unpublished as a whole and need neither.",
     z.object({
       systemId: SYSTEM_ID,
       serviceBindingName: NON_EMPTY,
-      serviceName: NON_EMPTY,
-      serviceVersion: NON_EMPTY,
+      serviceName: NON_EMPTY.optional(),
+      serviceVersion: NON_EMPTY.optional(),
       confirmation: NON_EMPTY
     }).strict(),
     MUTATION_ANNOTATIONS,
@@ -355,8 +355,8 @@ export function registerV1WriteTools(
       action: "unpublish",
       connectionId: systemId!,
       serviceBindingName: input.serviceBindingName,
-      serviceName: input.serviceName,
-      serviceVersion: input.serviceVersion,
+      ...(input.serviceName ? { serviceName: input.serviceName } : {}),
+      ...(input.serviceVersion ? { serviceVersion: input.serviceVersion } : {}),
       confirmation: input.confirmation,
       contentOffset: 0,
       contentLength: 10000

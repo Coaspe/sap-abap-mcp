@@ -25,6 +25,7 @@ import {
   type GitStaging,
   type RapGeneratorContent,
   type RapGeneratorId,
+  type RapGeneratorPreviewObject,
   type RenameRefactoring,
   type TextElement,
   type TextElementCategory,
@@ -825,6 +826,14 @@ function sameType(actual: string, expected?: string): boolean {
   return normalizedActual.replace(/\/.*$/, "") === normalizedExpected
 }
 
+// ADT serves the same repository object under differently-cased URIs.
+function sameUri(actual: string, expected: string): boolean {
+  return actual.replace(/\/+$/, "").toLowerCase() === expected.replace(/\/+$/, "").toLowerCase()
+}
+
+const FUNCTION_GROUP_SUBOBJECT_PATTERN =
+  /^(\/sap\/bc\/adt\/functions\/groups\/([^/]+))\/(?:fmodules|includes)\/[^/]+$/i
+
 function objectIdentity(object: SapObjectReference) {
   return { name: object.name, type: object.type }
 }
@@ -1452,13 +1461,16 @@ export class AbapToolService {
     const name = structure.metaData["adtcore:name"]
     const type = structure.metaData["adtcore:type"]
     const candidates = await client.searchObjects(name, type, 50)
-    const object = candidates.find(candidate =>
+    const searched = candidates.find(candidate =>
       candidate.name.toUpperCase() === name.toUpperCase() &&
       sameType(candidate.type, type) &&
-      candidate.uri.replace(/\/+$/, "") === objectUri.replace(/\/+$/, "")
+      sameUri(candidate.uri, objectUri)
     ) ?? candidates.find(candidate =>
       candidate.name.toUpperCase() === name.toUpperCase() && sameType(candidate.type, type)
     ) ?? { name, type, uri: objectUri }
+    const object = searched.packageName
+      ? searched
+      : await this.withFunctionGroupPackage(client, searched, objectUri)
 
     let mainProgram: string | undefined
     if (type.toUpperCase() === "PROG/I") {
@@ -1478,6 +1490,33 @@ export class AbapToolService {
       sourceUri: source.sourceUri,
       source: source.source,
       ...(mainProgram ? { mainProgram } : {})
+    }
+  }
+
+  // Function modules and function-group includes are not indexed by the ADT quick
+  // search, so their package must be resolved through the owning function group.
+  private async withFunctionGroupPackage(
+    client: SapClient,
+    object: SapObjectReference,
+    objectUri: string
+  ): Promise<SapObjectReference> {
+    const match = objectUri.replace(/\/+$/, "").match(FUNCTION_GROUP_SUBOBJECT_PATTERN)
+    if (!match) return object
+    const groupUri = match[1]!
+    const groupName = decodeURIComponent(match[2]!).toUpperCase()
+    try {
+      const candidates = await client.searchObjects(groupName, "FUGR/F", 50)
+      const group = candidates.find(candidate =>
+        candidate.name.toUpperCase() === groupName &&
+        sameType(candidate.type, "FUGR/F") &&
+        sameUri(candidate.uri, groupUri)
+      ) ?? candidates.find(candidate =>
+        candidate.name.toUpperCase() === groupName && sameType(candidate.type, "FUGR/F")
+      )
+      return group?.packageName ? { ...object, packageName: group.packageName } : object
+    } catch {
+      // The caller rejects unknown packages via requireWritablePackage.
+      return object
     }
   }
 
@@ -3925,26 +3964,33 @@ export class AbapToolService {
             changedAt: details.binding.changedAt
           },
           services: (details.details?.services ?? []).map(service => {
-            const rawServiceUrl = service.serviceUrl || service.serviceInformation.url
-            const serviceUrl = rawServiceUrl.startsWith("http")
-              ? rawServiceUrl
-              : `${baseUrl}${rawServiceUrl.startsWith("/") ? "" : "/"}${rawServiceUrl}`
-            const preview = service.serviceInformation.collection[0]
-              ? servicePreviewUrl(service, service.serviceInformation.collection[0].name)
+            const collections = service.serviceInformation?.collection ?? []
+            const rawServiceUrl = service.serviceUrl || service.serviceInformation?.url
+            const serviceUrl = !rawServiceUrl
+              ? undefined
+              : rawServiceUrl.startsWith("http")
+                ? rawServiceUrl
+                : `${baseUrl}${rawServiceUrl.startsWith("/") ? "" : "/"}${rawServiceUrl}`
+            // servicePreviewUrl dereferences serviceInformation.url, which V2
+            // bindings leave undefined even when a collection is present
+            const preview = collections[0] && service.serviceInformation?.url
+              ? servicePreviewUrl(service, collections[0].name)
               : undefined
             return {
               repositoryId: service.repositoryId,
               serviceId: service.serviceId,
               serviceVersion: service.serviceVersion,
               published: service.published,
-              serviceUrl,
-              metadataUrl: `${serviceUrl.replace(/\/?$/, "/")}$metadata`,
+              ...(serviceUrl ? {
+                serviceUrl,
+                metadataUrl: `${serviceUrl.replace(/\/?$/, "/")}$metadata`
+              } : {}),
               ...(preview ? {
                 previewUrl: preview.startsWith("http")
                   ? preview
                   : `${baseUrl}${preview.startsWith("/") ? "" : "/"}${preview}`
               } : {}),
-              collections: service.serviceInformation.collection.map(collection => collection.name)
+              collections: collections.map(collection => collection.name)
             }
           })
         }
@@ -3966,10 +4012,27 @@ export class AbapToolService {
           result
         }
       }
-      if (details.binding.binding.version.toUpperCase() !== "V2") {
+      const bindingVersion = details.binding.binding.version.toUpperCase()
+      if (bindingVersion === "V4") {
+        requireExactConfirmation(input.confirmation, name)
+        const result = await client.unpublishRapService(name)
+        if (/^(error|e)$/i.test(result.severity)) {
+          throw new AppError("SERVICE_BINDING_OPERATION_FAILED", result.shortText, {
+            longText: result.longText
+          })
+        }
+        return {
+          connectionId: input.connectionId.toUpperCase(),
+          serviceBindingName: name,
+          bindingVersion,
+          published: false,
+          result
+        }
+      }
+      if (bindingVersion !== "V2") {
         throw new AppError(
           "SERVICE_UNPUBLISH_UNSUPPORTED",
-          "The available ADT unpublish endpoint only supports OData V2 service bindings"
+          "The available ADT unpublish endpoints only support OData V2 and V4 service bindings"
         )
       }
       const serviceName = input.serviceName?.trim().toUpperCase()
@@ -4117,12 +4180,20 @@ export class AbapToolService {
     )
     const expected = preview.map(item => `${item.type}:${item.name}`).sort()
     const actual = generated.map(item => `${item.type}:${item.name}`).sort()
+    let readBackVerified = false
     if (stableJson(expected) !== stableJson(actual)) {
-      throw new AppError(
-        "RAP_GENERATION_RESULT_MISMATCH",
-        "SAP created a different object set than the immediately preceding preview",
-        { expected, actual }
-      )
+      // Some systems echo only a subset of the created objects in the generate
+      // response (e.g. just the service binding), so confirm each previewed
+      // object exists on the server before declaring a mismatch
+      const missing = await this.findMissingGeneratedObjects(client, preview)
+      if (missing.length > 0) {
+        throw new AppError(
+          "RAP_GENERATION_RESULT_MISMATCH",
+          "SAP created a different object set than the immediately preceding preview",
+          { expected, actual, missing }
+        )
+      }
+      readBackVerified = true
     }
     return {
       connectionId: input.connectionId.toUpperCase(),
@@ -4131,9 +4202,31 @@ export class AbapToolService {
       packageName,
       transport: transport ?? null,
       generated: true,
-      objectCount: generated.length,
-      objects: generated
+      readBackVerified,
+      objectCount: preview.length,
+      objects: preview
     }
+  }
+
+  private async findMissingGeneratedObjects(
+    client: SapClient,
+    preview: RapGeneratorPreviewObject[]
+  ): Promise<string[]> {
+    const missing: string[] = []
+    for (const item of preview) {
+      let found = false
+      for (let attempt = 0; attempt < 3 && !found; attempt++) {
+        if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 750))
+        try {
+          await client.getObjectStructure(item.uri)
+          found = true
+        } catch {
+          // generation may still be settling on the server; retry
+        }
+      }
+      if (!found) missing.push(`${item.type}:${item.name}`)
+    }
+    return missing
   }
 
   private async buildRestorePreview(input: ManageVersionsInput) {

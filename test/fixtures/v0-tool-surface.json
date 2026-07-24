@@ -2312,7 +2312,7 @@
   {
     "name": "manage_rap_generator",
     "title": "Manage RAP Generator",
-    "description": "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION.",
+    "description": "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION; V4 unpublish confirms BINDING.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
