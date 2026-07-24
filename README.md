@@ -90,8 +90,8 @@ The server provides all 42 strict-compatible headless tools from the pinned ABAP
 | Quality | ABAP Unit, ATC, diagnostics, test-include creation |
 | Transports | List, details, objects, read-only release assessment, JSON/SARIF/JUnit evidence, compare, create, release, delete, owner/user management, object resolution |
 | Versions | Active revision history, revision comparison, inactive source, guarded revision restore |
-| abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch |
-| RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details and publication |
+| abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch (requires the abapGit ADT backend on the SAP system) |
+| RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details, and OData V2/V4 publication and unpublication |
 | Runtime | Guarded class-runner and fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
 | Cross-system | Source comparison across configured SAP systems |
 | Dependency analysis | Bounded where-used dependency graph |
@@ -503,7 +503,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current source version: `0.4.15`
+- Current source version: `1.0.0`
 - Published npm version: `0.4.15`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
@@ -514,6 +514,15 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
 The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 53 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
+
+## Known limitations
+
+These reflect ADT behaviour that varies by SAP system. The tools fail safely and report an actionable message when a system does not support the operation.
+
+- **Transport release of requests/tasks that contain objects**: some systems reject the synchronous ADT release endpoint for object-bearing transports and only run release as a background job from the GUI. In that case `release_transport` returns `TRANSPORT_RELEASE_UNSUPPORTED` with guidance to release from SE10/SE09. Empty and request-only transports release normally.
+- **abapGit tools require the abapGit ADT backend**: the git tools call `/sap/bc/adt/abapgit/*`. Systems that only have the standalone abapGit report (SE38) do not expose these endpoints, and the tools return `ABAPGIT_BACKEND_UNAVAILABLE`. Install the abapGit `ADT_Backend` to enable them.
+- **Cross-system compare needs two configured systems**: `compare_abap_systems` requires two distinct registered connections.
+- **RAP generation** creates a full artifact set and requires a suitable reference object (for example a root CDS entity with a behavior definition).
 
 ## Detailed Windows guide
 

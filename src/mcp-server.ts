@@ -94,7 +94,7 @@ export function createMcpServer(
   const server = new McpServer(
     {
       name: "sap-abap-mcp",
-      version: "0.4.15",
+      version: "1.0.0",
       title: "SAP ABAP MCP",
       description:
         "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
@@ -1649,7 +1649,7 @@ export function createMcpServer(
     {
       title: "Manage RAP Generator",
       description:
-        "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION.",
+        "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION; V4 unpublish confirms BINDING.",
       inputSchema: {
         action: z.enum([
           "availability", "get_schema", "get_defaults", "validate", "preview", "generate",
