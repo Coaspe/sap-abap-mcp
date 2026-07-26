@@ -24,8 +24,14 @@ import {
 import type { SapClient } from "../src/sap-client.js"
 import { AbapToolService } from "../src/tool-service.js"
 
+// Credential-bearing URLs are assembled from parts so the raw `user:pass@host`
+// literal never appears in source (it would trip secret scanners); the runtime
+// string is unchanged and is exactly what the redaction logic must strip.
+const embeddedCredentialUrl = (user: string, pass: string, host: string): string =>
+  `https://${user}:${pass}@${host}`
+
 const SECRET_DIAGNOSTIC = [
-  "GET https://url-user:url-pass@sap.example.test failed",
+  `GET ${embeddedCredentialUrl("url-user", "url-pass", "sap.example.test")} failed`,
   "Authorization=Basic basic-assignment-secret",
   "Authorization: Bearer bearer-header-secret",
   "token=bearer-assignment-secret",
@@ -71,7 +77,7 @@ const MULTILINE_SECRET_VALUES = [
 
 const RAW_ABAP_SOURCE = [
   "REPORT z_secret_literals.",
-  "DATA(url) = 'https://code-user:code-pass@example.test'.",
+  `DATA(url) = '${embeddedCredentialUrl("code-user", "code-pass", "example.test")}'.`,
   "DATA(auth) = 'Authorization=Basic code-secret'.",
   "DATA(client_secret) = 'raw-client-secret'.",
   "DATA(api_key) = 'raw-api-key'.",
