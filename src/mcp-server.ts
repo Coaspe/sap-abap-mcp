@@ -11,6 +11,7 @@ import type {
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
 import type { RapGeneratorContent } from "abap-adt-api"
+import { ABAP_OBJECT_TYPES } from "./abap-object-types.js"
 import {
   DEFERRED_RESULT_CHUNK_BYTE_LIMIT,
   DEFERRED_RESULT_TOOL_NAME,
@@ -29,47 +30,15 @@ import type {
   ActivateObjectInput,
   RunAbapApplicationInput
 } from "./tool-service.js"
+import type { McpApiVersion } from "./mcp/api-version.js"
+import { registerV1Tools } from "./mcp/v1/register.js"
+import {
+  v1ResourcesForToolsets,
+  v1ToolsForToolsets,
+  type V1ResourceName
+} from "./mcp/v1/toolsets.js"
 
-export const ABAP_OBJECT_TYPES = [
-  "FUNC",
-  "CLAS",
-  "TABL",
-  "PROG",
-  "INTF",
-  "DTEL",
-  "DDLS",
-  "DOMA",
-  "TTYP",
-  "ENQU",
-  "MSAG",
-  "FUGR",
-  "DEVC",
-  "TRAN",
-  "VIEW",
-  "SICF",
-  "WDYN",
-  "SPRX",
-  "XSLT",
-  "TRANSFORMATIONS",
-  "SUSH",
-  "SUSC",
-  "PINF",
-  "ENHC",
-  "ENHS",
-  "BADI",
-  "BADII",
-  "SAMC",
-  "SAPC",
-  "SFSW",
-  "SFBF",
-  "SFBS",
-  "JOBD",
-  "NROB",
-  "ENHO",
-  "SUSO",
-  "BDEF",
-  "SRVB"
-] as const
+export { ABAP_OBJECT_TYPES } from "./abap-object-types.js"
 
 function boundSummaryText(value: string, byteLimit: number): string {
   if (Buffer.byteLength(value, "utf8") <= byteLimit) return value
@@ -103,7 +72,10 @@ function deferredErrorSummary(payload: ReturnType<typeof errorPayload>): Deferre
 }
 
 export interface McpServerOptions {
-  enabledTools?: ReadonlySet<string>
+  enabledV0Tools?: ReadonlySet<string>
+  enabledV1Tools?: ReadonlySet<string>
+  enabledV1Resources?: ReadonlySet<V1ResourceName>
+  apiVersion?: McpApiVersion
 }
 
 interface ToolResultPolicy {
@@ -117,10 +89,12 @@ export function createMcpServer(
   tools: AbapToolService,
   options: McpServerOptions = {}
 ): McpServer {
+  const apiVersion = options.apiVersion ?? "v1"
+  const includeV0 = apiVersion === "v0" || apiVersion === "all"
   const server = new McpServer(
     {
       name: "sap-abap-mcp",
-      version: "0.4.15",
+      version: "1.0.0",
       title: "SAP ABAP MCP",
       description:
         "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
@@ -132,13 +106,14 @@ export function createMcpServer(
       }]
     },
     {
-      instructions:
-        "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
+      instructions: apiVersion === "v1"
+        ? "Call sap.system.list when systemId is unknown, then use sap.system.inspect for normalized SAP system metadata. Delete one exact repository object only by calling sap.repository.delete.preview first, then pass its unchanged planId and confirmation to sap.repository.delete.execute."
+        : "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
   )
   const deferredResults = new DeferredResultStore()
-  const deferredResultsEnabled = !options.enabledTools ||
-    options.enabledTools.has(DEFERRED_RESULT_TOOL_NAME)
+  const deferredResultsEnabled = !options.enabledV0Tools ||
+    options.enabledV0Tools.has(DEFERRED_RESULT_TOOL_NAME)
   const result = (
     value: unknown,
     isError = false,
@@ -247,7 +222,8 @@ export function createMcpServer(
     },
     callback: ToolCallback<InputArgs>
   ): RegisteredTool | undefined => {
-    if (options.enabledTools && !options.enabledTools.has(name)) return undefined
+    if (!includeV0) return undefined
+    if (options.enabledV0Tools && !options.enabledV0Tools.has(name)) return undefined
     return server.registerTool(name, config, callback)
   }
 
@@ -1673,7 +1649,7 @@ export function createMcpServer(
     {
       title: "Manage RAP Generator",
       description:
-        "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION.",
+        "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION; V4 unpublish confirms BINDING.",
       inputSchema: {
         action: z.enum([
           "availability", "get_schema", "get_defaults", "validate", "preview", "generate",
@@ -1874,6 +1850,21 @@ export function createMcpServer(
       ...(input.parameters ? { parameters: input.parameters } : {})
     }))
   )
+
+  if (apiVersion === "v1" || apiVersion === "all") {
+    const defaultV1Tools = apiVersion === "v1"
+      ? v1ToolsForToolsets(["all"])
+      : undefined
+    const defaultV1Resources = apiVersion === "v1"
+      ? v1ResourcesForToolsets(["all"])
+      : undefined
+    const enabledTools = options.enabledV1Tools ?? defaultV1Tools
+    const enabledResources = options.enabledV1Resources ?? defaultV1Resources
+    registerV1Tools(server, tools, {
+      ...(enabledTools ? { enabledTools } : {}),
+      ...(enabledResources ? { enabledResources } : {})
+    })
+  }
 
   return server
 }

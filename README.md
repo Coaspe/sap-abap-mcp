@@ -48,6 +48,26 @@ Replace `DEV100` with the Server name selected in the wizard. Restart the client
 
 Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#claude-code-and-codex-plugin-marketplaces); the included setup skill guides the same local wizard without putting the SAP password in chat. See the detailed [Windows](#detailed-setup-on-windows), [macOS](#detailed-setup-on-macos), and [Linux](#linux-and-containers) sections for platform-specific behavior and server management.
 
+### Current v1 surface
+
+The unversioned `serve` command maps the 53 legacy capabilities to 115
+action-free v1 tools and seven Resources, split across bounded `core`, `write`,
+`analysis`, `debug`, `operations`, and `artifacts` toolsets. Omitting
+`--toolsets` selects all 115 tools. Use `--api-version v0` only for legacy
+client compatibility, or select toolsets explicitly when a host should
+advertise fewer schemas.
+Normal clients should omit both `--api-version` and `--toolsets`.
+
+| Invocation | Advertised surface |
+|---|---|
+| `serve --profile DEV100` | Current v1, all 115 tools and seven Resources |
+| `serve --profile DEV100 --toolsets core,analysis` | Selected v1 toolsets only |
+| `serve --profile DEV100 --api-version v0` | Legacy 53-tool compatibility surface |
+
+See the
+[v1 migration guide](docs/v1-migration.md) for contracts, Resources, and the
+separate live-SAP verification boundary.
+
 ## ABAP FS parity status
 
 The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless feature extensions and `read_deferred_result`, this server advertises 53 tools in total.
@@ -70,8 +90,8 @@ The server provides all 42 strict-compatible headless tools from the pinned ABAP
 | Quality | ABAP Unit, ATC, diagnostics, test-include creation |
 | Transports | List, details, objects, read-only release assessment, JSON/SARIF/JUnit evidence, compare, create, release, delete, owner/user management, object resolution |
 | Versions | Active revision history, revision comparison, inactive source, guarded revision restore |
-| abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch |
-| RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details and publication |
+| abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch (requires the abapGit ADT backend on the SAP system) |
+| RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details, and OData V2/V4 publication and unpublication |
 | Runtime | Guarded class-runner and fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
 | Cross-system | Source comparison across configured SAP systems |
 | Dependency analysis | Bounded where-used dependency graph |
@@ -380,9 +400,28 @@ Available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `arti
 
 ## Real SAP acceptance testing
 
-Run acceptance tests first against a development system and dedicated packages, objects, transports, repositories, and RAP artifacts.
+Run acceptance tests first against a development system.
+Existing SAP objects may be used for reads, searches, and analysis.
+Creation, modification, activation, execution, restore, debugging mutation,
+and deletion must target only objects created by the current test run in SAP
+local package `$TMP`.
+
+A name, prefix, search result, or `$TMP` package membership is not ownership
+evidence. A candidate becomes `RUN_OWNED` only after both a successful create receipt and an immediate exact read-back confirm the same system, package,
+object type, name, and canonical URI. Every subsequent mutation requires an
+exact ledger match and another read-back. Cleanup may delete only those
+`RUN_OWNED` entries, using a fresh preview and exact confirmation.
+
+The strict B4D campaign records transport, abapGit remote, and RAP publication
+mutations as `SKIP-SCOPE`: `$TMP` object ownership does not establish ownership
+of those external or system-wide targets. It never converts a skipped mutation
+into a pass.
 
 For BDEF creation, batch activation, class execution, the fixed ABAP REPL contract, and detailed semantic inspection, follow the evidence and cleanup procedure in [`docs/live-sap-acceptance.md`](docs/live-sap-acceptance.md). Until those checks succeed on a selected connection, the capabilities remain `unverified`.
+
+For the complete Windows B4D campaign, use the
+[115-tool v1 `$TMP` acceptance prompt](docs/live-sap-v1-115-tool-tmp-test-prompt.ko.md)
+and the [Windows clone and connection guide](docs/live-sap-b4d-windows-local-test.ko.md).
 
 Recommended order:
 
@@ -419,7 +458,8 @@ abapgit auth status <id> --repository-url <url>
 abapgit auth logout <id> --repository-url <url>
 
 doctor <id> [--include-components]
-serve [--profile <id>] [--toolsets core,write,analysis,debug,operations,artifacts|all]
+serve [--profile <id>] [--api-version v0|v1]
+    [--toolsets core,write,analysis,debug,operations,artifacts|all]
 ```
 
 Removing a profile also removes its SAP password or OAuth client secret and stored abapGit credential vault.
@@ -433,6 +473,7 @@ Removing a profile also removes its SAP password or OAuth client secret and stor
 | `PROFILE_NOT_FOUND` | Run `setup` again and verify the Server name. |
 | SAP login fails | For Basic Auth, verify URL, client, username, password, VPN, and ADT activation. For OAuth, verify the token URL, client ID, client secret, scope, Bearer response, and ADT authorization. |
 | Certificate or connection error | Check the corporate CA, proxy, VPN, and SAP HTTPS endpoint. |
+| MCP `-32000` (`ConnectionClosed`) | The stdio process closed during initialization; this is not an SAP API status. Run `npm run smoke:v1`, then start `node dist/src/index.js serve --profile <id>` directly. If both work, inspect the saved command with `claude mcp get <name>` and start Claude with `claude --debug mcp`. |
 | Tools are missing | Confirm that the MCP command contains `@latest` and `--prefer-online`, restart it, and inspect `/mcp`. |
 | Writes return `PACKAGE_NOT_ALLOWED` | The profile has a non-empty `--packages` restriction; add the target package or remove the restriction. |
 | Writes return `TRANSPORT_REQUIRED` | Supply an open transport for non-local packages. |
@@ -462,7 +503,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current source version: `0.4.15`
+- Current source version: `1.0.0`
 - Published npm version: `0.4.15`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
@@ -473,6 +514,15 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
 The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 53 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
+
+## Known limitations
+
+These reflect ADT behaviour that varies by SAP system. The tools fail safely and report an actionable message when a system does not support the operation.
+
+- **Transport release of requests/tasks that contain objects**: some systems reject the synchronous ADT release endpoint for object-bearing transports and only run release as a background job from the GUI. In that case `release_transport` returns `TRANSPORT_RELEASE_UNSUPPORTED` with guidance to release from SE10/SE09. Empty and request-only transports release normally.
+- **abapGit tools require the abapGit ADT backend**: the git tools call `/sap/bc/adt/abapgit/*`. Systems that only have the standalone abapGit report (SE38) do not expose these endpoints, and the tools return `ABAPGIT_BACKEND_UNAVAILABLE`. Install the abapGit `ADT_Backend` to enable them.
+- **Cross-system compare needs two configured systems**: `compare_abap_systems` requires two distinct registered connections.
+- **RAP generation** creates a full artifact set and requires a suitable reference object (for example a root CDS entity with a behavior definition).
 
 ## Detailed Windows guide
 

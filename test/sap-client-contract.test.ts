@@ -198,10 +198,6 @@ test("delete refuses a stale preview and still unlocks without issuing DELETE", 
 test("transport, abapGit, and RAP wrappers preserve upstream argument order", async () => {
   const calls: Array<{ method: string; args: unknown[] }> = []
   const fakeAdt: any = {
-    transportRelease: async (...args: unknown[]) => {
-      calls.push({ method: "transportRelease", args })
-      return []
-    },
     transportDelete: async (...args: unknown[]) => calls.push({ method: "transportDelete", args }),
     transportSetOwner: async (...args: unknown[]) => {
       calls.push({ method: "transportSetOwner", args })
@@ -272,7 +268,6 @@ test("transport, abapGit, and RAP wrappers preserve upstream argument order", as
   const repository: any = { key: "REPO-1", url: "https://example.test/repo.git" }
   const staging: any = { staged: [], unstaged: [], ignored: [] }
 
-  await client.releaseTransport("DEVK900123", true, true)
   await client.deleteTransport("DEVK900123")
   await client.setTransportOwner("DEVK900123", "OWNER")
   await client.addTransportUser("DEVK900123", "USER")
@@ -294,7 +289,6 @@ test("transport, abapGit, and RAP wrappers preserve upstream argument order", as
   await client.unpublishServiceBinding("ZUI_DEMO", "1")
 
   assert.deepEqual(calls, [
-    { method: "transportRelease", args: ["DEVK900123", true, true] },
     { method: "transportDelete", args: ["DEVK900123"] },
     { method: "transportSetOwner", args: ["DEVK900123", "OWNER"] },
     { method: "transportAddUser", args: ["DEVK900123", "USER"] },
@@ -322,6 +316,254 @@ test("transport, abapGit, and RAP wrappers preserve upstream argument order", as
     { method: "rapGenPublishService", args: ["ZUI_DEMO_O4"] },
     { method: "unPublishServiceBinding", args: ["ZUI_DEMO", "1"] }
   ])
+})
+
+const releasedReport = (transportNumber: string) =>
+  `<?xml version="1.0" encoding="utf-8"?>` +
+  `<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" xmlns:chkrun="http://www.sap.com/adt/checkrun" ` +
+  `tm:number="${transportNumber}" tm:useraction="newreleasejobs">` +
+  `<tm:releasereports>` +
+  `<chkrun:checkReport chkrun:reporter="transportrelease" chkrun:status="released" chkrun:statusText="Released">` +
+  `<chkrun:checkMessageList/>` +
+  `</chkrun:checkReport>` +
+  `</tm:releasereports>` +
+  `</tm:root>`
+
+test("releasing a transport creates an ATC worklist and releases open non-empty tasks first", async () => {
+  const requests: Array<{ url: string; config: any }> = []
+  const atcCalls: string[] = []
+  const fakeAdt: any = {
+    transportDetails: async (transportNumber: string) => ({
+      "tm:number": transportNumber,
+      "tm:status": "D",
+      objects: [],
+      tasks: [
+        { "tm:number": "DEVK900124", "tm:status": "D", objects: [{ "tm:pgmid": "R3TR" }] },
+        { "tm:number": "DEVK900125", "tm:status": "D", objects: [] },
+        { "tm:number": "DEVK900126", "tm:status": "R", objects: [{ "tm:pgmid": "R3TR" }] }
+      ]
+    }),
+    atcCustomizing: async () => ({
+      properties: [{ name: "systemCheckVariant", value: "ZLGE_CTS" }],
+      excemptions: []
+    }),
+    atcCheckVariant: async (variant: string) => {
+      atcCalls.push(variant)
+      return "WORKLIST123"
+    },
+    httpClient: {
+      request: async (url: string, config: unknown) => {
+        requests.push({ url, config })
+        const transportNumber = /transportrequests\/([A-Z0-9]+)\//.exec(url)![1]!
+        return { body: releasedReport(transportNumber), status: 200, statusText: "OK", headers: {} }
+      }
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  const reports = await client.releaseTransport("DEVK900123")
+
+  assert.deepEqual(atcCalls, ["ZLGE_CTS"])
+  assert.deepEqual(requests.map(request => request.url), [
+    "/sap/bc/adt/cts/transportrequests/DEVK900124/newreleasejobs?worklistId=WORKLIST123",
+    "/sap/bc/adt/cts/transportrequests/DEVK900123/newreleasejobs?worklistId=WORKLIST123"
+  ])
+  assert.deepEqual(requests[0]!.config, {
+    method: "POST",
+    headers: { Accept: "application/vnd.sap.adt.transportorganizer.v1+xml" }
+  })
+  assert.equal(reports.length, 2)
+  assert.equal(reports[0]!["chkrun:status"], "released")
+})
+
+test("releasing with ignoreLocks confirms the follow-up action by echoing the tm:root attributes", async () => {
+  const requests: Array<{ url: string; config: any }> = []
+  const lockQuestion =
+    `<?xml version="1.0" encoding="utf-8"?>` +
+    `<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" xmlns:chkrun="http://www.sap.com/adt/checkrun" ` +
+    `tm:useraction="newreleasejobs" tm:releasetimestamp="20260724101525" tm:releaseobjlock="yes" tm:number="DEVK900123">` +
+    `<tm:releasereports>` +
+    `<chkrun:checkReport chkrun:reporter="transportrelease" chkrun:status="relwithignlock" ` +
+    `chkrun:statusText="Not all objects in the request could be locked">` +
+    `<chkrun:checkMessageList/>` +
+    `</chkrun:checkReport>` +
+    `</tm:releasereports>` +
+    `</tm:root>`
+  const fakeAdt: any = {
+    transportDetails: async () => ({ "tm:number": "DEVK900123", "tm:status": "D", objects: [], tasks: [] }),
+    atcCustomizing: async () => {
+      throw new Error("no ATC release gate on this system")
+    },
+    httpClient: {
+      request: async (url: string, config: unknown) => {
+        requests.push({ url, config })
+        return {
+          body: url.includes("relwithignlock") ? releasedReport("DEVK900123") : lockQuestion,
+          status: 200,
+          statusText: "OK",
+          headers: {}
+        }
+      }
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  const reports = await client.releaseTransport("DEVK900123", true, false)
+
+  assert.deepEqual(requests.map(request => request.url), [
+    "/sap/bc/adt/cts/transportrequests/DEVK900123/newreleasejobs",
+    "/sap/bc/adt/cts/transportrequests/DEVK900123/relwithignlock"
+  ])
+  assert.equal(requests[1]!.config.headers["Content-Type"], "text/plain")
+  assert.match(requests[1]!.config.body, /tm:useraction="release"/)
+  assert.match(requests[1]!.config.body, /tm:releasetimestamp="20260724101525"/)
+  assert.match(requests[1]!.config.body, /tm:releaseobjlock="yes"/)
+  assert.equal(reports.length, 1)
+  assert.equal(reports[0]!["chkrun:status"], "released")
+})
+
+test("release follow-up actions are not confirmed without the matching ignore flag", async () => {
+  const requests: string[] = []
+  const atcQuestion =
+    `<?xml version="1.0" encoding="utf-8"?>` +
+    `<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" xmlns:chkrun="http://www.sap.com/adt/checkrun" ` +
+    `tm:useraction="newreleasejobs" tm:number="DEVK900123">` +
+    `<tm:releasereports>` +
+    `<chkrun:checkReport chkrun:reporter="transportrelease" chkrun:status="relObjigchkatc" ` +
+    `chkrun:statusText="ATC findings exist">` +
+    `<chkrun:checkMessageList/>` +
+    `</chkrun:checkReport>` +
+    `</tm:releasereports>` +
+    `</tm:root>`
+  const fakeAdt: any = {
+    transportDetails: async () => ({ "tm:number": "DEVK900123", "tm:status": "D", objects: [], tasks: [] }),
+    atcCustomizing: async () => {
+      throw new Error("no ATC release gate on this system")
+    },
+    httpClient: {
+      request: async (url: string) => {
+        requests.push(url)
+        return { body: atcQuestion, status: 200, statusText: "OK", headers: {} }
+      }
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  const reports = await client.releaseTransport("DEVK900123")
+
+  assert.deepEqual(requests, ["/sap/bc/adt/cts/transportrequests/DEVK900123/newreleasejobs"])
+  assert.equal(reports.length, 1)
+  assert.equal(reports[0]!["chkrun:status"], "relObjigchkatc")
+})
+
+test("git operations surface an actionable message when the abapGit ADT backend is absent", async () => {
+  const missing = () =>
+    Promise.reject(new Error("Resource /sap/bc/adt/abapgit/repos does not exist."))
+  const fakeAdt: any = {
+    gitRepos: missing,
+    gitPullRepo: missing,
+    gitCreateRepo: missing
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  for (const call of [
+    () => client.listGitRepositories(),
+    () => client.pullGitRepository("REPO-1"),
+    () => client.createGitRepository("Z_DEMO", "https://example.test/repo.git")
+  ]) {
+    await assert.rejects(call, (error: any) =>
+      error?.code === "ABAPGIT_BACKEND_UNAVAILABLE" && /ADT_Backend/.test(error?.message ?? ""))
+  }
+})
+
+test("a synchronous release rejected with 500 for an object-bearing request raises an actionable hint", async () => {
+  const httpError = Object.assign(new Error("Request failed with status code 500"), { status: 500 })
+  const fakeAdt: any = {
+    transportDetails: async () => ({
+      "tm:number": "DEVK900123",
+      "tm:status": "D",
+      objects: [{ "tm:pgmid": "R3TR" }],
+      tasks: []
+    }),
+    atcCustomizing: async () => { throw new Error("no ATC release gate") },
+    httpClient: {
+      request: async () => { throw httpError }
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  await assert.rejects(
+    () => client.releaseTransport("DEVK900123"),
+    (error: any) =>
+      error?.code === "TRANSPORT_RELEASE_UNSUPPORTED" &&
+      /SE10/.test(error?.message ?? "")
+  )
+})
+
+test("unpublishing a V4 binding posts its SCGR reference to the odatav4 unpublish jobs endpoint", async () => {
+  const requests: Array<{ url: string; config: any }> = []
+  const fakeAdt: any = {
+    httpClient: {
+      request: async (url: string, config: unknown) => {
+        requests.push({ url, config })
+        return {
+          body:
+            `<?xml version="1.0" encoding="utf-8"?>` +
+            `<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0"><asx:values><DATA>` +
+            `<SEVERITY>S</SEVERITY><SHORT_TEXT>Unpublished</SHORT_TEXT>` +
+            `</DATA></asx:values></asx:abap>`,
+          status: 200,
+          statusText: "OK",
+          headers: {}
+        }
+      }
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  const result = await client.unpublishRapService("ZUI_DEMO_O4")
+
+  assert.equal(requests[0]!.url, "/sap/bc/adt/businessservices/odatav4/unpublishjobs")
+  assert.equal(requests[0]!.config.method, "POST")
+  assert.match(requests[0]!.config.body, /adtcore:objectReference adtcore:type="SCGR" adtcore:name="ZUI_DEMO_O4"/)
+  assert.equal(result.severity, "s")
+  assert.equal(result.shortText, "Unpublished")
+})
+
+test("inspecting an unpublished binding returns metadata without crashing on missing query links", async () => {
+  const bindingXml =
+    `<?xml version="1.0" encoding="utf-8"?>` +
+    `<srvb:serviceBinding xmlns:srvb="http://www.sap.com/adt/ddic/ServiceBindings" ` +
+    `xmlns:adtcore="http://www.sap.com/adt/core" xmlns:atom="http://www.w3.org/2005/Atom" ` +
+    `adtcore:name="ZUI_DEMO_O4" adtcore:type="SRVB/SVB" adtcore:description="Demo" ` +
+    `adtcore:responsible="DEVELOPER" srvb:published="false" srvb:releaseSupported="false" srvb:repair="false" ` +
+    `srvb:category="0">` +
+    `<atom:link href="./zui_demo_o4/publishjobs" rel="http://www.sap.com/categories/publishjobs" title="Publish"/>` +
+    `<atom:link href="./zui_demo_o4/unpublishjobs" rel="http://www.sap.com/categories/unpublishjobs" title="Unpublish"/>` +
+    `<adtcore:packageRef adtcore:name="$TMP"/>` +
+    `<srvb:services srvb:name="ZUI_DEMO">` +
+    `<srvb:content srvb:version="0001" srvb:releaseState="">` +
+    `<srvb:serviceDefinition adtcore:name="ZUI_DEMO"/>` +
+    `</srvb:content>` +
+    `</srvb:services>` +
+    `<srvb:binding srvb:type="ODATA" srvb:version="V4" srvb:category="1">` +
+    `<srvb:implementation adtcore:name="ZUI_DEMO"/>` +
+    `</srvb:binding>` +
+    `</srvb:serviceBinding>`
+  const fakeAdt: any = {
+    bindingDetails: async () => {
+      throw new Error("bindingDetails must not be called for bindings without query links")
+    },
+    httpClient: {
+      request: async () => ({ body: bindingXml, status: 200, statusText: "OK", headers: {} })
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  const details = await client.getServiceBindingDetails("ZUI_DEMO_O4")
+
+  assert.equal(details.binding.name, "ZUI_DEMO_O4")
+  assert.equal(details.details, undefined)
 })
 
 test("adding an object to a transport posts an escaped ADT object reference", async () => {

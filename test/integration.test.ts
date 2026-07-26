@@ -7,12 +7,17 @@ import test from "node:test"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ConnectionManager, type ConnectionSummary } from "../src/connection-manager.js"
-import { IMPLEMENTED_TOOL_NAMES } from "../src/compat/abap-fs-tools.js"
+import {
+  IMPLEMENTED_TOOL_NAMES,
+  toolsForToolsets
+} from "../src/compat/abap-fs-tools.js"
 import {
   DEFERRED_RESULT_TOOL_NAME,
   type DeferredResultEnvelope
 } from "../src/deferred-results.js"
-import { createMcpServer } from "../src/mcp-server.js"
+import { createMcpServer, type McpServerOptions } from "../src/mcp-server.js"
+import { V1_IMPLEMENTED_TOOL_NAMES } from "../src/mcp/v1/migration-catalog.js"
+import { V1_MCP_TOOLSETS, v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import { AppError } from "../src/errors.js"
 import { ProfileStore, type SapProfile } from "../src/profile-store.js"
 import { SapCapabilityRegistry } from "../src/sap-capabilities.js"
@@ -35,6 +40,11 @@ import {
   type ActivateObjectInput
 } from "../src/tool-service.js"
 import { DEVELOPMENT_PARITY_FIXTURES } from "./fixtures/development-parity.js"
+import { advertisedTools } from "./helpers/mcp-surface.js"
+
+async function toolNames(options?: McpServerOptions): Promise<string[]> {
+  return (await advertisedTools(options)).map(tool => tool.name)
+}
 
 const object: SapObjectReference = {
   name: "ZCL_DEMO",
@@ -128,6 +138,9 @@ class FakeSapClient implements SapClient {
   transportMutations: string[] = []
   gitAuthCalls: Array<{ url: string; user?: string; password?: string }> = []
   serviceBindingProtocol = "V4"
+  rapPreviewObjects: Array<{ uri: string; type: string; name: string; description: string }> | null = null
+  rapGeneratedObjects: Array<{ uri: string; type: string; name: string; description: string }> | null = null
+  missingReadBackUris = new Set<string>()
   batchActivationCalls = 0
   lastBatchActivation: import("abap-adt-api").InactiveObject[] = []
   batchActivationResult: import("abap-adt-api").ActivationResult = {
@@ -143,6 +156,7 @@ class FakeSapClient implements SapClient {
     ["ZCL_A", "Z_DEMO"],
     ["ZCL_AB", "Z_DEMO"]
   ])
+  functionGroupPackages = new Map([["ZFG_DEMO", "Z_DEMO"]])
   inactiveObjects: import("abap-adt-api").InactiveObjectRecord[] = [
     inactiveClass("ZCL_FIRST"),
     inactiveClass("ZCL_SECOND")
@@ -240,6 +254,19 @@ class FakeSapClient implements SapClient {
         packageName: this.objectPackages.get(normalizedQuery)!
       }]
     }
+    if (this.functionGroupPackages.has(normalizedQuery)) {
+      // The live quick search only knows the function group itself, never its
+      // function modules or generated includes.
+      if (objectType && objectType.replace(/\/.*$/, "") !== "FUGR") return []
+      if (objectType && objectType.includes("/") && objectType.toUpperCase() !== "FUGR/F") return []
+      return [{
+        name: normalizedQuery,
+        type: "FUGR/F",
+        uri: `/sap/bc/adt/functions/groups/${normalizedQuery.toLowerCase()}`,
+        description: normalizedQuery,
+        packageName: this.functionGroupPackages.get(normalizedQuery)!
+      }]
+    }
     if (normalizedQuery === screenProgram.name) {
       if (objectType && objectType.replace(/\/.*$/, "") !== "PROG") return []
       return [screenProgram]
@@ -272,13 +299,25 @@ class FakeSapClient implements SapClient {
   }
 
   async getObjectStructure(uri: string): Promise<any> {
+    if (this.missingReadBackUris.has(uri)) {
+      throw new Error(`Resource ${uri} does not exist`)
+    }
     const className = uri.match(/\/sap\/bc\/adt\/oo\/classes\/([^/]+)$/i)?.[1]
-    const name = className?.toUpperCase() ?? object.name
+    const functionModule = uri.match(/\/sap\/bc\/adt\/functions\/groups\/[^/]+\/fmodules\/([^/]+)$/i)?.[1]
+    const functionGroupInclude = uri.match(/\/sap\/bc\/adt\/functions\/groups\/[^/]+\/includes\/([^/]+)$/i)?.[1]
+    const name = (className ?? functionModule ?? functionGroupInclude)?.toUpperCase() ?? object.name
+    const type = className
+      ? "CLAS/OC"
+      : functionModule
+        ? "FUGR/FF"
+        : functionGroupInclude
+          ? "FUGR/I"
+          : this.objectStructureType
     return {
       objectUrl: uri,
       metaData: {
         "adtcore:name": name,
-        "adtcore:type": className ? "CLAS/OC" : this.objectStructureType,
+        "adtcore:type": type,
         "adtcore:changedAt": 0,
         "adtcore:changedBy": "DEVELOPER",
         "adtcore:createdAt": 0,
@@ -910,10 +949,14 @@ class FakeSapClient implements SapClient {
   }
   async validateRapGeneratorContent(): Promise<any> { return { severity: "ok", shortText: "OK" } }
   async previewRapGenerator(): Promise<any[]> {
-    return [{ uri: "/sap/bc/adt/ddic/ddl/sources/zi_demo", type: "DDLS/DF", name: "ZI_DEMO", description: "CREATE" }]
+    return this.rapPreviewObjects ??
+      [{ uri: "/sap/bc/adt/ddic/ddl/sources/zi_demo", type: "DDLS/DF", name: "ZI_DEMO", description: "CREATE" }]
   }
-  async generateRapObjects(): Promise<any[]> { return this.previewRapGenerator() }
+  async generateRapObjects(): Promise<any[]> {
+    return this.rapGeneratedObjects ?? this.previewRapGenerator()
+  }
   async publishRapService(): Promise<any> { return { severity: "ok", shortText: "Published" } }
+  async unpublishRapService(): Promise<any> { return { severity: "ok", shortText: "Unpublished", longText: "" } }
   async unpublishServiceBinding(): Promise<any> { return { severity: "I", shortText: "Unpublished", longText: "" } }
   async getServiceBindingDetails(): Promise<any> {
     return {
@@ -944,6 +987,22 @@ class FakeSapClient implements SapClient {
         }],
         binding: { type: "ODATA", version: this.serviceBindingProtocol, category: 0,
           implementation: { name: "" } }
+      },
+      details: {
+        services: [{
+          repositoryId: "",
+          serviceId: "ZUI_DEMO",
+          serviceVersion: "0001",
+          published: "true",
+          // V2 bindings populate serviceUrl but leave serviceInformation.url undefined
+          serviceUrl: "/sap/opu/odata/sap/ZUI_DEMO",
+          serviceInformation: {
+            url: undefined,
+            name: "ZUI_DEMO",
+            version: 1,
+            collection: [{ name: "ZUI_DEMO_ENTITY", navigation: [] }]
+          }
+        }]
       }
     }
   }
@@ -2402,6 +2461,62 @@ test("class include diagnostics preserve the include syntax URI", async () => {
   assert.equal(fake.replaceSourceCalls.at(-1)?.syntaxObjectUri, testIncludeUri)
 })
 
+test("function module writes resolve the package from the owning function group", async () => {
+  const { fake, service } = createBdefHarness()
+  const fmoduleUri = "/sap/bc/adt/functions/groups/zfg_demo/fmodules/conversion_exit_zdemo_output"
+  fake.currentSource = "FUNCTION conversion_exit_zdemo_output.\nENDFUNCTION."
+
+  const result = await service.replaceStringInObject({
+    fileUri: `adt://dev100${fmoduleUri}/source/main`,
+    oldString: "FUNCTION conversion_exit_zdemo_output.",
+    newString: "FUNCTION conversion_exit_zdemo_output. \" changed",
+    connectionId: "DEV100",
+    transport: "DEVK900123",
+    activate: false
+  })
+
+  assert.deepEqual(result.object, { name: "CONVERSION_EXIT_ZDEMO_OUTPUT", type: "FUGR/FF" })
+  assert.equal(fake.replaceSourceCalls.at(-1)?.objectUri, fmoduleUri)
+  assert.equal(fake.replaceSourceCalls.at(-1)?.transport, "DEVK900123")
+})
+
+test("function group include writes resolve the package from the owning function group", async () => {
+  const { fake, service } = createBdefHarness()
+  const includeUri = "/sap/bc/adt/functions/groups/ZFG_DEMO/includes/LZFG_DEMOU01"
+  fake.currentSource = "FUNCTION z_demo_fm.\nENDFUNCTION."
+
+  const result = await service.replaceStringInObject({
+    fileUri: `adt://dev100${includeUri}/source/main`,
+    oldString: "FUNCTION z_demo_fm.",
+    newString: "FUNCTION z_demo_fm. \" changed",
+    connectionId: "DEV100",
+    transport: "DEVK900123",
+    activate: false
+  })
+
+  assert.deepEqual(result.object, { name: "LZFG_DEMOU01", type: "FUGR/I" })
+  assert.equal(fake.replaceSourceCalls.at(-1)?.objectUri, includeUri)
+})
+
+test("function module writes still enforce the package allowlist", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.functionGroupPackages.set("ZFG_DEMO", "Z_ELSEWHERE")
+  fake.currentSource = "FUNCTION conversion_exit_zdemo_output.\nENDFUNCTION."
+
+  await assert.rejects(
+    service.replaceStringInObject({
+      fileUri: "adt://dev100/sap/bc/adt/functions/groups/zfg_demo/fmodules/conversion_exit_zdemo_output/source/main",
+      oldString: "FUNCTION conversion_exit_zdemo_output.",
+      newString: "FUNCTION conversion_exit_zdemo_output. \" changed",
+      connectionId: "DEV100",
+      transport: "DEVK900123",
+      activate: false
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "PACKAGE_NOT_ALLOWED"
+  )
+  assert.equal(fake.replaceSourceCalls.length, 0)
+})
+
 test("dependency graph normalizes method owners and class pools", async () => {
   const { fake, service } = createBdefHarness()
   const usageReference = (
@@ -3082,12 +3197,23 @@ test("mutation plans reject stale SAP state and transport writes reject producti
     transport: "DEVK900123",
     activate: false
   }) as { planId: string; confirmation: string }
+  await assert.rejects(
+    service.refactorCode({
+      action: "execute",
+      planId: preview.planId,
+      confirmation: preview.confirmation,
+      expectedPlanKind: "delete"
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "PLAN_TOOL_MISMATCH"
+  )
   fake.currentSource = `${source}\n" changed after preview`
   await assert.rejects(
     service.refactorCode({
       action: "execute",
       planId: preview.planId,
-      confirmation: preview.confirmation
+      confirmation: preview.confirmation,
+      expectedPlanKind: "refactor"
     }),
     error => typeof error === "object" && error !== null &&
       "code" in error && error.code === "REFACTORING_CHANGED"
@@ -3123,6 +3249,34 @@ test("mutation plans reject stale SAP state and transport writes reject producti
     error => typeof error === "object" && error !== null &&
       "code" in error && error.code === "RESTORE_STATE_CHANGED"
   )
+
+  const deletePreview = await service.refactorCode({
+    action: "preview_delete",
+    connectionId: "DEV100",
+    fileUri: `adt://dev100${object.uri}/source/main`,
+    transport: "DEVK900123",
+    activate: false
+  }) as { planId: string; confirmation: string }
+  await assert.rejects(
+    service.refactorCode({
+      action: "execute",
+      planId: deletePreview.planId,
+      confirmation: deletePreview.confirmation,
+      expectedPlanKind: "refactor"
+    }),
+    error => typeof error === "object" && error !== null &&
+      "code" in error && error.code === "PLAN_TOOL_MISMATCH"
+  )
+  const deleted = await service.refactorCode({
+    action: "execute",
+    planId: deletePreview.planId,
+    confirmation: deletePreview.confirmation,
+    expectedPlanKind: "delete"
+  }) as { executed: boolean; operation: string }
+  assert.deepEqual({ executed: deleted.executed, operation: deleted.operation }, {
+    executed: true,
+    operation: "delete"
+  })
 
   const productionFake = new FakeSapClient({ ...profile, id: "PRD100", environment: "production" })
   const productionService = new AbapToolService({
@@ -3747,7 +3901,7 @@ test("semantic inspect actions use one SapClient call, paginate, and bound inlin
 
 test("MCP semantic inspect actions expose fixtures and default superTypes to false", async t => {
   const harness = createBdefHarness()
-  const server = createMcpServer(harness.service)
+  const server = createMcpServer(harness.service, { apiVersion: "v0" })
   const client = new Client({ name: "semantic-test-client", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   t.after(async () => {
@@ -3848,9 +4002,34 @@ test("MCP initialize reports the npm package version", async t => {
   })
 })
 
+test("API version modes preserve v0 and expose implemented v1 tools", async () => {
+  const v1Names = [...V1_IMPLEMENTED_TOOL_NAMES]
+  const v1CoreNames = [...V1_MCP_TOOLSETS.core]
+  assert.deepEqual((await toolNames()).sort(), [...v1Names].sort())
+  assert.deepEqual(
+    (await toolNames({ apiVersion: "v0" })).sort(),
+    [...IMPLEMENTED_TOOL_NAMES].sort()
+  )
+  assert.deepEqual(
+    (await toolNames({ apiVersion: "v1" })).sort(),
+    [...v1Names].sort()
+  )
+  assert.deepEqual(
+    (await toolNames({ apiVersion: "all" })).sort(),
+    [...IMPLEMENTED_TOOL_NAMES, ...v1Names].sort()
+  )
+  assert.deepEqual(
+    (await toolNames({
+      apiVersion: "v1",
+      enabledV1Tools: v1ToolsForToolsets(["core"])
+    })).sort(),
+    [...v1CoreNames].sort()
+  )
+})
+
 test("MCP run_abap_application exposes strict health, class, and snippet actions", async t => {
   const harness = createApplicationHarness()
-  const server = createMcpServer(harness.service)
+  const server = createMcpServer(harness.service, { apiVersion: "v0" })
   const client = new Client({ name: "application-test-client", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   t.after(async () => {
@@ -3980,7 +4159,7 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
       return fake
     }
   }, gitSecrets)
-  const server = createMcpServer(service)
+  const server = createMcpServer(service, { apiVersion: "v0" })
   const client = new Client({ name: "test-client", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   t.after(async () => {
@@ -4066,7 +4245,8 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     "array"
   )
   const filteredServer = createMcpServer(service, {
-    enabledTools: new Set(["get_connected_systems"])
+    apiVersion: "v0",
+    enabledV0Tools: new Set(["get_connected_systems"])
   })
   const filteredClient = new Client({ name: "filtered-test-client", version: "1.0.0" })
   const [filteredClientTransport, filteredServerTransport] =
@@ -4955,6 +5135,51 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     content: rapDefaults.content
   })
   assert.equal(rapGenerated.generated, true)
+
+  // The server may echo only a subset of the created objects in the generate
+  // response; the tool must read each previewed object back and still succeed
+  fake.rapPreviewObjects = [
+    { uri: "/sap/bc/adt/ddic/ddl/sources/zi_demo", type: "DDLS/DF", name: "ZI_DEMO", description: "CREATE" },
+    { uri: "/sap/bc/adt/bo/behaviordefinitions/zi_demo", type: "BDEF/BDO", name: "ZI_DEMO", description: "CREATE" },
+    { uri: "/sap/bc/adt/businessservices/bindings/zui_demo_o4", type: "SRVB/SVB", name: "ZUI_DEMO_O4", description: "CREATE" }
+  ]
+  fake.rapGeneratedObjects = [
+    { uri: "/sap/bc/adt/businessservices/bindings/zui_demo_o4", type: "SRVB/SVB", name: "ZUI_DEMO_O4", description: "CREATE" }
+  ]
+  const rapReadBack = await callJson("manage_rap_generator", {
+    action: "generate",
+    connectionId: "DEV100",
+    generatorId: "uiservice",
+    referenceObjectName: "ZCL_DEMO",
+    referenceObjectType: "CLAS/OC",
+    packageName: "Z_DEMO",
+    transport: "DEVK900123",
+    confirmation: "uiservice:ZUI_DEMO_O4",
+    content: rapDefaults.content
+  })
+  assert.equal(rapReadBack.generated, true)
+  assert.equal(rapReadBack.readBackVerified, true)
+  assert.equal(rapReadBack.objectCount, 3)
+
+  // If a previewed object is genuinely absent on read-back, that is a real mismatch
+  fake.missingReadBackUris = new Set(["/sap/bc/adt/bo/behaviordefinitions/zi_demo"])
+  const rapMismatch = await callJson("manage_rap_generator", {
+    action: "generate",
+    connectionId: "DEV100",
+    generatorId: "uiservice",
+    referenceObjectName: "ZCL_DEMO",
+    referenceObjectType: "CLAS/OC",
+    packageName: "Z_DEMO",
+    transport: "DEVK900123",
+    confirmation: "uiservice:ZUI_DEMO_O4",
+    content: rapDefaults.content
+  })
+  assert.equal(rapMismatch.code, "RAP_GENERATION_RESULT_MISMATCH")
+  assert.deepEqual(rapMismatch.details.missing, ["BDEF/BDO:ZI_DEMO"])
+  fake.rapPreviewObjects = null
+  fake.rapGeneratedObjects = null
+  fake.missingReadBackUris = new Set()
+
   const published = await callJson("manage_rap_generator", {
     action: "publish",
     connectionId: "DEV100",
@@ -4962,7 +5187,23 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     confirmation: "ZUI_DEMO_O4"
   })
   assert.equal(published.published, true)
+
   fake.serviceBindingProtocol = "V2"
+  const inspectedV2 = await callJson("manage_rap_generator", {
+    action: "service_details",
+    connectionId: "DEV100",
+    serviceBindingName: "ZUI_DEMO_O4"
+  })
+  // serviceInformation.url is undefined for V2 services; the mapping must fall
+  // back to serviceUrl, absolutize it, and omit previewUrl instead of crashing
+  assert.equal(inspectedV2.services.length, 1)
+  assert.equal(
+    inspectedV2.services[0].serviceUrl,
+    "https://sap.example.test/sap/opu/odata/sap/ZUI_DEMO"
+  )
+  assert.equal(inspectedV2.services[0].previewUrl, undefined)
+  assert.deepEqual(inspectedV2.services[0].collections, ["ZUI_DEMO_ENTITY"])
+
   const unpublished = await callJson("manage_rap_generator", {
     action: "unpublish",
     connectionId: "DEV100",
@@ -4972,7 +5213,16 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     confirmation: "ZUI_DEMO_O4:ZUI_DEMO:1"
   })
   assert.equal(unpublished.published, false)
+
   fake.serviceBindingProtocol = "V4"
+  const unpublishedV4 = await callJson("manage_rap_generator", {
+    action: "unpublish",
+    connectionId: "DEV100",
+    serviceBindingName: "ZUI_DEMO_O4",
+    confirmation: "ZUI_DEMO_O4"
+  })
+  assert.equal(unpublishedV4.published, false)
+  assert.equal(unpublishedV4.bindingVersion, "V4")
 
   const inactive = await callJson("manage_abap_versions", {
     action: "get_inactive_source",
