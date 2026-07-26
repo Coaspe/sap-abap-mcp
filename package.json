@@ -1,6 +1,6 @@
 {
   "name": "@coaspe/sap-abap-mcp",
-  "version": "0.4.15",
+  "version": "1.0.0",
   "description": "Headless MCP server for SAP ABAP Development Tools",
   "keywords": [
     "mcp",
@@ -30,6 +30,7 @@
     "dist/src",
     "docs",
     "README.md",
+    "CHANGELOG.md",
     "SERVICES.md",
     "PRIVACY.md",
     "TERMS.md",
@@ -37,6 +38,7 @@
     "server.json",
     "llms-install.md",
     "scripts/benchmark-mcp-surface.mjs",
+    "scripts/smoke-v1-stdio.mjs",
     "assets"
   ],
   "publishConfig": {
@@ -48,6 +50,8 @@
     "build:mcpb": "bash scripts/build-mcpb.sh",
     "publish:smithery": "bash scripts/publish-smithery.sh",
     "benchmark:surface": "node scripts/benchmark-mcp-surface.mjs",
+    "smoke:v1": "npm run build && node scripts/smoke-v1-stdio.mjs",
+    "contract:v0:update": "npm run build && node scripts/update-v0-contract.mjs",
     "sync:mcpb-tools": "npm run build && node scripts/sync-mcpb-tools.mjs --write",
     "test": "npm run build && node --test dist/test/*.test.js",
     "start": "node dist/src/index.js",

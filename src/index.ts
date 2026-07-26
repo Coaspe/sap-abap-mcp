@@ -6,9 +6,11 @@ import { fileURLToPath } from "node:url"
 import { AppError, errorPayload } from "./errors.js"
 import { ConnectionManager } from "./connection-manager.js"
 import { createMcpServer, startStdioServer } from "./mcp-server.js"
+import { parseMcpApiVersion } from "./mcp/api-version.js"
+import { resolveServeToolSelection } from "./mcp/tool-selection.js"
+import { V1_IMPLEMENTED_TOOL_NAMES } from "./mcp/v1/migration-catalog.js"
 import {
   TOOLSET_NAMES,
-  toolsForToolsets,
   type ToolsetName
 } from "./compat/abap-fs-tools.js"
 import {
@@ -51,7 +53,8 @@ Commands:
   abapgit auth status <id> --repository-url <url>
   abapgit auth logout <id> --repository-url <url>
   doctor <id> [--include-components]
-  serve [--profile <id>] [--toolsets core,write,analysis,debug,operations,artifacts|all]
+  serve [--profile <id>] [--api-version v0|v1] [--toolsets core,write,analysis,debug,operations,artifacts|all]
+      Defaults: api-version v1, toolsets all
 `
 
 interface ParsedArguments {
@@ -438,10 +441,15 @@ async function setupCommand(
 }
 
 async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, secrets: SecretStore) {
+  const rawApiVersion = parsed.options.get("api-version")
+  if (rawApiVersion === true) {
+    throw new AppError("OPTION_REQUIRED", "--api-version requires a value")
+  }
+  const apiVersion = parseMcpApiVersion(rawApiVersion)
   const profileId = option(parsed, "profile")
   if (profileId) await profiles.get(profileId)
   const toolsetsValue = option(parsed, "toolsets")
-  let enabledTools: ReadonlySet<string> | undefined
+  let selectedToolsets: ToolsetName[] | undefined
   if (toolsetsValue) {
     const toolsets = toolsetsValue.split(",").map(value => value.trim()).filter(Boolean)
     const invalid = toolsets.filter(value =>
@@ -454,13 +462,23 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
         { available: TOOLSET_NAMES }
       )
     }
-    enabledTools = toolsForToolsets(toolsets as ToolsetName[])
+    selectedToolsets = toolsets as ToolsetName[]
+  }
+
+  const selection = resolveServeToolSelection(apiVersion, selectedToolsets)
+  if (apiVersion === "v1" && selection.enabledV1Tools &&
+    !V1_IMPLEMENTED_TOOL_NAMES.some(name => selection.enabledV1Tools!.has(name))) {
+    throw new AppError(
+      "V1_TOOLSET_EMPTY",
+      "The selected toolsets contain no implemented v1 tools",
+      { available: ["core", "all"] }
+    )
   }
 
   const manager = new ConnectionManager(profiles, secrets, undefined, profileId)
   const server = createMcpServer(
     new AbapToolService(manager, secrets),
-    enabledTools ? { enabledTools } : {}
+    { apiVersion, ...selection }
   )
   let closing = false
   const close = async () => {

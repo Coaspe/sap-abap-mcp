@@ -4,6 +4,7 @@ import {
   isDebuggee,
   isDebuggerBreakpoint,
   isDebugListenerError,
+  isHttpError,
   parseServiceBinding,
   session_types,
   type AbapObjectStructure,
@@ -72,6 +73,9 @@ import {
   type ValidationResult
 } from "abap-adt-api"
 import type { ChangePackageRefactoring } from "abap-adt-api/build/api/refactor.js"
+import { parseRapGenValidation } from "abap-adt-api/build/api/rapgenerator.js"
+import { extractBindingLinks } from "abap-adt-api/build/api/tablecontents.js"
+import { fullParse, xmlArray, xmlNode, xmlNodeAttr } from "abap-adt-api/build/utilities.js"
 import { AppError } from "./errors.js"
 import type { SapProfile } from "./profile-store.js"
 import {
@@ -406,6 +410,7 @@ export interface SapClient {
     content: RapGeneratorContent
   ): Promise<RapGeneratorPreviewObject[]>
   publishRapService(serviceBindingName: string): Promise<RapGeneratorValidationResult>
+  unpublishRapService(serviceBindingName: string): Promise<RapGeneratorValidationResult>
   unpublishServiceBinding(name: string, version: string): Promise<{
     severity: string
     shortText: string
@@ -837,9 +842,120 @@ export class AdtSapClient implements SapClient {
     ignoreLocks = false,
     ignoreAtc = false
   ): Promise<TransportReleaseReport[]> {
-    return this.serializeMutation(() =>
-      this.client.transportRelease(transportNumber, ignoreLocks, ignoreAtc)
-    )
+    return this.serializeMutation(async () => {
+      // Releasing a request while its tasks are still open fails with
+      // "Referencing task ... not yet released", so release non-empty open tasks first
+      const details = await this.client.transportDetails(transportNumber)
+      const openTasks = (details.tasks ?? []).filter(task =>
+        task["tm:number"] !== transportNumber &&
+        ["D", "L"].includes(task["tm:status"]) &&
+        task.objects.length > 0
+      )
+      const worklistId = await this.createReleaseCheckWorklist()
+      const requestHasObjects = (details.objects?.length ?? 0) > 0
+      const reports: TransportReleaseReport[] = []
+      for (const task of openTasks) {
+        reports.push(
+          ...await this.releaseTransportEntity(
+            task["tm:number"], worklistId, ignoreLocks, ignoreAtc, true
+          )
+        )
+      }
+      reports.push(
+        ...await this.releaseTransportEntity(
+          transportNumber, worklistId, ignoreLocks, ignoreAtc, requestHasObjects
+        )
+      )
+      return reports
+    })
+  }
+
+  // ADT runs the CTS ATC check during release and stores its findings in a
+  // worklist created from the system check variant; systems with that gate
+  // reject release calls that carry no worklistId
+  private async createReleaseCheckWorklist(): Promise<string | undefined> {
+    try {
+      const customizing = await this.client.atcCustomizing()
+      const variant = customizing.properties.find(
+        property => property.name === "systemCheckVariant"
+      )?.value
+      if (typeof variant !== "string" || !variant.trim()) return undefined
+      const worklistId = (await this.client.atcCheckVariant(variant.trim())).trim()
+      return worklistId || undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  // Release protocol captured from Eclipse ADT: POST newreleasejobs without a
+  // body; when the response's check report names a follow-up action such as
+  // relwithignlock or relObjigchkatc, confirm it by echoing the tm:root
+  // attributes back to that endpoint with tm:useraction="release"
+  private async releaseTransportEntity(
+    transportNumber: string,
+    worklistId: string | undefined,
+    ignoreLocks: boolean,
+    ignoreAtc: boolean,
+    hasObjects: boolean
+  ): Promise<TransportReleaseReport[]> {
+    const query = worklistId ? `?worklistId=${encodeURIComponent(worklistId)}` : ""
+    const requestOptions = {
+      method: "POST" as const,
+      headers: { Accept: "application/vnd.sap.adt.transportorganizer.v1+xml" }
+    }
+    let response: { body: string }
+    try {
+      response = await this.client.httpClient.request(
+        `/sap/bc/adt/cts/transportrequests/${transportNumber}/newreleasejobs${query}`,
+        requestOptions
+      )
+    } catch (error) {
+      // Some systems (e.g. B4D) reject the synchronous release endpoint for
+      // request/tasks that contain objects and run release only as an async
+      // background job from the GUI; surface an actionable hint rather than a raw 500
+      if (hasObjects && (error as { status?: number })?.status === 500) {
+        throw new AppError(
+          "TRANSPORT_RELEASE_UNSUPPORTED",
+          `SAP rejected the synchronous release of ${transportNumber}. On some systems a request/task that contains objects can only be released from the GUI (SE10/SE09); release it there and verify the status.`,
+          { transportNumber, httpStatus: 500 }
+        )
+      }
+      throw error
+    }
+    let reports: TransportReleaseReport[] = []
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const raw = fullParse(response.body)
+      const rootAttributes = xmlNodeAttr(xmlNode(raw, "tm:root") ?? {}) as Record<string, unknown>
+      reports = xmlArray(raw, "tm:root", "tm:releasereports", "chkrun:checkReport").map(report => ({
+        ...xmlNodeAttr(report),
+        messages: xmlArray(report, "chkrun:checkMessageList", "chkrun:checkMessage").map(message =>
+          xmlNodeAttr(message)
+        )
+      })) as TransportReleaseReport[]
+      // the library only types "released"/"abortrelapifail", but live systems
+      // also answer with follow-up action names such as relwithignlock
+      const status = reports[reports.length - 1]?.["chkrun:status"] as string | undefined
+      const followUp =
+        status === "relwithignlock" && ignoreLocks ? "relwithignlock"
+          : status === "relObjigchkatc" && ignoreAtc ? "relObjigchkatc"
+            : undefined
+      if (!followUp) break
+      const echoedAttributes = Object.entries({ ...rootAttributes, "tm:useraction": "release" })
+        .filter(([key]) => key.startsWith("tm:"))
+        .map(([key, value]) => `${key}="${escapeXmlAttribute(String(value))}"`)
+        .join(" ")
+      response = await this.client.httpClient.request(
+        `/sap/bc/adt/cts/transportrequests/${transportNumber}/${followUp}${query}`,
+        {
+          ...requestOptions,
+          headers: { ...requestOptions.headers, "Content-Type": "text/plain" },
+          body:
+            `<?xml version="1.0" encoding="ASCII"?>` +
+            `<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" ${echoedAttributes}/>`
+        }
+      )
+    }
+    return reports
   }
 
   async deleteTransport(transportNumber: string): Promise<void> {
@@ -1103,12 +1219,31 @@ export class AdtSapClient implements SapClient {
     })
   }
 
+  // The git tools require the abapGit ADT backend (/sap/bc/adt/abapgit/*).
+  // Systems that only have the standalone abapGit report (SE38) return
+  // "resource does not exist"; convert that into an actionable message.
+  private async guardAbapGit<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation()
+    } catch (error) {
+      const message = String((error as { message?: string })?.message ?? "")
+      const status = (error as { status?: number })?.status
+      if (status === 404 || /\/sap\/bc\/adt\/abapgit\/.*does not exist/i.test(message)) {
+        throw new AppError(
+          "ABAPGIT_BACKEND_UNAVAILABLE",
+          "The abapGit ADT backend (/sap/bc/adt/abapgit/*) is not available on this system. Install the abapGit ADT_Backend to use git tools; the standalone abapGit report (SE38) does not expose these endpoints."
+        )
+      }
+      throw error
+    }
+  }
+
   async listGitRepositories(): Promise<GitRepo[]> {
-    return this.client.gitRepos()
+    return this.guardAbapGit(() => this.client.gitRepos())
   }
 
   async getGitRemoteInfo(url: string, user?: string, password?: string): Promise<GitExternalInfo> {
-    return this.client.gitExternalRepoInfo(url, user, password)
+    return this.guardAbapGit(() => this.client.gitExternalRepoInfo(url, user, password))
   }
 
   async createGitRepository(
@@ -1119,9 +1254,9 @@ export class AdtSapClient implements SapClient {
     user?: string,
     password?: string
   ): Promise<void[]> {
-    return this.serializeMutation(() =>
+    return this.guardAbapGit(() => this.serializeMutation(() =>
       this.client.gitCreateRepo(packageName, url, branch, transport, user, password)
-    )
+    ))
   }
 
   async pullGitRepository(
@@ -1131,13 +1266,13 @@ export class AdtSapClient implements SapClient {
     user?: string,
     password?: string
   ): Promise<void[]> {
-    return this.serializeMutation(() =>
+    return this.guardAbapGit(() => this.serializeMutation(() =>
       this.client.gitPullRepo(repositoryId, branch, transport, user, password)
-    )
+    ))
   }
 
   async unlinkGitRepository(repositoryId: string): Promise<void> {
-    await this.serializeMutation(() => this.client.gitUnlinkRepo(repositoryId))
+    await this.guardAbapGit(() => this.serializeMutation(() => this.client.gitUnlinkRepo(repositoryId)))
   }
 
   async stageGitRepository(
@@ -1145,7 +1280,7 @@ export class AdtSapClient implements SapClient {
     user?: string,
     password?: string
   ): Promise<GitStaging> {
-    return this.client.stageRepo(repository, user, password)
+    return this.guardAbapGit(() => this.client.stageRepo(repository, user, password))
   }
 
   async pushGitRepository(
@@ -1154,7 +1289,9 @@ export class AdtSapClient implements SapClient {
     user?: string,
     password?: string
   ): Promise<void> {
-    await this.serializeMutation(() => this.client.pushRepo(repository, staging, user, password))
+    await this.guardAbapGit(() =>
+      this.serializeMutation(() => this.client.pushRepo(repository, staging, user, password))
+    )
   }
 
   async checkGitRepository(
@@ -1162,7 +1299,7 @@ export class AdtSapClient implements SapClient {
     user?: string,
     password?: string
   ): Promise<void> {
-    await this.client.checkRepo(repository, user, password)
+    await this.guardAbapGit(() => this.client.checkRepo(repository, user, password))
   }
 
   async switchGitBranch(
@@ -1172,9 +1309,9 @@ export class AdtSapClient implements SapClient {
     user?: string,
     password?: string
   ): Promise<void> {
-    await this.serializeMutation(() =>
+    await this.guardAbapGit(() => this.serializeMutation(() =>
       this.client.switchRepoBranch(repository, branch, create, user, password)
-    )
+    ))
   }
 
   async isRapGeneratorAvailable(generatorId?: RapGeneratorId): Promise<boolean> {
@@ -1236,6 +1373,39 @@ export class AdtSapClient implements SapClient {
     return this.serializeMutation(() => this.client.rapGenPublishService(serviceBindingName))
   }
 
+  // abap-adt-api only implements the OData V2 unpublish endpoint; V4 bindings
+  // are unpublished through the odatav4 job endpoint that mirrors rapGenPublishService
+  async unpublishRapService(serviceBindingName: string): Promise<RapGeneratorValidationResult> {
+    const body =
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core">` +
+      `<adtcore:objectReference adtcore:type="SCGR" adtcore:name="${serviceBindingName}"/>` +
+      `</adtcore:objectReferences>`
+    return this.serializeMutation(async () => {
+      try {
+        const response = await this.client.httpClient.request(
+          "/sap/bc/adt/businessservices/odatav4/unpublishjobs",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/xml",
+              Accept: "application/xml, application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.StatusMessage"
+            },
+            body
+          }
+        )
+        return parseRapGenValidation(response.body)
+      } catch (error) {
+        if (isHttpError(error)) {
+          const responseBody = (error as { response?: { body?: string } }).response?.body
+          const parsed = parseRapGenValidation(responseBody)
+          if (parsed.shortText) return parsed
+        }
+        throw error
+      }
+    })
+  }
+
   async unpublishServiceBinding(name: string, version: string) {
     return this.serializeMutation(() => this.client.unPublishServiceBinding(name, version))
   }
@@ -1248,6 +1418,9 @@ export class AdtSapClient implements SapClient {
     })
     const binding = parseServiceBinding(response.body)
     if (binding.services.length === 0) return { binding }
+    // Unpublished bindings list services without published query links;
+    // bindingDetails would crash destructuring the empty link array
+    if (extractBindingLinks(binding).length === 0) return { binding }
     return { binding, details: await this.client.bindingDetails(binding) }
   }
 
