@@ -17,7 +17,7 @@ if (!["--check", "--write", "--smithery-payload"].includes(mode)) {
 const client = new Client({ name: "mcpb-tool-catalog", version: "1.0.0" })
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: [join(root, "dist", "src", "index.js"), "serve", "--api-version", "v0"],
+  args: [join(root, "dist", "src", "index.js"), "serve"],
   cwd: root,
   stderr: "pipe"
 })

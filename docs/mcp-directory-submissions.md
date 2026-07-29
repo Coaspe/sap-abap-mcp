@@ -6,7 +6,7 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Version: `0.4.15`
+- Version: `1.0.0`
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -21,7 +21,7 @@ Short description:
 
 Long description:
 
-> SAP ABAP MCP is a local Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. It supports source inspection and editing, semantic services, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, runtime inspection, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain, Windows DPAPI, or profile-specific environment variables on Linux. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
+> SAP ABAP MCP is a headless, client-neutral, governance-first Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. Its default v1 surface provides 115 action-specific tools and seven Resources for source inspection and editing, semantic services, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, runtime inspection, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain, Windows DPAPI, or profile-specific environment variables on Linux. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
 
 ## Generic local installation
 
@@ -50,27 +50,27 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 - Network traffic goes directly from the user's computer to the configured SAP system and to npm when `npx` installs or updates the package.
 - Automated tests use an in-memory SAP implementation. SAP-dependent capabilities remain `unverified` until they succeed against the selected live SAP connection.
 
-## Submission status (2026-07-20)
+## Submission status (2026-07-29 pre-refresh audit)
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| npm | Live at 0.4.15 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 0.4.15 on `latest`; the manual `Publish npm` workflow uses npm Trusted Publishing |
-| Official MCP Registry | Live at 0.4.15 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) reports version 0.4.15 active and latest; the manual `Publish MCP Registry` workflow uses GitHub OIDC |
-| GitHub Release | Live at v0.4.15 | [`v0.4.15`](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v0.4.15) includes the validated `sap-abap-mcp-0.4.15.mcpb` bundle |
-| Smithery | Live and listed | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp); version 0.4.15 deploys the validated local MCPB bundle and exposes all 53 runtime tools. The listing is not publisher-verified |
-| Glama | Live at source version 0.4.15 | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp) is claimed and author-verified. Manual sync completed on 2026-07-20 and the public page resolved commit `df837d9` and version 0.4.15. Its schema page still exposes 52 tools and omits `read_deferred_result`, so Glama schema re-indexing remains pending |
+| npm | Live at 1.0.0 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 1.0.0 on `latest`; npm versions are immutable, so the package is not republished for documentation-only changes |
+| Official MCP Registry | Refresh required | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) still marks 0.4.15 as latest; publish `server.json` 1.0.0 from the merged default branch |
+| GitHub Release | v1.0.0 live; asset required | [`v1.0.0`](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v1.0.0) has release notes but no MCPB asset; attach the validated `sap-abap-mcp-1.0.0.mcpb` |
+| Smithery | Refresh required | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp) is live, but its prior release card was built from the legacy 53-tool surface. Publish the regenerated MCPB and 115-tool v1 server card |
+| Glama | Live; refresh verification required | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp) is claimed and author-verified. Verify that its source commit and schema resolve the merged 1.0.0 v1 surface |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
 | MCP Server Hub | Submitted | Awaiting directory review |
 | Awesome MCP Servers | Ready for review | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129); submission check passes and the PR is cleanly mergeable |
 | Claude Code Community Marketplace | Submitted; review pending | Submitted through the Anthropic Console on 2026-07-15 as `Coaspe ABAP MCP` for Claude Code; the public GitHub plugin validates and installs as `sap-abap-mcp@coaspe-sap` |
 | Claude Desktop MCPB directory | Submitted; review pending | Submitted the validated `sap-abap-mcp-0.4.4.mcpb` through Anthropic's official local-extension form on 2026-07-15; the form confirmed that the response was recorded |
-| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap` and resolves the npm `latest` runtime; no separate marketplace publication was performed for 0.4.15 |
+| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap` and resolves the npm 1.0.0 `latest` runtime |
 | Codex universal plugin directory | Blocked by prerequisites | The official `With MCP` flow requires completed OpenAI developer identity verification and a production public HTTPS MCP endpoint; the current local `stdio` server cannot be submitted as-is |
 | LobeHub | Live | [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp), generated from the GitHub repository on 2026-07-15 |
-| mcp.so | Submitted; review queued | [Submission `cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64`](https://mcp.so/settings/submissions/cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64/edit); canonical metadata, the local `stdio` configuration, and the 0.4.15 overview were saved on 2026-07-20 while preserving the free review queue |
+| mcp.so | Submitted; update required | [Submission `cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64`](https://mcp.so/settings/submissions/cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64/edit) contains the earlier submission; update it with the v1.0.0 release and default v1 surface without changing the local `stdio` model |
 | MCP Servers | Live; update requested | [`coaspe/sap-abap-mcp`](https://mcpservers.org/servers/coaspe/sap-abap-mcp) is public. Its update action was requested again on 2026-07-20 and the page confirmed `Requested`; re-indexing is pending |
 | MCP Market | Submitted; review queued | Free submission confirmed on 2026-07-15; the confirmation page reported an estimated 4–6 week queue and email notification when live |
-| Cline MCP Marketplace | Submitted; review pending | [`cline/mcp-marketplace#2030`](https://github.com/cline/mcp-marketplace/issues/2030); before submission, Cline used only `README.md` and `llms-install.md` to create the configuration, complete a real MCP initialization, discover all 52 tools, and stop with exit code 0 and empty stderr |
+| Cline MCP Marketplace | Submitted; review pending | [`cline/mcp-marketplace#2030`](https://github.com/cline/mcp-marketplace/issues/2030); add the v1.0.0 release URL and request re-validation against the default 115-tool v1 surface |
 
 ## Distribution targets
 

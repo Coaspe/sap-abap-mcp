@@ -4181,18 +4181,6 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
   > | undefined
   assert.match(createProperties?.source?.description ?? "", /BDEF\/BDO/)
   assert.match(createProperties?.activate?.description ?? "", /BDEF\/BDO/)
-  const manifest = JSON.parse(await readFile("mcpb/manifest.json", "utf8")) as {
-    tools_generated: boolean
-    tools: Array<{ name: string; description: string }>
-  }
-  assert.equal(manifest.tools_generated, false)
-  assert.deepEqual(
-    manifest.tools,
-    listed.tools.map(tool => ({
-      name: tool.name,
-      description: tool.description
-    })).sort((left, right) => left.name.localeCompare(right.name))
-  )
   for (const tool of listed.tools) {
     assert.ok(tool.title?.trim(), `missing MCP directory title: ${tool.name}`)
     assert.equal(
