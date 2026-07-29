@@ -1,12 +1,44 @@
 # sap-abap-mcp
 
-A local Model Context Protocol server that lets Codex and Claude work with SAP ABAP through the official ABAP Development Tools (ADT) HTTP services.
+[![npm version](https://img.shields.io/npm/v/%40coaspe%2Fsap-abap-mcp)](https://www.npmjs.com/package/@coaspe/sap-abap-mcp)
+[![npm downloads](https://img.shields.io/npm/dw/%40coaspe%2Fsap-abap-mcp)](https://www.npmjs.com/package/@coaspe/sap-abap-mcp)
+[![MCP Registry](https://img.shields.io/badge/MCP_Registry-io.github.Coaspe-5A45FF)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp)
+[![license](https://img.shields.io/badge/license-MIT-0A6ED1)](LICENSE)
 
-It can inspect and edit ABAP source, run quality checks, manage transports, use abapGit and the RAP generator, inspect runtime data, compare systems, and perform repository refactorings without VS Code, SAP GUI, or an ABAP FS virtual workspace.
+**The headless, client-neutral, governance-first MCP server for SAP ABAP
+development across multiple systems.**
 
-Need help evaluating it in a controlled SAP DEV/QAS environment? See the
-[professional services and five-day pilot](SERVICES.md). Do not include SAP
-credentials, source code, or other confidential information in a public issue.
+SAP ABAP MCP lets Codex, Claude, and other local MCP hosts work with SAP ABAP
+through ABAP Development Tools (ADT) HTTP services. It can inspect and edit
+source, run quality checks, manage transports, use abapGit and the RAP
+generator, inspect runtime data, compare systems, and perform guarded
+refactorings without an IDE runtime, SAP GUI, or an ABAP FS virtual workspace.
+
+## Why this server
+
+SAP now provides an [official ADT MCP
+Server](https://help.sap.com/docs/abap-cloud/abap-development-tools-user-guide/configuring-adt-mcp-server-ed94320814734d97801f51a5b6deb802)
+inside its ADT clients. This project serves a different operating model:
+headless automation from any supported local MCP host.
+
+| | SAP ABAP MCP | SAP ADT MCP Server |
+|---|---|---|
+| Runtime | Independent local Node.js `stdio` process | Local HTTP server hosted by an ADT client |
+| Agent hosts | Codex, Claude, and other local MCP clients | MCP hosts configured against the running ADT server |
+| SAP sessions | Multiple named profiles in one process | SAP projects and sessions managed by ADT |
+| Guardrails | Production profiles are read-only; writes support package restrictions and explicit confirmations | Governed by the installed ADT version, SAP authorizations, and client configuration |
+| Assurance | Read-only transport assessment with JSON, SARIF, and JUnit evidence | SAP-provided in-IDE development workflows |
+| Verification | Separates implemented, discovered, authorized, and live-verified capabilities | SAP product support and release documentation |
+
+This is a deployment-model comparison, not a capability benchmark or a claim
+of SAP endorsement. Official behavior varies by ADT and SAP backend release.
+
+## 90-second workflow
+
+![Synthetic terminal walkthrough of setup, repository inspection, ABAP Unit and ATC, and transport assessment](assets/demo.gif)
+
+The animation contains synthetic object and transport names and no live SAP
+data. See the [accessible transcript and exact workflow](docs/demo-script.md).
 
 ## Quick start
 
@@ -47,6 +79,19 @@ claude mcp add --transport stdio --scope user sap-abap -- npx --yes --prefer-onl
 Replace `DEV100` with the Server name selected in the wizard. Restart the client, then use `codex mcp list`, `claude mcp get sap-abap`, or `/mcp` to confirm that the process starts. The completed wizard already performs live SAP verification; `/mcp` alone does not prove that SAP authentication succeeded.
 
 Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#claude-code-and-codex-plugin-marketplaces); the included setup skill guides the same local wizard without putting the SAP password in chat. See the detailed [Windows](#detailed-setup-on-windows), [macOS](#detailed-setup-on-macos), and [Linux](#linux-and-containers) sections for platform-specific behavior and server management.
+
+## Community and adoption
+
+- Read the public [roadmap](ROADMAP.md).
+- Run or implement the open [SAP ABAP MCP compatibility profile](spec/README.md).
+- Add an opt-in, sanitized entry to [ADOPTERS.md](ADOPTERS.md).
+- Use [GitHub Discussions](https://github.com/Coaspe/sap-abap-mcp/discussions)
+  for implementation questions, compatibility evidence, and RFCs.
+
+Need help evaluating it in a controlled SAP DEV/QAS environment? See the
+[professional services and five-day pilot](SERVICES.md). Do not include SAP
+credentials, source code, hosts, tokens, or other confidential information in
+a public issue or discussion.
 
 ### Current v1 surface
 
@@ -131,7 +176,9 @@ Before the first SAP-facing request, create and verify at least one local SAP pr
 
 Registry publication does not change the live-evidence boundary. SAP-dependent development-parity capabilities remain `unverified` until they succeed against the selected live connection.
 
-The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp) installs the validated local MCPB bundle and exposes all 53 runtime tools.
+The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp)
+installs the validated local MCPB bundle. Its current catalog matches the
+default v1 runtime: 115 tools and seven Resources.
 
 ## Privacy Policy
 
@@ -504,7 +551,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 
 - Package: `@coaspe/sap-abap-mcp`
 - Current source version: `1.0.0`
-- Published npm version: `0.4.15`
+- Published npm version: `1.0.0`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio
@@ -513,7 +560,11 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 - SAP API client: `abap-adt-api` 8.4.1
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
-The automated suite validates the MCP contract, ADT argument ordering, safety policies, stale-preview protection, output bounds, and all 53 registered tools with an in-memory SAP implementation. Live SAP acceptance testing is still required because endpoint availability and authorization vary by SAP release and system configuration.
+The automated suite validates the MCP contract, ADT argument ordering, safety
+policies, stale-preview protection, output bounds, all 115 default v1 tools,
+all seven v1 Resources, and the legacy 53-tool v0 surface with an in-memory SAP
+implementation. Live SAP acceptance testing is still required because endpoint
+availability and authorization vary by SAP release and system configuration.
 
 ## Known limitations
 

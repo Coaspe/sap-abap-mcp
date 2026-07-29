@@ -25,8 +25,10 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
     "PRIVACY.md",
     "TERMS.md",
     "server.json",
+    "spec",
     "llms-install.md",
     "scripts/benchmark-mcp-surface.mjs",
+    "scripts/check-profile-conformance.mjs",
     "assets"
   ]) {
     assert.ok(packageJson.files.includes(packagedFile), `missing packaged file: ${packagedFile}`)
@@ -72,6 +74,20 @@ test("distribution assets contain the selected license and a 400 by 400 PNG icon
   assert.equal(icon.readUInt32BE(20), 400)
 })
 
+test("README demo is a bounded 1200 by 675 GIF built from synthetic content", () => {
+  const demo = readFileSync("assets/demo.gif")
+  assert.equal(demo.subarray(0, 6).toString("ascii"), "GIF89a")
+  assert.equal(demo.readUInt16LE(6), 1200)
+  assert.equal(demo.readUInt16LE(8), 675)
+  assert.ok(demo.length < 5_000_000)
+
+  const transcript = readFileSync("docs/demo-script.md", "utf8")
+  assert.match(transcript, /sap\.repository\.search/)
+  assert.match(transcript, /sap\.quality\.unit_test/)
+  assert.match(transcript, /sap\.transport\.assess/)
+  assert.match(transcript, /Synthetic|synthetic/)
+})
+
 test("MCPB metadata launches the bundled local server on supported secret-store platforms", () => {
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
   const manifest = JSON.parse(readFileSync("mcpb/manifest.json", "utf8"))
@@ -91,8 +107,17 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.deepEqual(manifest.compatibility.platforms, ["darwin", "win32"])
   assert.equal(manifest.compatibility.runtimes.node, ">=20")
   assert.equal(manifest.tools_generated, false)
-  assert.equal(manifest.tools.length, 53)
-  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 53)
+  assert.equal(manifest.tools.length, 115)
+  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 115)
+  const toolNames = new Set(manifest.tools.map((tool: { name: string }) => tool.name))
+  for (const toolName of [
+    "sap.repository.search",
+    "sap.transport.assess",
+    "sap.rap.generate"
+  ]) {
+    assert.ok(toolNames.has(toolName), `missing current v1 MCPB tool: ${toolName}`)
+  }
+  assert.ok(!toolNames.has("search_abap_objects"), "legacy v0 tool leaked into MCPB catalog")
   for (const tool of manifest.tools) {
     assert.ok(tool.name.trim(), "MCPB tool name must not be empty")
     assert.ok(tool.description.trim(), `MCPB tool description must not be empty: ${tool.name}`)

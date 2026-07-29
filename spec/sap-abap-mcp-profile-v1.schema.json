@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/spec/sap-abap-mcp-profile-v1.schema.json",
+  "title": "SAP ABAP MCP Compatibility Profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "version",
+    "status",
+    "description",
+    "requiredTools",
+    "requiredResources",
+    "optionalMutationRequirements"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "const": "io.github.Coaspe/sap-abap-mcp/profile/v1"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "status": {
+      "enum": [
+        "proposal",
+        "stable"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requiredTools": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "capability",
+          "readOnly"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^sap\\.[a-z0-9_.]+$"
+          },
+          "capability": {
+            "type": "string",
+            "minLength": 1
+          },
+          "readOnly": {
+            "const": true
+          }
+        }
+      }
+    },
+    "requiredResources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "purpose"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^sap-[a-z0-9-]+$"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "optionalMutationRequirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accurateToolAnnotations",
+        "previewBeforeDestructiveExecution",
+        "explicitConfirmation"
+      ],
+      "properties": {
+        "accurateToolAnnotations": {
+          "const": true
+        },
+        "previewBeforeDestructiveExecution": {
+          "const": true
+        },
+        "explicitConfirmation": {
+          "const": true
+        }
+      }
+    }
+  }
+}
