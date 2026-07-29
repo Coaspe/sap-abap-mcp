@@ -34,216 +34,464 @@
   },
   "tools": [
     {
-      "name": "abap_activate",
-      "description": "Activate one legacy object or one same-connection batch of 1 through 100 ABAP objects."
+      "name": "sap.artifact.mermaid.create",
+      "description": "Validate Mermaid code and create an interactive local HTML artifact."
     },
     {
-      "name": "abap_debug_breakpoint",
-      "description": "Set or remove line breakpoints for an adt:// ABAP source URI."
+      "name": "sap.artifact.mermaid.detect",
+      "description": "Parse Mermaid code and detect its normalized diagram type."
     },
     {
-      "name": "abap_debug_session",
-      "description": "Start a non-blocking SAP debugger listener, stop it, or inspect its state. A separate stateful ADT client is used after a debuggee attaches."
+      "name": "sap.artifact.mermaid.validate",
+      "description": "Parse Mermaid code without rendering it."
     },
     {
-      "name": "abap_debug_stack",
-      "description": "Get the current attached debuggee stack and stable frame IDs."
+      "name": "sap.artifact.test_document.create",
+      "description": "Create a styled DOCX report from test scenarios and screenshots."
     },
     {
-      "name": "abap_debug_status",
-      "description": "Return listener, debuggee attachment, and breakpoint state for a connection."
+      "name": "sap.data.export",
+      "description": "Export one read-only data query or cached data view to CSV or XLSX."
     },
     {
-      "name": "abap_debug_step",
-      "description": "Continue or step an attached ABAP debuggee and return the new raw stack."
+      "name": "sap.data.query",
+      "description": "Run one bounded read-only SAP ADT data-preview query."
     },
     {
-      "name": "abap_debug_variable",
-      "description": "Read variables or evaluate an ABAP expression in a selected stack frame. Call abap_debug_stack first for frameId."
+      "name": "sap.debug.breakpoint.remove",
+      "description": "Remove ABAP Debug Breakpoint for one ADT source Resource."
     },
     {
-      "name": "abap_download",
-      "description": "Download one ABAP source object or the readable objects in a package to an absolute local folder."
+      "name": "sap.debug.breakpoint.set",
+      "description": "Set ABAP Debug Breakpoint for one ADT source Resource."
     },
     {
-      "name": "abap_fs_documentation",
-      "description": "Read or search the bundled ABAP FS compatibility and sap-abap-mcp settings reference."
+      "name": "sap.debug.evaluate",
+      "description": "Evaluate one expression in an attached debug stack frame."
     },
     {
-      "name": "adt_discovery_export",
-      "description": "Return an ADT capability summary, explicitly return full discovery data, or export it to a local JSON file."
+      "name": "sap.debug.session.inspect",
+      "description": "Inspect ABAP Debug Session through the stateful ADT debug client."
     },
     {
-      "name": "analyze_abap_dumps",
-      "description": "List SAP runtime dumps or retrieve and normalize one dump's HTML content."
+      "name": "sap.debug.session.start",
+      "description": "Start ABAP Debug Session through the stateful ADT debug client."
     },
     {
-      "name": "analyze_abap_traces",
-      "description": "List SAP trace runs/configurations or inspect a trace summary, statements, or aggregated hit list."
+      "name": "sap.debug.session.stop",
+      "description": "Stop ABAP Debug Session through the stateful ADT debug client."
     },
     {
-      "name": "compare_abap_systems",
-      "description": "Compare the same active ABAP object on two configured SAP systems with a bounded unified diff."
+      "name": "sap.debug.stack",
+      "description": "Read the current attached debuggee stack and stable frame IDs."
     },
     {
-      "name": "create_mermaid_diagram",
-      "description": "Validate Mermaid code and create an interactive local HTML viewer with zoom controls and SVG export."
+      "name": "sap.debug.status",
+      "description": "Read listener, debuggee attachment, and breakpoint state."
     },
     {
-      "name": "create_object_programmatically",
-      "description": "Validate and create an ADT repository object. Create-time source writing and activation are currently supported only for BDEF/BDO. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package."
+      "name": "sap.debug.step",
+      "description": "Continue or step an attached ABAP debuggee."
     },
     {
-      "name": "create_test_documentation",
-      "description": "Create a styled Word report from test scenarios and screenshots, returning the local DOCX path."
+      "name": "sap.debug.variables",
+      "description": "Read variables from one attached debug stack frame."
     },
     {
-      "name": "create_test_include",
-      "description": "Create a class test include under a package permitted by the profile's optional allowlist. A transport is required outside $TMP."
+      "name": "sap.execution.execute",
+      "description": "Execute one confirmed ABAP application plan."
     },
     {
-      "name": "detect_mermaid_diagram_type",
-      "description": "Parse Mermaid code and return its normalized and native Mermaid diagram types."
+      "name": "sap.execution.health",
+      "description": "Check the configured ABAP REPL execution capability."
     },
     {
-      "name": "execute_data_query",
-      "description": "Run a read-only SAP ADT data-preview query, process supplied structured data, return a bounded headless result, or export CSV/XLSX."
+      "name": "sap.execution.preview",
+      "description": "Create a short-lived execution plan for a class or ABAP snippet."
     },
     {
-      "name": "find_where_used",
-      "description": "Find ADT usage references for an ABAP object or a symbol position, with filtering, pagination, and optional snippets."
+      "name": "sap.git.branch.switch",
+      "description": "Switch or create one confirmed abapGit branch."
     },
     {
-      "name": "get_abap_dependency_graph",
-      "description": "Build a bounded where-used dependency graph. Edges point from each dependent object to the object it uses."
+      "name": "sap.git.check",
+      "description": "Check abapGit Repository through the shared abapGit capability."
     },
     {
-      "name": "get_abap_diagnostics",
-      "description": "Run SAP ADT syntax checking for the current source identified by an adt:// workspace URI or ADT path."
+      "name": "sap.git.create",
+      "description": "Create one confirmed abapGit repository binding."
     },
     {
-      "name": "get_abap_object_info",
-      "description": "Get core repository metadata, source URI, and active source line count; optionally include the full ADT structure."
+      "name": "sap.git.inspect",
+      "description": "Inspect abapGit Repository through the shared abapGit capability."
     },
     {
-      "name": "get_abap_object_lines",
-      "description": "Read active ABAP source lines. objectType disambiguates objects; methodName extracts one class method."
+      "name": "sap.git.list",
+      "description": "List abapGit Repositories through the shared abapGit capability."
     },
     {
-      "name": "get_abap_object_url",
-      "description": "Generate a SAP WebGUI URL for an ABAP report, class, or function module."
+      "name": "sap.git.pull",
+      "description": "Pull one confirmed abapGit repository."
     },
     {
-      "name": "get_abap_object_workspace_uri",
-      "description": "Resolve an exact ABAP object to a stable adt:// URI usable by headless source-edit tools."
+      "name": "sap.git.push",
+      "description": "Push a confirmed staged abapGit snapshot."
     },
     {
-      "name": "get_abap_sql_syntax",
-      "description": "Return the safe SAP ADT data-preview SQL rules used by execute_data_query."
+      "name": "sap.git.stage",
+      "description": "Create a bounded abapGit staging snapshot."
     },
     {
-      "name": "get_atc_decorations",
-      "description": "Return cached headless ATC findings from run_atc_analysis, optionally for one workspace URI."
+      "name": "sap.git.unlink",
+      "description": "Unlink one confirmed abapGit repository."
     },
     {
-      "name": "get_batch_lines",
-      "description": "Read active source ranges from multiple ABAP objects. startLine is zero-based for ABAP FS compatibility."
+      "name": "sap.ops.watch.history",
+      "description": "Read SAP Watch History through the in-process SAP watch service."
     },
     {
-      "name": "get_connected_systems",
-      "description": "List configured SAP connection IDs and whether credentials are available. Call this first if connectionId is unknown."
+      "name": "sap.ops.watch.start",
+      "description": "Start SAP Watch through the in-process SAP watch service."
     },
     {
-      "name": "get_mermaid_documentation",
-      "description": "Get bundled syntax, keywords, and usage tips for supported Mermaid diagram types."
+      "name": "sap.ops.watch.status",
+      "description": "Read SAP Watch Status through the in-process SAP watch service."
     },
     {
-      "name": "get_object_by_uri",
-      "description": "Read active ABAP source directly by ADT object or source URI. startLine is zero-based for ABAP FS compatibility."
+      "name": "sap.ops.watch.stop",
+      "description": "Stop SAP Watch through the in-process SAP watch service."
     },
     {
-      "name": "get_sap_capabilities",
-      "description": "Report implemented, missing, supported, unsupported, and live-unverified SAP development capabilities for one connection."
+      "name": "sap.ops.watch.task.add",
+      "description": "Add SAP Watch Task through the in-process SAP watch service."
     },
     {
-      "name": "get_sap_system_info",
-      "description": "Get SAP client, system type, release, timezone, and optionally the full software component list."
+      "name": "sap.ops.watch.task.disable",
+      "description": "Disable SAP Watch Task through the in-process SAP watch service."
     },
     {
-      "name": "get_version_history",
-      "description": "List repository revisions, retrieve source at a revision, or compare two revision snapshots."
+      "name": "sap.ops.watch.task.enable",
+      "description": "Enable SAP Watch Task through the in-process SAP watch service."
     },
     {
-      "name": "inspect_abap_code",
-      "description": "Use SAP ADT semantic services for completion, documentation, type hierarchy, components, definition, safe quick-fix discovery, or formatter preview. line is one-based and column is zero-based."
+      "name": "sap.ops.watch.task.list",
+      "description": "List SAP Watch Tasks through the in-process SAP watch service."
     },
     {
-      "name": "manage_abap_versions",
-      "description": "List inactive objects, read inactive source, or preview and execute restoration of a historical source revision."
+      "name": "sap.ops.watch.task.remove",
+      "description": "Remove SAP Watch Task through the in-process SAP watch service."
     },
     {
-      "name": "manage_abapgit",
-      "description": "List, inspect, create, pull, unlink, stage, push, check, or switch abapGit repositories. Credentials come only from the secret store. Create confirmation is PACKAGE:CANONICAL_URL; other mutations use repositoryId."
+      "name": "sap.ops.watch.task.update",
+      "description": "Update SAP Watch Task through the in-process SAP watch service."
     },
     {
-      "name": "manage_heartbeat",
-      "description": "Manage an in-process monitoring watchlist, trigger safe SAP connection/query checks, and inspect history."
+      "name": "sap.ops.watch.trigger",
+      "description": "Trigger SAP Watch through the in-process SAP watch service."
     },
     {
-      "name": "manage_rap_generator",
-      "description": "Check RAP availability, page schema, get defaults, validate, preview, generate, and manage service bindings. Generate confirms GENERATOR:BINDING; publish confirms BINDING; V2 unpublish confirms BINDING:SERVICE:VERSION; V4 unpublish confirms BINDING."
+      "name": "sap.ops.watch.watchlist.read",
+      "description": "Read SAP Watchlist through the in-process SAP watch service."
     },
     {
-      "name": "manage_text_elements",
-      "description": "Read or merge-create/update REPT text-pool symbols, selection texts, and headings using ADT locking, transport enforcement, and activation."
+      "name": "sap.quality.atc.cached",
+      "description": "Read a bounded page of cached ATC findings."
     },
     {
-      "name": "manage_transport_requests",
-      "description": "List, inspect, assess, compare, create, release, delete, reassign, add objects (including LIMU DYNP/REPT subobjects), and resolve SAP transports. assess_transport is read-only and can emit JSON, SARIF, and JUnit reports. release/delete confirmation is the request number; owner/user confirmation is NUMBER:USER; object confirmation is NUMBER:PGMID:TYPE:NAME."
+      "name": "sap.quality.atc.documentation",
+      "description": "Read a bounded section of documentation for an ATC finding."
     },
     {
-      "name": "open_object",
-      "description": "Resolve an ABAP object in headless mode and return its ADT and workspace URIs for subsequent reads or edits."
+      "name": "sap.quality.atc.run",
+      "description": "Run the system ATC check variant for one exact object."
     },
     {
-      "name": "read_deferred_result",
-      "description": "Read the next UTF-8 chunk of a large MCP result using the resultId and nextOffset returned by another tool."
+      "name": "sap.quality.test_include.create",
+      "description": "Create a class test include under existing write policy."
     },
     {
-      "name": "refactor_abap_code",
-      "description": "Preview or execute SAP rename, package move, method extraction, quick-fix, formatting, or deletion. Execute only a fresh plan and copy its exact confirmation value."
+      "name": "sap.quality.unit_test",
+      "description": "Run ABAP Unit for one exact repository object."
     },
     {
-      "name": "replace_string_in_abap_object",
-      "description": "Replace exactly one source fragment, using a fresh read and an under-lock compare before saving. SAP syntax diagnostics are returned. Non-local packages require transport."
+      "name": "sap.rap.availability",
+      "description": "Check one RAP generator on a configured SAP system."
     },
     {
-      "name": "run_abap_application",
-      "description": "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan."
+      "name": "sap.rap.binding.inspect",
+      "description": "Inspect one RAP service binding."
     },
     {
-      "name": "run_atc_analysis",
-      "description": "Run the system ATC check variant for an exact object, or retrieve documentation for a prior finding."
+      "name": "sap.rap.binding.publish",
+      "description": "Publish one confirmed RAP service binding."
     },
     {
-      "name": "run_sap_transaction",
-      "description": "Build a validated SAP WebGUI transaction URL, or launch it with the local default browser. Parameter values use a restricted injection-safe character set."
+      "name": "sap.rap.binding.unpublish",
+      "description": "Unpublish one confirmed RAP service. V2 bindings identify the service via serviceName and serviceVersion; V4 bindings are unpublished as a whole and need neither."
     },
     {
-      "name": "run_unit_tests",
-      "description": "Run SAP ABAP Unit for an exact repository object and return structured results."
+      "name": "sap.rap.defaults",
+      "description": "Get RAP Defaults through the shared RAP generator capability."
     },
     {
-      "name": "search_abap_object_lines",
-      "description": "Search literal text or a regular expression in active main source and enhancements. Class includes are read separately by URI. Wildcard object names can scan up to 10 objects."
+      "name": "sap.rap.generate",
+      "description": "Generate the confirmed RAP preview object set."
     },
     {
-      "name": "search_abap_objects",
-      "description": "Search ABAP repository objects by name pattern. Supports SAP ADT wildcards such as * and ?."
+      "name": "sap.rap.preview",
+      "description": "Preview RAP Generation through the shared RAP generator capability."
     },
     {
-      "name": "validate_mermaid_syntax",
-      "description": "Parse Mermaid code without rendering and return the normalized diagram type."
+      "name": "sap.rap.schema",
+      "description": "Get RAP Schema through the shared RAP generator capability."
+    },
+    {
+      "name": "sap.rap.validate",
+      "description": "Validate RAP initial inputs and optional generated content."
+    },
+    {
+      "name": "sap.refactor.execute",
+      "description": "Execute one confirmed fresh refactoring plan."
+    },
+    {
+      "name": "sap.refactor.preview",
+      "description": "Preview one ABAP refactoring plan without changing SAP source."
+    },
+    {
+      "name": "sap.repository.compare",
+      "description": "Compare the same active object across two configured SAP systems."
+    },
+    {
+      "name": "sap.repository.create",
+      "description": "Create one ABAP repository object under existing policy."
+    },
+    {
+      "name": "sap.repository.delete.execute",
+      "description": "Execute one confirmed fresh object-deletion plan from sap.repository.delete.preview."
+    },
+    {
+      "name": "sap.repository.delete.preview",
+      "description": "Preview how to safely delete one exact SAP repository object without changing it."
+    },
+    {
+      "name": "sap.repository.dependency_graph",
+      "description": "Build a bounded where-used dependency graph."
+    },
+    {
+      "name": "sap.repository.inspect",
+      "description": "Read metadata and optional ADT structure for one ABAP object."
+    },
+    {
+      "name": "sap.repository.resolve",
+      "description": "Resolve one ABAP object to a canonical ADT Resource."
+    },
+    {
+      "name": "sap.repository.search",
+      "description": "Search ABAP repository objects by name pattern and object type."
+    },
+    {
+      "name": "sap.repository.where_used",
+      "description": "Find bounded where-used references for one ABAP object."
+    },
+    {
+      "name": "sap.runtime.dump.inspect",
+      "description": "Read and normalize one ABAP runtime dump."
+    },
+    {
+      "name": "sap.runtime.dump.list",
+      "description": "List a bounded page of ABAP runtime dumps."
+    },
+    {
+      "name": "sap.runtime.trace.configuration",
+      "description": "List ABAP Trace Configurations through SAP ADT trace services."
+    },
+    {
+      "name": "sap.runtime.trace.hit_list",
+      "description": "Read ABAP Trace Hit List through SAP ADT trace services."
+    },
+    {
+      "name": "sap.runtime.trace.inspect",
+      "description": "Inspect ABAP Trace through SAP ADT trace services."
+    },
+    {
+      "name": "sap.runtime.trace.list",
+      "description": "List ABAP Traces through SAP ADT trace services."
+    },
+    {
+      "name": "sap.runtime.trace.statements",
+      "description": "Read ABAP Trace Statements through SAP ADT trace services."
+    },
+    {
+      "name": "sap.semantic.complete",
+      "description": "Read ABAP completion proposals or element details."
+    },
+    {
+      "name": "sap.semantic.components",
+      "description": "List bounded ABAP class or interface components."
+    },
+    {
+      "name": "sap.semantic.definition",
+      "description": "Resolve an ABAP definition or implementation."
+    },
+    {
+      "name": "sap.semantic.documentation",
+      "description": "Read SAP ABAP language documentation."
+    },
+    {
+      "name": "sap.semantic.format_preview",
+      "description": "Preview SAP ABAP formatter changes."
+    },
+    {
+      "name": "sap.semantic.hierarchy",
+      "description": "Read a bounded ABAP type hierarchy."
+    },
+    {
+      "name": "sap.semantic.quick_fixes",
+      "description": "List bounded non-dialog SAP quick fixes."
+    },
+    {
+      "name": "sap.source.activate",
+      "description": "Activate one or up to 100 same-system ABAP Resources."
+    },
+    {
+      "name": "sap.source.diagnose",
+      "description": "Run bounded SAP syntax diagnostics for ABAP source."
+    },
+    {
+      "name": "sap.source.export",
+      "description": "Download one ABAP object or package to an absolute local folder."
+    },
+    {
+      "name": "sap.source.patch",
+      "description": "Replace exactly one source fragment under existing write policy."
+    },
+    {
+      "name": "sap.source.read",
+      "description": "Read a bounded active ABAP source range, one class method, or one canonical ADT Resource."
+    },
+    {
+      "name": "sap.source.read_batch",
+      "description": "Read source ranges from up to 100 ABAP objects."
+    },
+    {
+      "name": "sap.source.search",
+      "description": "Search literal text or a regular expression in ABAP source."
+    },
+    {
+      "name": "sap.system.capabilities",
+      "description": "Read implemented, advertised, authorized, and observed capabilities for one SAP system."
+    },
+    {
+      "name": "sap.system.discovery",
+      "description": "Read summary or full ADT discovery data for one configured SAP system."
+    },
+    {
+      "name": "sap.system.discovery.export",
+      "description": "Export full ADT discovery data to a temporary JSON artifact."
+    },
+    {
+      "name": "sap.system.inspect",
+      "description": "Read normalized SAP client, release, timezone, and optional software component metadata."
+    },
+    {
+      "name": "sap.system.list",
+      "description": "List configured SAP system IDs and local credential availability."
+    },
+    {
+      "name": "sap.text_elements.read",
+      "description": "Read one ABAP text-pool category."
+    },
+    {
+      "name": "sap.text_elements.write",
+      "description": "Create or update one ABAP text-pool category."
+    },
+    {
+      "name": "sap.transport.assess",
+      "description": "Run bounded change-assurance checks for one transport."
+    },
+    {
+      "name": "sap.transport.compare",
+      "description": "Compare two to ten transport requests."
+    },
+    {
+      "name": "sap.transport.create",
+      "description": "Create one SAP transport request."
+    },
+    {
+      "name": "sap.transport.delete",
+      "description": "Delete SAP Transport after exact confirmation."
+    },
+    {
+      "name": "sap.transport.inspect",
+      "description": "Read details or objects for one transport request."
+    },
+    {
+      "name": "sap.transport.list",
+      "description": "List a bounded page of user transports."
+    },
+    {
+      "name": "sap.transport.object.add",
+      "description": "Add one confirmed repository or subobject key to a transport."
+    },
+    {
+      "name": "sap.transport.object.resolve",
+      "description": "Resolve one SAP repository object to a transport key."
+    },
+    {
+      "name": "sap.transport.owner.set",
+      "description": "Set SAP Transport Owner after exact confirmation."
+    },
+    {
+      "name": "sap.transport.release",
+      "description": "Release SAP Transport after exact confirmation."
+    },
+    {
+      "name": "sap.transport.user.add",
+      "description": "Add SAP Transport User after exact confirmation."
+    },
+    {
+      "name": "sap.transport.user.list",
+      "description": "List a bounded page of transport-capable SAP users."
+    },
+    {
+      "name": "sap.ui.object_url",
+      "description": "Build a SAP WebGUI URL for one ABAP object."
+    },
+    {
+      "name": "sap.ui.transaction_launch",
+      "description": "Launch SAP Transaction for one validated SAP transaction."
+    },
+    {
+      "name": "sap.ui.transaction_url",
+      "description": "Build SAP Transaction URL for one validated SAP transaction."
+    },
+    {
+      "name": "sap.version.history.compare",
+      "description": "Compare two historical source revisions."
+    },
+    {
+      "name": "sap.version.history.list",
+      "description": "List historical revisions for one object."
+    },
+    {
+      "name": "sap.version.history.read",
+      "description": "Read a bounded source range from one historical revision."
+    },
+    {
+      "name": "sap.version.inactive.list",
+      "description": "List a bounded page of inactive objects."
+    },
+    {
+      "name": "sap.version.inactive.read",
+      "description": "Read a bounded inactive-source range."
+    },
+    {
+      "name": "sap.version.restore.execute",
+      "description": "Execute one confirmed fresh version-restore plan."
+    },
+    {
+      "name": "sap.version.restore.preview",
+      "description": "Preview restoration of one historical revision."
     }
   ],
   "tools_generated": false,

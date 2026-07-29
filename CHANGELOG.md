@@ -14,7 +14,7 @@ First stable release. Consolidates the v1 MCP surface (v1 is the default tool se
 - **`sap.rap.binding.unpublish` for OData V4**: unpublish previously supported only V2 bindings. V4 bindings are now unpublished through the OData V4 job endpoint; `serviceName` and `serviceVersion` are optional and used only for V2.
 - **`sap.transport.release` on newer systems**: release now creates the ATC check worklist the ADT release gate expects and releases open, non-empty tasks before the request. When a system rejects the synchronous release of an object-bearing transport, the tool returns a clear `TRANSPORT_RELEASE_UNSUPPORTED` error pointing to SE10/SE09 instead of a raw HTTP 500.
 - **abapGit tools on systems without the ADT backend**: the git tools now return `ABAPGIT_BACKEND_UNAVAILABLE` with installation guidance when `/sap/bc/adt/abapgit/*` is not present, rather than an opaque "resource does not exist" error.
-- **v0 contract and MCPB catalog tooling**: `scripts/update-v0-contract.mjs` and `scripts/sync-mcpb-tools.mjs` regenerated their fixtures from the default v1 surface after v1 became the default; both now pin `--api-version v0` so the committed v0 fixtures and MCPB tool catalog stay correct.
+- **v0 contract and distribution catalog tooling**: `scripts/update-v0-contract.mjs` pins `--api-version v0` so the committed legacy fixture remains exact. The MCPB and Smithery catalogs follow the unversioned runtime and advertise the default v1 surface.
 
 ### Known limitations
 

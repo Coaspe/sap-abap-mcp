@@ -78,6 +78,25 @@ test("published unversioned launches use the current v1 default", async () => {
   }
 })
 
+test("MCPB catalog matches the unversioned v1 runtime", async () => {
+  const manifest = JSON.parse(
+    await readFile("mcpb/manifest.json", "utf8")
+  ) as {
+    tools_generated: boolean
+    tools: Array<{ name: string; description: string }>
+  }
+  const tools = await advertisedTools()
+
+  assert.equal(manifest.tools_generated, false)
+  assert.deepEqual(
+    manifest.tools,
+    tools.map(tool => ({
+      name: tool.name,
+      description: tool.description
+    })).sort((left, right) => left.name.localeCompare(right.name))
+  )
+})
+
 test("README documents current defaults, strict TMP ownership, and connection diagnosis", async () => {
   const readme = await readFile("README.md", "utf8")
 

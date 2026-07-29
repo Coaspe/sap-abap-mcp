@@ -1,0 +1,78 @@
+{
+  "$schema": "./sap-abap-mcp-profile-v1.schema.json",
+  "id": "io.github.Coaspe/sap-abap-mcp/profile/v1",
+  "version": "1.0.0",
+  "status": "proposal",
+  "description": "Minimum read-only interoperability profile for SAP ABAP development MCP servers using ADT-backed evidence.",
+  "requiredTools": [
+    {
+      "name": "sap.system.list",
+      "capability": "List configured SAP system identities without returning credentials.",
+      "readOnly": true
+    },
+    {
+      "name": "sap.system.inspect",
+      "capability": "Inspect bounded metadata for one selected SAP system.",
+      "readOnly": true
+    },
+    {
+      "name": "sap.repository.search",
+      "capability": "Search the ABAP repository with bounded results.",
+      "readOnly": true
+    },
+    {
+      "name": "sap.source.read",
+      "capability": "Read exact ABAP source by object identity or canonical resource URI.",
+      "readOnly": true
+    },
+    {
+      "name": "sap.source.diagnose",
+      "capability": "Run non-mutating SAP syntax diagnostics.",
+      "readOnly": true
+    },
+    {
+      "name": "sap.quality.unit_test",
+      "capability": "Run and normalize ABAP Unit results.",
+      "readOnly": true
+    },
+    {
+      "name": "sap.quality.atc.run",
+      "capability": "Run and normalize ABAP Test Cockpit findings.",
+      "readOnly": true
+    },
+    {
+      "name": "sap.transport.inspect",
+      "capability": "Inspect a transport and its bounded object metadata.",
+      "readOnly": true
+    },
+    {
+      "name": "sap.transport.assess",
+      "capability": "Assess a transport without releasing it and return machine-readable evidence.",
+      "readOnly": true
+    },
+    {
+      "name": "sap.rap.availability",
+      "capability": "Report RAP generator availability without generating artifacts.",
+      "readOnly": true
+    }
+  ],
+  "requiredResources": [
+    {
+      "name": "sap-capability-evidence",
+      "purpose": "Per-system evidence that separates implementation, discovery, authorization, and live verification."
+    },
+    {
+      "name": "sap-evidence",
+      "purpose": "Bounded follow-up artifacts produced by tools during the current server run."
+    },
+    {
+      "name": "sap-transport",
+      "purpose": "Canonical read-only transport evidence."
+    }
+  ],
+  "optionalMutationRequirements": {
+    "accurateToolAnnotations": true,
+    "previewBeforeDestructiveExecution": true,
+    "explicitConfirmation": true
+  }
+}
