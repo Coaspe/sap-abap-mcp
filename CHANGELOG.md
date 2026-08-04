@@ -2,11 +2,11 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
-## Unreleased
+## 1.0.1
 
 ### Security
 
-- XLSX export remains supported through a dependency-light OOXML writer, replacing the vulnerable ExcelJS/archive dependency chain. Future npm releases publish with provenance, and pull requests run dependency and code-security gates.
+- XLSX export remains supported through a dependency-light OOXML writer, replacing the vulnerable ExcelJS/archive dependency chain. npm releases now publish with provenance, and pull requests run dependency and code-security gates.
 
 ## 1.0.0
 

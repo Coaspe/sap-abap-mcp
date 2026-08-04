@@ -1,6 +1,6 @@
 {
   "name": "sap-abap-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Develop, test, analyze, and operate SAP ABAP systems through local ADT connections.",
   "author": {
     "name": "Coaspe",
