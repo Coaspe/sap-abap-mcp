@@ -94,7 +94,7 @@ export function createMcpServer(
   const server = new McpServer(
     {
       name: "sap-abap-mcp",
-      version: "1.0.0",
+      version: "1.0.1",
       title: "SAP ABAP MCP",
       description:
         "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
