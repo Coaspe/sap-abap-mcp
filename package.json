@@ -50,7 +50,8 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -71,22 +72,17 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "abap-adt-api": "8.4.1",
     "diff": "9.0.0",
     "docx": "9.5.1",
     "dompurify": "3.4.12",
-    "exceljs": "^4.4.0",
+    "fflate": "0.8.3",
     "mermaid": "11.16.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
     "typescript": "7.0.2"
-  },
-  "overrides": {
-    "exceljs": {
-      "uuid": "11.1.1"
-    }
   }
 }
