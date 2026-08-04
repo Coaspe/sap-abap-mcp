@@ -77,6 +77,7 @@ import {
   createTestDocumentation as createTestDocumentationArtifact,
   type TestDocumentationInput
 } from "./test-documentation.js"
+import { writeXlsxFile } from "./xlsx-export.js"
 
 type BindingCategory = "0" | "1"
 const execFileAsync = promisify(execFile)
@@ -2727,16 +2728,15 @@ export class AbapToolService {
         ].join("\r\n")
         await writeFile(outputPath, `\ufeff${csv}`, "utf8")
       } else {
-        const ExcelJS = (await import("exceljs")).default
-        const workbook = new ExcelJS.Workbook()
-        const sheet = workbook.addWorksheet((input.title || "ABAP Data").slice(0, 31))
-        sheet.columns = raw.columns.map(column => ({
-          header: column.description || column.name,
-          key: column.name,
-          width: Math.max(12, Math.min(40, column.name.length + 4))
-        }))
-        sheet.addRows(selected)
-        await workbook.xlsx.writeFile(outputPath)
+        await writeXlsxFile(outputPath, {
+          sheetName: input.title || "ABAP Data",
+          columns: raw.columns.map(column => ({
+            name: column.name,
+            header: column.description || column.name,
+            width: Math.max(12, Math.min(40, column.name.length + 4))
+          })),
+          rows: selected
+        })
       }
       return {
         connectionId: input.connectionId.toUpperCase(),
