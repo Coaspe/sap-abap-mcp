@@ -2,6 +2,12 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
+## Unreleased
+
+### Security
+
+- XLSX export remains supported through a dependency-light OOXML writer, replacing the vulnerable ExcelJS/archive dependency chain. Future npm releases publish with provenance, and pull requests run dependency and code-security gates.
+
 ## 1.0.0
 
 First stable release. Consolidates the v1 MCP surface (v1 is the default tool set) with reliability and robustness fixes for RAP, transport release, and abapGit tools, verified against a live SAP system (B4D) and covered by regression tests. No tools added or removed relative to 0.4.15.

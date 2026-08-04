@@ -1,8 +1,23 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import test from "node:test"
 
 const registryName = "io.github.Coaspe/sap-abap-mcp"
+
+test("supply-chain metadata enables private reporting and npm provenance", () => {
+  assert.ok(existsSync("SECURITY.md"), "missing SECURITY.md")
+  const securityPolicy = readFileSync("SECURITY.md", "utf8")
+  assert.match(
+    securityPolicy,
+    /https:\/\/github\.com\/Coaspe\/sap-abap-mcp\/security\/advisories\/new/
+  )
+
+  const publishWorkflow = readFileSync(".github/workflows/publish-npm.yml", "utf8")
+  assert.match(publishWorkflow, /npm publish --provenance --access public/)
+
+  const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
+  assert.equal(packageJson.publishConfig.provenance, true)
+})
 
 test("distribution metadata stays consistent across npm and the official MCP Registry", () => {
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"))

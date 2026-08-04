@@ -6,6 +6,7 @@ import { dirname, join } from "node:path"
 import test from "node:test"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
+import { strFromU8, unzipSync } from "fflate"
 import { ConnectionManager, type ConnectionSummary } from "../src/connection-manager.js"
 import {
   IMPLEMENTED_TOOL_NAMES,
@@ -4719,7 +4720,11 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     filePath: join(queryExportDirectory, "materials"),
     fileType: "xlsx"
   })
-  assert.equal((await readFile(xlsxExport.outputPath)).subarray(0, 2).toString(), "PK")
+  const xlsx = await readFile(xlsxExport.outputPath)
+  assert.equal(xlsx.subarray(0, 2).toString(), "PK")
+  const worksheet = strFromU8(unzipSync(xlsx)["xl/worksheets/sheet1.xml"]!)
+  assert.match(worksheet, /Material/)
+  assert.match(worksheet, /MAT-002/)
 
   const sqlSyntax = await callJson("get_abap_sql_syntax", {})
   assert.match(sqlSyntax.rules[0], /SELECT/)
