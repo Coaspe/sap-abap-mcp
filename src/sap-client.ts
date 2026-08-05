@@ -1134,7 +1134,26 @@ export class AdtSapClient implements SapClient {
   }
 
   async runClass(className: string): Promise<string> {
-    return this.client.runClass(className.trim().toUpperCase())
+    const name = className.trim().toUpperCase()
+    try {
+      return await this.client.runClass(name)
+    } catch (error) {
+      // The ADT class-run endpoint answers a rejected class with a plain 500 and
+      // no usable message. Preserve the endpoint and the SAP response text so a
+      // failure is actionable without re-running an execution.
+      const evidence = adtFailureEvidence(error)
+      if (Object.keys(evidence).length === 0) throw error
+      throw new AppError(
+        "SAP_CLASS_RUN_FAILED",
+        `SAP rejected running class ${name}. It must implement IF_OO_ADT_CLASSRUN and be active.`,
+        {
+          className: name,
+          endpoint: "/sap/bc/adt/oo/classrun",
+          ...(isHttpError(error) ? { httpStatus: error.status } : {}),
+          ...evidence
+        }
+      )
+    }
   }
 
   async checkReplAvailability(): Promise<ReplHealthCheck> {

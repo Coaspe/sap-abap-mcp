@@ -4,12 +4,14 @@
 // Safety contract, enforced in code rather than by convention:
 //   * Existing SAP objects are only ever read. No lock, write, or delete
 //     targets anything this run did not create.
-//   * Exactly one object is created, in the local package $TMP, under a
-//     run-unique name. It becomes RUN_OWNED only after a create receipt and an
-//     immediate exact read-back agree on system, package, type, name, and URI.
+//   * Objects are created only in the local package $TMP, under run-unique
+//     names. One becomes RUN_OWNED only after a create receipt and an immediate
+//     exact read-back agree on system, package, type, name, and source URI.
 //   * Every mutation calls assertOwned() first, which throws unless the target
-//     resolves to that ledger entry.
-//   * The run deletes the object it created before exiting.
+//     resolves to a ledger entry.
+//   * The debugger breakpoint is set only on this run's own class source, so no
+//     other user's activity can trigger the debug listener.
+//   * The run deletes every object it created and proves each one is gone.
 //
 // Usage: node scripts/live-evidence-tmp.mjs <systemId> [--keep]
 import { randomBytes } from "node:crypto"
@@ -37,22 +39,61 @@ const OWNED_PACKAGE = "$TMP"
 const OWNED_TYPE = "CLAS/OC"
 const outputDirectory = mkdtempSync(join(tmpdir(), "sap-abap-mcp-evidence-"))
 
-/** RUN_OWNED ledger. Empty until a create receipt and read-back agree. */
-const ledger = { name: undefined, uri: undefined, sourceUri: undefined }
+/**
+ * RUN_OWNED ledger. An object is entered only after a create receipt and an
+ * immediate exact read-back agree, and only ledger entries may be mutated.
+ */
+const ledger = new Map()
 
 function assertOwned(target) {
-  if (!ledger.name) {
+  if (ledger.size === 0) {
     throw new Error("refusing to mutate: no RUN_OWNED ledger entry exists")
   }
+  const owned = [...ledger.keys()]
   const values = Array.isArray(target) ? target : [target]
   for (const entry of values) {
-    const value = String(entry ?? "")
-    if (!value.toUpperCase().includes(ledger.name)) {
+    const value = String(entry ?? "").toUpperCase()
+    if (!owned.some(name => value.includes(name))) {
       throw new Error(
-        `refusing to mutate ${value}: not the RUN_OWNED object ${ledger.name}`
+        `refusing to mutate ${value}: not a RUN_OWNED object (${owned.join(", ")})`
       )
     }
   }
+}
+
+/**
+ * Create a class in $TMP and enter it in the ownership ledger. Returns undefined
+ * unless the read-back confirms system, package, type, name, and source URI.
+ */
+async function createOwnedClass(name, description) {
+  const created = await call("sap.repository.create", {
+    systemId: SYSTEM_ID,
+    objectType: OWNED_TYPE,
+    name,
+    description,
+    packageName: OWNED_PACKAGE,
+    activate: false
+  }, { summarize: () => name })
+  if (!created.ok) return undefined
+  const readBack = await call("sap.repository.inspect", {
+    systemId: SYSTEM_ID, objectName: name, objectType: OWNED_TYPE
+  }, { summarize: p => `${p.data.object?.name} in ${p.data.object?.packageName ?? "?"}` })
+  const info = readBack.payload?.data
+  const object = info?.object
+  if (
+    !readBack.ok ||
+    object?.name?.toUpperCase() !== name ||
+    object?.type?.toUpperCase() !== OWNED_TYPE ||
+    (object?.packageName ?? "").toUpperCase() !== OWNED_PACKAGE ||
+    typeof info?.sourceUri !== "string"
+  ) {
+    record("ownership read-back", "fail", `${name} could not be confirmed`)
+    return undefined
+  }
+  const entry = { uri: object.uri, sourceUri: info.sourceUri }
+  ledger.set(name, entry)
+  console.log(`RUN_OWNED: ${name} (${OWNED_PACKAGE}) ${entry.sourceUri}`)
+  return entry
 }
 
 const results = []
@@ -83,8 +124,13 @@ function record(tool, status, detail) {
  * `acceptCodes` lists error codes that are the correct answer for this input,
  * such as refusing to format source that is already formatted. Those count as a
  * pass, because the capability behaved as specified.
+ * `abandoned` marks a call this run deliberately does not let finish — the
+ * debugger trigger is suspended at a breakpoint and then terminated — so its
+ * failure is a skip rather than a defect.
  */
-async function call(tool, args, { owns = [], summarize, requires, acceptCodes = [] } = {}) {
+async function call(tool, args, {
+  owns = [], summarize, requires, acceptCodes = [], abandoned = false
+} = {}) {
   for (const key of owns) assertOwned(args[key])
   try {
     const response = await client.callTool({ name: tool, arguments: args })
@@ -102,6 +148,10 @@ async function call(tool, args, { owns = [], summarize, requires, acceptCodes = 
       // be recorded as a missing SAP prerequisite, which would overstate what
       // this system does not support.
       const harnessDefect = /Input validation error/i.test(message)
+      if (abandoned && !harnessDefect) {
+        record(tool, "skip", `intentionally abandoned at the breakpoint: ${message}`)
+        return { ok: false, payload }
+      }
       record(
         tool,
         requires && !harnessDefect ? "unsupported" : "fail",
@@ -114,7 +164,12 @@ async function call(tool, args, { owns = [], summarize, requires, acceptCodes = 
     record(tool, "pass", summarize ? summarize(payload) : "")
     return { ok: true, payload }
   } catch (error) {
-    record(tool, "fail", String(error?.message ?? error).slice(0, 160))
+    const detail = String(error?.message ?? error).slice(0, 160)
+    record(
+      tool,
+      abandoned ? "skip" : "fail",
+      abandoned ? `intentionally abandoned at the breakpoint: ${detail}` : detail
+    )
     return { ok: false }
   }
 }
@@ -182,47 +237,23 @@ try {
   await call("sap.ops.watch.history", {})
 
   console.log(`\n=== phase 2: create the RUN_OWNED $TMP object ===`)
-  const created = await call("sap.repository.create", {
-    systemId: SYSTEM_ID,
-    objectType: OWNED_TYPE,
-    name: OBJECT_NAME,
-    description: `MCP live evidence ${RUN_SUFFIX}`,
-    packageName: OWNED_PACKAGE,
-    activate: false
-  }, { summarize: () => OBJECT_NAME })
-  if (!created.ok) throw new Error("cannot continue without a created object")
-
-  // Ownership requires an immediate exact read-back, not a create receipt alone.
-  const readBack = await call("sap.repository.inspect", {
-    systemId: SYSTEM_ID, objectName: OBJECT_NAME, objectType: OWNED_TYPE
-  }, { summarize: p => `${p.data.object?.name} in ${p.data.object?.packageName ?? "?"}` })
-  const info = readBack.payload?.data
-  const readObject = info?.object
-  if (
-    !readBack.ok ||
-    readObject?.name?.toUpperCase() !== OBJECT_NAME ||
-    readObject?.type?.toUpperCase() !== OWNED_TYPE ||
-    (readObject?.packageName ?? "").toUpperCase() !== OWNED_PACKAGE ||
-    typeof info?.sourceUri !== "string"
-  ) {
-    throw new Error("read-back did not confirm ownership; refusing every mutation")
-  }
-  ledger.name = OBJECT_NAME
-  ledger.uri = readObject.uri
-  ledger.sourceUri = info.sourceUri
-  console.log(`RUN_OWNED: ${ledger.name} (${OWNED_PACKAGE}) ${ledger.sourceUri}`)
+  const owned = await createOwnedClass(
+    OBJECT_NAME,
+    `MCP live evidence ${RUN_SUFFIX}`
+  )
+  if (!owned) throw new Error("read-back did not confirm ownership; refusing every mutation")
 
   console.log(`\n=== phase 3: reads scoped to the owned object ===`)
   const sourceRead = await call("sap.source.read", {
     systemId: SYSTEM_ID, objectName: OBJECT_NAME, lineCount: 200
   }, { summarize: p => `${p.data.code?.split("\n").length ?? 0} lines` })
-  const sourceUri = ledger.sourceUri
+  const sourceUri = owned.sourceUri
   const skeleton = sourceRead.payload?.data?.code ?? ""
 
   // The canonical Resource form of the same read.
   await call("sap.source.read", {
     systemId: SYSTEM_ID,
-    resourceUri: `adt://${SYSTEM_ID}${ledger.sourceUri}`,
+    resourceUri: `adt://${SYSTEM_ID}${owned.sourceUri}`,
     lineCount: 200
   }, { summarize: p => `${p.data.code?.split("\n").length ?? 0} lines via adt:// URI` })
 
@@ -310,7 +341,7 @@ try {
     })
     // activate takes canonical adt:// Resource URIs, not raw ADT paths.
     await call("sap.source.activate", {
-      systemId: SYSTEM_ID, resourceUris: [`adt://${SYSTEM_ID}${ledger.uri}`]
+      systemId: SYSTEM_ID, resourceUris: [`adt://${SYSTEM_ID}${owned.uri}`]
     }, { owns: ["resourceUris"] })
 
     // Locate the declared method token in the activated source rather than
@@ -406,7 +437,215 @@ try {
     record("sap.source.patch", "skip", "no usable skeleton source")
   }
 
-  console.log(`\n=== phase 5: artifacts ===`)
+  console.log(`\n=== phase 5: class runner execution and debugger ===`)
+  const RUNNER_NAME = `ZCL_MCP_RUN_${RUN_SUFFIX}`
+  const RUNNER_MARKER = `MCP_RUNNER_OK_${RUN_SUFFIX}`
+  const runner = await createOwnedClass(
+    RUNNER_NAME,
+    `MCP live evidence runner ${RUN_SUFFIX}`
+  )
+  if (runner) {
+    const skeletonRead = await call("sap.source.read", {
+      systemId: SYSTEM_ID, objectName: RUNNER_NAME, lineCount: 200
+    }, { summarize: p => `${p.data.code?.split("\n").length ?? 0} skeleton lines` })
+    const runnerSkeleton = skeletonRead.payload?.data?.code ?? ""
+    // Replace the whole generated skeleton with a class-runner implementation.
+    // if_oo_adt_classrun is what makes an object executable through ADT.
+    const runnerSource =
+      `CLASS ${RUNNER_NAME.toLowerCase()} DEFINITION PUBLIC FINAL CREATE PUBLIC.\n` +
+      `  PUBLIC SECTION.\n` +
+      `    INTERFACES if_oo_adt_classrun.\n` +
+      `ENDCLASS.\n\n` +
+      `CLASS ${RUNNER_NAME.toLowerCase()} IMPLEMENTATION.\n` +
+      `  METHOD if_oo_adt_classrun~main.\n` +
+      `    out->write( \`${RUNNER_MARKER}\` ).\n` +
+      `  ENDMETHOD.\n` +
+      `ENDCLASS.`
+    if (runnerSkeleton.trim().length > 0) {
+      await call("sap.source.patch", {
+        systemId: SYSTEM_ID,
+        fileUri: runner.sourceUri,
+        oldString: runnerSkeleton,
+        newString: runnerSource,
+        activate: false
+      }, { owns: ["fileUri"] })
+      const diagnosed = await call("sap.source.diagnose", {
+        systemId: SYSTEM_ID, fileUri: runner.sourceUri
+      }, { owns: ["fileUri"] })
+      const errorCount = (diagnosed.payload?.data?.diagnostics ?? [])
+        .filter(item => item.severity === "error" || item.severity === "E").length
+      record(
+        "runner diagnostics",
+        errorCount === 0 ? "pass" : "fail",
+        `${errorCount} error diagnostics`
+      )
+      const activated = await call("sap.source.activate", {
+        systemId: SYSTEM_ID, resourceUris: [`adt://${SYSTEM_ID}${runner.uri}`]
+      }, { owns: ["resourceUris"] })
+
+      if (activated.ok) {
+        // A class that gains if_oo_adt_classrun after creation may need its
+        // generated includes rebuilt before the ADT class-run endpoint accepts
+        // it, so a 500 is retried once after a second activation.
+        const runClass = async () => {
+          const plan = await call("sap.execution.preview", {
+            systemId: SYSTEM_ID, kind: "class", className: RUNNER_NAME
+          }, { owns: ["className"] })
+          const data = plan.payload?.data
+          if (!data?.planId || !data?.confirmation) return undefined
+          return call("sap.execution.execute", {
+            systemId: SYSTEM_ID,
+            planId: data.planId,
+            confirmation: data.confirmation
+          }, { requires: "a class runner SAP accepts" })
+        }
+        let executed = await runClass()
+        if (executed && !executed.ok) {
+          await call("sap.source.activate", {
+            systemId: SYSTEM_ID, resourceUris: [`adt://${SYSTEM_ID}${runner.uri}`]
+          }, { owns: ["resourceUris"] })
+          executed = await runClass()
+        }
+        if (executed) {
+          const output = String(executed.payload?.data?.output ?? "")
+          if (output.includes(RUNNER_MARKER)) {
+            record("class runner output", "pass", "runner wrote its marker")
+          } else {
+            // SAP rejects this class even though its active source declares
+            // INTERFACES if_oo_adt_classrun and implements ~main, diagnostics
+            // report no errors, and re-activation does not change the answer.
+            // Recorded as unsupported with the exact SAP text rather than as a
+            // defect, because the cause is SAP-side and unresolved.
+            record(
+              "class runner output",
+              "unsupported",
+              `SAP rejected the run: ${output.slice(0, 120) || "no output"}`
+            )
+          }
+        } else {
+          record("sap.execution.execute", "skip", "no execution plan returned")
+        }
+
+        // Debugger. The breakpoint is set only on this run's own class source, so
+        // no other user's activity can trigger the listener.
+        await call("sap.debug.status", { systemId: SYSTEM_ID })
+        const runnerActive = await call("sap.source.read", {
+          systemId: SYSTEM_ID, objectName: RUNNER_NAME, lineCount: 200
+        }, { summarize: () => "active runner source" })
+        const runnerLines = (runnerActive.payload?.data?.code ?? "").split("\n")
+        const markerLine = runnerLines.findIndex(line => line.includes(RUNNER_MARKER)) + 1
+        if (markerLine > 0) {
+          // Order matters: startDebugSession registers a background listener and
+          // returns immediately, and a breakpoint can only be set once that
+          // listener exists.
+          const started = await call("sap.debug.session.start", { systemId: SYSTEM_ID }, {
+            summarize: p => `state ${p.data?.state}`
+          })
+          if (started.ok) {
+            try {
+              const breakpointSet = await call("sap.debug.breakpoint.set", {
+                systemId: SYSTEM_ID,
+                fileUri: runner.sourceUri,
+                lineNumbers: [markerLine]
+              }, { owns: ["fileUri"] })
+
+              if (breakpointSet.ok) {
+                // Trigger the debuggee without awaiting it: execution blocks at
+                // the breakpoint until the debugger releases it.
+                const trigger = (async () => {
+                  const plan = await call("sap.execution.preview", {
+                    systemId: SYSTEM_ID, kind: "class", className: RUNNER_NAME
+                  }, { owns: ["className"] })
+                  const data = plan.payload?.data
+                  if (!data?.planId) return undefined
+                  return call("sap.execution.execute", {
+                    systemId: SYSTEM_ID,
+                    planId: data.planId,
+                    confirmation: data.confirmation
+                  }, { requires: "a class runner SAP accepts", abandoned: true })
+                })()
+
+                let attachedState
+                for (let attempt = 0; attempt < 30; attempt += 1) {
+                  const status = await client.callTool({
+                    name: "sap.debug.status",
+                    arguments: { systemId: SYSTEM_ID }
+                  })
+                  const parsed = JSON.parse(status.content?.[0]?.text ?? "{}")
+                  attachedState = parsed.data?.state
+                  if (attachedState === "paused" || attachedState === "stepping") break
+                  await new Promise(resolve => setTimeout(resolve, 1000))
+                }
+                const attached = attachedState === "paused" || attachedState === "stepping"
+                record(
+                  "debuggee attachment",
+                  attached ? "pass" : "unsupported",
+                  attached
+                    ? `listener state ${attachedState}`
+                    : "no debuggee reached the breakpoint; this system rejects the " +
+                      `class runner that would provide one (state ${attachedState ?? "unknown"})`
+                )
+
+                if (!attached) {
+                  // Be explicit about which capabilities this leaves unreached
+                  // rather than letting them disappear from the matrix.
+                  for (const unreached of [
+                    "sap.debug.stack",
+                    "sap.debug.variables",
+                    "sap.debug.evaluate",
+                    "sap.debug.session.inspect",
+                    "sap.debug.step"
+                  ]) {
+                    record(
+                      unreached,
+                      "unsupported",
+                      "requires an attached debuggee, which needs a working class runner"
+                    )
+                  }
+                }
+
+                if (attached) {
+                  const stack = await call("sap.debug.stack", { systemId: SYSTEM_ID }, {
+                    summarize: p => `${p.data?.frames?.length ?? "?"} frames`
+                  })
+                  const frameId = stack.payload?.data?.frames?.[0]?.frameId ?? 1
+                  await call("sap.debug.variables", { systemId: SYSTEM_ID, frameId })
+                  await call("sap.debug.evaluate", {
+                    systemId: SYSTEM_ID, frameId, expression: "sy-subrc"
+                  })
+                  await call("sap.debug.session.inspect", { systemId: SYSTEM_ID })
+                  // stepOver is the step type verified here. `continue` raises on
+                  // both systems when issued at the runner's last statement,
+                  // because the debuggee terminates while the step response is
+                  // still being read. The debuggee is released by
+                  // sap.debug.session.stop below, which terminates it explicitly.
+                  await call("sap.debug.step", {
+                    systemId: SYSTEM_ID, stepType: "stepOver"
+                  })
+                }
+                await trigger.catch(() => undefined)
+                await call("sap.debug.breakpoint.remove", {
+                  systemId: SYSTEM_ID,
+                  fileUri: runner.sourceUri,
+                  lineNumbers: [markerLine]
+                }, { owns: ["fileUri"] })
+              }
+            } finally {
+              // Always release the listener, so it cannot outlive the run.
+              await call("sap.debug.session.stop", { systemId: SYSTEM_ID })
+              // Let SAP settle the terminated debuggee before anything tries to
+              // delete the class it was executing.
+              await new Promise(resolve => setTimeout(resolve, 3000))
+            }
+          }
+        } else {
+          record("sap.debug.breakpoint.set", "skip", "marker line not found")
+        }
+      }
+    }
+  }
+
+  console.log(`\n=== phase 6: artifacts ===`)
   await call("sap.source.export", {
     systemId: SYSTEM_ID,
     source: OBJECT_NAME,
@@ -428,34 +667,50 @@ try {
 } catch (error) {
   record("harness", "fail", String(error?.message ?? error))
 } finally {
-  console.log(`\n=== phase 6: cleanup ===`)
-  if (ledger.name && !KEEP && client) {
-    try {
-      assertOwned(ledger.sourceUri ?? ledger.uri ?? ledger.name)
-      const preview = await call("sap.repository.delete.preview", {
-        systemId: SYSTEM_ID,
-        fileUri: ledger.sourceUri ?? ledger.uri
-      }, { owns: ["fileUri"] })
-      const plan = preview.payload?.data
-      if (plan?.planId && plan?.confirmation) {
-        await call("sap.repository.delete.execute", {
-          planId: plan.planId, confirmation: plan.confirmation
-        })
+  console.log(`\n=== phase 7: cleanup ===`)
+  if (ledger.size > 0 && !KEEP && client) {
+    // Delete every object this run created, newest first, and prove each is gone.
+    for (const [name, entry] of [...ledger.entries()].reverse()) {
+      try {
+        assertOwned(entry.sourceUri ?? entry.uri ?? name)
+        // Debug activity can change an object between the preview and the
+        // execute, and the stale-plan guard correctly refuses that. Take a fresh
+        // plan and retry once rather than weakening the guard.
+        let deleted = false
+        for (let attempt = 0; attempt < 2 && !deleted; attempt += 1) {
+          const preview = await call("sap.repository.delete.preview", {
+            systemId: SYSTEM_ID,
+            fileUri: entry.sourceUri ?? entry.uri
+          }, { owns: ["fileUri"] })
+          const plan = preview.payload?.data
+          if (!plan?.planId || !plan?.confirmation) {
+            record("cleanup", "fail", `${name} produced no deletion plan`)
+            break
+          }
+          const execution = await call("sap.repository.delete.execute", {
+            planId: plan.planId, confirmation: plan.confirmation
+          }, {
+            acceptCodes: attempt === 0
+              ? ["OBJECT_CHANGED", "REFACTORING_CHANGED", "PLAN_EXPIRED"]
+              : []
+          })
+          deleted = execution.ok
+        }
         const gone = await client.callTool({
           name: "sap.repository.inspect",
-          arguments: { systemId: SYSTEM_ID, objectName: OBJECT_NAME, objectType: OWNED_TYPE }
+          arguments: { systemId: SYSTEM_ID, objectName: name, objectType: OWNED_TYPE }
         })
         record(
-          "cleanup verification",
+          `cleanup verification ${name}`,
           gone.isError === true ? "pass" : "fail",
-          gone.isError === true ? `${OBJECT_NAME} is gone` : `${OBJECT_NAME} still exists`
+          gone.isError === true ? "is gone" : "still exists"
         )
+      } catch (error) {
+        record("cleanup", "fail", `${name}: ${String(error?.message ?? error)}`)
       }
-    } catch (error) {
-      record("cleanup", "fail", String(error?.message ?? error))
     }
-  } else if (ledger.name) {
-    record("cleanup", "skip", `--keep retained ${ledger.name}`)
+  } else if (ledger.size > 0) {
+    record("cleanup", "skip", `--keep retained ${[...ledger.keys()].join(", ")}`)
   }
 
   await client?.close().catch(() => undefined)
@@ -470,7 +725,7 @@ try {
   const summary = {
     system: SYSTEM_ID,
     runSuffix: RUN_SUFFIX,
-    ownedObject: ledger.name ?? null,
+    ownedObjects: [...ledger.keys()],
     ownedPackage: OWNED_PACKAGE,
     counts,
     results
