@@ -23,10 +23,10 @@ headless automation from any supported local MCP host.
 
 | | SAP ABAP MCP | SAP ADT MCP Server |
 |---|---|---|
-| Runtime | Independent local Node.js `stdio` process | Local HTTP server hosted by an ADT client |
-| Agent hosts | Codex, Claude, and other local MCP clients | MCP hosts configured against the running ADT server |
+| Runtime | Independent Node.js process: local `stdio`, or self-hosted Streamable HTTP for a shared instance | Local HTTP server hosted by an ADT client |
+| Agent hosts | Codex, Claude, and other MCP clients, locally or over HTTP | MCP hosts configured against the running ADT server |
 | SAP sessions | Multiple named profiles in one process | SAP projects and sessions managed by ADT |
-| Guardrails | Production profiles are read-only; writes support package restrictions and explicit confirmations | Governed by the installed ADT version, SAP authorizations, and client configuration |
+| Guardrails | Production profiles are read-only; writes support package restrictions and explicit confirmations; HTTP mode adds API key roles, rate limits, and a structured audit log | Governed by the installed ADT version, SAP authorizations, and client configuration |
 | Assurance | Read-only transport assessment with JSON, SARIF, and JUnit evidence | SAP-provided in-IDE development workflows |
 | Verification | Separates implemented, discovered, authorized, and live-verified capabilities | SAP product support and release documentation |
 
@@ -113,6 +113,37 @@ See the
 [v1 migration guide](docs/v1-migration.md) for contracts, Resources, and the
 separate live-SAP verification boundary.
 
+## Live SAP evidence
+
+Capabilities are reported as `unverified` until they succeed against a live
+connection. [`docs/live-sap-evidence.md`](docs/live-sap-evidence.md) records the
+current sanitized results — no credentials, no customer source, no host names.
+
+| Area | ECC 758 | S/4HANA 758 |
+|---|---|---|
+| `$TMP`-scoped v1 surface | 67 passed, 2 unsupported, 0 failed | 67 passed, 2 unsupported, 0 failed |
+| Self-hosted HTTP mode, roles, and audit | 13 of 13 passed | not run |
+| CI assurance gate and its artifacts | 7 of 7 passed | not run |
+
+154 live checks in total: 134 tool-surface checks across two systems, plus 20
+transport and CI checks on one. The tool-surface count counts each capability once
+per system, because release coverage is the claim; it is not 134 distinct
+capabilities. Every assessed capability behaved identically on ECC and S/4HANA at
+release 758, and the two `unsupported` results are the same on both.
+
+Reproduce the tool-surface run against your own development system:
+
+```bash
+npm run evidence:live -- DEV100
+```
+
+The harness creates exactly one class in the local package `$TMP` under a
+run-unique name, treats it as owned only after a create receipt and an immediate
+exact read-back agree, refuses in code to mutate anything else, and deletes it
+again. Existing objects are only ever read. The two `unsupported` results are
+missing SAP-side prerequisites — the ABAP REPL and the abapGit ADT backend — not
+defects.
+
 ## ABAP FS parity status
 
 The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless feature extensions and `read_deferred_result`, this server advertises 53 tools in total.
@@ -167,6 +198,55 @@ Grouping related actions keeps the tool-schema footprint lower than exposing eve
 The returned gate is `passed`, `failed`, or `incomplete`. Truncated object coverage, truncated ATC findings, failed check execution, empty transports, and classes without discoverable tests prevent a pass. A target-system difference is recorded as landscape evidence rather than automatically treated as a failure. Assessment never releases the transport; `release_transport` remains a separate confirmed mutation.
 
 The plugin includes `sap-abap-change-assurance` for this workflow. In Claude Code run `/sap-abap-mcp:sap-abap-change-assurance`; in Codex ask to use `$sap-abap-change-assurance`.
+
+### Gate a pipeline without an MCP host
+
+Change assurance does not require an AI agent. The `assure` command runs the same
+read-only assessment directly and turns the gate into an exit code:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest assure DEV100 --transport DEVK900123 \
+  --checks atc,unit_tests --formats json,sarif,junit \
+  --report-directory ./reports
+```
+
+| Exit code | Gate | Meaning |
+|---|---|---|
+| 0 | `passed` | Every assessed object passed every requested check |
+| 1 | `failed` | A check produced a definite failure |
+| 2 | `incomplete` | Safety could not be proven — truncated coverage, a check that could not run, an empty transport, or a class with no discoverable tests |
+
+`incomplete` blocks by default. Pass `--fail-on failed` when only definite
+failures should stop a build. `assure` never releases or modifies the transport.
+
+### GitHub Action
+
+[`action.yml`](action.yml) wraps the same command and uploads SARIF to GitHub code
+scanning, so ABAP findings appear next to the rest of a repository's security
+results:
+
+```yaml
+- uses: Coaspe/sap-abap-mcp@v1
+  id: assurance
+  with:
+    sap-url: ${{ secrets.SAP_URL }}
+    sap-client: "100"
+    sap-username: ${{ secrets.SAP_USERNAME }}
+    sap-password: ${{ secrets.SAP_PASSWORD }}
+    transport: ${{ inputs.transport }}
+    checks: atc,unit_tests
+
+- uses: github/codeql-action/upload-sarif@v3
+  if: always()
+  with:
+    sarif_file: ${{ steps.assurance.outputs.report-sarif }}
+```
+
+The action outputs `gate`, `report-json`, `report-sarif`, and `report-junit`, and
+writes a job summary. The SAP password is passed only through a
+profile-specific environment variable, never as a command argument, so it does
+not appear in a process list or a command echo. The runner needs network or VPN
+access to SAP.
 
 ## MCP directories and registries
 
@@ -230,7 +310,30 @@ The hidden prompt requests the OAuth client secret. The profile file stores the 
 
 For automation, pipe the client secret and add `--password-stdin`. On Linux, create the profile without `--login`, place the client secret in the printed profile-specific `SAP_ABAP_MCP_PASSWORD_<PROFILE>` environment variable, and start the MCP process from that environment. The variable name is retained for backward compatibility even when its value is an OAuth client secret.
 
-This mode requires explicit token URL, client ID, and client secret fields; it does not parse a BTP service-key JSON document. Browser SSO, MFA flows, client certificates, Kerberos, and direct static-bearer profiles remain unsupported. OAuth implementation is still live-unverified for a particular SAP system until `doctor` succeeds there.
+Browser SSO, MFA flows, client certificates, Kerberos, and direct static-bearer profiles remain unsupported. OAuth implementation is still live-unverified for a particular SAP system until `doctor` succeeds there.
+
+### SAP BTP ABAP environment service keys
+
+A service key downloaded from an ABAP environment service instance already
+contains the endpoint, client id, and client secret, so it can be imported
+directly:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest profile add BTP100 --service-key ./service-key.json
+```
+
+The command reads `url` for the ABAP endpoint, composes the token endpoint from
+`uaa.url` (or uses an explicit `uaa.tokenurl` when the key provides one), sets SAP
+client `100`, verifies the credentials against SAP, and stores the client secret
+in the protected credential store. The secret is never typed into a terminal or
+passed as a command argument.
+
+**Delete the service key file afterwards.** BTP delivers it with the client
+secret in plain text, and importing it does not remove that copy.
+
+Service keys that use X.509 client certificates instead of a client secret are
+rejected with `SERVICE_KEY_CERTIFICATE_UNSUPPORTED` rather than producing a
+profile that could never authenticate.
 
 ## Prerequisites
 
@@ -412,6 +515,227 @@ Repository-changing operations enforce these rules:
 
 Transport release and deletion can be irreversible. Use a dedicated transport and verify the exact confirmation value before executing either action.
 
+## Audit log
+
+Auditing is off by default and is enabled per server process. When enabled, every
+tool call and Resource read emits exactly one JSON Lines record:
+
+```powershell
+npx.cmd @coaspe/sap-abap-mcp@latest serve --profile DEV100 `
+  --audit-log file --audit-log-file C:\ProgramData\sap-abap-mcp\audit.jsonl
+```
+
+Use `--audit-log stderr` to send the same records to the MCP host's server log
+instead of a file. The equivalent environment variables are
+`SAP_ABAP_MCP_AUDIT_LOG`, `SAP_ABAP_MCP_AUDIT_LOG_FILE`, and
+`SAP_ABAP_MCP_AUDIT_INCLUDE_ARGUMENTS=1`, so a managed launcher can enable
+auditing without changing the registered MCP command.
+
+Each record carries the `sap-abap-mcp.audit/v1` schema:
+
+| Field | Meaning |
+|---|---|
+| `principal` | Actor identity; `local-process` uses the OS user running the process |
+| `kind`, `name` | `tool` or `resource`, and the advertised capability name |
+| `mutation` | True when the capability is not advertised with `readOnlyHint: true` |
+| `destructive` | True when the capability advertises `destructiveHint: true` |
+| `outcome` | `succeeded`, `denied` for a guardrail refusal, or `failed` |
+| `errorCode` | Machine-readable code for a `denied` or `failed` outcome |
+| `systemId`, `target` | Selected SAP profile and scalar object identity only |
+| `durationMs`, `timestamp`, `eventId` | Timing and correlation |
+| `argumentsDigest` | SHA-256 prefix of the redacted arguments |
+
+`outcome: "denied"` separates policy refusals such as
+`PRODUCTION_WRITE_BLOCKED`, `PACKAGE_NOT_ALLOWED`, `TRANSPORT_REQUIRED`, and
+`QUERY_NOT_READ_ONLY` from technical failures, so blocked attempts can be
+counted independently.
+
+Arguments are excluded unless `--audit-include-arguments` is set. Even then,
+credential-shaped keys are replaced with `[redacted]`, strings are truncated at
+512 bytes so an ABAP source body is never written whole, arrays and recursion
+depth are capped, and an oversized argument object is reduced to a byte count.
+`argumentsDigest` is computed from the redacted arguments, so it correlates
+repeated calls without recording their content.
+
+A file sink creates its parent directory and the log file with owner-only
+permissions, and degrades to a single stderr warning rather than failing a tool
+call if the file becomes unwritable.
+
+Two boundaries are deliberate. A request rejected by MCP input-schema
+validation never reaches the capability and is not audited, because it never
+reached SAP. In stdio mode the `principal` is the local process identity, not
+the SAP user; the SAP user is determined by the profile named in `systemId`. In
+HTTP mode the `principal` is the authenticated API key id.
+
+## Self-hosted HTTP mode
+
+The default runtime is a local `stdio` process. `serve --http` runs the same
+server over MCP Streamable HTTP so that one team can operate a single instance
+per SAP system with central configuration, central API keys, and one audit
+stream, instead of every developer holding SAP credentials on a laptop.
+
+The HTTP listener is built directly on `node:http`. This mode adds **no new
+runtime dependency**, so the supply chain and audited attack surface are the
+same as the stdio runtime.
+
+### 1. Create API keys
+
+```bash
+npx @coaspe/sap-abap-mcp@latest apikey new alice --role developer
+```
+
+The command prints the key once together with a `record` object. Add the record
+to the `keys` array of a key file; the file stores only the SHA-256 digest, so a
+disclosed key file contains no usable credential.
+
+```json
+{
+  "keys": [
+    { "id": "alice", "role": "developer", "keySha256": "…" },
+    { "id": "audit-bot", "role": "viewer", "keySha256": "…" }
+  ]
+}
+```
+
+### 2. Start the server
+
+```bash
+npx @coaspe/sap-abap-mcp@latest serve --http \
+  --api-keys-file /etc/sap-abap-mcp/api-keys.json \
+  --host 0.0.0.0 --port 3000 --allowed-host mcp.internal.example.com
+```
+
+`--api-keys-file` is mandatory: this mode never starts unauthenticated. Clients
+connect with `Authorization: Bearer <key>`. `GET /healthz` needs no credential
+and performs no SAP call. Auditing defaults to the `stderr` sink in HTTP mode
+because a shared server should not run unaudited.
+
+### 3. Roles
+
+A role is bound to an API key and restricts the surface a session can even see;
+a hidden tool cannot be called by guessing its name.
+
+| Role | Advertised surface |
+|---|---|
+| `viewer` | Only tools advertised with `readOnlyHint: true` |
+| `developer` | Everything except the admin-only list below |
+| `admin` | The complete selected surface |
+
+Admin-only tools are the irreversible or landscape-wide ones:
+`sap.transport.release`, `sap.transport.delete`, `sap.transport.owner.set`,
+`sap.transport.user.add`, `sap.repository.delete.execute`,
+`sap.version.restore.execute`, `sap.git.push`, `sap.git.unlink`,
+`sap.git.branch.switch`, `sap.rap.binding.publish`,
+`sap.rap.binding.unpublish`, and `sap.ui.transaction_launch`.
+
+Legacy `--api-version v0` groups many actions behind one tool name, so on that
+surface only the `viewer` restriction is meaningful. Use the default v1 surface
+when roles matter.
+
+### 4. OIDC/JWT instead of static keys
+
+An existing identity provider can issue MCP credentials, so keys do not have to be
+distributed and rotated by hand:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest serve --http \
+  --oidc-issuer https://login.example.com/oauth2/v2.0 \
+  --oidc-audience sap-abap-mcp \
+  --oidc-role-map "sap.developer=developer,sap.admin=admin" \
+  --host 0.0.0.0 --port 3000
+```
+
+Clients then present the provider's access token as `Authorization: Bearer <jwt>`.
+API keys and OIDC can be enabled together; at least one is required.
+
+| Control | Behaviour |
+|---|---|
+| Algorithms | `RS256/384/512`, `PS256/384/512`, `ES256/384/512`. `HS*` and `none` are refused, because verifying an HMAC would require the server to hold the signing secret |
+| Keys | Fetched from `--oidc-jwks-uri`, defaulting to `<issuer>/.well-known/jwks.json`, cached for five minutes, refreshed once on an unknown `kid` so rotation is picked up |
+| Claims | `iss` and `aud` must match, `exp` is required, `nbf` is honoured, and 60 seconds of clock skew is tolerated |
+| Identity | `sub` becomes the audit principal; `preferred_username` is recorded when present |
+| Role | Read from `--oidc-role-claim`, default `scope`, mapped through `--oidc-role-map`. When several mapped values are present the highest privilege wins. Unmapped tokens fall back to `--oidc-default-role`, default `viewer` |
+
+Verification uses `node:crypto` only, so enabling OIDC still adds no dependency.
+The equivalent environment variables are `SAP_ABAP_MCP_OIDC_ISSUER`,
+`SAP_ABAP_MCP_OIDC_AUDIENCE`, `SAP_ABAP_MCP_OIDC_JWKS_URI`, and
+`SAP_ABAP_MCP_OIDC_ROLE_MAP`.
+
+### 5. Per-user SAP identity
+
+By default every session reaches SAP through whichever profile it names. Assigning
+profiles per person makes SAP-side attribution per person too:
+
+```json
+{
+  "keys": [
+    { "id": "alice", "role": "developer", "keySha256": "…", "systemIds": ["DEV100_ALICE"] },
+    { "id": "bob", "role": "developer", "keySha256": "…", "systemIds": ["DEV100_BOB"] }
+  ]
+}
+```
+
+Register one SAP profile per developer, each with that person's own SAP user, and
+list it in their `systemIds`. Then:
+
+- SAP change documents attribute the work to that person's SAP user, not to one
+  shared technical account.
+- SAP authorization objects apply per person, so the SAP system itself becomes an
+  enforcement layer rather than only this server.
+- `sap.system.list` shows a principal only its own systems, and naming another
+  system returns `PROFILE_NOT_ALLOWED` without disclosing which systems others
+  may use.
+
+Omitting `systemIds` keeps every configured profile reachable, which is the
+single-identity default. SAP logins stay pooled across sessions.
+
+This is credential separation, not SAP principal propagation: the server still
+holds each person's SAP credential. Forwarding an end-user token into SAP requires
+the BTP token-exchange path tracked in the [roadmap](ROADMAP.md).
+
+### 6. Transport security
+
+| Control | Behaviour |
+|---|---|
+| Bind address | Defaults to `127.0.0.1`; `--host 0.0.0.0` is an explicit opt-in |
+| TLS | Terminate TLS at a reverse proxy; this server speaks plain HTTP |
+| Origin | A request carrying `Origin` is rejected unless listed in `--allowed-origin`, which blocks browser-based cross-site and DNS-rebinding access |
+| Host | `--allowed-host` restricts accepted `Host` header values |
+| Session binding | A session is bound to the API key that opened it; replaying its id under another key returns 403 |
+| Rate limit | `--rate-limit` requests per principal per minute, default 240, reported through `RateLimit-*` and `Retry-After` |
+| Concurrency | `--max-concurrent` bounds in-flight SAP requests, default 8 |
+| Sessions | `--max-sessions` default 64, `--session-timeout` idle seconds default 1800 |
+| Body size | Requests above 4 MiB are rejected with 413 |
+| Headers | HSTS, `nosniff`, `DENY` framing, a `default-src 'none'` CSP, `no-referrer`, and `no-store` on every response |
+| CORS | Off unless `--allowed-origin` is set |
+
+Each session gets its own tool service, so preview plans, staged abapGit
+snapshots, and execution plans are never shared between principals. SAP logins
+stay pooled across sessions.
+
+### 7. Container deployment
+
+```bash
+docker build -t sap-abap-mcp .
+docker run --rm -p 3000:3000 \
+  -v /etc/sap-abap-mcp/api-keys.json:/run/secrets/sap-abap-mcp-api-keys.json:ro \
+  -e SAP_ABAP_MCP_PASSWORD_DEV100="$SAP_PASSWORD" \
+  sap-abap-mcp
+```
+
+The image contains no SAP credentials and no API keys. It runs as a non-root
+user, and the Linux secret store is read-only, so SAP passwords are supplied
+only through profile-specific environment variables.
+
+### Current limitation: SAP principal propagation
+
+Per-person SAP profiles give per-person SAP attribution and authorization, but the
+server still holds each person's SAP credential. Forwarding an end-user token into
+SAP — true principal propagation through Cloud Connector or the BTP
+`OAuth2UserTokenExchange` flow — is tracked in the [roadmap](ROADMAP.md) and is
+not in this release. The HTTP listener also speaks plain HTTP; terminate TLS at a
+reverse proxy.
+
 ## Token-efficient operation
 
 The server is designed to keep model context usage bounded without removing useful data:
@@ -504,9 +828,22 @@ abapgit auth login <id> --repository-url <url> --username <user> [--password-std
 abapgit auth status <id> --repository-url <url>
 abapgit auth logout <id> --repository-url <url>
 
+apikey new <id> [--role viewer|developer|admin]
+
+assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
+    [--target-system <id>] [--fail-on-atc-warnings] [--max-objects <n>]
+    [--formats json,sarif,junit] [--report-directory <path>]
+    [--fail-on incomplete|failed]
+
 doctor <id> [--include-components]
 serve [--profile <id>] [--api-version v0|v1]
     [--toolsets core,write,analysis,debug,operations,artifacts|all]
+    [--audit-log none|stderr|file] [--audit-log-file <path>]
+    [--audit-include-arguments]
+    [--http --api-keys-file <path> [--host <host>] [--port <n>]
+     [--allowed-origin <origin,...>] [--allowed-host <host,...>]
+     [--rate-limit <requests-per-minute>] [--max-concurrent <n>]
+     [--max-sessions <n>] [--session-timeout <seconds>]]
 ```
 
 Removing a profile also removes its SAP password or OAuth client secret and stored abapGit credential vault.
@@ -554,8 +891,9 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 - Published npm version: `1.0.0`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
-- Transport: local MCP over stdio
-- Authentication: SAP Basic Auth by default; opt-in OAuth client credentials
+- Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP
+- SAP authentication: SAP Basic Auth by default; opt-in OAuth client credentials
+- HTTP client authentication: mandatory Bearer API keys with viewer/developer/admin roles
 - Secret storage: macOS Keychain, Windows DPAPI, or read-only environment variables on Linux
 - SAP API client: `abap-adt-api` 8.4.1
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
@@ -570,7 +908,7 @@ availability and authorization vary by SAP release and system configuration.
 
 These reflect ADT behaviour that varies by SAP system. The tools fail safely and report an actionable message when a system does not support the operation.
 
-- **Transport release of requests/tasks that contain objects**: some systems reject the synchronous ADT release endpoint for object-bearing transports and only run release as a background job from the GUI. In that case `release_transport` returns `TRANSPORT_RELEASE_UNSUPPORTED` with guidance to release from SE10/SE09. Empty and request-only transports release normally.
+- **Transport release of requests/tasks that contain objects**: some systems reject the synchronous ADT release endpoint for object-bearing transports and only run release as a background job from the GUI. In that case `release_transport` returns `TRANSPORT_RELEASE_UNSUPPORTED` with guidance to release from SE10/SE09, and the error details carry the ADT endpoint, HTTP status, ADT error type, and the exact SAP response text. The asynchronous background-run path is not implemented because its ADT wire protocol is not publicly documented and is not exposed by `abap-adt-api`; implementing it by guessing endpoints is explicitly out of scope. If you can reproduce this, attach those preserved error details to an issue — they are the evidence the implementation needs. Empty and request-only transports release normally.
 - **abapGit tools require the abapGit ADT backend**: the git tools call `/sap/bc/adt/abapgit/*`. Systems that only have the standalone abapGit report (SE38) do not expose these endpoints, and the tools return `ABAPGIT_BACKEND_UNAVAILABLE`. Install the abapGit `ADT_Backend` to enable them.
 - **Cross-system compare needs two configured systems**: `compare_abap_systems` requires two distinct registered connections.
 - **RAP generation** creates a full artifact set and requires a suitable reference object (for example a root CDS entity with a behavior definition).
