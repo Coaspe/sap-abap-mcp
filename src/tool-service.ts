@@ -1299,6 +1299,17 @@ export class AbapToolService {
     registerBdefType()
   }
 
+  /**
+   * Release background work owned by this service instance. HTTP sessions get
+   * their own service so that preview plans stay isolated per principal, so a
+   * closing session must also stop any heartbeat it started.
+   */
+  dispose(): void {
+    this.heartbeatActive = false
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+    this.heartbeatTimer = undefined
+  }
+
   private async executeCapability<T>(
     connectionId: string,
     capabilityId: string,

@@ -4,7 +4,32 @@ import { stdin, stderr, stdout } from "node:process"
 import { realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { AppError, errorPayload } from "./errors.js"
+import {
+  AuditRecorder,
+  createAuditSink,
+  parseAuditSinkName
+} from "./audit-log.js"
+import { loadBtpServiceKey } from "./btp-service-key.js"
+import {
+  changeAssuranceExitCode,
+  type ChangeAssuranceCheck,
+  type ChangeAssuranceFormat,
+  type ChangeAssuranceGateStatus
+} from "./change-assurance.js"
 import { ConnectionManager } from "./connection-manager.js"
+import {
+  generateApiKey,
+  hashApiKey,
+  loadApiKeyRecords,
+  parseHttpRole
+} from "./http/auth.js"
+import {
+  createOidcAuthenticator,
+  parseOidcRoleMap,
+  type OidcAuthenticator
+} from "./http/oidc.js"
+import { ScopedConnectionProvider } from "./http/scoped-connections.js"
+import { startHttpMcpServer } from "./http/server.js"
 import { createMcpServer, startStdioServer } from "./mcp-server.js"
 import { parseMcpApiVersion } from "./mcp/api-version.js"
 import { resolveServeToolSelection } from "./mcp/tool-selection.js"
@@ -44,6 +69,11 @@ Commands:
       [--auth-type basic|oauth-client-credentials]
       [--token-url <url> --client-id <id> [--scope <scope>]]
       [--packages ZPKG1,ZPKG2] [--login [--password-stdin]]
+  profile add <id> --service-key <path> [--language EN]
+      [--environment development|quality|production] [--scope <scope>]
+      [--packages ZPKG1,ZPKG2]
+      Imports an SAP BTP ABAP environment service key, verifies it live, and
+      stores the client secret in the protected credential store.
   profile list
   profile remove <id>
   auth login <id> [--username <user>] [--password-stdin]
@@ -53,8 +83,25 @@ Commands:
   abapgit auth status <id> --repository-url <url>
   abapgit auth logout <id> --repository-url <url>
   doctor <id> [--include-components]
+  apikey new <id> [--role viewer|developer|admin]
+  assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
+      [--target-system <id>] [--fail-on-atc-warnings] [--max-objects <n>]
+      [--formats json,sarif,junit] [--report-directory <path>]
+      [--fail-on incomplete|failed]
+      Read-only transport change assurance for CI. Exit 0 passed, 1 failed,
+      2 incomplete. Never releases or modifies the transport.
   serve [--profile <id>] [--api-version v0|v1] [--toolsets core,write,analysis,debug,operations,artifacts|all]
-      Defaults: api-version v1, toolsets all
+      [--audit-log none|stderr|file] [--audit-log-file <path>] [--audit-include-arguments]
+      [--http [--api-keys-file <path>]
+       [--oidc-issuer <url> --oidc-audience <aud> [--oidc-jwks-uri <url>]
+        [--oidc-role-claim <claim>] [--oidc-role-map <value>=<role>,...]
+        [--oidc-default-role viewer|developer|admin]]
+       [--host <host>] [--port <n>]
+       [--allowed-origin <origin>] [--allowed-host <host>]
+       [--rate-limit <requests-per-minute>] [--max-concurrent <n>]
+       [--max-sessions <n>] [--session-timeout <seconds>]]
+       Requires --api-keys-file, --oidc-issuer, or both.
+      Defaults: api-version v1, toolsets all, audit-log none, stdio transport
 `
 
 interface ParsedArguments {
@@ -219,6 +266,40 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     const environment = option(parsed, "environment")
     const username = option(parsed, "username")
     const packages = option(parsed, "packages")
+    const serviceKeyPath = option(parsed, "service-key")
+
+    if (serviceKeyPath) {
+      // A BTP service key already carries the endpoint, client id, and client
+      // secret, so it supplies every OAuth field and the secret is never typed
+      // into a terminal or passed as an argument.
+      const key = loadBtpServiceKey(serviceKeyPath)
+      const serviceKeyInput: SapProfileInput = {
+        id,
+        url: key.url,
+        client: key.client,
+        ...(language ? { language } : {}),
+        ...(environment ? { environment: environment as SapProfile["environment"] } : {}),
+        ...(username ? { username } : {}),
+        authType: "oauth_client_credentials",
+        tokenUrl: key.tokenUrl,
+        clientId: key.clientId,
+        ...(option(parsed, "scope") ? { scope: option(parsed, "scope") } : {}),
+        ...(packages ? { allowedPackages: packages.split(",") } : {})
+      }
+      const manager = new ConnectionManager(profiles, secrets)
+      const result = await addProfile(serviceKeyInput, profiles, secrets, {
+        password: key.clientSecret,
+        validateCredentials: (profile, value) =>
+          manager.validateCredentials(profile, value)
+      })
+      writeJson({
+        ...result,
+        ...(key.systemId ? { serviceKeySystemId: key.systemId } : {}),
+        note: `The client secret was stored in the protected credential store. Delete ${serviceKeyPath} now; it still contains the secret in plain text.`
+      })
+      return
+    }
+
     const authTypeOption = option(parsed, "auth-type") ?? "basic"
     if (authTypeOption !== "basic" && authTypeOption !== "oauth-client-credentials") {
       throw new AppError(
@@ -440,6 +521,196 @@ async function setupCommand(
   }
 }
 
+function commaList(parsed: ParsedArguments, name: string): string[] {
+  const value = option(parsed, name)
+  if (!value) return []
+  return value.split(",").map(entry => entry.trim()).filter(Boolean)
+}
+
+function numericOption(
+  parsed: ParsedArguments,
+  name: string,
+  minimum: number
+): number | undefined {
+  const value = option(parsed, name)
+  if (value === undefined) return undefined
+  const parsedValue = Number(value)
+  if (!Number.isInteger(parsedValue) || parsedValue < minimum) {
+    throw new AppError(
+      "INVALID_OPTION",
+      `--${name} must be an integer of at least ${minimum}`
+    )
+  }
+  return parsedValue
+}
+
+/**
+ * Run transport change assurance from a pipeline without an MCP host.
+ *
+ * This is the CI entry point: it reaches the same read-only assessment the
+ * `sap.transport.assess` tool uses, writes JSON/SARIF/JUnit artifacts, and turns
+ * the gate into a process exit code so a pipeline can block on it. It never
+ * releases or modifies the transport.
+ */
+async function assureCommand(
+  parsed: ParsedArguments,
+  profiles: ProfileStore,
+  secrets: SecretStore
+): Promise<void> {
+  const connectionId = requiredPosition(parsed, 1, "SAP profile id")
+  const transportNumber = requiredOption(parsed, "transport")
+  const rawChecks = commaList(parsed, "checks")
+  const validChecks: ChangeAssuranceCheck[] = ["atc", "unit_tests", "target_compare"]
+  const invalidChecks = rawChecks.filter(
+    value => !(validChecks as string[]).includes(value)
+  )
+  if (invalidChecks.length > 0) {
+    throw new AppError(
+      "INVALID_CHECK",
+      `Unknown checks: ${invalidChecks.join(", ")}`,
+      { available: validChecks }
+    )
+  }
+  const rawFormats = commaList(parsed, "formats")
+  const validFormats: ChangeAssuranceFormat[] = ["json", "sarif", "junit"]
+  const invalidFormats = rawFormats.filter(
+    value => !(validFormats as string[]).includes(value)
+  )
+  if (invalidFormats.length > 0) {
+    throw new AppError(
+      "INVALID_FORMAT",
+      `Unknown report formats: ${invalidFormats.join(", ")}`,
+      { available: validFormats }
+    )
+  }
+  const failOn = option(parsed, "fail-on") ?? "incomplete"
+  if (failOn !== "incomplete" && failOn !== "failed") {
+    throw new AppError(
+      "INVALID_FAIL_ON",
+      "--fail-on must be incomplete or failed"
+    )
+  }
+  const targetSystem = option(parsed, "target-system")
+  const maxObjects = numericOption(parsed, "max-objects", 1)
+  const reportDirectory = option(parsed, "report-directory")
+
+  const manager = new ConnectionManager(profiles, secrets)
+  const service = new AbapToolService(manager, secrets)
+  try {
+    const report = await service.manageTransportRequests({
+      action: "assess_transport",
+      connectionId,
+      transportNumber,
+      ...(rawChecks.length > 0
+        ? { checks: rawChecks as ChangeAssuranceCheck[] }
+        : {}),
+      ...(targetSystem ? { targetConnectionId: targetSystem } : {}),
+      ...(maxObjects !== undefined ? { maxObjects } : {}),
+      failOnAtcWarnings: parsed.options.has("fail-on-atc-warnings"),
+      reportFormats: (rawFormats.length > 0
+        ? rawFormats
+        : ["json", "sarif", "junit"]) as ChangeAssuranceFormat[],
+      ...(reportDirectory ? { reportDirectory } : {}),
+      startIndex: 0,
+      maxResults: 20,
+      includeObjects: false
+    }) as {
+      gate: { status: ChangeAssuranceGateStatus; reasons: string[] }
+      reports: Array<{ format: string; outputPath: string }>
+    }
+    writeJson(report)
+    process.exitCode = changeAssuranceExitCode(report.gate.status, failOn)
+  } finally {
+    service.dispose()
+    await manager.close().catch(() => undefined)
+  }
+}
+
+async function apikeyCommand(parsed: ParsedArguments): Promise<void> {
+  const action = parsed.positionals[1]
+  if (action !== "new") {
+    throw new AppError(
+      "UNKNOWN_ACTION",
+      "Usage: apikey new <id> [--role viewer|developer|admin]"
+    )
+  }
+  const id = requiredPosition(parsed, 2, "API key id")
+  const role = parseHttpRole(option(parsed, "role") ?? "viewer")
+  const key = generateApiKey()
+  writeJson({
+    key,
+    record: { id, role, keySha256: hashApiKey(key) },
+    note: "Store `key` in the client's Authorization: Bearer header. Add `record` to the keys array of the --api-keys-file. The key itself is not recoverable from the file."
+  })
+}
+
+/**
+ * Build an OIDC authenticator when an issuer is configured. The JWKS URI
+ * defaults to the standard discovery location so a typical deployment only needs
+ * the issuer and the audience.
+ */
+function resolveOidcAuthenticator(
+  parsed: ParsedArguments
+): OidcAuthenticator | undefined {
+  const issuer = option(parsed, "oidc-issuer") ?? process.env.SAP_ABAP_MCP_OIDC_ISSUER
+  if (!issuer) return undefined
+  const audience = option(parsed, "oidc-audience") ??
+    process.env.SAP_ABAP_MCP_OIDC_AUDIENCE
+  if (!audience) {
+    throw new AppError(
+      "OPTION_REQUIRED",
+      "--oidc-issuer requires --oidc-audience"
+    )
+  }
+  const jwksUri = option(parsed, "oidc-jwks-uri") ??
+    process.env.SAP_ABAP_MCP_OIDC_JWKS_URI ??
+    `${issuer.replace(/\/+$/, "")}/.well-known/jwks.json`
+  const roleClaim = option(parsed, "oidc-role-claim")
+  const defaultRole = option(parsed, "oidc-default-role")
+  return createOidcAuthenticator({
+    issuer,
+    audience,
+    jwksUri,
+    roleMap: parseOidcRoleMap(
+      option(parsed, "oidc-role-map") ?? process.env.SAP_ABAP_MCP_OIDC_ROLE_MAP
+    ),
+    ...(roleClaim ? { roleClaim } : {}),
+    ...(defaultRole ? { defaultRole: parseHttpRole(defaultRole) } : {})
+  })
+}
+
+/**
+ * Resolve audit-log settings from CLI flags, falling back to environment
+ * variables so that a centrally managed launcher can enable auditing without
+ * changing the registered MCP command. Returns undefined when auditing is off.
+ *
+ * HTTP mode defaults to the `stderr` sink: a shared, centrally operated server
+ * should not run unaudited, and container runtimes already collect stderr.
+ */
+function resolveAuditRecorder(
+  parsed: ParsedArguments,
+  apiVersion: string,
+  defaultSink: "none" | "stderr" = "none"
+): AuditRecorder | undefined {
+  const rawSink = parsed.options.get("audit-log")
+  if (rawSink === true) {
+    throw new AppError("OPTION_REQUIRED", "--audit-log requires a value")
+  }
+  const sink = parseAuditSinkName(
+    rawSink ?? process.env.SAP_ABAP_MCP_AUDIT_LOG ?? defaultSink
+  )
+  if (sink === "none") return undefined
+  const file = option(parsed, "audit-log-file") ??
+    process.env.SAP_ABAP_MCP_AUDIT_LOG_FILE
+  const includeArguments = parsed.options.has("audit-include-arguments") ||
+    process.env.SAP_ABAP_MCP_AUDIT_INCLUDE_ARGUMENTS === "1"
+  return new AuditRecorder({
+    sink: createAuditSink({ sink, includeArguments, ...(file ? { file } : {}) }),
+    apiVersion,
+    includeArguments
+  })
+}
+
 async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, secrets: SecretStore) {
   const rawApiVersion = parsed.options.get("api-version")
   if (rawApiVersion === true) {
@@ -475,10 +746,84 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
     )
   }
 
+  const http = parsed.options.has("http")
+  const auditRecorder = resolveAuditRecorder(
+    parsed,
+    apiVersion,
+    http ? "stderr" : "none"
+  )
   const manager = new ConnectionManager(profiles, secrets, undefined, profileId)
+
+  if (http) {
+    const apiKeysFile = option(parsed, "api-keys-file")
+    const apiKeys = apiKeysFile ? loadApiKeyRecords(apiKeysFile) : []
+    const oidc = resolveOidcAuthenticator(parsed)
+    if (apiKeys.length === 0 && !oidc) {
+      throw new AppError(
+        "CLIENT_AUTH_REQUIRED",
+        "--http requires --api-keys-file, --oidc-issuer, or both"
+      )
+    }
+    const rateLimitPerPrincipal = numericOption(parsed, "rate-limit", 1)
+    const maxConcurrentRequests = numericOption(parsed, "max-concurrent", 1)
+    const maxSessions = numericOption(parsed, "max-sessions", 1)
+    const sessionTimeoutSeconds = numericOption(parsed, "session-timeout", 30)
+    const running = await startHttpMcpServer({
+      apiKeys,
+      ...(option(parsed, "host") ? { host: option(parsed, "host")! } : {}),
+      ...(numericOption(parsed, "port", 1) !== undefined
+        ? { port: numericOption(parsed, "port", 1)! }
+        : {}),
+      allowedOrigins: commaList(parsed, "allowed-origin"),
+      allowedHosts: commaList(parsed, "allowed-host"),
+      ...(rateLimitPerPrincipal !== undefined ? { rateLimitPerPrincipal } : {}),
+      ...(maxConcurrentRequests !== undefined ? { maxConcurrentRequests } : {}),
+      ...(maxSessions !== undefined ? { maxSessions } : {}),
+      ...(sessionTimeoutSeconds !== undefined
+        ? { sessionIdleTimeoutMs: sessionTimeoutSeconds * 1000 }
+        : {}),
+      ...(auditRecorder ? { auditRecorder } : {}),
+      ...(oidc ? { oidc } : {}),
+      // One service and one MCP server per session, so preview plans, staged Git
+      // snapshots, and execution plans are never shared between principals. The
+      // ConnectionManager stays shared so SAP logins are pooled, while the
+      // scoping provider limits each principal to its own SAP profiles.
+      createMcpServerForSession: ({ principal, auditRecorder: sessionRecorder }) => {
+        const service = new AbapToolService(
+          new ScopedConnectionProvider(manager, principal.systemIds),
+          secrets
+        )
+        return {
+          server: createMcpServer(service, {
+            apiVersion,
+            ...selection,
+            role: principal.role,
+            ...(sessionRecorder ? { auditRecorder: sessionRecorder } : {})
+          }),
+          dispose: () => service.dispose()
+        }
+      }
+    })
+    let closingHttp = false
+    const closeHttp = async () => {
+      if (closingHttp) return
+      closingHttp = true
+      await running.close().catch(() => undefined)
+      await manager.close()
+      if (auditRecorder) await auditRecorder.close().catch(() => undefined)
+    }
+    process.once("SIGINT", () => void closeHttp().finally(() => process.exit(0)))
+    process.once("SIGTERM", () => void closeHttp().finally(() => process.exit(0)))
+    return
+  }
+
   const server = createMcpServer(
     new AbapToolService(manager, secrets),
-    { apiVersion, ...selection }
+    {
+      apiVersion,
+      ...selection,
+      ...(auditRecorder ? { auditRecorder } : {})
+    }
   )
   let closing = false
   const close = async () => {
@@ -486,6 +831,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
     closing = true
     await server.close().catch(() => undefined)
     await manager.close()
+    if (auditRecorder) await auditRecorder.close().catch(() => undefined)
   }
   process.once("SIGINT", () => void close().finally(() => process.exit(0)))
   process.once("SIGTERM", () => void close().finally(() => process.exit(0)))
@@ -507,6 +853,8 @@ export async function runCli(args = process.argv.slice(2)): Promise<void> {
   if (command === "profile") return profileCommand(parsed, profiles, secrets)
   if (command === "auth") return authCommand(parsed, profiles, secrets)
   if (command === "abapgit") return abapGitCommand(parsed, profiles, secrets)
+  if (command === "apikey") return apikeyCommand(parsed)
+  if (command === "assure") return assureCommand(parsed, profiles, secrets)
   if (command === "doctor") return doctorCommand(parsed, profiles, secrets)
   if (command === "serve") return serveCommand(parsed, profiles, secrets)
   throw new AppError("UNKNOWN_COMMAND", `Unknown command: ${command}`)

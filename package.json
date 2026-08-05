@@ -45,6 +45,7 @@
     "llms-install.md",
     "scripts/benchmark-mcp-surface.mjs",
     "scripts/check-profile-conformance.mjs",
+    "scripts/live-evidence-tmp.mjs",
     "scripts/smoke-v1-stdio.mjs",
     "assets"
   ],
@@ -62,6 +63,7 @@
     "contract:v0:update": "npm run build && node scripts/update-v0-contract.mjs",
     "sync:mcpb-tools": "npm run build && node scripts/sync-mcpb-tools.mjs --write",
     "render:demo": "node scripts/render-demo.mjs",
+    "evidence:live": "npm run build && node scripts/live-evidence-tmp.mjs",
     "conformance:v1": "npm run build && node scripts/check-profile-conformance.mjs",
     "conformance:v1:json": "node scripts/check-profile-conformance.mjs",
     "test": "npm run build && node --test dist/test/*.test.js",
