@@ -1,27 +1,28 @@
 import assert from "node:assert/strict"
 import { existsSync, readFileSync } from "node:fs"
 import test from "node:test"
+import { readText } from "./helpers/read-text.js"
 
 const registryName = "io.github.Coaspe/sap-abap-mcp"
 
 test("supply-chain metadata enables private reporting and npm provenance", () => {
   assert.ok(existsSync("SECURITY.md"), "missing SECURITY.md")
-  const securityPolicy = readFileSync("SECURITY.md", "utf8")
+  const securityPolicy = readText("SECURITY.md")
   assert.match(
     securityPolicy,
     /https:\/\/github\.com\/Coaspe\/sap-abap-mcp\/security\/advisories\/new/
   )
 
-  const publishWorkflow = readFileSync(".github/workflows/publish-npm.yml", "utf8")
+  const publishWorkflow = readText(".github/workflows/publish-npm.yml")
   assert.match(publishWorkflow, /npm publish --provenance --access public/)
 
-  const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
+  const packageJson = JSON.parse(readText("package.json"))
   assert.equal(packageJson.publishConfig.provenance, true)
 })
 
 test("distribution metadata stays consistent across npm and the official MCP Registry", () => {
-  const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
-  const serverJson = JSON.parse(readFileSync("server.json", "utf8"))
+  const packageJson = JSON.parse(readText("package.json"))
+  const serverJson = JSON.parse(readText("server.json"))
 
   assert.equal(packageJson.version, "1.0.1")
   assert.equal(packageJson.mcpName, registryName)
@@ -78,7 +79,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
 })
 
 test("distribution assets contain the selected license and a 400 by 400 PNG icon", () => {
-  const license = readFileSync("LICENSE", "utf8")
+  const license = readText("LICENSE")
   assert.match(license, /^MIT License\n/)
   assert.match(license, /Copyright \(c\) 2026 Coaspe/)
   assert.match(license, /Permission is hereby granted, free of charge/)
@@ -96,7 +97,7 @@ test("README demo is a bounded 1200 by 675 GIF built from synthetic content", ()
   assert.equal(demo.readUInt16LE(8), 675)
   assert.ok(demo.length < 5_000_000)
 
-  const transcript = readFileSync("docs/demo-script.md", "utf8")
+  const transcript = readText("docs/demo-script.md")
   assert.match(transcript, /sap\.repository\.search/)
   assert.match(transcript, /sap\.quality\.unit_test/)
   assert.match(transcript, /sap\.transport\.assess/)
@@ -104,8 +105,8 @@ test("README demo is a bounded 1200 by 675 GIF built from synthetic content", ()
 })
 
 test("MCPB metadata launches the bundled local server on supported secret-store platforms", () => {
-  const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
-  const manifest = JSON.parse(readFileSync("mcpb/manifest.json", "utf8"))
+  const packageJson = JSON.parse(readText("package.json"))
+  const manifest = JSON.parse(readText("mcpb/manifest.json"))
 
   assert.equal(manifest.manifest_version, "0.4")
   assert.equal(manifest.name, "sap-abap-mcp")
@@ -140,9 +141,9 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.deepEqual(manifest.privacy_policies, [
     "https://github.com/Coaspe/sap-abap-mcp/blob/main/PRIVACY.md"
   ])
-  const readme = readFileSync("README.md", "utf8")
+  const readme = readText("README.md")
   assert.match(readme, /^## Privacy Policy$/m)
-  const privacy = readFileSync("PRIVACY.md", "utf8")
+  const privacy = readText("PRIVACY.md")
   for (const heading of [
     "Data processed by the software",
     "How data is used",
@@ -158,16 +159,16 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
 })
 
 test("Claude Code and Codex plugins launch the same published local MCP package", () => {
-  const packageJson = JSON.parse(readFileSync("package.json", "utf8"))
+  const packageJson = JSON.parse(readText("package.json"))
   const codexManifest = JSON.parse(
-    readFileSync("plugins/sap-abap-mcp/.codex-plugin/plugin.json", "utf8")
+    readText("plugins/sap-abap-mcp/.codex-plugin/plugin.json")
   )
   const claudeManifest = JSON.parse(
-    readFileSync("plugins/sap-abap-mcp/.claude-plugin/plugin.json", "utf8")
+    readText("plugins/sap-abap-mcp/.claude-plugin/plugin.json")
   )
-  const mcpConfig = JSON.parse(readFileSync("plugins/sap-abap-mcp/.mcp.json", "utf8"))
-  const codexMarketplace = JSON.parse(readFileSync(".agents/plugins/marketplace.json", "utf8"))
-  const claudeMarketplace = JSON.parse(readFileSync(".claude-plugin/marketplace.json", "utf8"))
+  const mcpConfig = JSON.parse(readText("plugins/sap-abap-mcp/.mcp.json"))
+  const codexMarketplace = JSON.parse(readText(".agents/plugins/marketplace.json"))
+  const claudeMarketplace = JSON.parse(readText(".claude-plugin/marketplace.json"))
 
   assert.equal(codexManifest.name, "sap-abap-mcp")
   assert.equal(codexManifest.version, packageJson.version)
@@ -216,7 +217,7 @@ test("Claude Code and Codex plugins launch the same published local MCP package"
 })
 
 test("README explains registry installation without claiming live SAP verification", () => {
-  const readme = readFileSync("README.md", "utf8")
+  const readme = readText("README.md")
   const quickStartIndex = readme.indexOf("## Quick start\n")
   const releaseStatusIndex = readme.indexOf("## Release status\n")
   assert.notEqual(quickStartIndex, -1)
@@ -240,20 +241,14 @@ test("README explains registry installation without claiming live SAP verificati
 })
 
 test("plugin onboarding keeps credentials local and verifies SAP explicitly", () => {
-  const pluginReadme = readFileSync("plugins/sap-abap-mcp/README.md", "utf8")
-  const setupSkill = readFileSync(
-    "plugins/sap-abap-mcp/skills/sap-abap-setup/SKILL.md",
-    "utf8"
-  )
-  const agentInstall = readFileSync("llms-install.md", "utf8")
-  const assuranceSkill = readFileSync(
-    "plugins/sap-abap-mcp/skills/sap-abap-change-assurance/SKILL.md",
-    "utf8"
-  )
-  const assuranceAgent = readFileSync(
-    "plugins/sap-abap-mcp/skills/sap-abap-change-assurance/agents/openai.yaml",
-    "utf8"
-  )
+  const pluginReadme = readText("plugins/sap-abap-mcp/README.md")
+  const setupSkill = readText(
+    "plugins/sap-abap-mcp/skills/sap-abap-setup/SKILL.md")
+  const agentInstall = readText("llms-install.md")
+  const assuranceSkill = readText(
+    "plugins/sap-abap-mcp/skills/sap-abap-change-assurance/SKILL.md")
+  const assuranceAgent = readText(
+    "plugins/sap-abap-mcp/skills/sap-abap-change-assurance/agents/openai.yaml")
 
   for (const document of [pluginReadme, agentInstall]) {
     assert.match(document, /\/sap-abap-mcp:sap-abap-setup/)
