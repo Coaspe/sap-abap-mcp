@@ -16,6 +16,14 @@ applicable live-SAP evidence agree.
 
 ## Next
 
+- Add SAP principal propagation. Per-person SAP profiles already give per-person
+  SAP attribution and authorization, but the server still holds each person's SAP
+  credential. Forwarding an end-user token into SAP requires Cloud Connector or
+  the BTP `OAuth2UserTokenExchange` flow.
+- Add BTP Cloud Foundry deployment with XSUAA and the Destination Service, so an
+  existing BTP landscape can host the server without bespoke configuration.
+- Add an audit sink for the BTP Audit Log Service alongside the file and stderr
+  sinks.
 - Define an admin-governed Dynpro extension profile for systems where public
   ADT endpoints do not provide the required screen CRUD operations.
 - Add end-to-end Fiori workflows that compose RAP/OData backend generation

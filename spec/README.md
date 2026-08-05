@@ -44,3 +44,12 @@ Changes begin as GitHub Discussions and must include the compatibility problem,
 contract impact, security impact, and evidence from at least one implementation.
 The profile remains `proposal` until independent implementations and adopters
 participate in governance.
+
+[`GOVERNANCE.md`](GOVERNANCE.md) states the full process, the rules that
+constrain the editor — no single-vendor requirements, no unverifiable
+requirements, a read-only required core, and recorded objections — and the exact
+evidence that moves `status` from `proposal` to `stable`.
+
+The validator measures any local stdio MCP server without that server's
+cooperation and without SAP credentials, so conformance is a published fact
+rather than a negotiated claim.
