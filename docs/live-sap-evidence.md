@@ -226,4 +226,21 @@ intended behaviour rather than a failure:
 - **abapGit and transport mutations.** `$TMP` ownership does not establish
   ownership of a Git remote or a transport, so those stay out of scope, as the
   acceptance procedure requires.
+- **Any Git integration at all, on these two systems.** Neither system exposes
+  the abapGit ADT backend, and a read-only probe of the gCTS REST service
+  distinguishes two different reasons:
+
+  | Probe | ECC | S/4HANA |
+  |---|---|---|
+  | A deliberately nonexistent ICF path | `200` with a generic UI shell page | `404` |
+  | `/sap/bc/cts_abapvcs/repository` | `200` with the same generic shell page | `403`, empty body |
+  | `/sap/bc/adt/discovery` (control) | `200` with data | `200` with data |
+
+  On the ECC system gCTS is indistinguishable from a path that does not exist,
+  because an ICF catch-all answers both. On the S/4HANA system the node is
+  registered but access is refused, which points at an inactive SICF node or a
+  missing authorization rather than a missing component. gCTS support is
+  therefore not implemented: it could not be exercised once on either system, and
+  writing it against an endpoint that cannot be called would be a guess. Making
+  the S/4HANA node reachable is the prerequisite.
 - **TLS.** The listener speaks plain HTTP and was reached over loopback.
