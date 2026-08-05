@@ -1,6 +1,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { AdtSapClient } from "../src/sap-client.js"
+import {
+  ADT_FAILURE_EVIDENCE_BYTE_LIMIT,
+  AdtSapClient,
+  adtFailureEvidence
+} from "../src/sap-client.js"
 import type { SapProfile } from "../src/profile-store.js"
 
 const profile: SapProfile = {
@@ -477,7 +481,17 @@ test("git operations surface an actionable message when the abapGit ADT backend 
 })
 
 test("a synchronous release rejected with 500 for an object-bearing request raises an actionable hint", async () => {
-  const httpError = Object.assign(new Error("Request failed with status code 500"), { status: 500 })
+  const httpError = Object.assign(new Error("Request failed with status code 500"), {
+    status: 500,
+    type: "ExceptionResourceNoAccess",
+    response: {
+      body:
+        `<?xml version="1.0" encoding="utf-8"?>` +
+        `<exc:exception xmlns:exc="http://www.sap.com/abapxml/types/communicationframework">` +
+        `<message lang="EN">Release of DEVK900123 runs only as a background job</message>` +
+        `</exc:exception>`
+    }
+  })
   const fakeAdt: any = {
     transportDetails: async () => ({
       "tm:number": "DEVK900123",
@@ -498,6 +512,32 @@ test("a synchronous release rejected with 500 for an object-bearing request rais
       error?.code === "TRANSPORT_RELEASE_UNSUPPORTED" &&
       /SE10/.test(error?.message ?? "")
   )
+
+  // The ADT endpoint and the exact SAP response text must survive into the error
+  // details: implementing the asynchronous background-run release path needs
+  // that wire evidence, and repeating a failed release to recover it is unsafe.
+  const captured = await client.releaseTransport("DEVK900123").catch((error: any) => error)
+  assert.equal(
+    captured.details.endpoint,
+    "/sap/bc/adt/cts/transportrequests/DEVK900123/newreleasejobs"
+  )
+  assert.equal(captured.details.httpStatus, 500)
+  assert.equal(captured.details.adtErrorType, "ExceptionResourceNoAccess")
+  assert.match(captured.details.sapResponseText, /runs only as a background job/)
+})
+
+test("ADT failure evidence is bounded and omits absent fields", () => {
+  assert.deepEqual(adtFailureEvidence(undefined), {})
+  assert.deepEqual(adtFailureEvidence({ response: { body: "   " } }), {})
+  assert.deepEqual(adtFailureEvidence({ type: "", message: "" }), {})
+
+  const long = adtFailureEvidence({
+    response: { body: "x".repeat(ADT_FAILURE_EVIDENCE_BYTE_LIMIT + 500) },
+    message: "y".repeat(2000)
+  })
+  assert.equal(long.sapResponseText?.length, ADT_FAILURE_EVIDENCE_BYTE_LIMIT)
+  assert.equal(long.adtErrorMessage?.length, 1024)
+  assert.equal(long.adtErrorType, undefined)
 })
 
 test("unpublishing a V4 binding posts its SCGR reference to the odatav4 unpublish jobs endpoint", async () => {

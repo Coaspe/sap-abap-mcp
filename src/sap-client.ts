@@ -482,6 +482,47 @@ function escapeXmlAttribute(value: string): string {
     .replace(/"/g, "&quot;")
 }
 
+export const ADT_FAILURE_EVIDENCE_BYTE_LIMIT = 4 * 1024
+
+/**
+ * Capture the SAP-side evidence of a failed ADT request: the exact response text
+ * and, when present, the ADT error type and message. Without this an operator
+ * cannot report a protocol-level failure, and the only way to recover it would
+ * be to repeat a mutation that may already have taken effect.
+ *
+ * The response text is bounded and never contains credentials, because ADT error
+ * payloads carry message text rather than the request's authorization headers.
+ */
+export function adtFailureEvidence(error: unknown): {
+  sapResponseText?: string
+  adtErrorType?: string
+  adtErrorMessage?: string
+} {
+  if (error === null || typeof error !== "object") return {}
+  const candidate = error as {
+    response?: { body?: unknown }
+    type?: unknown
+    message?: unknown
+    properties?: unknown
+  }
+  const body = candidate.response?.body
+  const sapResponseText = typeof body === "string" && body.trim().length > 0
+    ? body.slice(0, ADT_FAILURE_EVIDENCE_BYTE_LIMIT)
+    : undefined
+  const adtErrorType = typeof candidate.type === "string" && candidate.type.length > 0
+    ? candidate.type
+    : undefined
+  const adtErrorMessage = typeof candidate.message === "string" &&
+    candidate.message.length > 0
+    ? candidate.message.slice(0, 1024)
+    : undefined
+  return {
+    ...(sapResponseText !== undefined ? { sapResponseText } : {}),
+    ...(adtErrorType !== undefined ? { adtErrorType } : {}),
+    ...(adtErrorMessage !== undefined ? { adtErrorMessage } : {})
+  }
+}
+
 function detectSystemType(components: SapSoftwareComponent[]): SapSystemInfo["systemType"] {
   const names = new Set(components.map(item => item.component.toUpperCase()))
   if (names.has("S4CORE") || names.has("S4COREOP")) return "S/4HANA"
@@ -899,25 +940,32 @@ export class AdtSapClient implements SapClient {
     hasObjects: boolean
   ): Promise<TransportReleaseReport[]> {
     const query = worklistId ? `?worklistId=${encodeURIComponent(worklistId)}` : ""
+    const endpoint = `/sap/bc/adt/cts/transportrequests/${transportNumber}/newreleasejobs${query}`
     const requestOptions = {
       method: "POST" as const,
       headers: { Accept: "application/vnd.sap.adt.transportorganizer.v1+xml" }
     }
     let response: { body: string }
     try {
-      response = await this.client.httpClient.request(
-        `/sap/bc/adt/cts/transportrequests/${transportNumber}/newreleasejobs${query}`,
-        requestOptions
-      )
+      response = await this.client.httpClient.request(endpoint, requestOptions)
     } catch (error) {
       // Some systems (e.g. B4D) reject the synchronous release endpoint for
       // request/tasks that contain objects and run release only as an async
-      // background job from the GUI; surface an actionable hint rather than a raw 500
+      // background job from the GUI; surface an actionable hint rather than a raw 500.
+      //
+      // The ADT endpoint and the exact SAP response text are preserved here
+      // because implementing the asynchronous background-run path requires that
+      // wire evidence, and re-running a failed release to recover it is not safe.
       if (hasObjects && (error as { status?: number })?.status === 500) {
         throw new AppError(
           "TRANSPORT_RELEASE_UNSUPPORTED",
           `SAP rejected the synchronous release of ${transportNumber}. On some systems a request/task that contains objects can only be released from the GUI (SE10/SE09); release it there and verify the status.`,
-          { transportNumber, httpStatus: 500 }
+          {
+            transportNumber,
+            httpStatus: 500,
+            endpoint,
+            ...adtFailureEvidence(error)
+          }
         )
       }
       throw error
