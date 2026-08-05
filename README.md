@@ -121,15 +121,21 @@ current sanitized results — no credentials, no customer source, no host names.
 
 | Area | ECC 758 | S/4HANA 758 |
 |---|---|---|
-| `$TMP`-scoped v1 surface | 67 passed, 2 unsupported, 0 failed | 67 passed, 2 unsupported, 0 failed |
+| `$TMP`-scoped v1 surface | 87 passed, 11 unsupported, 0 failed | 93 passed, 2 unsupported, 0 failed |
 | Self-hosted HTTP mode, roles, and audit | 13 of 13 passed | not run |
 | CI assurance gate and its artifacts | 7 of 7 passed | not run |
 
-154 live checks in total: 134 tool-surface checks across two systems, plus 20
+200 live checks in total: 180 tool-surface checks across two systems, plus 20
 transport and CI checks on one. The tool-surface count counts each capability once
-per system, because release coverage is the claim; it is not 134 distinct
-capabilities. Every assessed capability behaved identically on ECC and S/4HANA at
-release 758, and the two `unsupported` results are the same on both.
+per system, because release coverage is the claim; it is not 180 distinct
+capabilities.
+
+On S/4HANA this includes the complete class-runner and debugger chain: a `$TMP`
+class runner executed, a breakpoint on its own source suspended it, and the
+attached debugger returned a 13-frame stack, variables, an evaluated expression,
+and a completed step. On ECC the ADT class-run endpoint rejects the same class, so
+the attached debugger is unreachable there; that difference accounts for the nine
+extra `unsupported` results and is documented with its exact SAP message.
 
 Reproduce the tool-surface run against your own development system:
 

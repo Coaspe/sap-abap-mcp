@@ -17,18 +17,17 @@ beyond the system identifier used by each run.
 
 | Area | `B4D` (ECC) | `S4D` (S/4HANA) |
 |---|---|---|
-| `$TMP`-scoped v1 surface | 67 passed, 2 unsupported, 0 failed | 67 passed, 2 unsupported, 0 failed |
+| `$TMP`-scoped v1 surface | 87 passed, 11 unsupported, 1 skipped, 0 failed | **93 passed**, 2 unsupported, 1 skipped, 0 failed |
 | Self-hosted HTTP mode, roles, audit | 13 of 13 passed | not run |
 | CI assurance gate and artifacts | 7 of 7 passed | not run |
 
-**154 live checks in total: 134 tool-surface checks across two systems, plus 20
+**200 live checks in total: 180 tool-surface checks across two systems, plus 20
 transport and CI checks on one.** The tool-surface count deliberately counts the
 same capability once per system, because release coverage is the claim being
-made; it is not 134 distinct capabilities.
+made; it is not 180 distinct capabilities.
 
-The two `unsupported` results are identical on both systems and are missing
-SAP-side prerequisites rather than defects. Every other assessed capability
-behaved identically across ECC and S/4HANA at release 758.
+The nine-check difference between the two systems is a single real
+release-dependent finding, not flakiness. See **Class runner and debugger**.
 
 ## Self-hosted HTTP mode (`B4D`)
 
@@ -103,8 +102,12 @@ transport that contains objects. See below.
 Reproduce with `npm run evidence:live -- <systemId>`. The harness is
 [`scripts/live-evidence-tmp.mjs`](../scripts/live-evidence-tmp.mjs).
 
-**67 passed, 2 unsupported, 0 failed on each system.** The per-capability results
-below were identical on ECC and S/4HANA.
+**S/4HANA: 93 passed, 2 unsupported, 1 skipped, 0 failed.
+ECC: 87 passed, 11 unsupported, 1 skipped, 0 failed.**
+
+The run creates two classes in `$TMP`: one exercised for source, semantic,
+quality, version, and refactoring capabilities, and one implementing
+`if_oo_adt_classrun` so that execution and the debugger have something to run.
 
 Safety is enforced in code, not by convention. The run creates exactly one class
 in the local package `$TMP` under a run-unique name, and that object becomes
@@ -119,8 +122,41 @@ objects are only ever read. The run deletes its object and verifies it is gone.
 | Owned-object creation | `sap.repository.create`, `sap.repository.inspect` |
 | Owned-object reads | `sap.source.read` (by name and by `adt://` Resource URI), `sap.repository.resolve`, `sap.source.search`, `sap.source.read_batch`, `sap.repository.where_used`, `sap.repository.dependency_graph`, `sap.text_elements.read`, `sap.ui.object_url`, `sap.version.history.list`, `sap.version.inactive.list`, `sap.transport.object.resolve`, `sap.semantic.format_preview`, `sap.semantic.components`, `sap.semantic.quick_fixes`, `sap.semantic.complete`, `sap.semantic.definition`, `sap.semantic.documentation`, `sap.semantic.hierarchy`, `sap.source.diagnose` |
 | Owned-object writes | `sap.source.patch` (twice), `sap.source.diagnose`, `sap.version.inactive.read`, `sap.source.activate`, `sap.refactor.preview` (rename and format), `sap.refactor.execute`, `sap.quality.test_include.create`, `sap.quality.unit_test`, `sap.quality.atc.run`, `sap.quality.atc.cached`, `sap.version.history.read`, `sap.version.restore.preview`, `sap.execution.preview` |
+| Class runner and debugger | `sap.execution.preview`, `sap.execution.execute`, `sap.debug.status`, `sap.debug.session.start`, `sap.debug.breakpoint.set`, `sap.debug.stack`, `sap.debug.variables`, `sap.debug.evaluate`, `sap.debug.session.inspect`, `sap.debug.step`, `sap.debug.breakpoint.remove`, `sap.debug.session.stop` — all passed on S/4HANA |
 | Artifacts | `sap.source.export`, `sap.system.discovery.export`, `sap.artifact.test_document.create` |
-| Cleanup | `sap.repository.delete.preview`, `sap.repository.delete.execute`, plus a read-back confirming the object is gone |
+| Cleanup | `sap.repository.delete.preview`, `sap.repository.delete.execute` for each created object, plus a read-back confirming each one is gone |
+
+### Class runner and debugger
+
+On **S/4HANA 758** the whole chain works. The `$TMP` class runner wrote its
+marker, a breakpoint on its own source suspended the execution, the listener
+reported `paused`, and the attached debugger returned a 13-frame stack, variables,
+an evaluated expression, session detail, and a completed step.
+
+On **ECC 758** the same class is rejected by the ADT class-run endpoint with
+`Class does not implement if_oo_adt_classrun~main method!`, even though its active
+source declares `INTERFACES if_oo_adt_classrun` and implements `~main`,
+diagnostics report no errors, activation succeeds, and re-activation does not
+change the answer. Because the class runner is the only safe source of a
+debuggee — executing an existing object would have effects this run must not
+cause — the attached debugger capabilities are unreachable there and are recorded
+as `unsupported` with that exact reason rather than omitted.
+
+This is an unresolved SAP-side difference, not a defect in this server: the same
+code path passes on S/4HANA. The debug **session** capabilities — status, session
+start and stop, breakpoint set and remove — pass on both systems.
+
+Two mechanics are worth recording for anyone reproducing this:
+
+- A debug session must be started **before** a breakpoint can be set;
+  `sap.debug.session.start` registers a background listener and returns
+  immediately rather than blocking.
+- `sap.debug.step` is verified with `stepOver`. Issuing `continue` at the
+  runner's last statement raises on both systems, because the debuggee terminates
+  while the step response is still being read. The debuggee is released by
+  `sap.debug.session.stop`, which terminates it explicitly.
+- The execution that is suspended at the breakpoint is deliberately abandoned, so
+  its `sap.execution.execute` call is recorded as skipped rather than failed.
 
 `sap.refactor.execute` is verified with a **method** rename rather than a class
 rename, so the object's own name — and therefore the ownership ledger — stays
@@ -131,16 +167,17 @@ then confirmed present in the activated source.
 already-formatted source. That is the specified answer for that input, so the
 harness records it as a pass rather than a failure, and says so in its output.
 
-### Unsupported on both systems
+### Unsupported
 
 Recorded as `unsupported`, not as a defect, because the SAP-side prerequisite is
 absent. This matches what `sap.system.capabilities` reports for the same
 connection.
 
-| Capability | Missing prerequisite | `B4D` observation | `S4D` observation |
+| Capability | Missing prerequisite | `B4D` (ECC) | `S4D` (S/4HANA) |
 |---|---|---|---|
-| `sap.execution.health` | `ZCL_ABAP_REPL` and its SICF service at `/sap/bc/z_abap_repl` | malformed JSON from the REPL endpoint | HTTP 404 |
+| `sap.execution.health` | `ZCL_ABAP_REPL` and its SICF service at `/sap/bc/z_abap_repl` | malformed JSON | HTTP 404 |
 | `sap.git.list` | abapGit ADT backend at `/sap/bc/adt/abapgit/*` | endpoint absent | endpoint absent |
+| `sap.execution.execute` and the attached debugger | a class the ADT class-run endpoint accepts | rejected, see above | **passes** |
 
 The RAP generator is available on both systems: `sap.rap.availability` passed.
 
@@ -184,9 +221,8 @@ intended behaviour rather than a failure:
   for a `$TMP` run and are covered separately by
   [`live-sap-acceptance.md`](live-sap-acceptance.md). Only
   `sap.rap.availability` is exercised here, and it passed on both systems.
-- **The debugger and `sap.execution.execute`.** Both need a running ABAP session
-  to attach to or a class-runner implementation, which a bare `$TMP` class does
-  not provide. `sap.execution.preview` is exercised; execution is not.
+- **`sap.execution.execute` for an ABAP snippet.** Snippet execution needs
+  `ZCL_ABAP_REPL`, which neither system has. Only class execution is covered.
 - **abapGit and transport mutations.** `$TMP` ownership does not establish
   ownership of a Git remote or a transport, so those stay out of scope, as the
   acceptance procedure requires.
