@@ -19,7 +19,10 @@ import {
 import { ConnectionManager } from "./connection-manager.js"
 import {
   generateApiKey,
+  generateApiKeyPepper,
   hashApiKey,
+  hmacApiKey,
+  loadApiKeyPepper,
   loadApiKeyRecords,
   parseHttpRole
 } from "./http/auth.js"
@@ -84,7 +87,8 @@ Commands:
   abapgit auth status <id> --repository-url <url>
   abapgit auth logout <id> --repository-url <url>
   doctor <id> [--include-components]
-  apikey new <id> [--role viewer|developer|admin]
+  apikey new <id> [--role viewer|developer|admin] [--pepper-file <path>]
+  apikey pepper
   assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
       [--target-system <id>] [--fail-on-atc-warnings] [--max-objects <n>]
       [--formats json,sarif,junit] [--report-directory <path>]
@@ -97,6 +101,7 @@ Commands:
        [--oidc-issuer <url> --oidc-audience <aud> [--oidc-jwks-uri <url>]
         [--oidc-role-claim <claim>] [--oidc-role-map <value>=<role>,...]
         [--oidc-default-role viewer|developer|admin]]
+       [--api-key-pepper-file <path>]
        [--host <host>] [--port <n>]
        [--allowed-origin <origin>] [--allowed-host <host>]
        [--rate-limit <requests-per-minute>] [--max-concurrent <n>]
@@ -629,19 +634,35 @@ async function assureCommand(
 
 async function apikeyCommand(parsed: ParsedArguments): Promise<void> {
   const action = parsed.positionals[1]
+  if (action === "pepper") return apikeyPepperCommand()
   if (action !== "new") {
     throw new AppError(
       "UNKNOWN_ACTION",
-      "Usage: apikey new <id> [--role viewer|developer|admin]"
+      "Usage: apikey new <id> [--role viewer|developer|admin] [--pepper-file <path>] | apikey pepper"
     )
   }
   const id = requiredPosition(parsed, 2, "API key id")
   const role = parseHttpRole(option(parsed, "role") ?? "viewer")
+  const pepperFile = option(parsed, "pepper-file")
   const key = generateApiKey()
+  // With a server-side secret the stored digest is an HMAC, so a disclosed key
+  // file cannot be attacked offline at all. Without one it is a plain SHA-256 of
+  // a 256-bit key, which is still infeasible to search but offers no defence if
+  // the key was not actually random.
+  const record = pepperFile
+    ? { id, role, keyHmacSha256: hmacApiKey(key, loadApiKeyPepper(pepperFile)) }
+    : { id, role, keySha256: hashApiKey(key) }
   writeJson({
     key,
-    record: { id, role, keySha256: hashApiKey(key) },
+    record,
     note: "Store `key` in the client's Authorization: Bearer header. Add `record` to the keys array of the --api-keys-file. The key itself is not recoverable from the file."
+  })
+}
+
+async function apikeyPepperCommand(): Promise<void> {
+  writeJson({
+    pepper: generateApiKeyPepper(),
+    note: "Write this to a file outside the API key file's directory, pass it to `apikey new --pepper-file` and to `serve --http --api-key-pepper-file`. Storing it beside the key file defeats its purpose, because one disclosure would yield both."
   })
 }
 
@@ -759,6 +780,15 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
     const apiKeysFile = option(parsed, "api-keys-file")
     const apiKeys = apiKeysFile ? loadApiKeyRecords(apiKeysFile) : []
     const oidc = resolveOidcAuthenticator(parsed)
+    const pepperFile = option(parsed, "api-key-pepper-file") ??
+      process.env.SAP_ABAP_MCP_API_KEY_PEPPER_FILE
+    const apiKeyPepper = pepperFile ? loadApiKeyPepper(pepperFile) : undefined
+    if (!apiKeyPepper && apiKeys.some(record => record.keyHmacSha256 !== undefined)) {
+      throw new AppError(
+        "API_KEY_PEPPER_REQUIRED",
+        "The API key file contains keyHmacSha256 records, which need --api-key-pepper-file"
+      )
+    }
     if (apiKeys.length === 0 && !oidc) {
       throw new AppError(
         "CLIENT_AUTH_REQUIRED",
@@ -785,6 +815,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
         : {}),
       ...(auditRecorder ? { auditRecorder } : {}),
       ...(oidc ? { oidc } : {}),
+      ...(apiKeyPepper ? { apiKeyPepper } : {}),
       // One service and one MCP server per session, so preview plans, staged Git
       // snapshots, and execution plans are never shared between principals. The
       // ConnectionManager stays shared so SAP logins are pooled, while the

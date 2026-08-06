@@ -69,6 +69,12 @@ export interface HttpServerOptions {
   apiKeys: readonly ApiKeyRecord[]
   /** Optional OIDC/JWT authenticator, accepted alongside API keys. */
   oidc?: OidcAuthenticator
+  /**
+   * Server-side secret for API key records stored as `keyHmacSha256`. Without
+   * it those records cannot verify, so a missing secret denies access rather
+   * than falling back to a weaker check.
+   */
+  apiKeyPepper?: string
   host?: string
   port?: number
   allowedOrigins?: readonly string[]
@@ -327,7 +333,11 @@ export async function startHttpMcpServer(
     const credential = bearerCredential(headerValue(request, "authorization"))
     // A JWT has three dot-separated segments; an API key never does. Trying the
     // key store first keeps a static key from ever being sent to the JWKS path.
-    let principal = resolveApiKeyPrincipal(options.apiKeys, credential)
+    let principal = resolveApiKeyPrincipal(
+      options.apiKeys,
+      credential,
+      options.apiKeyPepper
+    )
     if (!principal && options.oidc && credential?.split(".").length === 3) {
       try {
         principal = await options.oidc.resolve(credential)

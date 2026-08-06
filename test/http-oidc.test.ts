@@ -6,7 +6,9 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { AuditRecorder, type AuditEvent, type AuditSink } from "../src/audit-log.js"
 import {
   generateApiKey,
+  generateApiKeyPepper,
   hashApiKey,
+  hmacApiKey,
   isWellFormedApiKey,
   parseApiKeyFile,
   resolveApiKeyPrincipal
@@ -446,6 +448,61 @@ test("only credentials shaped like a generated key are accepted", () => {
       weak
     ),
     undefined
+  )
+})
+
+test("a peppered record verifies only with the server secret", () => {
+  const key = generateApiKey()
+  const pepper = generateApiKeyPepper()
+  const record = {
+    id: "alice",
+    role: "developer" as const,
+    keyHmacSha256: hmacApiKey(key, pepper)
+  }
+
+  assert.notEqual(record.keyHmacSha256, hashApiKey(key))
+  assert.deepEqual(resolveApiKeyPrincipal([record], key, pepper), {
+    id: "alice",
+    role: "developer",
+    source: "api-key"
+  })
+  // Without the secret the record cannot verify, and it must not fall back to a
+  // plain hash: a missing secret has to deny access, not weaken the check.
+  assert.equal(resolveApiKeyPrincipal([record], key), undefined)
+  assert.equal(
+    resolveApiKeyPrincipal([record], key, generateApiKeyPepper()),
+    undefined
+  )
+  // A plain record still verifies while a secret is configured for others.
+  const plain = { id: "bob", role: "viewer" as const, keySha256: hashApiKey(key) }
+  assert.equal(resolveApiKeyPrincipal([plain], key, pepper)?.id, "bob")
+  assert.throws(() => hmacApiKey(key, "tooshort"), hasCode("API_KEY_PEPPER_TOO_SHORT"))
+})
+
+test("a key file names its own digest algorithm", () => {
+  const key = generateApiKey()
+  const pepper = generateApiKeyPepper()
+  const [peppered] = parseApiKeyFile(JSON.stringify({
+    keys: [{ id: "alice", role: "admin", keyHmacSha256: hmacApiKey(key, pepper) }]
+  }))
+  assert.equal(peppered?.keyHmacSha256?.length, 64)
+  assert.equal(peppered?.keySha256, undefined)
+
+  // Exactly one digest, so a file is never ambiguous about what verifies it.
+  assert.throws(
+    () => parseApiKeyFile(JSON.stringify({ keys: [{ id: "a", role: "viewer" }] })),
+    /exactly one of keySha256 or keyHmacSha256/
+  )
+  assert.throws(
+    () => parseApiKeyFile(JSON.stringify({
+      keys: [{
+        id: "a",
+        role: "viewer",
+        keySha256: hashApiKey(key),
+        keyHmacSha256: hmacApiKey(key, pepper)
+      }]
+    })),
+    /exactly one of keySha256 or keyHmacSha256/
   )
 })
 

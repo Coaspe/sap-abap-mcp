@@ -600,9 +600,40 @@ credential shorter than that or outside that alphabet. SHA-256 is the right
 primitive for a 256-bit random token: iteration hardening does not change the
 feasibility of searching that space, and deriving a key on every request would
 let an unauthenticated caller consume CPU at will, because rate limiting applies
-per principal and a caller has none until its credential is resolved. A validator
-cannot measure entropy, so the length and alphabet rules raise the floor rather
-than proving strength.
+per principal and a caller has none until its credential is resolved.
+
+### Binding the key file to a server secret
+
+A validator cannot measure entropy, so the rules above raise the floor rather than
+proving strength — a long but non-random key would still be attackable from a
+disclosed key file. Binding the digest to a server-side secret removes that
+residual risk entirely, and stays fast, so it does not reintroduce the
+denial-of-service concern a slow key-derivation function would:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest apikey pepper > /etc/sap-abap-mcp/pepper
+npx @coaspe/sap-abap-mcp@latest apikey new alice --role developer \
+  --pepper-file /etc/sap-abap-mcp/pepper
+```
+
+That emits `keyHmacSha256` instead of `keySha256`, and the server needs the same
+secret:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest serve --http \
+  --api-keys-file /etc/sap-abap-mcp/api-keys.json \
+  --api-key-pepper-file /etc/sap-abap-mcp/pepper
+```
+
+Each record names its own algorithm, so a key file is never ambiguous about what
+verifies it, and the two kinds may coexist during a migration. A `keyHmacSha256`
+record without the secret is refused rather than downgraded to a plain hash, so a
+missing secret denies access instead of weakening verification — and `serve`
+refuses to start if the key file needs a secret that was not supplied.
+
+**Store the secret outside the key file's directory.** Keeping them together
+defeats the purpose, because one disclosure would yield both. The equivalent
+environment variable is `SAP_ABAP_MCP_API_KEY_PEPPER_FILE`.
 
 ```json
 {
@@ -844,7 +875,8 @@ abapgit auth login <id> --repository-url <url> --username <user> [--password-std
 abapgit auth status <id> --repository-url <url>
 abapgit auth logout <id> --repository-url <url>
 
-apikey new <id> [--role viewer|developer|admin]
+apikey new <id> [--role viewer|developer|admin] [--pepper-file <path>]
+apikey pepper
 
 assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
     [--target-system <id>] [--fail-on-atc-warnings] [--max-objects <n>]
@@ -858,6 +890,7 @@ serve [--profile <id>] [--api-version v0|v1]
     [--audit-include-arguments]
     [--http --api-keys-file <path> [--host <host>] [--port <n>]
      [--allowed-origin <origin,...>] [--allowed-host <host,...>]
+     [--api-key-pepper-file <path>]
      [--rate-limit <requests-per-minute>] [--max-concurrent <n>]
      [--max-sessions <n>] [--session-timeout <seconds>]]
 ```
