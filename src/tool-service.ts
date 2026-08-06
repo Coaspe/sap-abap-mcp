@@ -1647,7 +1647,9 @@ export class AbapToolService {
     const client = await this.connections.getClient(connectionId)
     const discovery = await client.getAdtDiscovery()
     const capabilities = this.capabilities.list(connectionId, JSON.stringify(discovery), category)
-    const system = await client.getSystemInfo(false)
+    // getAdtDiscovery already fetched ADT core discovery, so hand its count to
+    // getSystemInfo rather than requesting the identical resource a second time.
+    const system = await client.getSystemInfo(false, discovery.core.length)
     return {
       connectionId: connectionId.trim().toUpperCase(),
       adapterVersion: "abap-adt-api@8.4.1",
