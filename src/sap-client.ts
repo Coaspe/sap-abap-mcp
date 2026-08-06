@@ -446,7 +446,10 @@ export interface SapClient {
     core: Awaited<ReturnType<ADTClient["adtCoreDiscovery"]>>
   }>
   ping(): Promise<{ collections: number; timestamp: string }>
-  getSystemInfo(includeComponents?: boolean): Promise<SapSystemInfo>
+  getSystemInfo(
+    includeComponents?: boolean,
+    knownDiscoveryCollections?: number
+  ): Promise<SapSystemInfo>
 }
 
 export type SapClientFactory = (profile: SapProfile, credential: SapCredential) => SapClient
@@ -1840,19 +1843,29 @@ export class AdtSapClient implements SapClient {
     return result
   }
 
-  async getSystemInfo(includeComponents = false): Promise<SapSystemInfo> {
+  /**
+   * @param knownDiscoveryCollections ADT core discovery collection count the
+   *   caller already fetched. Pass it to avoid requesting the identical resource
+   *   twice inside one logical operation; `getSapCapabilities` already holds it.
+   */
+  async getSystemInfo(
+    includeComponents = false,
+    knownDiscoveryCollections?: number
+  ): Promise<SapSystemInfo> {
     const warnings: string[] = []
-    let discoveryCollections = 0
+    let discoveryCollections = knownDiscoveryCollections ?? 0
     let sapRelease = ""
     let logicalSystem = ""
     let clientName = ""
     let timezone: SapSystemInfo["timezone"] = null
     let softwareComponents: SapSoftwareComponent[] = []
 
-    try {
-      discoveryCollections = (await this.client.adtCoreDiscovery()).length
-    } catch (error) {
-      warnings.push(`ADT core discovery failed: ${error instanceof Error ? error.message : String(error)}`)
+    if (knownDiscoveryCollections === undefined) {
+      try {
+        discoveryCollections = (await this.client.adtCoreDiscovery()).length
+      } catch (error) {
+        warnings.push(`ADT core discovery failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
     }
 
     try {
