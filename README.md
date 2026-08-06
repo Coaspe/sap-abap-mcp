@@ -594,6 +594,16 @@ The command prints the key once together with a `record` object. Add the record
 to the `keys` array of a key file; the file stores only the SHA-256 digest, so a
 disclosed key file contains no usable credential.
 
+Keys must come from `apikey new` or an equivalent CSPRNG. A generated key is 32
+random bytes, which encode to 43 base64url characters, and the server rejects any
+credential shorter than that or outside that alphabet. SHA-256 is the right
+primitive for a 256-bit random token: iteration hardening does not change the
+feasibility of searching that space, and deriving a key on every request would
+let an unauthenticated caller consume CPU at will, because rate limiting applies
+per principal and a caller has none until its credential is resolved. A validator
+cannot measure entropy, so the length and alphabet rules raise the floor rather
+than proving strength.
+
 ```json
 {
   "keys": [

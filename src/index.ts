@@ -45,6 +45,7 @@ import {
   type SapProfileInput
 } from "./profile-store.js"
 import { createDefaultSecretStore, type SecretStore } from "./secret-store.js"
+import { trimTrailingLineBreaks, trimTrailingSlashes } from "./text.js"
 import { AbapToolService } from "./tool-service.js"
 import {
   abapGitCredentialKey,
@@ -164,7 +165,7 @@ async function readAllStdin(): Promise<string> {
   let value = ""
   stdin.setEncoding("utf8")
   for await (const chunk of stdin) value += chunk
-  return value.replace(/[\r\n]+$/, "")
+  return trimTrailingLineBreaks(value)
 }
 
 async function promptSecret(prompt: string): Promise<string> {
@@ -664,7 +665,7 @@ function resolveOidcAuthenticator(
   }
   const jwksUri = option(parsed, "oidc-jwks-uri") ??
     process.env.SAP_ABAP_MCP_OIDC_JWKS_URI ??
-    `${issuer.replace(/\/+$/, "")}/.well-known/jwks.json`
+    `${trimTrailingSlashes(issuer)}/.well-known/jwks.json`
   const roleClaim = option(parsed, "oidc-role-claim")
   const defaultRole = option(parsed, "oidc-default-role")
   return createOidcAuthenticator({
