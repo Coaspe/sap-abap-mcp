@@ -1299,6 +1299,17 @@ export class AbapToolService {
     registerBdefType()
   }
 
+  /**
+   * Release background work owned by this service instance. HTTP sessions get
+   * their own service so that preview plans stay isolated per principal, so a
+   * closing session must also stop any heartbeat it started.
+   */
+  dispose(): void {
+    this.heartbeatActive = false
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+    this.heartbeatTimer = undefined
+  }
+
   private async executeCapability<T>(
     connectionId: string,
     capabilityId: string,
@@ -1636,7 +1647,9 @@ export class AbapToolService {
     const client = await this.connections.getClient(connectionId)
     const discovery = await client.getAdtDiscovery()
     const capabilities = this.capabilities.list(connectionId, JSON.stringify(discovery), category)
-    const system = await client.getSystemInfo(false)
+    // getAdtDiscovery already fetched ADT core discovery, so hand its count to
+    // getSystemInfo rather than requesting the identical resource a second time.
+    const system = await client.getSystemInfo(false, discovery.core.length)
     return {
       connectionId: connectionId.trim().toUpperCase(),
       adapterVersion: "abap-adt-api@8.4.1",

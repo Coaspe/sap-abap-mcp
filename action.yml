@@ -1,0 +1,200 @@
+name: SAP ABAP Transport Change Assurance
+description: >-
+  Gate a CI pipeline on read-only ABAP Test Cockpit and ABAP Unit assessment of
+  one SAP transport, and publish SARIF and JUnit evidence. Never releases or
+  modifies the transport.
+author: Coaspe
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  sap-url:
+    description: SAP HTTPS base URL, for example https://sap-dev.example.com
+    required: true
+  sap-client:
+    description: Three-digit SAP client number
+    required: true
+  sap-username:
+    description: SAP user name with ADT authorization for the selected checks
+    required: true
+  sap-password:
+    description: >-
+      SAP password. Always pass a secret, never a literal. It is written to a
+      profile-specific environment variable and never to disk.
+    required: true
+  transport:
+    description: Transport request or task to assess, for example DEVK900123
+    required: true
+  system-id:
+    description: Local profile name used as the connection id
+    required: false
+    default: CI
+  checks:
+    description: Comma-separated checks — atc, unit_tests, target_compare
+    required: false
+    default: atc,unit_tests
+  target-system-url:
+    description: >-
+      Base URL of a second SAP system for target_compare. Required only when
+      checks include target_compare.
+    required: false
+    default: ""
+  target-system-client:
+    description: Client number of the target system for target_compare
+    required: false
+    default: ""
+  target-system-username:
+    description: User name for the target system
+    required: false
+    default: ""
+  target-system-password:
+    description: Password for the target system. Always pass a secret.
+    required: false
+    default: ""
+  fail-on-atc-warnings:
+    description: Treat ATC warnings as failures
+    required: false
+    default: "false"
+  max-objects:
+    description: Maximum transport objects to assess, 1 to 200
+    required: false
+    default: "20"
+  formats:
+    description: Comma-separated report formats — json, sarif, junit
+    required: false
+    default: json,sarif,junit
+  report-directory:
+    description: Directory for the generated reports
+    required: false
+    default: sap-abap-mcp-reports
+  fail-on:
+    description: >-
+      incomplete fails the step when coverage could not be proven; failed fails
+      only on a definite check failure.
+    required: false
+    default: incomplete
+  version:
+    description: npm version or dist-tag of @coaspe/sap-abap-mcp to run
+    required: false
+    default: latest
+
+outputs:
+  gate:
+    description: Assessment gate — passed, failed, or incomplete
+    value: ${{ steps.assure.outputs.gate }}
+  report-json:
+    description: Path to the JSON report, when requested
+    value: ${{ steps.assure.outputs.report-json }}
+  report-sarif:
+    description: Path to the SARIF report, when requested
+    value: ${{ steps.assure.outputs.report-sarif }}
+  report-junit:
+    description: Path to the JUnit XML report, when requested
+    value: ${{ steps.assure.outputs.report-junit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Register SAP profiles
+      shell: bash
+      env:
+        SAP_URL: ${{ inputs.sap-url }}
+        SAP_CLIENT: ${{ inputs.sap-client }}
+        SAP_USERNAME: ${{ inputs.sap-username }}
+        SYSTEM_ID: ${{ inputs.system-id }}
+        TARGET_URL: ${{ inputs.target-system-url }}
+        TARGET_CLIENT: ${{ inputs.target-system-client }}
+        TARGET_USERNAME: ${{ inputs.target-system-username }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        # No --login: on Linux the credential store is read-only, so the
+        # password is supplied through a profile-specific environment variable.
+        npx --yes "@coaspe/sap-abap-mcp@${VERSION}" profile add "${SYSTEM_ID}" \
+          --url "${SAP_URL}" --client "${SAP_CLIENT}" --username "${SAP_USERNAME}"
+        if [ -n "${TARGET_URL}" ]; then
+          npx --yes "@coaspe/sap-abap-mcp@${VERSION}" profile add "${SYSTEM_ID}_TARGET" \
+            --url "${TARGET_URL}" --client "${TARGET_CLIENT}" \
+            --username "${TARGET_USERNAME}"
+        fi
+
+    - name: Assess transport
+      id: assure
+      shell: bash
+      env:
+        SYSTEM_ID: ${{ inputs.system-id }}
+        TRANSPORT: ${{ inputs.transport }}
+        CHECKS: ${{ inputs.checks }}
+        FORMATS: ${{ inputs.formats }}
+        MAX_OBJECTS: ${{ inputs.max-objects }}
+        REPORT_DIRECTORY: ${{ inputs.report-directory }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        FAIL_ON_ATC_WARNINGS: ${{ inputs.fail-on-atc-warnings }}
+        TARGET_URL: ${{ inputs.target-system-url }}
+        VERSION: ${{ inputs.version }}
+        SAP_PASSWORD: ${{ inputs.sap-password }}
+        TARGET_PASSWORD: ${{ inputs.target-system-password }}
+      run: |
+        set -uo pipefail
+        # The secret store derives the variable name by upper-casing the profile
+        # id and replacing every non-alphanumeric character with an underscore.
+        password_variable() {
+          printf 'SAP_ABAP_MCP_PASSWORD_%s' \
+            "$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')"
+        }
+        export "$(password_variable "${SYSTEM_ID}")=${SAP_PASSWORD}"
+        if [ -n "${TARGET_URL}" ]; then
+          export "$(password_variable "${SYSTEM_ID}_TARGET")=${TARGET_PASSWORD}"
+        fi
+
+        args=(assure "${SYSTEM_ID}" --transport "${TRANSPORT}"
+              --checks "${CHECKS}" --formats "${FORMATS}"
+              --max-objects "${MAX_OBJECTS}"
+              --report-directory "${REPORT_DIRECTORY}"
+              --fail-on "${FAIL_ON}")
+        if [ "${FAIL_ON_ATC_WARNINGS}" = "true" ]; then
+          args+=(--fail-on-atc-warnings)
+        fi
+        if [ -n "${TARGET_URL}" ]; then
+          args+=(--target-system "${SYSTEM_ID}_TARGET")
+        fi
+
+        set +e
+        npx --yes "@coaspe/sap-abap-mcp@${VERSION}" "${args[@]}" \
+          > assurance-result.json
+        assure_exit=$?
+        set -e
+
+        gate=unknown
+        if [ -s assurance-result.json ]; then
+          gate="$(node -e "
+            try {
+              const report = require('./assurance-result.json')
+              process.stdout.write(report.gate?.status ?? 'unknown')
+            } catch { process.stdout.write('unknown') }
+          ")"
+        fi
+        echo "gate=${gate}" >> "$GITHUB_OUTPUT"
+
+        safe_transport="$(printf '%s' "${TRANSPORT}" | tr -c 'A-Za-z0-9._-' '_')"
+        for format in json sarif junit; do
+          extension="${format}"
+          if [ "${format}" = "junit" ]; then extension=xml; fi
+          path="${REPORT_DIRECTORY}/${safe_transport}-change-assurance.${extension}"
+          if [ -f "${path}" ]; then
+            echo "report-${format}=${path}" >> "$GITHUB_OUTPUT"
+          fi
+        done
+
+        {
+          echo "## SAP transport change assurance"
+          echo
+          echo "| Field | Value |"
+          echo "|---|---|"
+          echo "| Transport | \`${TRANSPORT}\` |"
+          echo "| Gate | **${gate}** |"
+          echo "| Checks | ${CHECKS} |"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        exit "${assure_exit}"

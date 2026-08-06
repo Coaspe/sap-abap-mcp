@@ -1,5 +1,4 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
 import test from "node:test"
 import {
   ABAP_MCP_TOOLSETS,
@@ -9,6 +8,7 @@ import {
   toolsForToolsets
 } from "../src/compat/abap-fs-tools.js"
 import { readAbapFsDocumentation } from "../src/compat/abap-fs-documentation.js"
+import { readText } from "./helpers/read-text.js"
 
 test("implementation advertises the strict-compatible headless subset without the host-only tool", () => {
   assert.equal(ABAP_FS_UPSTREAM_MCP_TOOL_NAMES.length, 43)
@@ -113,11 +113,11 @@ test("bundled documentation states exact parity, verification, and runtime bound
 })
 
 test("published guides preserve current counts and live acceptance safety boundaries", () => {
-  const readme = readFileSync("README.md", "utf8")
-  const acceptance = readFileSync("docs/live-sap-acceptance.md", "utf8")
-  const matrix = readFileSync("docs/compatibility-matrix.md", "utf8")
+  const readme = readText("README.md")
+  const acceptance = readText("docs/live-sap-acceptance.md")
+  const matrix = readText("docs/compatibility-matrix.md")
   const evidenceSchema = JSON.parse(
-    readFileSync("docs/compatibility-evidence.schema.json", "utf8")
+    readText("docs/compatibility-evidence.schema.json")
   )
 
   assert.match(readme, /complete 53-tool schema/)

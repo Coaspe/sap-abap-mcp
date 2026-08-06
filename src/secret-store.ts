@@ -55,7 +55,14 @@ export interface SecretStore {
   delete(profileId: string): Promise<void>
 }
 
-function environmentVariableName(profileId: string): string {
+/**
+ * Name of the environment variable that carries a profile's SAP password on
+ * platforms without a protected credential store.
+ *
+ * `action.yml` reimplements this rule in shell for the CI runner, so any change
+ * here must be mirrored there; `test/ci-action.test.ts` locks the two together.
+ */
+export function environmentVariableName(profileId: string): string {
   const suffix = profileId.toUpperCase().replace(/[^A-Z0-9]/g, "_")
   return `SAP_ABAP_MCP_PASSWORD_${suffix}`
 }

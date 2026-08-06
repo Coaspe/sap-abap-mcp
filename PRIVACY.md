@@ -14,8 +14,11 @@ SAP ABAP MCP processes only the data needed to perform user-requested operations
 - SAP passwords, OAuth client secrets, and abapGit credentials stored in the operating system's protected credential store.
 - SAP repository source, metadata, diagnostics, test results, transports, runtime information, and other ADT responses requested by the user.
 - Local artifacts that the user explicitly asks the software to create.
+- Local audit records, only when the operator enables the audit log. Records contain the local process user name, the capability name, the selected SAP profile, scalar object identity, outcome, and timing. Credential-shaped values are redacted, and tool arguments are excluded unless the operator also enables `--audit-include-arguments`.
 
-SAP ABAP MCP does not include publisher-operated telemetry, analytics, advertising, or a hosted service that receives this data.
+- API key identifiers and SHA-256 digests, when an operator runs the optional self-hosted HTTP mode. Raw API keys are never written to the key file.
+
+SAP ABAP MCP does not include publisher-operated telemetry, analytics, advertising, or a hosted service that receives this data. The optional HTTP mode is self-hosted by the operator; the publisher operates no server and receives nothing from it.
 
 ## How data is used
 
@@ -27,7 +30,7 @@ The npm registry may be contacted when the user installs or updates the package.
 
 The publisher does not receive or retain SAP profiles, credentials, source code, tool inputs, tool results, or generated artifacts.
 
-Profile configuration and generated files remain on the user's computer until the user removes them. SAP passwords, OAuth client secrets, and abapGit passwords or tokens are stored in macOS Keychain or Windows DPAPI and remain there until the user logs out, removes the profile, or deletes the corresponding credential. OAuth access tokens are cached only in process memory until refresh or process exit. On Linux, credentials are read only from profile-specific environment variables and are not persisted by the software. Temporary runtime data is held in process memory and is discarded when the process exits.
+Profile configuration, generated files, and any audit log written to a file selected by the operator remain on the user's computer until the user removes them. The software never rotates, uploads, or deletes an audit log. SAP passwords, OAuth client secrets, and abapGit passwords or tokens are stored in macOS Keychain or Windows DPAPI and remain there until the user logs out, removes the profile, or deletes the corresponding credential. OAuth access tokens are cached only in process memory until refresh or process exit. On Linux, credentials are read only from profile-specific environment variables and are not persisted by the software. Temporary runtime data is held in process memory and is discarded when the process exits.
 
 ## Sharing
 
@@ -39,7 +42,7 @@ Users can remove profiles and stored credentials with the SAP ABAP MCP CLI, dele
 
 ## Security
 
-SAP ABAP MCP keeps credentials out of MCP tool arguments, blocks writes for profiles marked as production, supports package restrictions, and requires explicit confirmation for selected high-impact operations. Users remain responsible for securing their computer, network, SAP accounts, transports, and connected third-party services.
+SAP ABAP MCP keeps credentials out of MCP tool arguments, blocks writes for profiles marked as production, supports package restrictions, and requires explicit confirmation for selected high-impact operations. The optional self-hosted HTTP mode never starts without an API key file, binds to the loopback interface unless the operator opts out, rejects browser-originated requests from origins the operator has not allowlisted, and binds each session to the API key that opened it. Users remain responsible for securing their computer, network, SAP accounts, transports, and connected third-party services.
 
 ## Changes
 

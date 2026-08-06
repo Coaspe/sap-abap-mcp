@@ -363,6 +363,30 @@ function renderJunit(report: ChangeAssuranceReport): string {
   ].join("\n")
 }
 
+export const CHANGE_ASSURANCE_EXIT_CODES = {
+  passed: 0,
+  failed: 1,
+  incomplete: 2
+} as const satisfies Record<ChangeAssuranceGateStatus, number>
+
+/**
+ * Map an assessment gate onto a process exit code for a CI pipeline.
+ *
+ * `incomplete` means safety could not be proven — truncated object coverage, a
+ * check that failed to run, an empty transport, or a class with no discoverable
+ * tests — so it blocks by default. `failOn: "failed"` downgrades it to a pass
+ * for pipelines that only want definite failures to stop the build.
+ */
+export function changeAssuranceExitCode(
+  status: ChangeAssuranceGateStatus,
+  failOn: "incomplete" | "failed" = "incomplete"
+): number {
+  if (status === "incomplete" && failOn === "failed") {
+    return CHANGE_ASSURANCE_EXIT_CODES.passed
+  }
+  return CHANGE_ASSURANCE_EXIT_CODES[status]
+}
+
 export function renderChangeAssuranceArtifact(
   report: ChangeAssuranceReport,
   format: ChangeAssuranceFormat
