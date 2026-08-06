@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs"
 import { AppError } from "./errors.js"
+import { trimTrailingSlashes } from "./text.js"
 
 /** SAP BTP ABAP environment always exposes SAP client 100. */
 export const BTP_ABAP_CLIENT = "100"
@@ -53,7 +54,7 @@ function httpsUrl(value: string, path: string): string {
       `The service key "${path}" value must not embed credentials`
     )
   }
-  return value.replace(/\/+$/, "")
+  return trimTrailingSlashes(value)
 }
 
 /**

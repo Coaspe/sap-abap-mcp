@@ -6,7 +6,13 @@ export const HTTP_ROLES = ["viewer", "developer", "admin"] as const
 export type HttpRole = (typeof HTTP_ROLES)[number]
 
 const API_KEY_BYTES = 32
-const API_KEY_MIN_LENGTH = 32
+/**
+ * 32 random bytes encode to 43 base64url characters. Requiring at least that
+ * many characters from the base64url alphabet keeps a hand-written short key out
+ * of the store, which is the case a fast hash cannot defend on its own.
+ */
+const API_KEY_MIN_LENGTH = 43
+const API_KEY_PATTERN = /^[A-Za-z0-9_-]+$/
 const SHA256_HEX_LENGTH = 64
 const PRINCIPAL_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$/
 
@@ -51,13 +57,47 @@ export function parseHttpRole(value: unknown): HttpRole {
   )
 }
 
+/**
+ * Hash an API key for storage and comparison.
+ *
+ * SHA-256 is the correct primitive here, and a slow KDF such as scrypt or argon2
+ * would be the wrong one, for two reasons.
+ *
+ * A key is 32 bytes from a CSPRNG, so it carries 256 bits of entropy. No amount
+ * of iteration hardening changes the feasibility of searching that space, which
+ * is why high-entropy bearer tokens are conventionally stored under a fast hash
+ * while human-chosen passwords are not. {@link isWellFormedApiKey} enforces the
+ * length and alphabet that entropy claim depends on, so a short hand-written
+ * value cannot enter the store.
+ *
+ * Deriving a key on every request would also turn authentication into a
+ * denial-of-service amplifier: requests are rate limited per principal, so an
+ * unauthenticated caller is not yet rate limited when its credential is hashed.
+ * A deliberately expensive hash there lets an unauthenticated caller consume CPU
+ * at will.
+ */
 export function hashApiKey(key: string): string {
   return createHash("sha256").update(key, "utf8").digest("hex")
 }
 
-/** Generate a new URL-safe API key. The raw value is never persisted. */
+/**
+ * Generate a new URL-safe API key from 32 CSPRNG bytes. The raw value is
+ * returned once and never persisted; only its digest is stored.
+ */
 export function generateApiKey(): string {
   return randomBytes(API_KEY_BYTES).toString("base64url")
+}
+
+/**
+ * Whether a presented credential has the shape `generateApiKey` produces.
+ *
+ * A validator cannot measure the entropy of a string, so this raises the floor
+ * rather than proving strength: it rejects values too short or outside the
+ * base64url alphabet to be a generated key. Keys must come from
+ * `sap-abap-mcp apikey new` or an equivalent CSPRNG.
+ */
+export function isWellFormedApiKey(value: string): boolean {
+  return value.length >= API_KEY_MIN_LENGTH && API_KEY_PATTERN.test(value)
 }
 
 /**
@@ -169,7 +209,7 @@ export function resolveApiKeyPrincipal(
   records: readonly ApiKeyRecord[],
   credential: string | undefined
 ): HttpPrincipal | undefined {
-  if (!credential || credential.length < API_KEY_MIN_LENGTH) return undefined
+  if (!credential || !isWellFormedApiKey(credential)) return undefined
   const presented = Buffer.from(hashApiKey(credential), "hex")
   let matched: ApiKeyRecord | undefined
   for (const record of records) {

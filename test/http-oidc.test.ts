@@ -7,9 +7,11 @@ import { AuditRecorder, type AuditEvent, type AuditSink } from "../src/audit-log
 import {
   generateApiKey,
   hashApiKey,
+  isWellFormedApiKey,
   parseApiKeyFile,
   resolveApiKeyPrincipal
 } from "../src/http/auth.js"
+import { trimTrailingLineBreaks, trimTrailingSlashes } from "../src/text.js"
 import {
   JwksKeyStore,
   claimValues,
@@ -422,6 +424,44 @@ test("HTTP mode still refuses to start with neither API keys nor OIDC", async ()
     }),
     hasCode("CLIENT_AUTH_REQUIRED")
   )
+})
+
+test("only credentials shaped like a generated key are accepted", () => {
+  // A validator cannot measure entropy, so this raises the floor rather than
+  // proving strength: 32 CSPRNG bytes encode to 43 base64url characters, and
+  // anything shorter or outside that alphabet cannot be a generated key.
+  const key = generateApiKey()
+  assert.equal(key.length, 43)
+  assert.equal(isWellFormedApiKey(key), true)
+  // 64-character hex is also 256 bits and stays acceptable.
+  assert.equal(isWellFormedApiKey("0".repeat(64)), true)
+  for (const rejected of ["", "short", "a".repeat(42), `${"a".repeat(42)}+`, `${"a".repeat(42)}/`]) {
+    assert.equal(isWellFormedApiKey(rejected), false, `must reject ${rejected.length} chars`)
+  }
+  // A rejected shape must not resolve a principal even if its digest is stored.
+  const weak = "a".repeat(32)
+  assert.equal(
+    resolveApiKeyPrincipal(
+      [{ id: "weak", role: "viewer", keySha256: hashApiKey(weak) }],
+      weak
+    ),
+    undefined
+  )
+})
+
+test("trailing-character trimming is linear on repetition-heavy input", () => {
+  assert.equal(trimTrailingSlashes("https://a.example.com///"), "https://a.example.com")
+  assert.equal(trimTrailingSlashes("https://a.example.com"), "https://a.example.com")
+  assert.equal(trimTrailingSlashes("///"), "")
+  assert.equal(trimTrailingLineBreaks("secret\r\n\r\n"), "secret")
+  assert.equal(trimTrailingLineBreaks("secret"), "secret")
+
+  // A pattern anchored as X+$ is quadratic on this input; a backwards scan is not.
+  const pathological = `https://x/${"/".repeat(200_000)}a`
+  const startedAt = process.hrtime.bigint()
+  assert.equal(trimTrailingSlashes(pathological), pathological)
+  const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6
+  assert.ok(elapsedMs < 250, `trimming took ${elapsedMs}ms`)
 })
 
 test("an API key file carries a per-person SAP profile assignment", () => {
