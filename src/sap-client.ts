@@ -446,7 +446,10 @@ export interface SapClient {
     core: Awaited<ReturnType<ADTClient["adtCoreDiscovery"]>>
   }>
   ping(): Promise<{ collections: number; timestamp: string }>
-  getSystemInfo(includeComponents?: boolean): Promise<SapSystemInfo>
+  getSystemInfo(
+    includeComponents?: boolean,
+    knownDiscoveryCollections?: number
+  ): Promise<SapSystemInfo>
 }
 
 export type SapClientFactory = (profile: SapProfile, credential: SapCredential) => SapClient
@@ -480,6 +483,47 @@ function escapeXmlAttribute(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
+}
+
+export const ADT_FAILURE_EVIDENCE_BYTE_LIMIT = 4 * 1024
+
+/**
+ * Capture the SAP-side evidence of a failed ADT request: the exact response text
+ * and, when present, the ADT error type and message. Without this an operator
+ * cannot report a protocol-level failure, and the only way to recover it would
+ * be to repeat a mutation that may already have taken effect.
+ *
+ * The response text is bounded and never contains credentials, because ADT error
+ * payloads carry message text rather than the request's authorization headers.
+ */
+export function adtFailureEvidence(error: unknown): {
+  sapResponseText?: string
+  adtErrorType?: string
+  adtErrorMessage?: string
+} {
+  if (error === null || typeof error !== "object") return {}
+  const candidate = error as {
+    response?: { body?: unknown }
+    type?: unknown
+    message?: unknown
+    properties?: unknown
+  }
+  const body = candidate.response?.body
+  const sapResponseText = typeof body === "string" && body.trim().length > 0
+    ? body.slice(0, ADT_FAILURE_EVIDENCE_BYTE_LIMIT)
+    : undefined
+  const adtErrorType = typeof candidate.type === "string" && candidate.type.length > 0
+    ? candidate.type
+    : undefined
+  const adtErrorMessage = typeof candidate.message === "string" &&
+    candidate.message.length > 0
+    ? candidate.message.slice(0, 1024)
+    : undefined
+  return {
+    ...(sapResponseText !== undefined ? { sapResponseText } : {}),
+    ...(adtErrorType !== undefined ? { adtErrorType } : {}),
+    ...(adtErrorMessage !== undefined ? { adtErrorMessage } : {})
+  }
 }
 
 function detectSystemType(components: SapSoftwareComponent[]): SapSystemInfo["systemType"] {
@@ -899,25 +943,32 @@ export class AdtSapClient implements SapClient {
     hasObjects: boolean
   ): Promise<TransportReleaseReport[]> {
     const query = worklistId ? `?worklistId=${encodeURIComponent(worklistId)}` : ""
+    const endpoint = `/sap/bc/adt/cts/transportrequests/${transportNumber}/newreleasejobs${query}`
     const requestOptions = {
       method: "POST" as const,
       headers: { Accept: "application/vnd.sap.adt.transportorganizer.v1+xml" }
     }
     let response: { body: string }
     try {
-      response = await this.client.httpClient.request(
-        `/sap/bc/adt/cts/transportrequests/${transportNumber}/newreleasejobs${query}`,
-        requestOptions
-      )
+      response = await this.client.httpClient.request(endpoint, requestOptions)
     } catch (error) {
       // Some systems (e.g. B4D) reject the synchronous release endpoint for
       // request/tasks that contain objects and run release only as an async
-      // background job from the GUI; surface an actionable hint rather than a raw 500
+      // background job from the GUI; surface an actionable hint rather than a raw 500.
+      //
+      // The ADT endpoint and the exact SAP response text are preserved here
+      // because implementing the asynchronous background-run path requires that
+      // wire evidence, and re-running a failed release to recover it is not safe.
       if (hasObjects && (error as { status?: number })?.status === 500) {
         throw new AppError(
           "TRANSPORT_RELEASE_UNSUPPORTED",
           `SAP rejected the synchronous release of ${transportNumber}. On some systems a request/task that contains objects can only be released from the GUI (SE10/SE09); release it there and verify the status.`,
-          { transportNumber, httpStatus: 500 }
+          {
+            transportNumber,
+            httpStatus: 500,
+            endpoint,
+            ...adtFailureEvidence(error)
+          }
         )
       }
       throw error
@@ -1086,7 +1137,26 @@ export class AdtSapClient implements SapClient {
   }
 
   async runClass(className: string): Promise<string> {
-    return this.client.runClass(className.trim().toUpperCase())
+    const name = className.trim().toUpperCase()
+    try {
+      return await this.client.runClass(name)
+    } catch (error) {
+      // The ADT class-run endpoint answers a rejected class with a plain 500 and
+      // no usable message. Preserve the endpoint and the SAP response text so a
+      // failure is actionable without re-running an execution.
+      const evidence = adtFailureEvidence(error)
+      if (Object.keys(evidence).length === 0) throw error
+      throw new AppError(
+        "SAP_CLASS_RUN_FAILED",
+        `SAP rejected running class ${name}. It must implement IF_OO_ADT_CLASSRUN and be active.`,
+        {
+          className: name,
+          endpoint: "/sap/bc/adt/oo/classrun",
+          ...(isHttpError(error) ? { httpStatus: error.status } : {}),
+          ...evidence
+        }
+      )
+    }
   }
 
   async checkReplAvailability(): Promise<ReplHealthCheck> {
@@ -1773,19 +1843,29 @@ export class AdtSapClient implements SapClient {
     return result
   }
 
-  async getSystemInfo(includeComponents = false): Promise<SapSystemInfo> {
+  /**
+   * @param knownDiscoveryCollections ADT core discovery collection count the
+   *   caller already fetched. Pass it to avoid requesting the identical resource
+   *   twice inside one logical operation; `getSapCapabilities` already holds it.
+   */
+  async getSystemInfo(
+    includeComponents = false,
+    knownDiscoveryCollections?: number
+  ): Promise<SapSystemInfo> {
     const warnings: string[] = []
-    let discoveryCollections = 0
+    let discoveryCollections = knownDiscoveryCollections ?? 0
     let sapRelease = ""
     let logicalSystem = ""
     let clientName = ""
     let timezone: SapSystemInfo["timezone"] = null
     let softwareComponents: SapSoftwareComponent[] = []
 
-    try {
-      discoveryCollections = (await this.client.adtCoreDiscovery()).length
-    } catch (error) {
-      warnings.push(`ADT core discovery failed: ${error instanceof Error ? error.message : String(error)}`)
+    if (knownDiscoveryCollections === undefined) {
+      try {
+        discoveryCollections = (await this.client.adtCoreDiscovery()).length
+      } catch (error) {
+        warnings.push(`ADT core discovery failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
     }
 
     try {

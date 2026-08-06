@@ -12,6 +12,10 @@ import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
 import type { RapGeneratorContent } from "abap-adt-api"
 import { ABAP_OBJECT_TYPES } from "./abap-object-types.js"
+import type { AuditRecorder } from "./audit-log.js"
+import type { HttpRole } from "./http/auth.js"
+import { instrumentAudit } from "./mcp/audit-instrumentation.js"
+import { applyRolePolicy } from "./mcp/role-policy.js"
 import {
   DEFERRED_RESULT_CHUNK_BYTE_LIMIT,
   DEFERRED_RESULT_TOOL_NAME,
@@ -76,6 +80,9 @@ export interface McpServerOptions {
   enabledV1Tools?: ReadonlySet<string>
   enabledV1Resources?: ReadonlySet<V1ResourceName>
   apiVersion?: McpApiVersion
+  auditRecorder?: AuditRecorder
+  /** Restrict the advertised surface to what this role may call. */
+  role?: HttpRole
 }
 
 interface ToolResultPolicy {
@@ -111,6 +118,12 @@ export function createMcpServer(
         : "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
   )
+  if (options.role) {
+    applyRolePolicy(server, options.role)
+  }
+  if (options.auditRecorder) {
+    instrumentAudit(server, options.auditRecorder)
+  }
   const deferredResults = new DeferredResultStore()
   const deferredResultsEnabled = !options.enabledV0Tools ||
     options.enabledV0Tools.has(DEFERRED_RESULT_TOOL_NAME)
