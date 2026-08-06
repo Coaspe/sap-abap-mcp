@@ -1,6 +1,7 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto"
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { AppError } from "../errors.js"
+import { trimTrailingLineBreaks } from "../text.js"
 
 export const HTTP_ROLES = ["viewer", "developer", "admin"] as const
 export type HttpRole = (typeof HTTP_ROLES)[number]
@@ -31,10 +32,21 @@ export interface HttpPrincipal {
   systemIds?: readonly string[]
 }
 
+/**
+ * One stored key. Exactly one digest field is present, and it names the
+ * algorithm, so a key file states how it was produced instead of depending on
+ * server configuration matching by luck.
+ *
+ * `keyHmacSha256` binds the digest to a server-side secret, so a disclosed key
+ * file alone cannot be attacked offline. That is the residual risk a length rule
+ * cannot remove: a validator cannot tell a long random key from a long
+ * hand-written one.
+ */
 export interface ApiKeyRecord {
   id: string
   role: HttpRole
-  keySha256: string
+  keySha256?: string
+  keyHmacSha256?: string
   /**
    * SAP profiles this key may select. Assigning one profile per person is how a
    * deployment gets per-user SAP identity: SAP change documents and
@@ -42,6 +54,9 @@ export interface ApiKeyRecord {
    */
   systemIds?: readonly string[]
 }
+
+/** Minimum length for the server-side secret used by `keyHmacSha256`. */
+export const API_KEY_PEPPER_MIN_LENGTH = 32
 
 export function parseHttpRole(value: unknown): HttpRole {
   if (typeof value === "string") {
@@ -78,6 +93,55 @@ export function parseHttpRole(value: unknown): HttpRole {
  */
 export function hashApiKey(key: string): string {
   return createHash("sha256").update(key, "utf8").digest("hex")
+}
+
+/**
+ * Digest a key under a server-side secret.
+ *
+ * This closes the one risk {@link isWellFormedApiKey} cannot: a key that is long
+ * enough to pass validation but not actually random. Without the secret, a
+ * disclosed key file cannot be attacked offline at all, whatever the key's
+ * entropy. It stays fast, so it does not reintroduce the denial-of-service
+ * concern a per-request KDF would.
+ *
+ * The secret must not live beside the key file, or a single disclosure yields
+ * both.
+ */
+export function hmacApiKey(key: string, pepper: string): string {
+  if (pepper.length < API_KEY_PEPPER_MIN_LENGTH) {
+    throw new AppError(
+      "API_KEY_PEPPER_TOO_SHORT",
+      `The API key secret must be at least ${API_KEY_PEPPER_MIN_LENGTH} characters`
+    )
+  }
+  return createHmac("sha256", pepper).update(key, "utf8").digest("hex")
+}
+
+/** Read a server-side secret from a file, ignoring a trailing newline. */
+export function loadApiKeyPepper(path: string): string {
+  let text: string
+  try {
+    text = readFileSync(path, "utf8")
+  } catch (error) {
+    throw new AppError(
+      "API_KEY_PEPPER_UNREADABLE",
+      `The API key secret file could not be read: ${path}`,
+      { cause: error instanceof Error ? error.message : String(error) }
+    )
+  }
+  const pepper = trimTrailingLineBreaks(text)
+  if (pepper.length < API_KEY_PEPPER_MIN_LENGTH) {
+    throw new AppError(
+      "API_KEY_PEPPER_TOO_SHORT",
+      `The API key secret must be at least ${API_KEY_PEPPER_MIN_LENGTH} characters`
+    )
+  }
+  return pepper
+}
+
+/** Generate a server-side secret suitable for {@link hmacApiKey}. */
+export function generateApiKeyPepper(): string {
+  return randomBytes(API_KEY_BYTES).toString("base64url")
 }
 
 /**
@@ -131,13 +195,26 @@ export function parseApiKeyFile(text: string): ApiKeyRecord[] {
         `keys[${index}].id must match ${PRINCIPAL_ID_PATTERN.source}`
       )
     }
-    const keySha256 = typeof record.keySha256 === "string"
-      ? record.keySha256.trim().toLowerCase()
-      : ""
-    if (!/^[0-9a-f]+$/.test(keySha256) || keySha256.length !== SHA256_HEX_LENGTH) {
+    const readDigest = (field: "keySha256" | "keyHmacSha256"): string | undefined => {
+      const raw = record[field]
+      if (raw === undefined) return undefined
+      const digest = typeof raw === "string" ? raw.trim().toLowerCase() : ""
+      if (!/^[0-9a-f]+$/.test(digest) || digest.length !== SHA256_HEX_LENGTH) {
+        throw new AppError(
+          "API_KEY_FILE_INVALID",
+          `keys[${index}].${field} must be a 64-character hex digest`
+        )
+      }
+      return digest
+    }
+    const keySha256 = readDigest("keySha256")
+    const keyHmacSha256 = readDigest("keyHmacSha256")
+    // Exactly one digest, so the record states its own algorithm and a file can
+    // never be ambiguous about which secret, if any, is required to verify it.
+    if ((keySha256 === undefined) === (keyHmacSha256 === undefined)) {
       throw new AppError(
         "API_KEY_FILE_INVALID",
-        `keys[${index}].keySha256 must be a 64-character SHA-256 hex digest`
+        `keys[${index}] must set exactly one of keySha256 or keyHmacSha256`
       )
     }
     const rawSystemIds = record.systemIds
@@ -159,7 +236,8 @@ export function parseApiKeyFile(text: string): ApiKeyRecord[] {
     return {
       id,
       role: parseHttpRole(record.role),
-      keySha256,
+      ...(keySha256 !== undefined ? { keySha256 } : {}),
+      ...(keyHmacSha256 !== undefined ? { keyHmacSha256 } : {}),
       ...(systemIds ? { systemIds } : {})
     }
   })
@@ -201,19 +279,28 @@ export function bearerCredential(header: string | undefined): string | undefined
 }
 
 /**
- * Resolve the principal for a presented credential. Comparison always hashes
+ * Resolve the principal for a presented credential. Comparison always digests
  * the presented value first and then compares fixed-length digests with
  * `timingSafeEqual`, so no comparison leaks key content through timing.
+ *
+ * A record verifies under the algorithm it names. A `keyHmacSha256` record
+ * without the server-side secret is skipped rather than downgraded to a plain
+ * hash, so a missing secret denies access instead of weakening verification.
  */
 export function resolveApiKeyPrincipal(
   records: readonly ApiKeyRecord[],
-  credential: string | undefined
+  credential: string | undefined,
+  pepper?: string
 ): HttpPrincipal | undefined {
   if (!credential || !isWellFormedApiKey(credential)) return undefined
-  const presented = Buffer.from(hashApiKey(credential), "hex")
+  const plain = Buffer.from(hashApiKey(credential), "hex")
+  const peppered = pepper ? Buffer.from(hmacApiKey(credential, pepper), "hex") : undefined
   let matched: ApiKeyRecord | undefined
   for (const record of records) {
-    const expected = Buffer.from(record.keySha256, "hex")
+    const stored = record.keyHmacSha256 ?? record.keySha256
+    const presented = record.keyHmacSha256 !== undefined ? peppered : plain
+    if (stored === undefined || presented === undefined) continue
+    const expected = Buffer.from(stored, "hex")
     if (
       expected.length === presented.length &&
       timingSafeEqual(expected, presented)

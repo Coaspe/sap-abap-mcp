@@ -141,7 +141,7 @@ test("API key files store only hashes and reject malformed records", () => {
   )
   assert.throws(
     () => parseApiKeyFile(JSON.stringify({ keys: [{ id: "alice", role: "viewer", keySha256: "short" }] })),
-    /SHA-256 hex digest/
+    /must be a 64-character hex digest/
   )
   assert.throws(
     () => parseApiKeyFile(JSON.stringify({ keys: [{ id: "alice", role: "root", keySha256: hashApiKey(key) }] })),
