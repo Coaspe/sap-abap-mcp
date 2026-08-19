@@ -50,28 +50,28 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 - Network traffic goes directly from the user's computer to the configured SAP system and to npm when `npx` installs or updates the package.
 - Automated tests use an in-memory SAP implementation. SAP-dependent capabilities remain `unverified` until they succeed against the selected live SAP connection.
 
-## Submission status (2026-07-29)
+## Submission status (2026-08-19)
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| npm | Live at 1.0.0 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 1.0.0 on `latest`; npm versions are immutable, so the package is not republished for documentation-only changes |
-| Official MCP Registry | Live at 1.0.0 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) marks 1.0.0 active and latest; [workflow run 30412555061](https://github.com/Coaspe/sap-abap-mcp/actions/runs/30412555061) published successfully with GitHub OIDC |
-| GitHub Release | Complete | [`v1.0.0`](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v1.0.0) includes release notes and `sap-abap-mcp-1.0.0.mcpb`; SHA-256 `3303f971d50a64aa0ba48c1489a3b6e1e6e4bfd26cf8a58ae75bad5dfdaa24f4` |
-| Smithery | Live with 115 tools | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp) was republished as deployment `1094591f-8045-4726-97da-1534cc0836d5`; the public registry API reports 115 tools |
+| npm | Live at 1.1.0 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 1.1.0 on `latest`; published through [workflow run 32200268550](https://github.com/Coaspe/sap-abap-mcp/actions/runs/32200268550) with npm provenance |
+| Official MCP Registry | Live at 1.1.0 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) marks 1.1.0 active and latest; [workflow run 32200328024](https://github.com/Coaspe/sap-abap-mcp/actions/runs/32200328024) published successfully with GitHub OIDC |
+| GitHub Release | Complete | [`v1.1.0`](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v1.1.0) includes release notes, `sap-abap-mcp-1.1.0.mcpb`, and its checksum; SHA-256 `1f8e81d4fe4345ca3d21016dfddf25e6a26a3f3c036e02174d1a65f6db941558` |
+| Smithery | Live with 115 tools | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp) was republished as deployment `daf45079-7812-4364-8e33-47d010dd170c`; the deployment completed successfully |
 | Glama | Live; automatic re-index pending | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp) is claimed and author-verified. Glama continuously synchronizes GitHub repositories, but its public page still showed the earlier README during the 2026-07-29 verification |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
 | MCP Server Hub | Submitted | Awaiting directory review |
-| Awesome MCP Servers | Ready for review | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129) is open; the submission check passes and [the v1.0.0 evidence comment](https://github.com/punkpeye/awesome-mcp-servers/pull/10129#issuecomment-5111491416) records the release and 115-tool default |
+| Awesome MCP Servers | Ready for review | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129) is open; the existing submission check passes, but its evidence comment still references v1.0.0 and needs a v1.1.0 follow-up |
 | GitHub Discussions | Live | [`SAP ABAP MCP 1.0` announcement](https://github.com/Coaspe/sap-abap-mcp/discussions/4) is published; repository Discussions and adoption feedback are enabled |
 | Claude Code Community Marketplace | Submitted; review pending | Submitted through the Anthropic Console on 2026-07-15 as `Coaspe ABAP MCP` for Claude Code; the public GitHub plugin validates and installs as `sap-abap-mcp@coaspe-sap` |
-| Claude Desktop MCPB directory | v1 update submitted; review pending | Anthropic's desktop-extension form recorded the v1.0.0 update on 2026-07-29 with the same MCPB attached to the GitHub release; the submitted file SHA-256 is `3303f971d50a64aa0ba48c1489a3b6e1e6e4bfd26cf8a58ae75bad5dfdaa24f4` |
-| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap` and resolves the npm 1.0.0 `latest` runtime |
+| Claude Desktop MCPB directory | v1.1.0 update pending | The prior v1.0.0 update was submitted on 2026-07-29; the validated v1.1.0 MCPB is now attached to GitHub Release and needs a new Anthropic directory submission |
+| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap`; its manifests now advertise 1.1.0 and resolve the npm 1.1.0 `latest` runtime |
 | Codex universal plugin directory | Blocked by prerequisites | The official `With MCP` flow requires completed OpenAI developer identity verification and a production public HTTPS MCP endpoint; the current local `stdio` server cannot be submitted as-is |
-| LobeHub | Live; rescan requested | [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp) still showed 0.4.14 and 53 tools; [`lobehub/lobehub#17688`](https://github.com/lobehub/lobehub/issues/17688) requests a v1.0.0/115-tool rescan |
-| mcp.so | v1 update saved; review queued | [Submission `cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64`](https://mcp.so/settings/submissions/cf81d7cd-ac1a-4876-b3f4-c2c7841b6a64/edit) and its [private review preview](https://mcp.so/servers/sap-abap-cf81d7) show version 1.0.0, 115 action-specific tools, seven Resources, current tags, and the local `stdio` configuration |
+| LobeHub | Live; rescan requested | [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp) still needs a v1.1.0/115-tool rescan; [`lobehub/lobehub#17688`](https://github.com/lobehub/lobehub/issues/17688) remains the tracking issue |
+| mcp.so | v1.1.0 update pending | The previous submission preview showed v1.0.0; the v1.1.0 release and updated README are ready for a new submission/update |
 | MCP Servers | Live with current v1 README | [`coaspe/sap-abap-mcp`](https://mcpservers.org/servers/coaspe/sap-abap-mcp) now displays the 115-tool v1 default, seven Resources, and v0 compatibility command |
 | MCP Market | Submitted; review queued | Free submission confirmed on 2026-07-15; the confirmation page reported an estimated 4–6 week queue and email notification when live |
-| Cline MCP Marketplace | Submitted; review pending | [`cline/mcp-marketplace#2030`](https://github.com/cline/mcp-marketplace/issues/2030) is open; [the v1.0.0 evidence comment](https://github.com/cline/mcp-marketplace/issues/2030#issuecomment-5111491531) requests re-validation against the default 115-tool v1 surface |
+| Cline MCP Marketplace | Submitted; review pending | [`cline/mcp-marketplace#2030`](https://github.com/cline/mcp-marketplace/issues/2030) is open; its existing evidence comment references v1.0.0 and needs a v1.1.0 follow-up |
 | SAP Community | Submitted; awaiting review | The English article was submitted on 2026-07-29 as article `179906`. Its planned public URL is [`sap-abap-mcp-1-0-headless-abap-development-for-ai-coding-agents`](https://community.sap.com/t5/technology-blog-posts-by-members/sap-abap-mcp-1-0-headless-abap-development-for-ai-coding-agents/ba-p/14451008) |
 
 ## Distribution targets
