@@ -11,6 +11,7 @@ import { z } from "zod"
 import type { RapGeneratorContent } from "abap-adt-api"
 import type { AbapToolService } from "../../tool-service.js"
 import { V1_SCHEMA_VERSION } from "./contracts.js"
+import { dataElementPropertiesSchema, domainPropertiesSchema } from "./ddic-schemas.js"
 import { normalizeV1SystemId, parseAdtResourceUri } from "./resource-uri.js"
 import { runV1Tool, v1Success } from "./result.js"
 
@@ -149,6 +150,106 @@ export function registerV1WriteTools(
       connectionId: systemId!,
       planId: input.planId,
       confirmation: input.confirmation
+    }))
+  )
+
+  const ddicWriteCommon = {
+    systemId: SYSTEM_ID,
+    name: NON_EMPTY,
+    expectedFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
+    description: z.string().optional(),
+    transport: z.string().optional(),
+    activate: z.boolean().default(false)
+  }
+  registerTool(
+    "sap.ddic.update",
+    "Update Structured ABAP Dictionary Object",
+    "Optimistically replace typed Domain/Data Element properties or Table/Structure DDL source.",
+    z.union([
+      z.object({
+        ...ddicWriteCommon,
+        kind: z.literal("domain"),
+        properties: domainPropertiesSchema
+      }).strict(),
+      z.object({
+        ...ddicWriteCommon,
+        kind: z.literal("data_element"),
+        properties: dataElementPropertiesSchema
+      }).strict(),
+      z.object({
+        ...ddicWriteCommon,
+        kind: z.literal("table"),
+        source: z.string().min(1).max(98304)
+      }).strict(),
+      z.object({
+        ...ddicWriteCommon,
+        kind: z.literal("structure"),
+        source: z.string().min(1).max(98304)
+      }).strict()
+    ]),
+    MUTATION_ANNOTATIONS,
+    input => serviceResult(input.systemId, systemId => {
+      const common = {
+        connectionId: systemId!,
+        name: input.name,
+        expectedFingerprint: input.expectedFingerprint,
+        activate: input.activate,
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.transport !== undefined ? { transport: input.transport } : {})
+      }
+      return input.kind === "domain" || input.kind === "data_element"
+        ? service.updateDdic({
+            ...common,
+            kind: input.kind,
+            properties: input.properties
+          } as Parameters<AbapToolService["updateDdic"]>[0])
+        : service.updateDdic({ ...common, kind: input.kind, source: input.source })
+    })
+  )
+
+  const classicWriteCommon = {
+    systemId: SYSTEM_ID,
+    programName: NON_EMPTY,
+    transport: z.string().optional(),
+    activate: z.boolean().default(false),
+    confirmation: NON_EMPTY.optional()
+  }
+  registerTool(
+    "sap.classic.write",
+    "Write Classic ABAP Screen or GUI Status",
+    "Preview or execute one confirmed Screen/Dynpro or full GUI Status write through an opt-in same-origin classic bridge. Omit confirmation to preview, then resubmit the returned exact value.",
+    z.union([
+      z.object({
+        ...classicWriteCommon,
+        kind: z.literal("screen"),
+        operation: z.literal("upsert"),
+        screenNumber: z.string().regex(/^\d{1,4}$/),
+        definition: z.string().min(1).max(98304)
+      }).strict(),
+      z.object({
+        ...classicWriteCommon,
+        kind: z.literal("screen"),
+        operation: z.literal("delete"),
+        screenNumber: z.string().regex(/^\d{1,4}$/)
+      }).strict(),
+      z.object({
+        ...classicWriteCommon,
+        kind: z.literal("gui_status"),
+        operation: z.literal("upsert"),
+        definition: z.string().min(1).max(98304)
+      }).strict()
+    ]),
+    MUTATION_ANNOTATIONS,
+    input => serviceResult(input.systemId, systemId => service.writeClassicObject({
+      connectionId: systemId!,
+      kind: input.kind,
+      operation: input.operation,
+      programName: input.programName,
+      activate: input.activate,
+      ...(input.confirmation !== undefined ? { confirmation: input.confirmation } : {}),
+      ...(input.transport !== undefined ? { transport: input.transport } : {}),
+      ...(input.kind === "screen" ? { screenNumber: input.screenNumber } : {}),
+      ...(input.operation === "upsert" ? { definition: input.definition } : {})
     }))
   )
 

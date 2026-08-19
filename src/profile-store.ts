@@ -4,6 +4,13 @@ import { dirname, join } from "node:path"
 import { z } from "zod"
 import { AppError } from "./errors.js"
 
+const classicBridgePathSchema = z.string()
+  .regex(/^\/sap\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_.-]+)*$/)
+  .refine(
+    value => !value.split("/").some(segment => segment === "." || segment === ".."),
+    "Classic bridge path must not contain dot segments"
+  )
+
 const baseProfileSchema = z.object({
   id: z.string().regex(/^[A-Z0-9_-]+$/),
   url: z.url(),
@@ -11,7 +18,8 @@ const baseProfileSchema = z.object({
   language: z.string().regex(/^[A-Z]{2}$/),
   environment: z.enum(["development", "quality", "production"]),
   allowDataQueries: z.boolean().default(false),
-  allowedPackages: z.array(z.string().min(1)).default([])
+  allowedPackages: z.array(z.string().min(1)).default([]),
+  classicBridgePath: classicBridgePathSchema.optional()
 })
 
 const oauthTokenUrlSchema = z.url().refine(value => {
@@ -30,6 +38,18 @@ const profileSchema = z.discriminatedUnion("authType", [
     tokenUrl: oauthTokenUrlSchema,
     clientId: z.string().min(1),
     scope: z.string().min(1).optional(),
+    username: z.string().min(1).optional()
+  }),
+  baseProfileSchema.extend({
+    authType: z.literal("oauth_authorization_code"),
+    authorizationUrl: oauthTokenUrlSchema,
+    tokenUrl: oauthTokenUrlSchema,
+    clientId: z.string().min(1),
+    scope: z.string().min(1).optional(),
+    username: z.string().min(1).optional()
+  }),
+  baseProfileSchema.extend({
+    authType: z.literal("bearer_passthrough"),
     username: z.string().min(1).optional()
   })
 ])
@@ -57,8 +77,10 @@ export interface SapProfileInput {
   allowDataQueries?: boolean
   allowedPackages?: string[]
   tokenUrl?: string
+  authorizationUrl?: string
   clientId?: string
   scope?: string | undefined
+  classicBridgePath?: string | undefined
 }
 
 function defaultConfigDirectory(): string {
@@ -80,10 +102,16 @@ export function normalizeProfile(input: SapProfileInput): StoredSapProfile {
     allowDataQueries: input.allowDataQueries ?? false,
     authType,
     ...(input.username ? { username: input.username.trim() } : {}),
-    ...(authType === "oauth_client_credentials"
+    ...(input.classicBridgePath?.trim()
+      ? { classicBridgePath: input.classicBridgePath.trim().replace(/\/+$/, "") }
+      : {}),
+    ...(authType === "oauth_client_credentials" || authType === "oauth_authorization_code"
       ? {
           tokenUrl: input.tokenUrl?.trim(),
           clientId: input.clientId?.trim(),
+          ...(authType === "oauth_authorization_code"
+            ? { authorizationUrl: input.authorizationUrl?.trim() }
+            : {}),
           ...(input.scope?.trim() ? { scope: input.scope.trim() } : {})
         }
       : {}),

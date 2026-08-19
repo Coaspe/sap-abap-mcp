@@ -21,6 +21,8 @@ function createOperationsService() {
     manageHeartbeat: operation("manageHeartbeat"),
     analyzeDumps: operation("analyzeDumps"),
     analyzeTraces: operation("analyzeTraces"),
+    readRuntimeFeed: operation("readRuntimeFeed"),
+    readClassicObject: operation("readClassicObject"),
     async exportAdtDiscovery(connectionId: string, mode: string) {
       calls.push({ method: "exportAdtDiscovery", input: { connectionId, mode } })
       return { connectionId: "DEV100", mode }
@@ -49,14 +51,14 @@ async function connectedClient(service: AbapToolService) {
   }
 }
 
-test("the operations toolset advertises 24 action-free v1 contracts", async () => {
+test("the operations toolset advertises 26 action-free v1 contracts", async () => {
   const tools = await advertisedTools({
     apiVersion: "v1",
     enabledV1Tools: v1ToolsForToolsets(["operations"]),
     enabledV1Resources: new Set()
   })
   assert.deepEqual(tools.map(tool => tool.name).sort(), [...V1_MCP_TOOLSETS.operations].sort())
-  assert.equal(tools.length, 24)
+  assert.equal(tools.length, 26)
   for (const tool of tools) {
     assert.ok(tool.outputSchema, `${tool.name} outputSchema`)
     assert.equal("action" in (tool.inputSchema.properties ?? {}), false, tool.name)
@@ -79,6 +81,11 @@ test("operations adapters call shared service capabilities with fixed actions", 
       systemId: "dev100", kind: "class", className: "ZCL_DEMO", profiling: true
     } },
     { name: "sap.execution.preview", arguments: { systemId: "dev100", kind: "snippet", code: "WRITE / 'OK'." } },
+    { name: "sap.execution.preview", arguments: { systemId: "dev100", kind: "program", programName: "ZREPORT" } },
+    { name: "sap.runtime.feed.read", arguments: { systemId: "dev100", kind: "system_messages" } },
+    { name: "sap.classic.read", arguments: {
+      systemId: "dev100", kind: "screen", programName: "ZREPORT", screenNumber: "100"
+    } },
     { name: "sap.ops.watch.history", arguments: {} },
     { name: "sap.ops.watch.start", arguments: {} },
     { name: "sap.ops.watch.status", arguments: {} },
@@ -110,14 +117,14 @@ test("operations adapters call shared service capabilities with fixed actions", 
     assert.deepEqual(result.structuredContent, JSON.parse((result.content[0] as { text: string }).text))
   }
 
-  assert.equal(calls.length, 26)
+  assert.equal(calls.length, 29)
   assert.deepEqual(
     calls.flatMap(call => {
       const input = call.input as Record<string, unknown>
       return typeof input.action === "string" ? [input.action] : []
     }),
     [
-      "repl_health", "preview_class", "preview_snippet",
+      "repl_health", "preview_class", "preview_snippet", "preview_program",
       "history", "start", "status", "stop", "add_task", "disable_task",
       "enable_task", "list_tasks", "remove_task", "update_task", "trigger", "get_watchlist",
       "analyze_dump", "list_dumps",

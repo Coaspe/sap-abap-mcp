@@ -38,6 +38,10 @@ import {
   type UsageReference
 } from "abap-adt-api"
 import type { ChangePackageRefactoring } from "abap-adt-api/build/api/refactor.js"
+import type {
+  DataElementProperties,
+  DomainProperties
+} from "abap-adt-api/build/api/objectcontents.js"
 import {
   abapGitCredentialKey,
   decodeAbapGitCredentials,
@@ -72,8 +76,14 @@ import {
   type SapCapabilityCategory,
   type SapCapabilityStatus
 } from "./sap-capabilities.js"
-import type { SapClient } from "./sap-client.js"
-import type { SapNewObjectOptions, SapObjectReference } from "./sap-client.js"
+import type {
+  SapClassicBridgeAction,
+  SapClient,
+  SapDdicKind,
+  SapNewObjectOptions,
+  SapObjectReference,
+  SapRuntimeFeedKind
+} from "./sap-client.js"
 import type { SecretStore } from "./secret-store.js"
 import {
   createTestDocumentation as createTestDocumentationArtifact,
@@ -147,6 +157,56 @@ export interface GetObjectInfoInput {
   includeChildren?: boolean
   childStartIndex?: number
   childMaxResults?: number
+  includeEnhancements?: boolean
+  includeEnhancementSource?: boolean
+}
+
+export type DdicObjectKind = SapDdicKind | "table" | "structure"
+
+export interface ReadDdicInput {
+  connectionId: string
+  kind: DdicObjectKind
+  name: string
+}
+
+export type UpdateDdicInput = {
+  connectionId: string
+  name: string
+  expectedFingerprint: string
+  description?: string
+  transport?: string
+  activate?: boolean
+} & (
+  | { kind: "domain"; properties: DomainProperties; source?: never }
+  | { kind: "data_element"; properties: DataElementProperties; source?: never }
+  | { kind: "table" | "structure"; source: string; properties?: never }
+)
+
+export interface ReadRuntimeFeedInput {
+  connectionId: string
+  kind: SapRuntimeFeedKind
+  user?: string
+  maxResults: number
+  from?: string
+  to?: string
+  startIndex: number
+}
+
+export type ClassicObjectKind = "screen" | "gui_status"
+
+export interface ReadClassicObjectInput {
+  connectionId: string
+  kind: ClassicObjectKind
+  programName: string
+  screenNumber?: string
+}
+
+export interface WriteClassicObjectInput extends ReadClassicObjectInput {
+  operation: "upsert" | "delete"
+  definition?: string
+  transport?: string
+  activate?: boolean
+  confirmation?: string
 }
 
 export interface GetBatchLinesInput {
@@ -641,12 +701,18 @@ export type RunAbapApplicationInput =
       className: string
       profiling?: boolean
     }
+  | {
+      action: "preview_program"
+      connectionId: string
+      programName: string
+    }
   | { action: "preview_snippet"; connectionId: string; code: string }
   | { action: "execute"; connectionId: string; planId: string; confirmation: string }
 
 type ExecutionPlanPayload =
-  | { kind: "class"; className: string; profiling: boolean; code?: never }
-  | { kind: "snippet"; code: string; className?: never }
+  | { kind: "class"; className: string; profiling: boolean; programName?: never; code?: never }
+  | { kind: "program"; programName: string; className?: never; code?: never }
+  | { kind: "snippet"; code: string; className?: never; programName?: never }
 
 type ExecutionPlan = {
   id: string
@@ -1220,6 +1286,21 @@ function requireTransport(packageName: string, transport?: string): string | und
     )
   }
   return normalizedTransport || undefined
+}
+
+function normalizeAbapRepositoryName(value: string, label: string): string {
+  const name = value.trim().toUpperCase()
+  if (
+    name.length > 40 ||
+    !/^(?:\/[A-Z0-9_]+\/)?[A-Z][A-Z0-9_]*$/.test(name)
+  ) {
+    throw new AppError(
+      "SAP_VALIDATION_FAILED",
+      `${label} must be a valid ABAP repository name`,
+      { reason: "OBJECT_NAME_INVALID", label }
+    )
+  }
+  return name
 }
 
 function validateReadOnlySql(sql: string): void {
@@ -5690,6 +5771,37 @@ export class AbapToolService {
           input.childMaxResults ?? 50
         )
       : null
+    const enhancements = input.includeEnhancements && source
+      ? await client.getObjectEnhancements(
+          source.sourceUri,
+          input.includeEnhancementSource ?? false
+        )
+      : null
+    const enhancementImplementations = enhancements?.implementations.slice(0, 100).map(item => ({
+      name: item.name,
+      type: item.type,
+      version: item.version,
+      enhancedObject: item.enhancedObject,
+      elements: item.elements.slice(0, 100).map(element => ({
+        uri: element.uri,
+        id: element.id,
+        fullname: element.fullname,
+        mode: element.mode,
+        replacing: element.replacing,
+        position: element.position,
+        ...(element.source === undefined
+          ? {}
+          : (() => {
+              const source = boundInlineText(element.source, 32 * 1024)
+              return {
+                source: source.content,
+                sourceBytes: source.originalBytes,
+                sourceTruncated: source.truncated
+              }
+            })())
+      })),
+      elementsTruncated: item.elements.length > 100
+    }))
     return {
       connectionId: input.connectionId.toUpperCase(),
       object,
@@ -5707,6 +5819,11 @@ export class AbapToolService {
           : 0
       },
       ...(input.includeStructure ? { structure } : {}),
+      ...(enhancementImplementations ? {
+        enhancements: enhancementImplementations,
+        enhancementCount: enhancements!.implementations.length,
+        enhancementsTruncated: enhancements!.implementations.length > 100
+      } : {}),
       ...(childPage ? {
         childPage: {
           total: childPage.total,
@@ -5724,6 +5841,281 @@ export class AbapToolService {
           expandable: node.EXPANDABLE === "X" || node.EXPANDABLE === "true"
         }))
       } : {})
+    }
+  }
+
+  async readDdic(input: ReadDdicInput) {
+    const connectionId = input.connectionId.trim().toUpperCase()
+    const client = await this.connections.getClient(connectionId)
+    const name = normalizeAbapRepositoryName(input.name, "name")
+    if (input.kind === "domain" || input.kind === "data_element") {
+      const kind: SapDdicKind = input.kind
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        connectionId,
+        "repository.ddic.structured",
+        kind === "domain"
+          ? "/sap/bc/adt/ddic/domains"
+          : "/sap/bc/adt/ddic/dataelements",
+        () => client.getDdicDefinition(kind, name)
+      )
+      return { connectionId, name, format: "structured", ...result, capabilityStatusAtExecution }
+    }
+
+    const expectedType = input.kind === "table" ? "TABL/DT" : "TABL/DS"
+    const object = await resolveObject(client, name, expectedType)
+    const [source, fingerprint] = await Promise.all([
+      client.readObject(object),
+      client.getObjectFingerprint(object.uri)
+    ])
+    const bounded = boundInlineText(source.source)
+    return {
+      connectionId,
+      name,
+      kind: input.kind,
+      format: "ddl_source",
+      object: objectIdentity(object),
+      sourceUri: source.sourceUri,
+      fingerprint: fingerprint.fingerprint,
+      source: bounded.content,
+      sourceBytes: bounded.originalBytes,
+      sourceTruncated: bounded.truncated
+    }
+  }
+
+  async updateDdic(input: UpdateDdicInput) {
+    const connectionId = input.connectionId.trim().toUpperCase()
+    const client = await this.connections.getClient(connectionId)
+    const name = normalizeAbapRepositoryName(input.name, "name")
+    if (input.kind === "domain" || input.kind === "data_element") {
+      const current = await client.getDdicDefinition(input.kind, name)
+      const packageName = requireWritablePackage(client, current.metaData.packageName)
+      const transport = requireTransport(packageName, input.transport)
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        connectionId,
+        "repository.ddic.structured",
+        current.uri,
+        () => client.updateDdicDefinition(
+          input.kind,
+          name,
+          input.expectedFingerprint,
+          input.properties,
+          input.description,
+          transport,
+          input.activate ?? false
+        )
+      )
+      return { connectionId, name, ...result, capabilityStatusAtExecution }
+    }
+
+    const expectedType = input.kind === "table" ? "TABL/DT" : "TABL/DS"
+    const object = await resolveObject(client, name, expectedType)
+    const packageName = requireWritablePackage(client, object.packageName)
+    const transport = requireTransport(packageName, input.transport)
+    const currentFingerprint = await client.getObjectFingerprint(object.uri)
+    if (currentFingerprint.fingerprint !== input.expectedFingerprint) {
+      throw new AppError(
+        "SOURCE_CHANGED",
+        `DDIC definition changed after it was read; refusing to overwrite ${object.uri}`
+      )
+    }
+    const current = await client.readObject(object)
+    const mutation = await client.replaceSource(
+      object.name,
+      object.uri,
+      current.sourceUri,
+      current.source,
+      input.source,
+      transport,
+      input.activate ?? false
+    )
+    const fingerprint = await client.getObjectFingerprint(object.uri)
+    return {
+      connectionId,
+      name,
+      kind: input.kind,
+      format: "ddl_source",
+      object: objectIdentity(object),
+      fingerprint: fingerprint.fingerprint,
+      diagnostics: mutation.diagnostics,
+      activation: mutation.activation ?? null,
+      activationSkipped: mutation.activationSkipped
+    }
+  }
+
+  async readRuntimeFeed(input: ReadRuntimeFeedInput) {
+    const connectionId = input.connectionId.trim().toUpperCase()
+    const client = await this.connections.getClient(connectionId)
+    const user = input.user?.trim().toUpperCase()
+    if (user && !/^[A-Z0-9_.@-]{1,40}$/.test(user)) {
+      throw new AppError("SAP_VALIDATION_FAILED", "user contains unsupported characters")
+    }
+    for (const [label, value] of [["from", input.from], ["to", input.to]] as const) {
+      if (value && !/^\d{14}$/.test(value)) {
+        throw new AppError("SAP_VALIDATION_FAILED", `${label} must use YYYYMMDDHHMMSS`)
+      }
+    }
+    const { result, capabilityStatusAtExecution } = await this.executeCapability(
+      connectionId,
+      "insight.feeds",
+      input.kind === "gateway_errors"
+        ? "/sap/bc/adt/gw/errorlog"
+        : input.kind === "system_messages"
+          ? "/sap/bc/adt/runtime/systemmessages"
+          : "/sap/bc/adt/feeds",
+      () => client.getRuntimeFeed(input.kind, {
+        ...(user ? { user } : {}),
+        maxResults: Math.min(input.startIndex + input.maxResults, 500),
+        ...(input.from ? { from: input.from } : {}),
+        ...(input.to ? { to: input.to } : {})
+      })
+    )
+    const page = pageItems(result.entries, input.startIndex, input.maxResults)
+    return {
+      connectionId,
+      kind: input.kind,
+      endpoint: result.endpoint,
+      total: page.total,
+      startIndex: page.startIndex,
+      returned: page.returned,
+      truncated: page.truncated,
+      nextStartIndex: page.nextStartIndex,
+      entries: page.items.map(entry => {
+        const summary = typeof entry.summary === "string"
+          ? boundInlineText(entry.summary, 8 * 1024)
+          : undefined
+        const content = typeof entry.content === "string"
+          ? boundInlineText(entry.content, 8 * 1024)
+          : undefined
+        return {
+          ...entry,
+          ...(summary ? {
+            summary: summary.content,
+            summaryBytes: summary.originalBytes,
+            summaryTruncated: summary.truncated
+          } : {}),
+          ...(content ? {
+            content: content.content,
+            contentBytes: content.originalBytes,
+            contentTruncated: content.truncated
+          } : {})
+        }
+      }),
+      capabilityStatusAtExecution
+    }
+  }
+
+  async readClassicObject(input: ReadClassicObjectInput) {
+    const connectionId = input.connectionId.trim().toUpperCase()
+    const client = await this.connections.getClient(connectionId)
+    const programName = normalizeAbapRepositoryName(input.programName, "programName")
+    const screenNumber = input.screenNumber?.trim().padStart(4, "0")
+    if (input.kind === "screen" && !/^\d{4}$/.test(screenNumber ?? "")) {
+      throw new AppError("SAP_VALIDATION_FAILED", "screenNumber must contain 1 through 4 digits")
+    }
+    const action: SapClassicBridgeAction = input.kind === "screen" ? "DYNPRO_READ" : "CUA_FETCH"
+    const { result, capabilityStatusAtExecution } = await this.executeCapability(
+      connectionId,
+      "repository.classic_bridge",
+      client.profile.classicBridgePath ?? "/sap/bc/rest/zmcp_rfc",
+      () => client.callClassicBridge(action, {
+        program: programName,
+        ...(screenNumber ? { dynpro: screenNumber } : {})
+      })
+    )
+    const encoded = JSON.stringify(result)
+    const bounded = boundInlineText(encoded)
+    return {
+      connectionId,
+      kind: input.kind,
+      programName,
+      ...(screenNumber ? { screenNumber } : {}),
+      definitionJson: bounded.content,
+      definitionBytes: bounded.originalBytes,
+      definitionTruncated: bounded.truncated,
+      capabilityStatusAtExecution
+    }
+  }
+
+  async writeClassicObject(input: WriteClassicObjectInput) {
+    const connectionId = input.connectionId.trim().toUpperCase()
+    const client = await this.connections.getClient(connectionId)
+    const programName = normalizeAbapRepositoryName(input.programName, "programName")
+    const screenNumber = input.screenNumber?.trim().padStart(4, "0")
+    if (input.kind === "screen" && !/^\d{4}$/.test(screenNumber ?? "")) {
+      throw new AppError("SAP_VALIDATION_FAILED", "screenNumber must contain 1 through 4 digits")
+    }
+    if (input.kind === "gui_status" && input.operation === "delete") {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "GUI status deletion is not exposed as a full-document operation; submit an updated definition"
+      )
+    }
+    if (input.operation === "upsert" && !input.definition?.trim()) {
+      throw new AppError("SAP_VALIDATION_FAILED", "definition is required for upsert")
+    }
+    const object = await resolveObject(client, programName, "PROG/P")
+    const packageName = requireWritablePackage(client, object.packageName)
+    const transport = requireTransport(packageName, input.transport)
+    const confirmation = [
+      "WRITE_CLASSIC",
+      input.kind.toUpperCase(),
+      input.operation.toUpperCase(),
+      programName,
+      ...(screenNumber ? [screenNumber] : []),
+      payloadFingerprint({
+        definition: input.definition ?? "",
+        transport: transport ?? "",
+        activate: input.activate ?? false
+      }).slice(0, 12)
+    ].join(":")
+    if (!input.confirmation) {
+      return {
+        connectionId,
+        kind: input.kind,
+        operation: input.operation,
+        programName,
+        ...(screenNumber ? { screenNumber } : {}),
+        transport: transport ?? null,
+        activate: input.activate ?? false,
+        confirmation,
+        preview: true
+      }
+    }
+    requireExactConfirmation(input.confirmation, confirmation)
+    if (transport) await client.addTransportObject(transport, object.uri)
+
+    const action: SapClassicBridgeAction = input.kind === "screen"
+      ? input.operation === "delete" ? "DYNPRO_DELETE" : "DYNPRO_INSERT"
+      : "CUA_WRITE"
+    const parameters = input.kind === "screen"
+      ? {
+          program: programName,
+          dynpro: screenNumber!,
+          ...(input.definition ? { dynpro_data: input.definition } : {})
+        }
+      : {
+          program: programName,
+          cua_data: input.definition!
+        }
+    const { result, capabilityStatusAtExecution } = await this.executeCapability(
+      connectionId,
+      "repository.classic_bridge",
+      client.profile.classicBridgePath ?? "/sap/bc/rest/zmcp_rfc",
+      () => client.callClassicBridge(action, parameters)
+    )
+    const activation = input.activate
+      ? await client.activateObject(programName, object.uri)
+      : undefined
+    return {
+      connectionId,
+      kind: input.kind,
+      operation: input.operation,
+      programName,
+      ...(screenNumber ? { screenNumber } : {}),
+      transport: transport ?? null,
+      result,
+      activation: activation ?? null,
+      capabilityStatusAtExecution
     }
   }
 
@@ -6096,6 +6488,30 @@ export class AbapToolService {
       }
     }
 
+    if (input.action === "preview_program") {
+      requireExecutableProfile(client)
+      const programName = normalizeAbapRepositoryName(input.programName, "programName")
+      const object = await resolveObject(client, programName, "PROG/P")
+      const plan = this.cacheExecutionPlan({
+        kind: "program",
+        connectionId,
+        programName,
+        confirmation: `PROFILE_PROGRAM:${connectionId}:${programName}`
+      })
+      return {
+        action: input.action,
+        planId: plan.id,
+        confirmation: plan.confirmation,
+        expiresAt: new Date(plan.expiresAt).toISOString(),
+        object: objectIdentity(object),
+        profiling: true,
+        capabilityStatusAtExecution: this.capabilities.status(
+          connectionId,
+          "execution.program_profiler"
+        )
+      }
+    }
+
     if (input.action === "preview_snippet") {
       requireExecutableProfile(client)
       const codeBytes = Buffer.byteLength(input.code, "utf8")
@@ -6164,6 +6580,31 @@ export class AbapToolService {
         originalBytes: output.originalBytes,
         returnedBytes: output.returnedBytes,
         truncated: output.truncated,
+        capabilityStatusAtExecution
+      }
+    }
+
+    if (plan.kind === "program") {
+      const { result, capabilityStatusAtExecution } = await this.executeCapability(
+        connectionId,
+        "execution.program_profiler",
+        `/sap/bc/adt/programs/programrun/${plan.programName}`,
+        () => client.runProgramWithProfiling(plan.programName)
+      )
+      const output = boundInlineText(result.output)
+      return {
+        connectionId,
+        kind: plan.kind,
+        profiling: true,
+        output: output.content,
+        originalBytes: output.originalBytes,
+        returnedBytes: output.returnedBytes,
+        truncated: output.truncated,
+        profilerId: result.profilerId,
+        traceId: result.traceId,
+        ...(result.traceLookupWarning
+          ? { traceLookupWarning: result.traceLookupWarning }
+          : {}),
         capabilityStatusAtExecution
       }
     }

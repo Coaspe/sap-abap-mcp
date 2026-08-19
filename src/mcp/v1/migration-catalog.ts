@@ -287,17 +287,33 @@ function uniqueToolTargets(
   ))].sort())
 }
 
-export const V1_TOOL_NAMES = uniqueToolTargets(
-  Object.values(V1_MIGRATION_CATALOG)
-)
+export const V1_EXTENSION_TOOL_NAMES = [
+  "sap.classic.read",
+  "sap.classic.write",
+  "sap.ddic.read",
+  "sap.ddic.update",
+  "sap.runtime.feed.read"
+] as const
 
-export const V1_IMPLEMENTED_TOOL_NAMES = uniqueToolTargets(
-  (Object.values(V1_MIGRATION_CATALOG) as V1MigrationEntry[]).map(entry => ({
-    targets: entry.disposition === "implemented"
-      ? entry.targets
-      : "implementedTargets" in entry
-        ? entry.implementedTargets
-        : [],
-    disposition: entry.disposition
-  }))
-)
+export const V1_TOOL_NAMES = Object.freeze([
+  ...new Set([
+    ...uniqueToolTargets(Object.values(V1_MIGRATION_CATALOG)),
+    ...V1_EXTENSION_TOOL_NAMES
+  ])
+].sort())
+
+export const V1_IMPLEMENTED_TOOL_NAMES = Object.freeze([
+  ...new Set([
+    ...uniqueToolTargets(
+      (Object.values(V1_MIGRATION_CATALOG) as V1MigrationEntry[]).map(entry => ({
+        targets: entry.disposition === "implemented"
+          ? entry.targets
+          : "implementedTargets" in entry
+            ? entry.implementedTargets
+            : [],
+        disposition: entry.disposition
+      }))
+    ),
+    ...V1_EXTENSION_TOOL_NAMES
+  ])
+].sort())

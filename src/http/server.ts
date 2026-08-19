@@ -55,12 +55,13 @@ const CORS_ALLOWED_HEADERS = [
 export interface McpSessionContext {
   principal: HttpPrincipal
   auditRecorder?: AuditRecorder
+  sapBearerToken?: string
 }
 
 export interface McpSessionInstance {
   server: McpServer
   /** Release background work owned by this session, if any. */
-  dispose?: () => void
+  dispose?: () => void | Promise<void>
 }
 
 export interface HttpServerOptions {
@@ -261,7 +262,7 @@ export async function startHttpMcpServer(
     sessions.delete(sessionId)
     await session.instance.server.close().catch(() => undefined)
     await session.transport.close().catch(() => undefined)
-    session.instance.dispose?.()
+    await session.instance.dispose?.()
   }
 
   const sweep = setInterval(() => {
@@ -486,6 +487,7 @@ export async function startHttpMcpServer(
     })
     const instance = options.createMcpServerForSession({
       principal,
+      ...(principal.source === "oidc" && credential ? { sapBearerToken: credential } : {}),
       ...(sessionRecorder ? { auditRecorder: sessionRecorder } : {})
     })
     transport.onclose = () => {
@@ -524,7 +526,7 @@ export async function startHttpMcpServer(
       )
     } else {
       await instance.server.close().catch(() => undefined)
-      instance.dispose?.()
+      await instance.dispose?.()
     }
   }
 

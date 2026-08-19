@@ -18,8 +18,11 @@ const profile: SapProfile = {
   allowedPackages: ["Z_DEMO"]
 }
 
-function clientWithAdt(fakeAdt: Record<string, unknown>): AdtSapClient {
-  const client = new AdtSapClient(profile, "secret")
+function clientWithAdt(
+  fakeAdt: Record<string, unknown>,
+  clientProfile: SapProfile = profile
+): AdtSapClient {
+  const client = new AdtSapClient(clientProfile, "secret")
   Object.defineProperty(client, "client", { value: fakeAdt })
   return client
 }
@@ -819,6 +822,162 @@ test("profiled class execution preserves output when trace lookup fails", async 
     profilerId: "/sap/bc/adt/runtime/traces/parameters/PROFILE-2",
     traceId: null,
     traceLookupWarning: "TRACE_LOOKUP_FAILED"
+  })
+})
+
+test("profiled program execution uses the ADT program-run endpoint", async () => {
+  const requests: Array<{ url: string; config: unknown }> = []
+  const fakeAdt: any = {
+    tracesList: async () => ({ runs: [] }),
+    tracesSetParameters: async () => "/sap/bc/adt/runtime/traces/parameters/PROFILE-3",
+    httpClient: {
+      request: async (url: string, config: unknown) => {
+        requests.push({ url, config })
+        return { body: "program output", status: 200, statusText: "OK", headers: {} }
+      }
+    }
+  }
+
+  const result = await clientWithAdt(fakeAdt).runProgramWithProfiling("ZREPORT")
+
+  assert.equal(result.output, "program output")
+  assert.equal(requests[0]?.url, "/sap/bc/adt/programs/programrun/ZREPORT")
+})
+
+test("structured DDIC updates lock, compare, write, unlock, and read back", async () => {
+  const calls: string[] = []
+  const current = {
+    metaData: {
+      name: "ZDOMAIN",
+      description: "Before",
+      language: "EN",
+      masterLanguage: "EN",
+      masterSystem: "DEV",
+      responsible: "DEVELOPER",
+      packageName: "Z_DEMO"
+    },
+    properties: {
+      typeInformation: { datatype: "CHAR", length: 10, decimals: 0 },
+      outputInformation: {
+        length: 10,
+        signExists: false,
+        lowercase: false,
+        ampmFormat: false
+      }
+    }
+  }
+  let stored = structuredClone(current)
+  const fakeAdt: any = {
+    stateful: "",
+    getDomainProperties: async () => {
+      calls.push("read")
+      return structuredClone(stored)
+    },
+    lock: async () => {
+      calls.push("lock")
+      return { LOCK_HANDLE: "LOCK-1" }
+    },
+    setDomainProperties: async (_uri: string, properties: any, metaData: any) => {
+      calls.push("write")
+      stored = { properties: structuredClone(properties), metaData: structuredClone(metaData) }
+    },
+    unLock: async () => {
+      calls.push("unlock")
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+  const before = await client.getDdicDefinition("domain", "ZDOMAIN")
+  const result = await client.updateDdicDefinition(
+    "domain",
+    "ZDOMAIN",
+    before.fingerprint,
+    {
+      typeInformation: { datatype: "CHAR", length: 20, decimals: 0 },
+      outputInformation: {
+        length: 20,
+        signExists: false,
+        lowercase: true,
+        ampmFormat: false
+      }
+    },
+    "After"
+  )
+
+  assert.equal(result.definition.metaData.description, "After")
+  assert.equal(result.definition.kind, "domain")
+  assert.deepEqual(calls, ["read", "lock", "read", "write", "unlock", "read"])
+})
+
+test("runtime feeds are queried with bounded filters and parsed without XML namespaces", async () => {
+  const requests: Array<{ url: string; config: any }> = []
+  const fakeAdt: any = {
+    httpClient: {
+      request: async (url: string, config: any) => {
+        requests.push({ url, config })
+        return {
+          body: `<?xml version="1.0"?><atom:feed xmlns:atom="http://www.w3.org/2005/Atom"><atom:entry><atom:id>MSG-1</atom:id><atom:title>System message</atom:title><atom:updated>2026-08-19T00:00:00Z</atom:updated><atom:author><atom:name>DEVELOPER</atom:name></atom:author><atom:content>Maintenance</atom:content></atom:entry></atom:feed>`,
+          status: 200,
+          statusText: "OK",
+          headers: {}
+        }
+      }
+    }
+  }
+
+  const result = await clientWithAdt(fakeAdt).getRuntimeFeed("system_messages", {
+    user: "DEVELOPER",
+    maxResults: 20
+  })
+
+  assert.equal(result.entries[0]?.title, "System message")
+  assert.equal(result.entries[0]?.author, "DEVELOPER")
+  assert.equal(requests[0]?.url, "/sap/bc/adt/runtime/systemmessages")
+  assert.equal(requests[0]?.config.qs.$top, 20)
+  assert.match(requests[0]?.config.qs.$query, /user , DEVELOPER/)
+})
+
+test("classic bridge reuses the SAP session and sends a CSRF-protected dispatch", async () => {
+  const requests: Array<{ url: string; config: any }> = []
+  const fakeAdt: any = {
+    httpClient: {
+      request: async (url: string, config: any) => {
+        requests.push({ url, config })
+        if (config.method === "GET") {
+          return {
+            body: "",
+            status: 200,
+            statusText: "OK",
+            headers: { "x-csrf-token": "CSRF-1" }
+          }
+        }
+        return {
+          body: JSON.stringify({ subrc: 0, message: "OK", result: "{\"HEADER\":{}}" }),
+          status: 200,
+          statusText: "OK",
+          headers: {}
+        }
+      }
+    }
+  }
+  const bridgeProfile: SapProfile = {
+    ...profile,
+    classicBridgePath: "/sap/bc/rest/zmcp_rfc"
+  }
+
+  const result = await clientWithAdt(fakeAdt, bridgeProfile).callClassicBridge(
+    "DYNPRO_READ",
+    { program: "ZREPORT", dynpro: "0100" }
+  )
+
+  assert.deepEqual(result.result, { HEADER: {} })
+  assert.deepEqual(requests.map(request => request.url), [
+    "/sap/bc/rest/zmcp_rfc/dispatch",
+    "/sap/bc/rest/zmcp_rfc/dispatch"
+  ])
+  assert.equal(requests[1]?.config.headers["X-CSRF-Token"], "CSRF-1")
+  assert.deepEqual(JSON.parse(requests[1]?.config.body), {
+    action: "DYNPRO_READ",
+    params: JSON.stringify({ program: "ZREPORT", dynpro: "0100" })
   })
 })
 
