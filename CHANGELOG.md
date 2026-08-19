@@ -2,7 +2,7 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
-## Unreleased
+## 1.1.0 - 2026-08-19
 
 ### Added
 
@@ -19,6 +19,7 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 - **GitHub Action**: [`action.yml`](action.yml) wraps `assure`, outputs `gate` and the three report paths for `upload-sarif`, and writes a job summary. The SAP password reaches the CLI only through a profile-specific environment variable, never as a command argument. A differential test asserts the action's shell rule for deriving that variable name matches `environmentVariableName` in `src/secret-store.ts`.
 - **BTP service key import**: `profile add <id> --service-key <path>` derives the ABAP endpoint, OAuth token endpoint, client id, and client secret from an SAP BTP ABAP environment service key, verifies them against SAP, and stores the secret in the protected credential store without it ever being typed or passed as an argument. Certificate-only keys are rejected with `SERVICE_KEY_CERTIFICATE_UNSUPPORTED` instead of producing a profile that could never authenticate.
 - **Profile governance for the compatibility profile**: `spec/GOVERNANCE.md` states the change process, the rules that constrain the editor (no single-vendor requirements, no unverifiable requirements, a read-only required core, recorded objections), and the preconditions for moving the profile to a neutral multi-maintainer repository. `docs/profile-invitation.md` holds the unsent draft invitation to other ABAP MCP implementations.
+- **Structured audit log**: `serve --audit-log stderr|file` records one `sap-abap-mcp.audit/v1` JSON Lines event per tool call and Resource read, with principal, capability name, `mutation`/`destructive` hints, selected system, scalar object identity, outcome, error code, duration, and a redacted-arguments digest. `outcome: "denied"` separates guardrail refusals such as `PRODUCTION_WRITE_BLOCKED` and `PACKAGE_NOT_ALLOWED` from technical failures. Auditing is off by default; arguments are excluded unless `--audit-include-arguments` is set, and are redacted and bounded even then. `SAP_ABAP_MCP_AUDIT_LOG`, `SAP_ABAP_MCP_AUDIT_LOG_FILE`, and `SAP_ABAP_MCP_AUDIT_INCLUDE_ARGUMENTS` allow a managed launcher to enable auditing without changing the registered MCP command.
 
 ### Fixed
 
@@ -28,12 +29,10 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 - **A rejected class run gave no reason**: the ADT class-run endpoint answers a class it will not run either with a bare HTTP 500 or with a 200 whose body is an error string, so a rejection surfaced as an opaque failure or, worse, as a successful call whose `output` happened to begin with "Error:". `runClass` now raises `SAP_CLASS_RUN_FAILED` carrying the endpoint, HTTP status, ADT error type, and the exact SAP text.
 - **Transport release failures lost their SAP evidence**: `TRANSPORT_RELEASE_UNSUPPORTED` reported only the transport number and HTTP status, discarding the ADT endpoint, ADT error type, and SAP response text. Those are now preserved in the error details, bounded to 4 KiB. Repeating a failed release to recover them is not safe, and they are the evidence required to implement the asynchronous background-run release path.
 
-- **Structured audit log**: `serve --audit-log stderr|file` records one `sap-abap-mcp.audit/v1` JSON Lines event per tool call and Resource read, with principal, capability name, `mutation`/`destructive` hints, selected system, scalar object identity, outcome, error code, duration, and a redacted-arguments digest. `outcome: "denied"` separates guardrail refusals such as `PRODUCTION_WRITE_BLOCKED` and `PACKAGE_NOT_ALLOWED` from technical failures. Auditing is off by default; arguments are excluded unless `--audit-include-arguments` is set, and are redacted and bounded even then. `SAP_ABAP_MCP_AUDIT_LOG`, `SAP_ABAP_MCP_AUDIT_LOG_FILE`, and `SAP_ABAP_MCP_AUDIT_INCLUDE_ARGUMENTS` allow a managed launcher to enable auditing without changing the registered MCP command.
-
 ### Known limitations
 
 - A request rejected by MCP input-schema validation is not audited, because it never reaches the capability or SAP.
-- HTTP mode authenticates clients per user, but every session still reaches SAP through the selected profile's stored credential, so SAP-side change documents attribute work to that profile's SAP user. OIDC/JWT client authentication and per-user SAP identity are on the roadmap.
+- HTTP mode authenticates clients per user, but every session still reaches SAP through the selected profile's stored credential, so SAP-side change documents attribute work to that profile's SAP user. True SAP principal propagation through Cloud Connector or BTP token exchange remains on the roadmap.
 - The HTTP listener speaks plain HTTP. Terminate TLS at a reverse proxy.
 
 ## 1.0.1
