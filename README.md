@@ -267,6 +267,10 @@ The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp)
 installs the validated local MCPB bundle. Its current catalog matches the
 default v1 runtime: 115 tools and seven Resources.
 
+The public [LobeHub listing](https://lobehub.com/mcp/coaspe-sap-abap-mcp)
+uses the owner-validated [`lhm.plugin.json`](lhm.plugin.json) manifest. Version
+1.2.0 advertises the same default 115 tools and seven Resources.
+
 ## Privacy Policy
 
 SAP ABAP MCP runs locally and does not send SAP profiles, credentials, source code, or tool results to a publisher-operated service. It communicates only with destinations selected by the user, including the configured SAP system and the user's MCP host. See the complete [`PRIVACY.md`](PRIVACY.md) and [`TERMS.md`](TERMS.md).

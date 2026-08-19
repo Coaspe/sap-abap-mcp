@@ -218,6 +218,23 @@ test("Claude Code and Codex plugins launch the same published local MCP package"
   assert.deepEqual(pluginIcon, readFileSync("assets/directory-icon.png"))
 })
 
+test("LobeHub metadata advertises the current default MCP surface", () => {
+  const packageJson = JSON.parse(readText("package.json"))
+  const mcpbManifest = JSON.parse(readText("mcpb/manifest.json"))
+  const lobeHubManifest = JSON.parse(readText("lhm.plugin.json"))
+
+  assert.equal(lobeHubManifest.identifier, "coaspe-sap-abap-mcp")
+  assert.equal(lobeHubManifest.name, "SAP ABAP MCP")
+  assert.equal(lobeHubManifest.version, packageJson.version)
+  assert.equal(lobeHubManifest.homepage, "https://github.com/Coaspe/sap-abap-mcp")
+  assert.deepEqual(
+    lobeHubManifest.tools.map((tool: { name: string }) => tool.name).sort(),
+    mcpbManifest.tools.map((tool: { name: string }) => tool.name).sort()
+  )
+  assert.equal(lobeHubManifest.resources.length, 7)
+  assert.deepEqual(lobeHubManifest.prompts, [])
+})
+
 test("README explains registry installation without claiming live SAP verification", () => {
   const readme = readText("README.md")
   const quickStartIndex = readme.indexOf("## Quick start\n")
