@@ -4,6 +4,12 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 1.3.1 - 2026-08-19
+
+### Fixed
+
+- **Published directory documentation**: release and marketplace status now describes the current 120-tool catalog without retaining the previous 1.2.0/115-tool wording in the npm README. Version metadata remains synchronized across npm, the Official MCP Registry, MCPB, LobeHub, and the Claude Code/Codex repository marketplace.
+
 ## 1.3.0 - 2026-08-19
 
 ### Added
