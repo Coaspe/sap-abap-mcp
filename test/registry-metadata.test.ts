@@ -26,7 +26,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const packageJson = JSON.parse(readText("package.json"))
   const serverJson = JSON.parse(readText("server.json"))
 
-  assert.equal(packageJson.version, "1.1.0")
+  assert.equal(packageJson.version, "1.2.0")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {

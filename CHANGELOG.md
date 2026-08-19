@@ -4,6 +4,8 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 1.2.0 - 2026-08-19
+
 ### Added
 
 - **Opt-in SAP data-query policy**: new profiles disable caller-supplied SAP SQL by default, production profiles cannot opt in, sensitive identity/credential/banking/payroll/tax tables remain blocked, and selected business-document tables require an explicit per-call risk acknowledgement. Dynamic table sources are refused when they cannot be inspected. SQL text is redacted from optional audit arguments.
