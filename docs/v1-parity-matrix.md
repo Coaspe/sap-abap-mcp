@@ -26,7 +26,7 @@ local automated suite passes 283/283 tests.
 
 | v1 target | v0 source capability | Current handler | Current input/output schema | Current test state |
 | --- | --- | --- | --- | --- |
-| `sap.repository.inspect` | `get_abap_object_info`: summary, includeStructure | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
+| `sap.repository.inspect` | `get_abap_object_info`: summary, includeStructure, paged child nodes | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
 | `sap.repository.resolve` | `get_abap_object_workspace_uri`: workspaceUri; `open_object`: headless | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
 | `sap.repository.search` | `search_abap_objects`: search | `src/mcp/v1/repository-tools.ts` | Strict `{systemId, pattern, objectTypes, limit}` + typed v1 envelope | Contract + call: `test/v1-repository-search.test.ts` |
 | `sap.repository.where_used` | `find_where_used`: references, includeSnippets | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |

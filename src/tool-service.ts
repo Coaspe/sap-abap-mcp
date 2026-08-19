@@ -7,19 +7,21 @@ import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 import { createTwoFilesPatch, diffLines } from "diff"
 import { AppError } from "./errors.js"
+import { enforceDataAccessPolicy, requireDataQueryOptIn } from "./data-access-policy.js"
 import {
   isCreatableTypeId,
   isGroupType,
+  isNodeParent,
   objectPath,
   parentTypeId,
   servicePreviewUrl,
   type NewBindingOptions,
   type NewObjectOptions,
   type NewPackageOptions,
+  type NodeParents,
   type NonGroupTypeIds,
   type PackageTypes,
   type Delta,
-  type FixProposal,
   type GenericRefactoring,
   type GitRepo,
   type GitStaging,
@@ -82,6 +84,19 @@ import { writeXlsxFile } from "./xlsx-export.js"
 type BindingCategory = "0" | "1"
 const execFileAsync = promisify(execFile)
 
+const SOURCE_CREATABLE_OBJECT_TYPES = new Set([
+  "BDEF/BDO",
+  "CLAS/OC",
+  "INTF/OI",
+  "PROG/P",
+  "PROG/I",
+  "DDLS/DF",
+  "DCLS/DL",
+  "DDLX/EX",
+  "DDLA/ADF",
+  "SRVD/SRV"
+])
+
 interface CachedAtcDecoration {
   object: {
     name: string
@@ -129,6 +144,9 @@ export interface GetObjectInfoInput {
   objectType?: string
   connectionId: string
   includeStructure: boolean
+  includeChildren?: boolean
+  childStartIndex?: number
+  childMaxResults?: number
 }
 
 export interface GetBatchLinesInput {
@@ -214,6 +232,7 @@ export type ActivateObjectInput =
 
 export interface ExecuteDataQueryInput {
   sql?: string
+  acknowledgeRisk?: boolean
   data?: {
     columns: Array<{ name: string; type: string; description?: string }>
     values: Array<Record<string, unknown>>
@@ -616,12 +635,17 @@ interface RefactorPlan {
 
 export type RunAbapApplicationInput =
   | { action: "repl_health"; connectionId: string }
-  | { action: "preview_class"; connectionId: string; className: string }
+  | {
+      action: "preview_class"
+      connectionId: string
+      className: string
+      profiling?: boolean
+    }
   | { action: "preview_snippet"; connectionId: string; code: string }
   | { action: "execute"; connectionId: string; planId: string; confirmation: string }
 
 type ExecutionPlanPayload =
-  | { kind: "class"; className: string; code?: never }
+  | { kind: "class"; className: string; profiling: boolean; code?: never }
   | { kind: "snippet"; code: string; className?: never }
 
 type ExecutionPlan = {
@@ -2392,10 +2416,10 @@ export class AbapToolService {
         { reason: "SOURCE_REQUIRED_FOR_ACTIVATION" }
       )
     }
-    if (input.source !== undefined && !isBdef) {
+    if (input.source !== undefined && !SOURCE_CREATABLE_OBJECT_TYPES.has(objectType)) {
       throw new AppError(
         "SAP_VALIDATION_FAILED",
-        "Create-time source is supported only for BDEF/BDO in this delivery",
+        `Create-time source is not supported for ${objectType}`,
         { reason: "CREATE_SOURCE_UNSUPPORTED" }
       )
     }
@@ -2614,17 +2638,22 @@ export class AbapToolService {
         activationSkipped: result.activationSkipped
       }
     } catch (error) {
-      this.capabilities.observeFailure(
-        input.connectionId,
-        "repository.create.bdef",
-        error,
-        stage
-      )
-      const normalized = normalizeCapabilityError(
-        error,
-        "repository.create.bdef",
-        stage
-      )
+      if (isBdef) {
+        this.capabilities.observeFailure(
+          input.connectionId,
+          "repository.create.bdef",
+          error,
+          stage
+        )
+      }
+      const normalized = isBdef
+        ? normalizeCapabilityError(error, "repository.create.bdef", stage)
+        : error instanceof AppError
+          ? error
+          : new AppError(
+              "SOURCE_WRITE_FAILED",
+              `Object ${name} was created, but its source could not be initialized`
+            )
       throw new AppError(
         error instanceof AppError ? error.code : normalized.code,
         normalized.message,
@@ -2655,7 +2684,11 @@ export class AbapToolService {
         "Headless query results are blocked for production profiles; use download_to_file"
       )
     }
-    if (input.sql) validateReadOnlySql(input.sql)
+    if (input.sql) {
+      validateReadOnlySql(input.sql)
+      requireDataQueryOptIn(client.profile)
+      enforceDataAccessPolicy(input.sql, input.acknowledgeRisk)
+    }
     if (input.displayMode === "internal") {
       if (!input.rowRange) {
         throw new AppError("ROW_RANGE_REQUIRED", "Internal mode requires rowRange")
@@ -5155,6 +5188,8 @@ export class AbapToolService {
         const ping = await client.ping()
         if (task.sampleQuery) {
           validateReadOnlySql(task.sampleQuery)
+          requireDataQueryOptIn(client.profile)
+          enforceDataAccessPolicy(task.sampleQuery)
           const query = await client.runQuery(task.sampleQuery, 1000)
           const count = query.values.length
           result = {
@@ -5635,14 +5670,31 @@ export class AbapToolService {
   async getObjectInfo(input: GetObjectInfoInput) {
     const client = await this.connections.getClient(input.connectionId)
     const object = await resolveObject(client, input.objectName, input.objectType)
-    const source = await client.readObject(object)
+    if (input.includeChildren && !isNodeParent(object.type)) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        `${object.type} does not expose ADT child nodes`,
+        { reason: "CHILDREN_OBJECT_TYPE_UNSUPPORTED" }
+      )
+    }
+    const source = object.type === "DEVC/K" ? null : await client.readObject(object)
     const structure = await client.getObjectStructure(object.uri)
     const structureRecord = structure as unknown as Record<string, unknown>
+    const childPage = input.includeChildren
+      ? pageItems(
+          (await client.getNodeContents(
+            object.type as NodeParents,
+            object.name
+          )).nodes,
+          input.childStartIndex ?? 0,
+          input.childMaxResults ?? 50
+        )
+      : null
     return {
       connectionId: input.connectionId.toUpperCase(),
       object,
-      sourceUri: source.sourceUri,
-      totalLines: source.source.split(/\r?\n/).length,
+      sourceUri: source?.sourceUri ?? null,
+      totalLines: source ? source.source.split(/\r?\n/).length : null,
       structureSummary: {
         changedAt: structure.metaData["adtcore:changedAt"],
         changedBy: structure.metaData["adtcore:changedBy"],
@@ -5654,7 +5706,24 @@ export class AbapToolService {
           ? structureRecord.includes.length
           : 0
       },
-      ...(input.includeStructure ? { structure } : {})
+      ...(input.includeStructure ? { structure } : {}),
+      ...(childPage ? {
+        childPage: {
+          total: childPage.total,
+          startIndex: childPage.startIndex,
+          returned: childPage.returned,
+          truncated: childPage.truncated,
+          nextStartIndex: childPage.nextStartIndex
+        },
+        children: childPage.items.map(node => ({
+          name: node.OBJECT_NAME,
+          type: node.OBJECT_TYPE,
+          uri: node.OBJECT_URI,
+          workspaceUri: `adt://${input.connectionId.toLowerCase()}${node.OBJECT_URI}`,
+          ...(node.DESCRIPTION ? { description: node.DESCRIPTION } : {}),
+          expandable: node.EXPANDABLE === "X" || node.EXPANDABLE === "true"
+        }))
+      } : {})
     }
   }
 
@@ -5993,6 +6062,7 @@ export class AbapToolService {
     if (input.action === "preview_class") {
       requireExecutableProfile(client)
       const className = input.className.trim()
+      const profiling = input.profiling ?? false
       if (
         className !== className.toUpperCase() ||
         className.length > 30 ||
@@ -6008,16 +6078,20 @@ export class AbapToolService {
         kind: "class",
         connectionId,
         className,
-        confirmation: `RUN_CLASS:${connectionId}:${className}`
+        profiling,
+        confirmation: profiling
+          ? `PROFILE_CLASS:${connectionId}:${className}`
+          : `RUN_CLASS:${connectionId}:${className}`
       })
       return {
         action: input.action,
         planId: plan.id,
         confirmation: plan.confirmation,
         expiresAt: new Date(plan.expiresAt).toISOString(),
+        ...(profiling ? { profiling: true } : {}),
         capabilityStatusAtExecution: this.capabilities.status(
           connectionId,
-          "execution.class_runner"
+          profiling ? "execution.class_profiler" : "execution.class_runner"
         )
       }
     }
@@ -6052,6 +6126,30 @@ export class AbapToolService {
     const plan = this.takeExecutionPlan(input.planId, input.confirmation, connectionId)
     requireExecutableProfile(client)
     if (plan.kind === "class") {
+      if (plan.profiling) {
+        const { result, capabilityStatusAtExecution } = await this.executeCapability(
+          connectionId,
+          "execution.class_profiler",
+          "/sap/bc/adt/runtime/traces/abaptraces/parameters",
+          () => client.runClassWithProfiling(plan.className)
+        )
+        const output = boundInlineText(result.output)
+        return {
+          connectionId,
+          kind: plan.kind,
+          profiling: true,
+          output: output.content,
+          originalBytes: output.originalBytes,
+          returnedBytes: output.returnedBytes,
+          truncated: output.truncated,
+          profilerId: result.profilerId,
+          traceId: result.traceId,
+          ...(result.traceLookupWarning
+            ? { traceLookupWarning: result.traceLookupWarning }
+            : {}),
+          capabilityStatusAtExecution
+        }
+      }
       const { result, capabilityStatusAtExecution } = await this.executeCapability(
         connectionId,
         "execution.class_runner",

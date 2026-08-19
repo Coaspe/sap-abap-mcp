@@ -18,13 +18,15 @@ test("supply-chain metadata enables private reporting and npm provenance", () =>
 
   const packageJson = JSON.parse(readText("package.json"))
   assert.equal(packageJson.publishConfig.provenance, true)
+  assert.equal(packageJson.main, "dist/src/library.js")
+  assert.equal(packageJson.types, "dist/src/library.d.ts")
 })
 
 test("distribution metadata stays consistent across npm and the official MCP Registry", () => {
   const packageJson = JSON.parse(readText("package.json"))
   const serverJson = JSON.parse(readText("server.json"))
 
-  assert.equal(packageJson.version, "1.1.0")
+  assert.equal(packageJson.version, "1.2.0")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {

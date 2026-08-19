@@ -122,10 +122,13 @@ export function registerV1AnalysisTools(
   registerTool(
     "sap.data.query",
     "Query SAP Data",
-    "Run one bounded read-only SAP ADT data-preview query.",
+    "Run one bounded, opt-in, policy-checked SAP data-preview query.",
     z.object({
       systemId: SYSTEM_ID,
       sql: NON_EMPTY.optional(),
+      acknowledgeRisk: z.boolean().optional().describe(
+        "Set true only after reviewing a query that targets protected business-document tables."
+      ),
       data: z.object({
         columns: z.array(z.object({
           name: NON_EMPTY,
@@ -161,6 +164,9 @@ export function registerV1AnalysisTools(
       displayMode: input.displayMode,
       maxRows: input.maxRows,
       ...(input.sql ? { sql: input.sql } : {}),
+      ...(input.acknowledgeRisk !== undefined
+        ? { acknowledgeRisk: input.acknowledgeRisk }
+        : {}),
       ...(input.data ? {
         data: {
           columns: input.data.columns.map(column => ({

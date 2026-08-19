@@ -658,13 +658,13 @@
   {
     "name": "create_object_programmatically",
     "title": "Create ABAP Object Programmatically",
-    "description": "Validate and create an ADT repository object. Create-time source writing and activation are currently supported only for BDEF/BDO. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package.",
+    "description": "Validate and create an ADT repository object. Textual ADT objects can include create-time source and activation. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
         "activate": {
           "default": false,
-          "description": "Activate after create-time source writing; currently supported only for BDEF/BDO",
+          "description": "Activate after writing create-time source",
           "type": "boolean"
         },
         "additionalOptions": {
@@ -768,7 +768,7 @@
           "type": "string"
         },
         "source": {
-          "description": "Create-time source; currently supported only for BDEF/BDO",
+          "description": "Create-time source for BDEF, classes, interfaces, programs/includes, CDS/DCL/metadata extensions, and service definitions",
           "type": "string"
         }
       },
@@ -923,10 +923,14 @@
   {
     "name": "execute_data_query",
     "title": "Execute ABAP Data Query",
-    "description": "Run a read-only SAP ADT data-preview query, process supplied structured data, return a bounded headless result, or export CSV/XLSX.",
+    "description": "Run an opt-in, policy-checked SAP data query, process supplied data, return bounded results, or export CSV/XLSX.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
+        "acknowledgeRisk": {
+          "description": "Set true only after reviewing a query that targets protected business-document tables.",
+          "type": "boolean"
+        },
         "connectionId": {
           "minLength": 1,
           "type": "string"
@@ -1281,13 +1285,29 @@
   {
     "name": "get_abap_object_info",
     "title": "Get ABAP Object Info",
-    "description": "Get core repository metadata, source URI, and active source line count; optionally include the full ADT structure.",
+    "description": "Get core repository metadata and optionally include the full ADT structure or a bounded child-node page for packages, programs, and function groups.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
+        "childMaxResults": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "childStartIndex": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
         "connectionId": {
           "minLength": 1,
           "type": "string"
+        },
+        "includeChildren": {
+          "default": false,
+          "type": "boolean"
         },
         "includeStructure": {
           "default": false,
@@ -1306,6 +1326,9 @@
             "INTF",
             "DTEL",
             "DDLS",
+            "DCLS",
+            "DDLX",
+            "DDLA",
             "DOMA",
             "TTYP",
             "ENQU",
@@ -1336,6 +1359,7 @@
             "ENHO",
             "SUSO",
             "BDEF",
+            "SRVD",
             "SRVB"
           ],
           "type": "string"
@@ -1388,6 +1412,9 @@
             "INTF",
             "DTEL",
             "DDLS",
+            "DCLS",
+            "DDLX",
+            "DDLA",
             "DOMA",
             "TTYP",
             "ENQU",
@@ -1418,6 +1445,7 @@
             "ENHO",
             "SUSO",
             "BDEF",
+            "SRVD",
             "SRVB"
           ],
           "type": "string"
@@ -2998,7 +3026,7 @@
   {
     "name": "run_abap_application",
     "title": "Run ABAP Application",
-    "description": "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan.",
+    "description": "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan, optionally with a bounded aggregate class profile.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
@@ -3032,6 +3060,10 @@
           "format": "uuid",
           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
           "type": "string"
+        },
+        "profiling": {
+          "description": "For preview_class, capture a bounded aggregate ABAP profiler trace",
+          "type": "boolean"
         }
       },
       "required": [
@@ -3306,6 +3338,9 @@
               "INTF",
               "DTEL",
               "DDLS",
+              "DCLS",
+              "DDLX",
+              "DDLA",
               "DOMA",
               "TTYP",
               "ENQU",
@@ -3336,6 +3371,7 @@
               "ENHO",
               "SUSO",
               "BDEF",
+              "SRVD",
               "SRVB"
             ],
             "type": "string"

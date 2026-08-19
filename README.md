@@ -106,6 +106,7 @@ Normal clients should omit both `--api-version` and `--toolsets`.
 | Invocation | Advertised surface |
 |---|---|
 | `serve --profile DEV100` | Current v1, all 115 tools and seven Resources |
+| `serve --profile DEV100 --preset compact` | Token-efficient v1, 12 everyday read/inspect tools |
 | `serve --profile DEV100 --toolsets core,analysis` | Selected v1 toolsets only |
 | `serve --profile DEV100 --api-version v0` | Legacy 53-tool compatibility surface |
 
@@ -154,7 +155,7 @@ defects.
 
 The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless feature extensions and `read_deferred_result`, this server advertises 53 tools in total.
 
-The first development-parity slice implements BDEF source creation, one-request batch activation, class-runner execution, the ABAP FS REPL contract, and detailed semantic inspection. These SAP-dependent capabilities remain `unverified` until they succeed against the selected live connection; call `get_sap_capabilities` for per-connection evidence.
+The development surface supports create-time source for BDEFs, classes, interfaces, programs/includes, CDS/DCL/metadata extensions, and service definitions, plus one-request batch activation, class-runner execution, the ABAP FS REPL contract, detailed semantic inspection, and paged repository-child discovery. SAP-dependent capabilities remain `unverified` until they succeed against the selected live connection; call `get_sap_capabilities` for per-connection evidence.
 
 Snippet execution requires `ZCL_ABAP_REPL` and an active SICF service at `/sap/bc/z_abap_repl`. Generic report/program-console execution is not implemented.
 
@@ -165,16 +166,16 @@ The server provides all 42 strict-compatible headless tools from the pinned ABAP
 | Area | Capabilities |
 |---|---|
 | Connections | Multiple SAP profiles, Basic Auth, opt-in OAuth client credentials, lazy login, system metadata, ADT discovery export |
-| Repository reads | Search, metadata, source ranges, batch reads, URI reads, source search, enhancements |
+| Repository reads | Search, metadata, paged package/program/function-group children, source ranges, batch reads, URI reads, source search, enhancements |
 | Semantic services | Completion details, definition lookup, documentation, type hierarchy, components, quick-fix discovery, SAP formatter preview |
-| Source writes | Exact source replacement, BDEF source creation, syntax diagnostics, single- and one-request batch activation, text elements |
+| Source writes | Exact source replacement, create-time source for textual ADT object types, syntax diagnostics, single- and one-request batch activation, text elements |
 | Refactoring | Rename, package move, extract method, quick-fix application, formatting, deletion |
 | Quality | ABAP Unit, ATC, diagnostics, test-include creation |
 | Transports | List, details, objects, read-only release assessment, JSON/SARIF/JUnit evidence, compare, create, release, delete, owner/user management, object resolution |
 | Versions | Active revision history, revision comparison, inactive source, guarded revision restore |
 | abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch (requires the abapGit ADT backend on the SAP system) |
 | RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details, and OData V2/V4 publication and unpublication |
-| Runtime | Guarded class-runner and fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
+| Runtime | Guarded class-runner with optional bounded aggregate profiling, fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
 | Cross-system | Source comparison across configured SAP systems |
 | Dependency analysis | Bounded where-used dependency graph |
 | SAP GUI integration | Validated WebGUI transaction URL generation and optional local launch |
@@ -340,6 +341,20 @@ secret in plain text, and importing it does not remove that copy.
 Service keys that use X.509 client certificates instead of a client secret are
 rejected with `SERVICE_KEY_CERTIFICATE_UNSUPPORTED` rather than producing a
 profile that could never authenticate.
+
+## SAP data-query policy
+
+Direct SAP table queries are disabled for every new profile. Enable them only on a reviewed development or quality profile:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest profile add DEV100 \
+  --url https://sap.example.com --client 100 --username DEVELOPER \
+  --environment development --allow-data-queries
+```
+
+Production profiles cannot enable the capability. Read-only SQL validation still applies, and a second policy layer blocks credential, banking, identity, payroll, and tax tables. Business-document tables such as `VBAK`, `VBAP`, `BKPF`, `BSEG`, and `ACDOCA` require `acknowledgeRisk=true` on the individual `sap.data.query`, `sap.data.export`, or `execute_data_query` call. Dynamic table sources are refused because they cannot be inspected before execution. SQL text is redacted even when audit argument capture is enabled.
+
+This policy applies only to caller-supplied SQL sent to SAP. Processing caller-supplied structured data, reading a cached data view, and bounded internal metadata checks used by connection diagnostics do not require the opt-in.
 
 ## Prerequisites
 
@@ -783,12 +798,39 @@ SAP — true principal propagation through Cloud Connector or the BTP
 not in this release. The HTTP listener also speaks plain HTTP; terminate TLS at a
 reverse proxy.
 
+## Embed in another Node.js application
+
+The npm package root is a side-effect-free library entry; importing it does not
+start the CLI. Supply an application-owned `ConnectionProvider`, then connect
+the returned server to any MCP transport supported by the SDK:
+
+```ts
+import { createEmbeddedMcpServer } from "@coaspe/sap-abap-mcp"
+
+const runtime = createEmbeddedMcpServer({
+  connectionProvider,
+  serverOptions: { apiVersion: "v1" }
+})
+
+await runtime.server.connect(transport)
+// On application shutdown:
+await runtime.close()
+```
+
+The host retains ownership of SAP credentials and connection lifecycle. For
+lower-level composition, the same entry exports `createMcpServer`,
+`AbapToolService`, and the relevant provider/client types. The executable remains
+`sap-abap-mcp serve`; embedding does not change local CLI or registry launches.
+
 ## Token-efficient operation
 
 The server is designed to keep model context usage bounded without removing useful data:
 
-- Related operations are grouped into action-based tools.
-- The complete 53-tool schema is kept below a 64 KiB automated guardrail.
+- The default v1 surface keeps all 115 action-specific tools for compatibility. Token-constrained clients can register a curated preset instead of loading unrelated schemas.
+- The legacy v0 complete 53-tool schema remains below a 64 KiB automated guardrail.
+- `--preset compact` advertises 12 everyday read/inspect tools at about 22.0 KiB (about 5.5k tokens), below the compared package's measured compact surface.
+- `--preset development` advertises 34 read, edit, quality, Git, and transport tools at about 50.1 KiB (about 12.6k tokens).
+- `--preset assurance` advertises 15 read-only review and transport-assurance tools at about 24.5 KiB (about 6.2k tokens).
 - Source, search, SQL, ATC, dump, trace, transport, version, Git, and RAP schema responses are paged or summarized.
 - Unified diffs are limited by both line count and byte size.
 - Large source responses are bounded by an inline byte budget.
@@ -811,10 +853,10 @@ For a response with `format: "compact-v1"`, use `summary` first. Call `read_defe
 Hosts without automatic tool search can register only selected toolsets:
 
 ```bash
-sap-abap-mcp serve --profile DEV100 --toolsets core,write,analysis
+sap-abap-mcp serve --profile DEV100 --preset compact
 ```
 
-Available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, and `all`. The default is `all`.
+Presets are `compact`, `development`, and `assurance`. For custom composition, use `--toolsets core,write,analysis`; available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, and `all`. `--preset` and `--toolsets` are mutually exclusive. The default remains all 115 v1 tools.
 
 ## Real SAP acceptance testing
 
@@ -861,9 +903,14 @@ setup remove [<server-name>]
 profile add <id> --url <url> --client <nnn> [--language EN]
     [--environment development|quality|production]
     [--username <user>] [--packages ZPKG1,ZPKG2]
+    [--allow-data-queries]
     [--auth-type basic|oauth-client-credentials]
     [--token-url <url> --client-id <id> [--scope <scope>]]
     [--login [--password-stdin]]
+profile add <id> --service-key <path> [--language EN]
+    [--environment development|quality|production]
+    [--scope <scope>] [--packages ZPKG1,ZPKG2]
+    [--allow-data-queries]
 profile list
 profile remove <id>
 
@@ -885,6 +932,7 @@ assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
 
 doctor <id> [--include-components]
 serve [--profile <id>] [--api-version v0|v1]
+    [--preset compact|development|assurance]
     [--toolsets core,write,analysis,debug,operations,artifacts|all]
     [--audit-log none|stderr|file] [--audit-log-file <path>]
     [--audit-include-arguments]

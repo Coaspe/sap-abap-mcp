@@ -8,10 +8,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { strFromU8, unzipSync } from "fflate"
 import { ConnectionManager, type ConnectionSummary } from "../src/connection-manager.js"
-import {
-  IMPLEMENTED_TOOL_NAMES,
-  toolsForToolsets
-} from "../src/compat/abap-fs-tools.js"
+import { IMPLEMENTED_TOOL_NAMES } from "../src/compat/abap-fs-tools.js"
 import {
   DEFERRED_RESULT_TOOL_NAME,
   type DeferredResultEnvelope
@@ -141,6 +138,8 @@ class FakeSapClient implements SapClient {
   serviceBindingProtocol = "V4"
   rapPreviewObjects: Array<{ uri: string; type: string; name: string; description: string }> | null = null
   rapGeneratedObjects: Array<{ uri: string; type: string; name: string; description: string }> | null = null
+  runQueryCalls: string[] = []
+  nodeContentsResult: any = { nodes: [], categories: [], objectTypes: [] }
   missingReadBackUris = new Set<string>()
   batchActivationCalls = 0
   lastBatchActivation: import("abap-adt-api").InactiveObject[] = []
@@ -166,6 +165,12 @@ class FakeSapClient implements SapClient {
   classRunCalls = 0
   classRunResult?: string
   classRunError?: Error
+  profiledClassRunCalls = 0
+  profiledClassRunResult: Awaited<ReturnType<SapClient["runClassWithProfiling"]>> = {
+    output: "profiled runner output",
+    profilerId: "/sap/bc/adt/runtime/traces/abaptraces/parameters/PROFILE-1",
+    traceId: "TRACE-1"
+  }
   replHealthCalls = 0
   replProduction = false
   replHealthResult?: Awaited<ReturnType<SapClient["checkReplAvailability"]>>
@@ -471,6 +476,7 @@ class FakeSapClient implements SapClient {
   }
 
   async runQuery(sql: string): Promise<any> {
+    this.runQueryCalls.push(sql)
     if (sql.includes("Z_TOKEN_BUDGET")) {
       return {
         columns: [{ name: "ROW_ID", type: "I", description: "Row" }],
@@ -733,6 +739,14 @@ class FakeSapClient implements SapClient {
     this.classRunCalls += 1
     if (this.classRunError) throw this.classRunError
     return this.classRunResult ?? `runner output: ${className}`
+  }
+
+  async runClassWithProfiling(className: string) {
+    this.profiledClassRunCalls += 1
+    return {
+      ...this.profiledClassRunResult,
+      output: this.profiledClassRunResult.output || `profiled runner output: ${className}`
+    }
   }
 
   async checkReplAvailability() {
@@ -1009,7 +1023,7 @@ class FakeSapClient implements SapClient {
   }
 
   async getNodeContents(): Promise<any> {
-    return { nodes: [], categories: [], objectTypes: [] }
+    return this.nodeContentsResult
   }
 
   async startDebugSession(): Promise<any> {
@@ -1466,6 +1480,34 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
   } finally {
     Date.now = originalNow
   }
+})
+
+test("profiled class execution uses a distinct confirmation and returns a trace reference", async () => {
+  const harness = createApplicationHarness()
+  const preview = await harness.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_PROFILED",
+    profiling: true
+  }) as Record<string, any>
+
+  assert.equal(preview.confirmation, "PROFILE_CLASS:DEV100:ZCL_PROFILED")
+  assert.equal(preview.profiling, true)
+  assert.equal(preview.capabilityStatusAtExecution, "unverified")
+
+  const result = await harness.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: preview.planId,
+    confirmation: preview.confirmation
+  }) as Record<string, any>
+
+  assert.equal(result.kind, "class")
+  assert.equal(result.profiling, true)
+  assert.equal(result.profilerId, harness.fake.profiledClassRunResult.profilerId)
+  assert.equal(result.traceId, "TRACE-1")
+  assert.equal(harness.fake.profiledClassRunCalls, 1)
+  assert.equal(harness.fake.classRunCalls, 0)
 })
 
 test("ABAP application execution blocks production and consumes each execution attempt once", async () => {
@@ -2695,7 +2737,7 @@ test("create object direct callers may omit source and activate", async () => {
   assert.equal(fake.deleteObjectCalls, 0)
 })
 
-test("BDEF create object validation rejects invalid source combinations before SAP mutation", async () => {
+test("source-backed object creation writes exact source and rejects non-source types", async () => {
   const missingSource = createBdefHarness()
   await assert.rejects(
     missingSource.service.createObjectProgrammatically({
@@ -2723,15 +2765,64 @@ test("BDEF create object validation rejects invalid source combinations before S
   assert.deepEqual(missingSource.fake.readSourceCalls, [])
   assert.deepEqual(missingSource.fake.replaceSourceCalls, [])
 
-  const unsupportedSource = createBdefHarness()
-  await assert.rejects(
-    unsupportedSource.service.createObjectProgrammatically({
+  for (const fixture of [
+    {
       objectType: "CLAS/OC",
       name: "ZCL_DEMO",
       description: "Demo class",
+      source: "CLASS zcl_demo DEFINITION PUBLIC FINAL CREATE PUBLIC. ENDCLASS.",
+      objectUri: "/sap/bc/adt/oo/classes/ZCL_DEMO"
+    },
+    {
+      objectType: "DDLX/EX",
+      name: "ZME_DEMO",
+      description: "Demo metadata extension",
+      source: "@Metadata.layer: #CUSTOMER\nannotate entity ZI_DEMO with {};",
+      objectUri: "/sap/bc/adt/ddic/ddlx/sources/ZME_DEMO"
+    },
+    {
+      objectType: "SRVD/SRV",
+      name: "ZUI_DEMO",
+      description: "Demo service definition",
+      source: "define service ZUI_DEMO { expose ZI_DEMO; }",
+      objectUri: "/sap/bc/adt/ddic/srvd/sources/ZUI_DEMO"
+    }
+  ]) {
+    const harness = createBdefHarness()
+    const created = await harness.service.createObjectProgrammatically({
+      objectType: fixture.objectType,
+      name: fixture.name,
+      description: fixture.description,
       packageName: "Z_DEMO",
       connectionId: "DEV100",
-      source: "CLASS zcl_demo DEFINITION PUBLIC FINAL CREATE PUBLIC. ENDCLASS.",
+      source: fixture.source,
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }) as Record<string, any>
+    assert.equal(created.object.type, fixture.objectType)
+    assert.equal(created.activation.success, true)
+    assert.deepEqual(harness.fake.replaceSourceCalls, [{
+      objectName: fixture.name,
+      objectUri: fixture.objectUri,
+      sourceUri: `${fixture.objectUri}/source/main`,
+      expectedSource: source,
+      nextSource: fixture.source,
+      transport: "DEVK900123",
+      activate: true
+    }])
+  }
+
+  const unsupportedSource = createBdefHarness()
+  await assert.rejects(
+    unsupportedSource.service.createObjectProgrammatically({
+      objectType: "TABL/DT",
+      name: "ZT_DEMO",
+      description: "Demo table",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "not a supported textual table definition",
       activate: false,
       additionalOptions: {
         transportRequest: { type: "existing", number: "DEVK900123" }
@@ -2749,6 +2840,51 @@ test("BDEF create object validation rejects invalid source combinations before S
   assert.equal(unsupportedSource.fake.createTransportCalls, 0)
   assert.deepEqual(unsupportedSource.fake.readSourceCalls, [])
   assert.deepEqual(unsupportedSource.fake.replaceSourceCalls, [])
+})
+
+test("object info returns a bounded package child page", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.nodeContentsResult = {
+    nodes: Array.from({ length: 3 }, (_unused, index) => ({
+      OBJECT_TYPE: index === 0 ? "DEVC/K" : "CLAS/OC",
+      OBJECT_NAME: index === 0 ? "Z_DEMO_SUB" : `ZCL_DEMO_${index}`,
+      TECH_NAME: "",
+      OBJECT_URI: index === 0
+        ? "/sap/bc/adt/packages/z_demo_sub"
+        : `/sap/bc/adt/oo/classes/zcl_demo_${index}`,
+      OBJECT_VIT_URI: "",
+      EXPANDABLE: index === 0 ? "X" : "",
+      DESCRIPTION: `Child ${index}`
+    })),
+    categories: [],
+    objectTypes: []
+  }
+
+  const result = await service.getObjectInfo({
+    objectName: "Z_DEMO",
+    objectType: "DEVC",
+    connectionId: "DEV100",
+    includeStructure: false,
+    includeChildren: true,
+    childStartIndex: 1,
+    childMaxResults: 1
+  }) as Record<string, any>
+
+  assert.deepEqual(result.childPage, {
+    total: 3,
+    startIndex: 1,
+    returned: 1,
+    truncated: true,
+    nextStartIndex: 2
+  })
+  assert.deepEqual(result.children, [{
+    name: "ZCL_DEMO_1",
+    type: "CLAS/OC",
+    uri: "/sap/bc/adt/oo/classes/zcl_demo_1",
+    workspaceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo_1",
+    description: "Child 1",
+    expandable: false
+  }])
 })
 
 test("BDEF create object normalizes thrown validation and create failures", async () => {
@@ -3173,6 +3309,49 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
     }),
     "QUERY_NOT_READ_ONLY"
   )
+
+  const queryProfile: SapProfile = {
+    id: "DEV100", url: "https://sap.example.test", client: "100", language: "EN",
+    environment: "development", authType: "basic", username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO"]
+  }
+  const queryFake = new FakeSapClient(queryProfile)
+  const queryService = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { return queryFake }
+  })
+  const queryInput = {
+    displayMode: "internal" as const,
+    connectionId: "DEV100",
+    maxRows: 10,
+    rowRange: { start: 0, end: 10 }
+  }
+  await rejectsCode(
+    queryService.executeDataQuery({ ...queryInput, sql: "SELECT MATNR FROM MARA" }),
+    "DATA_QUERY_NOT_ALLOWED"
+  )
+  assert.equal(queryFake.runQueryCalls.length, 0)
+
+  queryProfile.allowDataQueries = true
+  await rejectsCode(
+    queryService.executeDataQuery({
+      ...queryInput,
+      sql: "SELECT BNAME FROM USR02",
+      acknowledgeRisk: true
+    }),
+    "DATA_QUERY_TABLE_DENIED"
+  )
+  await rejectsCode(
+    queryService.executeDataQuery({ ...queryInput, sql: "SELECT VBELN FROM VBAK" }),
+    "DATA_QUERY_CONFIRMATION_REQUIRED"
+  )
+  assert.equal(queryFake.runQueryCalls.length, 0)
+  await queryService.executeDataQuery({
+    ...queryInput,
+    sql: "SELECT VBELN FROM VBAK",
+    acknowledgeRisk: true
+  })
+  assert.deepEqual(queryFake.runQueryCalls, ["SELECT VBELN FROM VBAK"])
 })
 
 test("mutation plans reject stale SAP state and transport writes reject production", async () => {
@@ -4045,7 +4224,7 @@ test("MCP run_abap_application exposes strict health, class, and snippet actions
   assert.equal(applicationTool?.title, "Run ABAP Application")
   assert.equal(
     applicationTool?.description,
-    "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan."
+    "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan, optionally with a bounded aggregate class profile."
   )
   assert.deepEqual(applicationTool?.annotations, {
     readOnlyHint: false,
@@ -4060,7 +4239,7 @@ test("MCP run_abap_application exposes strict health, class, and snippet actions
   )
   assert.deepEqual(
     Object.keys(applicationTool?.inputSchema.properties ?? {}),
-    ["action", "connectionId", "className", "code", "planId", "confirmation"]
+    ["action", "connectionId", "className", "profiling", "code", "planId", "confirmation"]
   )
 
   const callRaw = (arguments_: Record<string, unknown>) => client.callTool({
@@ -4134,6 +4313,7 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     environment: "development",
     authType: "basic",
     username: "DEVELOPER",
+    allowDataQueries: true,
     allowedPackages: ["Z_DEMO", "Z_OTHER"]
   }
   const fake = new FakeSapClient(profile)
@@ -4180,8 +4360,8 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     string,
     { description?: string }
   > | undefined
-  assert.match(createProperties?.source?.description ?? "", /BDEF\/BDO/)
-  assert.match(createProperties?.activate?.description ?? "", /BDEF\/BDO/)
+  assert.match(createProperties?.source?.description ?? "", /classes/)
+  assert.match(createProperties?.activate?.description ?? "", /source/)
   for (const tool of listed.tools) {
     assert.ok(tool.title?.trim(), `missing MCP directory title: ${tool.name}`)
     assert.equal(
