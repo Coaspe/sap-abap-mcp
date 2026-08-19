@@ -259,6 +259,39 @@ test("HTTP mode refuses to start without at least one API key", async () => {
   )
 })
 
+test("OIDC sessions receive the verified request token for explicit SAP passthrough", async () => {
+  let forwarded = ""
+  const running = await startHttpMcpServer({
+    apiKeys: [],
+    oidc: {
+      async resolve() {
+        return { id: "person", role: "viewer", source: "oidc" }
+      }
+    },
+    port: 0,
+    log: () => undefined,
+    createMcpServerForSession: context => {
+      forwarded = context.sapBearerToken ?? ""
+      const instance = service()
+      return {
+        server: createMcpServer(instance, { apiVersion: "v1", role: "viewer" }),
+        dispose: () => instance.dispose()
+      }
+    }
+  })
+  const client = new Client({ name: "oidc-forwarding-test", version: "1.0.0" })
+  try {
+    const transport = new StreamableHTTPClientTransport(new URL(running.url), {
+      requestInit: { headers: { authorization: "Bearer signed.jwt.token" } }
+    })
+    await client.connect(transport as unknown as Parameters<Client["connect"]>[0])
+    assert.equal(forwarded, "signed.jwt.token")
+  } finally {
+    await client.close().catch(() => undefined)
+    await running.close()
+  }
+})
+
 test("healthz answers without a credential and never reveals sessions of others", async () => {
   const key = generateApiKey()
   const harness = await startHarness([keyRecord("alice", "viewer", key)])

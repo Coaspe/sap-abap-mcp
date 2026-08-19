@@ -6,6 +6,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 const manifestPath = join(root, "mcpb", "manifest.json")
+const packagePath = join(root, "package.json")
 const mode = process.argv[2]
 
 if (!["--check", "--write", "--smithery-payload"].includes(mode)) {
@@ -48,7 +49,10 @@ try {
     throw new Error("MCP tools/list returned duplicate tool names")
   }
 
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
+  const [manifest, packageJson] = await Promise.all([
+    readFile(manifestPath, "utf8").then(JSON.parse),
+    readFile(packagePath, "utf8").then(JSON.parse)
+  ])
   if (mode === "--smithery-payload") {
     console.log(JSON.stringify({
       type: "stdio",
@@ -62,7 +66,8 @@ try {
       }
     }))
   } else {
-    const matches = manifest.tools_generated === false &&
+    const matches = manifest.version === packageJson.version &&
+      manifest.tools_generated === false &&
       JSON.stringify(manifest.tools) === JSON.stringify(catalog)
 
     if (mode === "--check") {
@@ -71,6 +76,7 @@ try {
       }
       console.log(`MCPB tool catalog matches ${catalog.length} runtime tools.`)
     } else {
+      manifest.version = packageJson.version
       manifest.tools = catalog
       manifest.tools_generated = false
       await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)

@@ -28,7 +28,7 @@ test("v1 migration guide documents the complete local contract and live boundary
   for (const statement of [
     "The unversioned `serve` is the complete current v1 surface.",
     "With no `--toolsets`, all six v1 toolsets are enabled.",
-    "The complete v1 surface contains 115 callable tools and seven Resources.",
+    "The complete v1 surface contains 120 callable tools and seven Resources.",
     "All 53 v0 capabilities remain available through `--api-version v0`.",
     "Live SAP acceptance remains a separate gate",
     "The combined v0 + v1 surface is internal to automated parity tests and is not accepted by the CLI."
@@ -105,7 +105,7 @@ test("README documents current defaults, strict TMP ownership, and connection di
     "Normal clients should omit both `--api-version` and `--toolsets`.",
     "Existing SAP objects may be used for reads, searches, and analysis.",
     "A candidate becomes `RUN_OWNED` only after both a successful create receipt and an immediate exact read-back",
-    "docs/live-sap-v1-115-tool-tmp-test-prompt.ko.md",
+    "docs/live-sap-v1-120-tool-tmp-test-prompt.ko.md",
     "`-32000` (`ConnectionClosed`)"
   ]) {
     assert.ok(readme.includes(statement), statement)
@@ -135,7 +135,7 @@ test("published package includes the v1 stdio smoke implementation", async () =>
 test("Windows live prompt covers all tools with strict current-run TMP ownership", async () => {
   const guide = await readFile("docs/live-sap-b4d-windows-local-test.ko.md", "utf8")
   const prompt = await readFile(
-    "docs/live-sap-v1-115-tool-tmp-test-prompt.ko.md",
+    "docs/live-sap-v1-120-tool-tmp-test-prompt.ko.md",
     "utf8"
   )
 
@@ -144,7 +144,7 @@ test("Windows live prompt covers all tools with strict current-run TMP ownership
   ))
   assert.doesNotMatch(guide, /--api-version all|168개/)
   for (const statement of [
-    "115행 ledger",
+    "120행 ledger",
     "create receipt",
     "immediate exact read-back",
     "RUN_OWNED",

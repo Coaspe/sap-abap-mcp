@@ -10,13 +10,13 @@ interface SurfaceBudget {
 export const V1_MAX_TOOL_SCHEMA_BYTES = 8 * 1024
 
 export const V1_SURFACE_BUDGETS: Record<ToolsetName, SurfaceBudget> = {
-  core: { maxTools: 24, maxSchemaBytes: 32 * 1024 },
+  core: { maxTools: 24, maxSchemaBytes: 36 * 1024 },
   write: { maxTools: 32, maxSchemaBytes: 64 * 1024 },
   analysis: { maxTools: 32, maxSchemaBytes: 64 * 1024 },
   debug: { maxTools: 32, maxSchemaBytes: 64 * 1024 },
   operations: { maxTools: 32, maxSchemaBytes: 64 * 1024 },
   artifacts: { maxTools: 32, maxSchemaBytes: 64 * 1024 },
-  all: { maxTools: 115, maxSchemaBytes: 384 * 1024 }
+  all: { maxTools: 120, maxSchemaBytes: 384 * 1024 }
 }
 
 export const V1_PRESET_SURFACE_BUDGETS: Record<V1PresetName, SurfaceBudget> = {

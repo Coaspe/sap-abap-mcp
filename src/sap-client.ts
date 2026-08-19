@@ -74,6 +74,12 @@ import {
   type ValidationResult
 } from "abap-adt-api"
 import type { ChangePackageRefactoring } from "abap-adt-api/build/api/refactor.js"
+import type {
+  DataElementMetaData,
+  DataElementProperties,
+  DomainMetaData,
+  DomainProperties
+} from "abap-adt-api/build/api/objectcontents.js"
 import { parseRapGenValidation } from "abap-adt-api/build/api/rapgenerator.js"
 import { extractBindingLinks } from "abap-adt-api/build/api/tablecontents.js"
 import { fullParse, xmlArray, xmlNode, xmlNodeAttr } from "abap-adt-api/build/utilities.js"
@@ -130,6 +136,57 @@ export interface SapProfiledClassRunResult {
   profilerId: string
   traceId: string | null
   traceLookupWarning?: "TRACE_NOT_FOUND" | "TRACE_LOOKUP_FAILED"
+}
+
+export type SapDdicKind = "domain" | "data_element"
+
+export type SapDdicDefinition =
+  | {
+      kind: "domain"
+      uri: string
+      fingerprint: string
+      metaData: DomainMetaData
+      properties: DomainProperties
+    }
+  | {
+      kind: "data_element"
+      uri: string
+      fingerprint: string
+      metaData: DataElementMetaData
+      properties: DataElementProperties
+    }
+
+export interface SapDdicMutationResult {
+  definition: SapDdicDefinition
+  activation?: ActivationResult
+}
+
+export type SapRuntimeFeedKind = "catalog" | "variants" | "system_messages" | "gateway_errors"
+
+export interface SapRuntimeFeedQuery {
+  user?: string
+  maxResults?: number
+  from?: string
+  to?: string
+}
+
+export interface SapRuntimeFeedResult {
+  kind: SapRuntimeFeedKind
+  endpoint: string
+  entries: Array<Record<string, unknown>>
+}
+
+export type SapClassicBridgeAction =
+  | "DYNPRO_READ"
+  | "DYNPRO_INSERT"
+  | "DYNPRO_DELETE"
+  | "CUA_FETCH"
+  | "CUA_WRITE"
+
+export interface SapClassicBridgeResult {
+  result: unknown
+  subrc: number
+  message: string
 }
 
 export type SapNewObjectOptions = NewObjectOptions | NewPackageOptions | NewBindingOptions
@@ -204,6 +261,16 @@ export interface SapClient {
   getObjectStructure(uri: string, version?: ObjectVersion): Promise<AbapObjectStructure>
   getObjectFingerprint(uri: string): Promise<SapObjectFingerprint>
   getObjectEnhancements(uri: string, includeSource?: boolean): Promise<SapObjectEnhancements>
+  getDdicDefinition(kind: SapDdicKind, name: string): Promise<SapDdicDefinition>
+  updateDdicDefinition(
+    kind: SapDdicKind,
+    name: string,
+    expectedFingerprint: string,
+    properties: DomainProperties | DataElementProperties,
+    description?: string,
+    transport?: string,
+    activate?: boolean
+  ): Promise<SapDdicMutationResult>
   findUsageReferences(uri: string, line?: number, column?: number): Promise<UsageReference[]>
   getUsageReferenceSnippets(references: UsageReference[]): Promise<UsageReferenceSnippet[]>
   getMainPrograms(includeUri: string): Promise<MainInclude[]>
@@ -312,6 +379,7 @@ export interface SapClient {
   getClassComponents(objectUri: string): Promise<ClassComponent>
   runClass(className: string): Promise<string>
   runClassWithProfiling(className: string): Promise<SapProfiledClassRunResult>
+  runProgramWithProfiling(programName: string): Promise<SapProfiledClassRunResult>
   checkReplAvailability(): Promise<ReplHealthCheck>
   executeAbapCode(code: string): Promise<ReplResponse>
   findDefinition(
@@ -450,6 +518,14 @@ export interface SapClient {
   getTraceConfigurations(): Promise<TraceRequestList>
   getTraceHitList(id: string): Promise<TraceHitList>
   getTraceStatements(id: string): Promise<TraceStatementResponse>
+  getRuntimeFeed(
+    kind: SapRuntimeFeedKind,
+    query?: SapRuntimeFeedQuery
+  ): Promise<SapRuntimeFeedResult>
+  callClassicBridge(
+    action: SapClassicBridgeAction,
+    parameters: Record<string, unknown>
+  ): Promise<SapClassicBridgeResult>
   getAdtDiscovery(): Promise<{
     discovery: Awaited<ReturnType<ADTClient["adtDiscovery"]>>
     core: Awaited<ReturnType<ADTClient["adtCoreDiscovery"]>>
@@ -484,6 +560,61 @@ function stableJson(value: unknown): string {
       .join(",")}}`
   }
   return JSON.stringify(value)
+}
+
+function ddicObjectUri(kind: SapDdicKind, name: string): string {
+  const segment = kind === "domain" ? "domains" : "dataelements"
+  return `/sap/bc/adt/ddic/${segment}/${encodeURIComponent(name.toLowerCase())}`
+}
+
+function ddicFingerprint(value: {
+  metaData: DomainMetaData | DataElementMetaData
+  properties: DomainProperties | DataElementProperties
+}): string {
+  return createHash("sha256").update(stableJson(value)).digest("hex")
+}
+
+function arrayValue<T>(value: T | T[] | undefined): T[] {
+  if (value === undefined) return []
+  return Array.isArray(value) ? value : [value]
+}
+
+function xmlText(value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") return String(value)
+  if (value && typeof value === "object" && "#text" in value) {
+    const text = (value as { "#text"?: unknown })["#text"]
+    return typeof text === "string" || typeof text === "number" ? String(text) : ""
+  }
+  return ""
+}
+
+function atomLink(value: unknown): string {
+  const links = arrayValue(value as Record<string, unknown> | Record<string, unknown>[] | undefined)
+  const preferred = links.find(link => link["@_rel"] === "self") ?? links[0]
+  return typeof preferred?.["@_href"] === "string" ? preferred["@_href"] : ""
+}
+
+function parseAtomEntries(xml: string): Array<Record<string, unknown>> {
+  const parsed = fullParse(xml, {
+    removeNSPrefix: true,
+    processEntities: false,
+    trimValues: true
+  }) as { feed?: { entry?: unknown } }
+  return arrayValue(
+    parsed.feed?.entry as Record<string, unknown> | Record<string, unknown>[] | undefined
+  ).map(entry => ({
+    id: xmlText(entry.id),
+    title: xmlText(entry.title),
+    updated: xmlText(entry.updated),
+    published: xmlText(entry.published),
+    author: xmlText((entry.author as { name?: unknown } | undefined)?.name),
+    category: typeof (entry.category as Record<string, unknown> | undefined)?.["@_term"] === "string"
+      ? (entry.category as Record<string, unknown>)["@_term"]
+      : "",
+    link: atomLink(entry.link),
+    content: xmlText(entry.content),
+    summary: xmlText(entry.summary)
+  }))
 }
 
 function escapeXmlAttribute(value: string): string {
@@ -665,6 +796,101 @@ export class AdtSapClient implements SapClient {
     includeSource = false
   ): Promise<SapObjectEnhancements> {
     return this.client.objectEnhancements(uri, undefined, includeSource)
+  }
+
+  async getDdicDefinition(kind: SapDdicKind, name: string): Promise<SapDdicDefinition> {
+    const normalizedName = name.trim().toUpperCase()
+    const uri = ddicObjectUri(kind, normalizedName)
+    if (kind === "domain") {
+      const value = await this.client.getDomainProperties(uri)
+      return {
+        kind,
+        uri,
+        fingerprint: ddicFingerprint(value),
+        ...value
+      }
+    }
+    const value = await this.client.getDataElementProperties(uri)
+    return {
+      kind,
+      uri,
+      fingerprint: ddicFingerprint(value),
+      ...value
+    }
+  }
+
+  async updateDdicDefinition(
+    kind: SapDdicKind,
+    name: string,
+    expectedFingerprint: string,
+    properties: DomainProperties | DataElementProperties,
+    description?: string,
+    transport?: string,
+    activate = false
+  ): Promise<SapDdicMutationResult> {
+    const normalizedName = name.trim().toUpperCase()
+    const uri = ddicObjectUri(kind, normalizedName)
+    let activation: ActivationResult | undefined
+    await this.serializeMutation(async () => {
+      const previousSessionType = this.client.stateful
+      this.client.stateful = session_types.stateful
+      let lockHandle: string | undefined
+      try {
+        const lock = await this.client.lock(uri, "MODIFY")
+        lockHandle = lock.LOCK_HANDLE
+        if (kind === "domain") {
+          const current = await this.client.getDomainProperties(uri)
+          if (ddicFingerprint(current) !== expectedFingerprint) {
+            throw new AppError(
+              "SOURCE_CHANGED",
+              `DDIC definition changed after it was read; refusing to overwrite ${uri}`
+            )
+          }
+          const metaData = {
+            ...current.metaData,
+            ...(description === undefined ? {} : { description })
+          }
+          await this.client.setDomainProperties(
+            uri,
+            properties as DomainProperties,
+            metaData,
+            lockHandle,
+            transport
+          )
+        } else {
+          const current = await this.client.getDataElementProperties(uri)
+          if (ddicFingerprint(current) !== expectedFingerprint) {
+            throw new AppError(
+              "SOURCE_CHANGED",
+              `DDIC definition changed after it was read; refusing to overwrite ${uri}`
+            )
+          }
+          const metaData = {
+            ...current.metaData,
+            ...(description === undefined ? {} : { description })
+          }
+          await this.client.setDataElementProperties(
+            uri,
+            properties as DataElementProperties,
+            metaData,
+            lockHandle,
+            transport
+          )
+        }
+      } finally {
+        try {
+          if (lockHandle) await this.client.unLock(uri, lockHandle)
+        } finally {
+          this.client.stateful = previousSessionType
+        }
+      }
+      if (activate) activation = await this.client.activate(normalizedName, uri, undefined, true)
+    })
+    const definition = await this.getDdicDefinition(kind, normalizedName)
+    return {
+      definition,
+      ...(activation ? { activation } : {})
+    }
   }
 
   async findUsageReferences(
@@ -1169,7 +1395,17 @@ export class AdtSapClient implements SapClient {
   }
 
   async runClassWithProfiling(className: string): Promise<SapProfiledClassRunResult> {
-    const name = className.trim().toUpperCase()
+    return this.runWithProfiling("class", className.trim().toUpperCase())
+  }
+
+  async runProgramWithProfiling(programName: string): Promise<SapProfiledClassRunResult> {
+    return this.runWithProfiling("program", programName.trim().toUpperCase())
+  }
+
+  private async runWithProfiling(
+    kind: "class" | "program",
+    name: string
+  ): Promise<SapProfiledClassRunResult> {
     return this.serializeMutation(async () => {
       let baselineAvailable = true
       let previousTraceIds = new Set<string>()
@@ -1184,7 +1420,7 @@ export class AdtSapClient implements SapClient {
         allProceduralUnits: true,
         allInternalTableEvents: false,
         allDynproEvents: false,
-        description: `MCP profiled class ${name}`,
+        description: `MCP profiled ${kind} ${name}`,
         aggregate: true,
         explicitOnOff: false,
         withRfcTracing: false,
@@ -1199,8 +1435,11 @@ export class AdtSapClient implements SapClient {
       let output: string
       try {
         profilerId = await this.client.tracesSetParameters(parameters)
+        const endpoint = kind === "class"
+          ? `/sap/bc/adt/oo/classrun/${name}`
+          : `/sap/bc/adt/programs/programrun/${name}`
         const response = await this.client.httpClient.request(
-          `/sap/bc/adt/oo/classrun/${name}`,
+          endpoint,
           {
             method: "POST",
             qs: { profilerId },
@@ -1215,11 +1454,15 @@ export class AdtSapClient implements SapClient {
         const evidence = adtFailureEvidence(error)
         if (Object.keys(evidence).length === 0) throw error
         throw new AppError(
-          "SAP_CLASS_RUN_FAILED",
-          `SAP rejected profiling class ${name}. It must implement IF_OO_ADT_CLASSRUN and be active.`,
+          kind === "class" ? "SAP_CLASS_RUN_FAILED" : "SAP_PROGRAM_RUN_FAILED",
+          kind === "class"
+            ? `SAP rejected profiling class ${name}. It must implement IF_OO_ADT_CLASSRUN and be active.`
+            : `SAP rejected profiling program ${name}. It must be executable and active.`,
           {
-            className: name,
-            endpoint: "/sap/bc/adt/oo/classrun",
+            [`${kind}Name`]: name,
+            endpoint: kind === "class"
+              ? "/sap/bc/adt/oo/classrun"
+              : "/sap/bc/adt/programs/programrun",
             ...(isHttpError(error) ? { httpStatus: error.status } : {}),
             ...evidence
           }
@@ -1846,6 +2089,108 @@ export class AdtSapClient implements SapClient {
 
   async getTraceStatements(id: string): Promise<TraceStatementResponse> {
     return this.client.tracesStatements(id, { withSystemEvents: true, withDetails: true })
+  }
+
+  async getRuntimeFeed(
+    kind: SapRuntimeFeedKind,
+    query: SapRuntimeFeedQuery = {}
+  ): Promise<SapRuntimeFeedResult> {
+    const endpoint = {
+      catalog: "/sap/bc/adt/feeds",
+      variants: "/sap/bc/adt/feeds/variants",
+      system_messages: "/sap/bc/adt/runtime/systemmessages",
+      gateway_errors: "/sap/bc/adt/gw/errorlog"
+    }[kind]
+    const qs: Record<string, string | number> = {}
+    if (query.user) {
+      const field = kind === "gateway_errors" ? "username" : "user"
+      qs.$query = `and ( equals ( ${field} , ${query.user} ) )`
+    }
+    if (query.maxResults) qs.$top = query.maxResults
+    if (query.from) qs.from = query.from
+    if (query.to) qs.to = query.to
+    const response = await this.client.httpClient.request(endpoint, {
+      method: "GET",
+      ...(Object.keys(qs).length > 0 ? { qs } : {}),
+      headers: { Accept: "application/atom+xml;type=feed" }
+    })
+    return { kind, endpoint, entries: parseAtomEntries(response.body) }
+  }
+
+  async callClassicBridge(
+    action: SapClassicBridgeAction,
+    parameters: Record<string, unknown>
+  ): Promise<SapClassicBridgeResult> {
+    const basePath = this.profile.classicBridgePath
+    if (!basePath) {
+      throw new AppError(
+        "SAP_CAPABILITY_UNAVAILABLE",
+        `Profile ${this.profile.id} has no classicBridgePath`,
+        { capabilityId: "repository.classic_bridge" }
+      )
+    }
+    const request = async () => {
+      const endpoint = `${basePath}/dispatch`
+      const csrf = await this.client.httpClient.request(endpoint, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "X-CSRF-Token": "Fetch"
+        }
+      })
+      const rawToken = csrf.headers["x-csrf-token"] ?? csrf.headers["X-CSRF-Token"]
+      const token = Array.isArray(rawToken) ? rawToken[0] : rawToken
+      if (typeof token !== "string" || !token || token.toLowerCase() === "required") {
+        throw new AppError(
+          "SAP_CAPABILITY_UNAVAILABLE",
+          `Classic bridge at ${basePath} did not return an X-CSRF-Token`,
+          { capabilityId: "repository.classic_bridge", endpoint }
+        )
+      }
+      const response = await this.client.httpClient.request(endpoint, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json; charset=utf-8",
+          "X-CSRF-Token": token
+        },
+        body: JSON.stringify({
+          action,
+          params: JSON.stringify(parameters)
+        })
+      })
+      let parsed: Record<string, unknown>
+      try {
+        parsed = JSON.parse(response.body) as Record<string, unknown>
+      } catch {
+        throw new AppError(
+          "SAP_OPERATION_FAILED",
+          `Classic bridge returned non-JSON content for ${action}`,
+          { capabilityId: "repository.classic_bridge", endpoint }
+        )
+      }
+      const subrc = Number(parsed.subrc ?? 0)
+      const message = typeof parsed.message === "string" ? parsed.message : ""
+      if (!Number.isFinite(subrc) || subrc !== 0) {
+        throw new AppError(
+          "SAP_OPERATION_FAILED",
+          `Classic bridge action ${action} failed: ${message || `subrc=${String(parsed.subrc)}`}`,
+          { capabilityId: "repository.classic_bridge", endpoint, action, subrc }
+        )
+      }
+      let result: unknown = parsed.result ?? {}
+      if (typeof result === "string") {
+        try {
+          result = JSON.parse(result)
+        } catch {
+          // Some bridge actions legitimately return a plain string.
+        }
+      }
+      return { result, subrc, message }
+    }
+    return action === "DYNPRO_READ" || action === "CUA_FETCH"
+      ? request()
+      : this.serializeMutation(request)
   }
 
   async getAdtDiscovery() {

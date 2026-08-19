@@ -29,6 +29,6 @@ test("the public library entry creates a transport-neutral embeddable MCP server
   await client.connect(clientTransport)
 
   const listed = await client.listTools()
-  assert.equal(listed.tools.length, 115)
+  assert.equal(listed.tools.length, 120)
   assert.ok(listed.tools.some(tool => tool.name === "sap.repository.search"))
 })

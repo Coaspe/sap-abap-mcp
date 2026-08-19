@@ -59,6 +59,17 @@ const CAPABILITY_DEFINITIONS: SapCapabilityDefinition[] = [
     discoveryNeedle: "/sap/bc/adt/activation"
   },
   {
+    id: "repository.ddic.structured",
+    category: "repository",
+    implementation: "implemented",
+    discoveryNeedle: "/sap/bc/adt/ddic"
+  },
+  {
+    id: "repository.classic_bridge",
+    category: "repository",
+    implementation: "implemented"
+  },
+  {
     id: "execution.class_runner",
     category: "execution",
     implementation: "implemented",
@@ -66,6 +77,11 @@ const CAPABILITY_DEFINITIONS: SapCapabilityDefinition[] = [
   },
   {
     id: "execution.class_profiler",
+    category: "execution",
+    implementation: "implemented"
+  },
+  {
+    id: "execution.program_profiler",
     category: "execution",
     implementation: "implemented"
   },
@@ -98,12 +114,13 @@ const CAPABILITY_DEFINITIONS: SapCapabilityDefinition[] = [
     implementation: "implemented",
     discoveryNeedle: "objectstructure"
   },
-  { id: "connection.auth.bearer", category: "connection", implementation: "missing" },
+  { id: "connection.auth.bearer", category: "connection", implementation: "implemented" },
   { id: "connection.auth.certificate", category: "connection", implementation: "missing" },
   { id: "connection.auth.kerberos", category: "connection", implementation: "missing" },
-  { id: "connection.auth.browser_sso", category: "connection", implementation: "missing" },
+  { id: "connection.auth.browser_sso", category: "connection", implementation: "implemented" },
+  { id: "connection.auth.user_token", category: "connection", implementation: "implemented" },
   { id: "connection.auth.oauth", category: "connection", implementation: "implemented" },
-  { id: "connection.auth.btp_cloud", category: "connection", implementation: "missing" },
+  { id: "connection.auth.btp_cloud", category: "connection", implementation: "implemented" },
   { id: "quality.abap_cleaner", category: "quality", implementation: "missing" },
   { id: "quality.atc_exemptions", category: "quality", implementation: "missing" },
   { id: "quality.package_tests", category: "quality", implementation: "missing" },
@@ -111,7 +128,7 @@ const CAPABILITY_DEFINITIONS: SapCapabilityDefinition[] = [
   {
     id: "debugging.trace_configuration",
     category: "debugging",
-    implementation: "missing"
+    implementation: "implemented"
   },
   { id: "debugging.watchpoints", category: "debugging", implementation: "missing" },
   {
@@ -132,7 +149,12 @@ const CAPABILITY_DEFINITIONS: SapCapabilityDefinition[] = [
     category: "insight",
     implementation: "missing"
   },
-  { id: "insight.feeds", category: "insight", implementation: "missing" }
+  {
+    id: "insight.feeds",
+    category: "insight",
+    implementation: "implemented",
+    discoveryNeedle: "/sap/bc/adt/feeds"
+  }
 ]
 
 const DEFINITIONS_BY_ID = new Map(

@@ -36,8 +36,8 @@ test("the complete catalog has exact targets without wildcard names", () => {
     .filter(target => target.startsWith("sap."))
 
   assert.equal(targetReferences.length, 117)
-  assert.equal(V1_TOOL_NAMES.length, 115)
-  assert.equal(new Set(V1_TOOL_NAMES).size, 115)
+  assert.equal(V1_TOOL_NAMES.length, 120)
+  assert.equal(new Set(V1_TOOL_NAMES).size, 120)
   assert.ok(V1_TOOL_NAMES.every(name => /^sap\.[a-z0-9_.]+$/.test(name)))
   assert.ok(Object.values(V1_MIGRATION_CATALOG).every(entry =>
     entry.targets.every(target => !target.includes("*"))

@@ -10,22 +10,22 @@ import {
   v1ToolsForToolsets
 } from "../src/mcp/v1/toolsets.js"
 
-test("v1 primary toolsets cover all 115 names exactly once", () => {
+test("v1 primary toolsets cover all 120 names exactly once", () => {
   const counts = Object.fromEntries(
     Object.entries(V1_MCP_TOOLSETS).map(([name, tools]) => [name, tools.length])
   )
   assert.deepEqual(counts, {
-    core: 20,
-    write: 24,
+    core: 21,
+    write: 26,
     analysis: 30,
     debug: 10,
-    operations: 24,
+    operations: 26,
     artifacts: 7
   })
 
   const grouped = Object.values(V1_MCP_TOOLSETS).flat()
-  assert.equal(grouped.length, 115)
-  assert.equal(new Set(grouped).size, 115)
+  assert.equal(grouped.length, 120)
+  assert.equal(new Set(grouped).size, 120)
   assert.deepEqual([...grouped].sort(), [...V1_TOOL_NAMES].sort())
   assert.deepEqual([...v1ToolsForToolsets(["all"])].sort(), [...V1_TOOL_NAMES].sort())
   assert.ok(V1_IMPLEMENTED_TOOL_NAMES.every(name => V1_TOOL_NAMES.includes(name)))

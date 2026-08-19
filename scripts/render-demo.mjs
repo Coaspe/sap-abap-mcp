@@ -61,7 +61,7 @@ const frames = [
   },
   {
     step: "READY FOR AN AGENTIC ABAP WORKFLOW",
-    accent: "115 V1 TOOLS · 7 RESOURCES",
+    accent: "120 V1 TOOLS · 7 RESOURCES",
     lines: [
       ["success", "✓ Multiple SAP profiles"],
       ["success", "✓ Production profiles are read-only"],

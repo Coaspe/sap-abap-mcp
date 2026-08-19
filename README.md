@@ -95,17 +95,17 @@ a public issue or discussion.
 
 ### Current v1 surface
 
-The unversioned `serve` command maps the 53 legacy capabilities to 115
+The unversioned `serve` command maps the 53 legacy capabilities to 120
 action-free v1 tools and seven Resources, split across bounded `core`, `write`,
 `analysis`, `debug`, `operations`, and `artifacts` toolsets. Omitting
-`--toolsets` selects all 115 tools. Use `--api-version v0` only for legacy
+`--toolsets` selects all 120 tools. Use `--api-version v0` only for legacy
 client compatibility, or select toolsets explicitly when a host should
 advertise fewer schemas.
 Normal clients should omit both `--api-version` and `--toolsets`.
 
 | Invocation | Advertised surface |
 |---|---|
-| `serve --profile DEV100` | Current v1, all 115 tools and seven Resources |
+| `serve --profile DEV100` | Current v1, all 120 tools and seven Resources |
 | `serve --profile DEV100 --preset compact` | Token-efficient v1, 12 everyday read/inspect tools |
 | `serve --profile DEV100 --toolsets core,analysis` | Selected v1 toolsets only |
 | `serve --profile DEV100 --api-version v0` | Legacy 53-tool compatibility surface |
@@ -155,9 +155,9 @@ defects.
 
 The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless feature extensions and `read_deferred_result`, this server advertises 53 tools in total.
 
-The development surface supports create-time source for BDEFs, classes, interfaces, programs/includes, CDS/DCL/metadata extensions, and service definitions, plus one-request batch activation, class-runner execution, the ABAP FS REPL contract, detailed semantic inspection, and paged repository-child discovery. SAP-dependent capabilities remain `unverified` until they succeed against the selected live connection; call `get_sap_capabilities` for per-connection evidence.
+The development surface supports create-time source for BDEFs, classes, interfaces, programs/includes, CDS/DCL/metadata extensions, and service definitions, plus structured DDIC reads/writes, one-request batch activation, class and executable-program profiling, the ABAP FS REPL contract, detailed semantic and enhancement inspection, paged repository-child discovery, bounded runtime feeds, and an opt-in classic-object bridge. SAP-dependent capabilities remain `unverified` until they succeed against the selected live connection; call `get_sap_capabilities` for per-connection evidence.
 
-Snippet execution requires `ZCL_ABAP_REPL` and an active SICF service at `/sap/bc/z_abap_repl`. Generic report/program-console execution is not implemented.
+Snippet execution requires `ZCL_ABAP_REPL` and an active SICF service at `/sap/bc/z_abap_repl`. Executable programs use the ADT program-run endpoint through a confirmed one-use plan and request only a bounded server-time profile.
 
 ## What it supports
 
@@ -165,20 +165,21 @@ The server provides all 42 strict-compatible headless tools from the pinned ABAP
 
 | Area | Capabilities |
 |---|---|
-| Connections | Multiple SAP profiles, Basic Auth, opt-in OAuth client credentials, lazy login, system metadata, ADT discovery export |
-| Repository reads | Search, metadata, paged package/program/function-group children, source ranges, batch reads, URI reads, source search, enhancements |
+| Connections | Multiple SAP profiles, Basic Auth, OAuth client credentials, browser OAuth Authorization Code with PKCE, request-scoped bearer passthrough, lazy login, system metadata, ADT discovery export |
+| Repository reads | Search, metadata, structured DDIC properties, paged package/program/function-group children, source ranges, batch reads, URI reads, source search, enhancement implementations and elements |
 | Semantic services | Completion details, definition lookup, documentation, type hierarchy, components, quick-fix discovery, SAP formatter preview |
-| Source writes | Exact source replacement, create-time source for textual ADT object types, syntax diagnostics, single- and one-request batch activation, text elements |
+| Source writes | Exact source replacement, typed DDIC updates, create-time source for textual ADT object types, syntax diagnostics, single- and one-request batch activation, text elements |
 | Refactoring | Rename, package move, extract method, quick-fix application, formatting, deletion |
 | Quality | ABAP Unit, ATC, diagnostics, test-include creation |
 | Transports | List, details, objects, read-only release assessment, JSON/SARIF/JUnit evidence, compare, create, release, delete, owner/user management, object resolution |
 | Versions | Active revision history, revision comparison, inactive source, guarded revision restore |
 | abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch (requires the abapGit ADT backend on the SAP system) |
 | RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details, and OData V2/V4 publication and unpublication |
-| Runtime | Guarded class-runner with optional bounded aggregate profiling, fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
+| Runtime | Guarded class/program execution with bounded aggregate profiling, fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, Gateway/system feeds, heartbeat checks |
 | Cross-system | Source comparison across configured SAP systems |
 | Dependency analysis | Bounded where-used dependency graph |
 | SAP GUI integration | Validated WebGUI transaction URL generation and optional local launch |
+| Classic objects | Opt-in, same-origin Screen/Dynpro and full GUI Status bridge with confirmed writes |
 | Data | Read-only ADT SQL queries with bounded or file-based output |
 | Artifacts | Mermaid validation/viewer and DOCX test documentation |
 
@@ -197,6 +198,11 @@ The ten grouped extension tools are:
 
 Grouping related actions keeps the tool-schema footprint lower than exposing every operation as a separate MCP tool.
 `read_deferred_result` is the additional infrastructure tool; it reads the remaining UTF-8 chunks of a large result without repeating the SAP operation.
+
+See [advanced ABAP workflows](docs/advanced-workflows.md) for enhancement,
+behavior implementation, CDS Unit, local test include, and program profiling
+recipes. See the [classic-object bridge guide](docs/classic-bridge.md) before
+enabling Screen/Dynpro or GUI Status access.
 
 ## Transport change assurance
 
@@ -264,8 +270,9 @@ Before the first SAP-facing request, create and verify at least one local SAP pr
 Registry publication does not change the live-evidence boundary. SAP-dependent development-parity capabilities remain `unverified` until they succeed against the selected live connection.
 
 The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp)
-installs the validated local MCPB bundle. Its current catalog matches the
-default v1 runtime: 115 tools and seven Resources.
+installs the validated local MCPB bundle. Its published 1.2.0 catalog contains
+115 tools and seven Resources; the 1.3.0 source catalog contains 120 tools and
+is synchronized from the runtime before publication.
 
 The public [LobeHub listing](https://lobehub.com/mcp/coaspe-sap-abap-mcp)
 uses the owner-validated [`lhm.plugin.json`](lhm.plugin.json) manifest. Version
@@ -321,7 +328,27 @@ The hidden prompt requests the OAuth client secret. The profile file stores the 
 
 For automation, pipe the client secret and add `--password-stdin`. On Linux, create the profile without `--login`, place the client secret in the printed profile-specific `SAP_ABAP_MCP_PASSWORD_<PROFILE>` environment variable, and start the MCP process from that environment. The variable name is retained for backward compatibility even when its value is an OAuth client secret.
 
-Browser SSO, MFA flows, client certificates, Kerberos, and direct static-bearer profiles remain unsupported. OAuth implementation is still live-unverified for a particular SAP system until `doctor` succeeds there.
+Browser OAuth Authorization Code profiles are also available for identity
+providers that support a loopback redirect URI and S256 PKCE:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest profile add DEV100 \
+  --url https://sap.example.com --client 100 \
+  --auth-type oauth-authorization-code \
+  --authorization-url https://login.example.com/oauth2/authorize \
+  --token-url https://login.example.com/oauth2/token \
+  --client-id mcp-public-client --scope "openid abap" --login
+```
+
+The command opens the system browser, listens only on a random loopback port,
+validates OAuth `state`, exchanges the code with PKCE, and stores the resulting
+credential in Keychain or DPAPI. Refresh-token rotation is persisted. Browser
+OAuth login is therefore available on macOS and Windows; Linux's environment-
+only secret store cannot safely persist or rotate this credential.
+
+Client certificates, Kerberos, and user/password OAuth grants remain
+unsupported. OAuth behavior is still live-unverified for a particular SAP
+system until `doctor` succeeds there.
 
 ### SAP BTP ABAP environment service keys
 
@@ -755,9 +782,20 @@ list it in their `systemIds`. Then:
 Omitting `systemIds` keeps every configured profile reachable, which is the
 single-identity default. SAP logins stay pooled across sessions.
 
-This is credential separation, not SAP principal propagation: the server still
-holds each person's SAP credential. Forwarding an end-user token into SAP requires
-the BTP token-exchange path tracked in the [roadmap](ROADMAP.md).
+For an OIDC token that SAP accepts directly, create an explicit passthrough
+profile instead of storing a SAP credential:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest profile add DEV100_SSO \
+  --url https://sap.example.com --client 100 \
+  --auth-type bearer-passthrough
+```
+
+Only an OIDC-authenticated HTTP session can use this profile. Its incoming JWT
+is forwarded to SAP within a request-scoped client, never for static API-key
+sessions, never for a non-passthrough profile, and never through the shared SAP
+connection cache. The identity provider token must already be valid for the SAP
+audience; this mode does not perform a BTP token exchange.
 
 ### 6. Transport security
 
@@ -793,14 +831,13 @@ The image contains no SAP credentials and no API keys. It runs as a non-root
 user, and the Linux secret store is read-only, so SAP passwords are supplied
 only through profile-specific environment variables.
 
-### Current limitation: SAP principal propagation
+### Current limitation: token exchange
 
-Per-person SAP profiles give per-person SAP attribution and authorization, but the
-server still holds each person's SAP credential. Forwarding an end-user token into
-SAP — true principal propagation through Cloud Connector or the BTP
-`OAuth2UserTokenExchange` flow — is tracked in the [roadmap](ROADMAP.md) and is
-not in this release. The HTTP listener also speaks plain HTTP; terminate TLS at a
-reverse proxy.
+Per-person SAP profiles give per-person attribution, and `bearer-passthrough`
+can forward an OIDC user's token when SAP accepts that same token. Exchanging a
+client token through Cloud Connector or the BTP `OAuth2UserTokenExchange` flow
+is not implemented. The HTTP listener also speaks plain HTTP; terminate TLS at
+a reverse proxy.
 
 ## Embed in another Node.js application
 
@@ -830,11 +867,11 @@ lower-level composition, the same entry exports `createMcpServer`,
 
 The server is designed to keep model context usage bounded without removing useful data:
 
-- The default v1 surface keeps all 115 action-specific tools for compatibility. Token-constrained clients can register a curated preset instead of loading unrelated schemas.
+- The default v1 surface keeps all 120 action-specific tools for compatibility. Token-constrained clients can register a curated preset instead of loading unrelated schemas.
 - The legacy v0 complete 53-tool schema remains below a 64 KiB automated guardrail.
-- `--preset compact` advertises 12 everyday read/inspect tools at about 22.0 KiB (about 5.5k tokens), below the compared package's measured compact surface.
-- `--preset development` advertises 34 read, edit, quality, Git, and transport tools at about 50.1 KiB (about 12.6k tokens).
-- `--preset assurance` advertises 15 read-only review and transport-assurance tools at about 24.5 KiB (about 6.2k tokens).
+- `--preset compact` advertises 12 everyday read/inspect tools at about 22.4 KiB (about 5.6k tokens), below the compared package's measured compact surface.
+- `--preset development` advertises 34 read, edit, quality, Git, and transport tools at about 50.6 KiB (about 12.7k tokens).
+- `--preset assurance` advertises 15 read-only review and transport-assurance tools at about 24.8 KiB (about 6.2k tokens).
 - Source, search, SQL, ATC, dump, trace, transport, version, Git, and RAP schema responses are paged or summarized.
 - Unified diffs are limited by both line count and byte size.
 - Large source responses are bounded by an inline byte budget.
@@ -860,7 +897,7 @@ Hosts without automatic tool search can register only selected toolsets:
 sap-abap-mcp serve --profile DEV100 --preset compact
 ```
 
-Presets are `compact`, `development`, and `assurance`. For custom composition, use `--toolsets core,write,analysis`; available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, and `all`. `--preset` and `--toolsets` are mutually exclusive. The default remains all 115 v1 tools.
+Presets are `compact`, `development`, and `assurance`. For custom composition, use `--toolsets core,write,analysis`; available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, and `all`. `--preset` and `--toolsets` are mutually exclusive. The default remains all 120 v1 tools.
 
 ## Real SAP acceptance testing
 
@@ -884,7 +921,7 @@ into a pass.
 For BDEF creation, batch activation, class execution, the fixed ABAP REPL contract, and detailed semantic inspection, follow the evidence and cleanup procedure in [`docs/live-sap-acceptance.md`](docs/live-sap-acceptance.md). Until those checks succeed on a selected connection, the capabilities remain `unverified`.
 
 For the complete Windows B4D campaign, use the
-[115-tool v1 `$TMP` acceptance prompt](docs/live-sap-v1-115-tool-tmp-test-prompt.ko.md)
+[120-tool v1 `$TMP` acceptance prompt](docs/live-sap-v1-120-tool-tmp-test-prompt.ko.md)
 and the [Windows clone and connection guide](docs/live-sap-b4d-windows-local-test.ko.md).
 
 Recommended order:
@@ -908,7 +945,9 @@ profile add <id> --url <url> --client <nnn> [--language EN]
     [--environment development|quality|production]
     [--username <user>] [--packages ZPKG1,ZPKG2]
     [--allow-data-queries]
-    [--auth-type basic|oauth-client-credentials]
+    [--classic-bridge-path /sap/<path>]
+    [--auth-type basic|oauth-client-credentials|oauth-authorization-code|bearer-passthrough]
+    [--authorization-url <url>]
     [--token-url <url> --client-id <id> [--scope <scope>]]
     [--login [--password-stdin]]
 profile add <id> --service-key <path> [--language EN]
@@ -988,19 +1027,19 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current source version: `1.1.0`
-- Published npm version: `1.1.0`
+- Current source version: `1.3.0`
+- Published npm version: `1.2.0` (the 1.3.0 release is being prepared from this source)
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP
-- SAP authentication: SAP Basic Auth by default; opt-in OAuth client credentials
+- SAP authentication: SAP Basic Auth by default; opt-in OAuth client credentials, browser Authorization Code with PKCE, or request-scoped OIDC bearer passthrough
 - HTTP client authentication: mandatory Bearer API keys with viewer/developer/admin roles
 - Secret storage: macOS Keychain, Windows DPAPI, or read-only environment variables on Linux
 - SAP API client: `abap-adt-api` 8.4.1
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
 The automated suite validates the MCP contract, ADT argument ordering, safety
-policies, stale-preview protection, output bounds, all 115 default v1 tools,
+policies, stale-preview protection, output bounds, all 120 default v1 tools,
 all seven v1 Resources, and the legacy 53-tool v0 surface with an in-memory SAP
 implementation. Live SAP acceptance testing is still required because endpoint
 availability and authorization vary by SAP release and system configuration.
@@ -1013,6 +1052,7 @@ These reflect ADT behaviour that varies by SAP system. The tools fail safely and
 - **abapGit tools require the abapGit ADT backend**: the git tools call `/sap/bc/adt/abapgit/*`. Systems that only have the standalone abapGit report (SE38) do not expose these endpoints, and the tools return `ABAPGIT_BACKEND_UNAVAILABLE`. Install the abapGit `ADT_Backend` to enable them.
 - **Cross-system compare needs two configured systems**: `compare_abap_systems` requires two distinct registered connections.
 - **RAP generation** creates a full artifact set and requires a suitable reference object (for example a root CDS entity with a behavior definition).
+- **Classic-object access requires an optional SAP-side bridge**: Screen/Dynpro and GUI Status tools require a reviewed, activated same-origin bridge and suitable SAP authorizations. The bridge extends an ADT-capable system; it does not make a pre-ADT system generally compatible.
 
 ## Detailed Windows guide
 

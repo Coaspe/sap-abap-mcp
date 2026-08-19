@@ -110,7 +110,7 @@ export function registerV1OperationsTools(
   registerTool(
     "sap.execution.preview",
     "Preview ABAP Execution",
-    "Create a short-lived execution plan for a class, optional aggregate profile, or ABAP snippet.",
+    "Create a short-lived execution plan for a class, profiled executable program, or ABAP snippet.",
     z.discriminatedUnion("kind", [
       z.object({
         systemId: SYSTEM_ID,
@@ -124,6 +124,11 @@ export function registerV1OperationsTools(
         systemId: SYSTEM_ID,
         kind: z.literal("snippet"),
         code: z.string().min(1).max(98304)
+      }).strict(),
+      z.object({
+        systemId: SYSTEM_ID,
+        kind: z.literal("program"),
+        programName: NON_EMPTY
       }).strict()
     ]),
     CONTROL_ANNOTATIONS,
@@ -135,12 +140,69 @@ export function registerV1OperationsTools(
             className: input.className,
             profiling: input.profiling
           }
-        : {
+        : input.kind === "program"
+          ? {
+              action: "preview_program",
+              connectionId: systemId!,
+              programName: input.programName
+            }
+          : {
             action: "preview_snippet",
             connectionId: systemId!,
             code: input.code
           }
     ))
+  )
+
+  registerTool(
+    "sap.runtime.feed.read",
+    "Read SAP Runtime Feed",
+    "Read a bounded ADT feed page for catalog, variants, system messages, or Gateway errors.",
+    z.object({
+      systemId: SYSTEM_ID,
+      kind: z.enum(["catalog", "variants", "system_messages", "gateway_errors"]),
+      user: z.string().optional(),
+      from: z.string().regex(/^\d{14}$/).optional(),
+      to: z.string().regex(/^\d{14}$/).optional(),
+      startIndex: START_INDEX,
+      limit: z.number().int().min(1).max(100).default(20)
+    }).strict(),
+    READ_ANNOTATIONS,
+    input => serviceResult(input.systemId, systemId => service.readRuntimeFeed({
+      connectionId: systemId!,
+      kind: input.kind,
+      ...(input.user ? { user: input.user } : {}),
+      ...(input.from ? { from: input.from } : {}),
+      ...(input.to ? { to: input.to } : {}),
+      startIndex: input.startIndex,
+      maxResults: input.limit
+    }))
+  )
+
+  registerTool(
+    "sap.classic.read",
+    "Read Classic ABAP Screen or GUI Status",
+    "Read a Screen/Dynpro or full GUI Status document through an opt-in same-origin classic bridge.",
+    z.discriminatedUnion("kind", [
+      z.object({
+        systemId: SYSTEM_ID,
+        kind: z.literal("screen"),
+        programName: NON_EMPTY,
+        screenNumber: z.string().regex(/^\d{1,4}$/)
+      }).strict(),
+      z.object({
+        systemId: SYSTEM_ID,
+        kind: z.literal("gui_status"),
+        programName: NON_EMPTY
+      }).strict()
+    ]),
+    READ_ANNOTATIONS,
+    input => serviceResult(input.systemId, systemId => service.readClassicObject({
+      connectionId: systemId!,
+      kind: input.kind,
+      programName: input.programName,
+      ...(input.kind === "screen" ? { screenNumber: input.screenNumber } : {})
+    }))
   )
 
   const pagingShape = {
