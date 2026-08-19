@@ -10,6 +10,7 @@ const baseProfileSchema = z.object({
   client: z.string().regex(/^\d{3}$/),
   language: z.string().regex(/^[A-Z]{2}$/),
   environment: z.enum(["development", "quality", "production"]),
+  allowDataQueries: z.boolean().default(false),
   allowedPackages: z.array(z.string().min(1)).default([])
 })
 
@@ -38,7 +39,12 @@ const profileFileSchema = z.object({
   profiles: z.array(profileSchema)
 })
 
-export type SapProfile = z.infer<typeof profileSchema>
+type StoredSapProfile = z.infer<typeof profileSchema>
+export type SapProfile = StoredSapProfile extends infer Profile
+  ? Profile extends { allowDataQueries: boolean }
+    ? Omit<Profile, "allowDataQueries"> & { allowDataQueries?: boolean }
+    : never
+  : never
 
 export interface SapProfileInput {
   id: string
@@ -48,6 +54,7 @@ export interface SapProfileInput {
   environment?: SapProfile["environment"]
   authType?: SapProfile["authType"]
   username?: string | undefined
+  allowDataQueries?: boolean
   allowedPackages?: string[]
   tokenUrl?: string
   clientId?: string
@@ -62,14 +69,15 @@ function defaultConfigDirectory(): string {
   return join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "sap-abap-mcp")
 }
 
-export function normalizeProfile(input: SapProfileInput): SapProfile {
+export function normalizeProfile(input: SapProfileInput): StoredSapProfile {
   const authType = input.authType ?? "basic"
-  return profileSchema.parse({
+  const profile = profileSchema.parse({
     id: input.id.trim().toUpperCase(),
     url: input.url.trim().replace(/\/+$/, ""),
     client: input.client.trim().padStart(3, "0"),
     language: (input.language ?? "EN").trim().toUpperCase(),
     environment: input.environment ?? "development",
+    allowDataQueries: input.allowDataQueries ?? false,
     authType,
     ...(input.username ? { username: input.username.trim() } : {}),
     ...(authType === "oauth_client_credentials"
@@ -81,6 +89,13 @@ export function normalizeProfile(input: SapProfileInput): SapProfile {
       : {}),
     allowedPackages: (input.allowedPackages ?? []).map(value => value.trim().toUpperCase())
   })
+  if (profile.environment === "production" && profile.allowDataQueries) {
+    throw new AppError(
+      "DATA_QUERY_PRODUCTION_FORBIDDEN",
+      "Production profiles cannot enable SAP data queries"
+    )
+  }
+  return profile
 }
 
 export class ProfileStore {

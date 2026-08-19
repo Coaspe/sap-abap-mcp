@@ -114,6 +114,7 @@ test("setup wizard creates and verifies a server using beginner-facing labels", 
     environment: "development",
     authType: "basic",
     username: "DEVELOPER",
+    allowDataQueries: false,
     allowedPackages: ["Z_TEST", "Z_SHARED"]
   })
   assert.equal(await secrets.get("DEV100"), "secret")
@@ -171,6 +172,7 @@ test("setup edit targets one server and keeps its name fixed", async t => {
     environment: "quality",
     authType: "basic",
     username: "NEW_USER",
+    allowDataQueries: false,
     allowedPackages: ["Z_NEW"]
   })
   assert.equal(await secrets.get("DEV100"), "new-secret")

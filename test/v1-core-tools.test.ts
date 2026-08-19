@@ -93,7 +93,14 @@ test("core adapters call the shared service once with normalized fixed operation
   const invocations: Array<{ name: string; arguments: Record<string, unknown> }> = [
     {
       name: "sap.repository.inspect",
-      arguments: { systemId: " dev100 ", objectName: "ZCL_DEMO", includeStructure: true }
+      arguments: {
+        systemId: " dev100 ",
+        objectName: "ZCL_DEMO",
+        includeStructure: true,
+        includeChildren: true,
+        childStartIndex: 10,
+        childLimit: 25
+      }
     },
     {
       name: "sap.repository.resolve",
@@ -187,7 +194,10 @@ test("core adapters call the shared service once with normalized fixed operation
       input: {
         connectionId: "DEV100",
         objectName: "ZCL_DEMO",
-        includeStructure: true
+        includeStructure: true,
+        includeChildren: true,
+        childStartIndex: 10,
+        childMaxResults: 25
       }
     },
     {

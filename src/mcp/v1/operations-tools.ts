@@ -110,12 +110,15 @@ export function registerV1OperationsTools(
   registerTool(
     "sap.execution.preview",
     "Preview ABAP Execution",
-    "Create a short-lived execution plan for a class or ABAP snippet.",
+    "Create a short-lived execution plan for a class, optional aggregate profile, or ABAP snippet.",
     z.discriminatedUnion("kind", [
       z.object({
         systemId: SYSTEM_ID,
         kind: z.literal("class"),
-        className: NON_EMPTY
+        className: NON_EMPTY,
+        profiling: z.boolean().default(false).describe(
+          "Capture a bounded aggregate ABAP profiler trace"
+        )
       }).strict(),
       z.object({
         systemId: SYSTEM_ID,
@@ -129,7 +132,8 @@ export function registerV1OperationsTools(
         ? {
             action: "preview_class",
             connectionId: systemId!,
-            className: input.className
+            className: input.className,
+            profiling: input.profiling
           }
         : {
             action: "preview_snippet",

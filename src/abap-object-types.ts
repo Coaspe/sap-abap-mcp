@@ -6,6 +6,9 @@ export const ABAP_OBJECT_TYPES = [
   "INTF",
   "DTEL",
   "DDLS",
+  "DCLS",
+  "DDLX",
+  "DDLA",
   "DOMA",
   "TTYP",
   "ENQU",
@@ -36,5 +39,6 @@ export const ABAP_OBJECT_TYPES = [
   "ENHO",
   "SUSO",
   "BDEF",
+  "SRVD",
   "SRVB"
 ] as const

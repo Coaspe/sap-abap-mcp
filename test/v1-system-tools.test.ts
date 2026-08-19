@@ -250,6 +250,22 @@ test("API version CLI validation rejects before starting a transport", async () 
         available: ["core", "write", "analysis", "debug", "operations", "artifacts", "all"]
       }) === undefined
   )
+  await assert.rejects(
+    runCli(["serve", "--preset", "future"]),
+    (error: unknown) => error instanceof AppError &&
+      error.code === "INVALID_PRESET" &&
+      assert.deepEqual(error.details, {
+        available: ["compact", "development", "assurance"]
+      }) === undefined
+  )
+  await assert.rejects(
+    runCli(["serve", "--preset", "compact", "--toolsets", "core"]),
+    (error: unknown) => error instanceof AppError && error.code === "TOOL_SELECTION_CONFLICT"
+  )
+  await assert.rejects(
+    runCli(["serve", "--api-version", "v0", "--preset", "compact"]),
+    (error: unknown) => error instanceof AppError && error.code === "PRESET_REQUIRES_V1"
+  )
 })
 
 test("all mode exposes matching v0 and v1 write toolsets", async () => {

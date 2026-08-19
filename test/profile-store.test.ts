@@ -27,6 +27,7 @@ test("ProfileStore normalizes and persists SAP profiles without secrets", async 
     environment: "development",
     authType: "basic",
     username: "DEVELOPER",
+    allowDataQueries: false,
     allowedPackages: ["Z_DEMO"]
   })
   assert.deepEqual(await new ProfileStore(directory).get("dev-100"), profile)
@@ -74,6 +75,7 @@ test("ProfileStore persists OAuth client metadata without changing the basic def
     tokenUrl: "https://auth.example.test/oauth/token",
     clientId: "mcp-client",
     scope: "abap.read abap.write",
+    allowDataQueries: false,
     allowedPackages: []
   })
   const storedText = await readFile(store.filePath, "utf8")
@@ -91,4 +93,35 @@ test("ProfileStore rejects OAuth token URLs containing embedded credentials or q
     tokenUrl: "https://client:secret@auth.example.test/oauth/token?secret=value",
     clientId: "mcp-client"
   }))
+})
+
+test("ProfileStore persists an explicit development data-query opt-in", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-profile-query-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const store = new ProfileStore(directory)
+
+  const profile = await store.upsert({
+    id: "DEV100",
+    url: "https://sap.example.test",
+    client: "100",
+    allowDataQueries: true
+  })
+
+  assert.equal(profile.allowDataQueries, true)
+  assert.equal((await new ProfileStore(directory).get("DEV100")).allowDataQueries, true)
+})
+
+test("ProfileStore rejects production data-query opt-in", async () => {
+  const store = new ProfileStore("/unused")
+
+  await assert.rejects(store.upsert({
+    id: "PRD100",
+    url: "https://sap.example.test",
+    client: "100",
+    environment: "production",
+    allowDataQueries: true
+  }), error =>
+    typeof error === "object" && error !== null && "code" in error &&
+    error.code === "DATA_QUERY_PRODUCTION_FORBIDDEN"
+  )
 })

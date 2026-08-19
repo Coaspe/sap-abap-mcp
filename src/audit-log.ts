@@ -26,6 +26,10 @@ export type AuditPrincipalSource =
 export const AUDIT_POLICY_DENIAL_CODES: ReadonlySet<string> = new Set([
   "AUTH_REQUIRED",
   "CONFIRMATION_MISMATCH",
+  "DATA_QUERY_CONFIRMATION_REQUIRED",
+  "DATA_QUERY_NOT_ALLOWED",
+  "DATA_QUERY_SOURCE_UNRESOLVED",
+  "DATA_QUERY_TABLE_DENIED",
   "GIT_STAGE_EXPIRED",
   "INVALID_TRANSACTION_CODE",
   "INVALID_TRANSACTION_PARAMETER",
@@ -54,6 +58,7 @@ const SENSITIVE_KEY_PARTS = [
   "privatekey",
   "secret",
   "session",
+  "sql",
   "token"
 ] as const
 

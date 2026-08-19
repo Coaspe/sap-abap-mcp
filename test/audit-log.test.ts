@@ -57,6 +57,7 @@ test("audit redaction removes credential-shaped keys at every depth", () => {
     nested: {
       "client-secret": "s3cret",
       accessToken: "t",
+      sqlQuery: "SELECT * FROM USR02",
       keep: "visible"
     },
     list: [{ sessionCookie: "c" }]
@@ -69,6 +70,7 @@ test("audit redaction removes credential-shaped keys at every depth", () => {
     nested: {
       "client-secret": "[redacted]",
       accessToken: "[redacted]",
+      sqlQuery: "[redacted]",
       keep: "visible"
     },
     list: [{ sessionCookie: "[redacted]" }]
@@ -158,6 +160,10 @@ test("guardrail refusals are classified as denied and SAP faults as failed", () 
   assert.equal(classifyAuditOutcome("PACKAGE_NOT_ALLOWED"), "denied")
   assert.equal(classifyAuditOutcome("TRANSPORT_REQUIRED"), "denied")
   assert.equal(classifyAuditOutcome("QUERY_NOT_READ_ONLY"), "denied")
+  assert.equal(classifyAuditOutcome("DATA_QUERY_NOT_ALLOWED"), "denied")
+  assert.equal(classifyAuditOutcome("DATA_QUERY_TABLE_DENIED"), "denied")
+  assert.equal(classifyAuditOutcome("DATA_QUERY_CONFIRMATION_REQUIRED"), "denied")
+  assert.equal(classifyAuditOutcome("DATA_QUERY_SOURCE_UNRESOLVED"), "denied")
   assert.equal(classifyAuditOutcome("SAP_OPERATION_FAILED"), "failed")
   assert.equal(classifyAuditOutcome("OBJECT_NOT_FOUND"), "failed")
 })

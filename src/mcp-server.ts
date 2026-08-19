@@ -402,12 +402,15 @@ export function createMcpServer(
     {
       title: "Get ABAP Object Info",
       description:
-        "Get core repository metadata, source URI, and active source line count; optionally include the full ADT structure.",
+        "Get core repository metadata and optionally include the full ADT structure or a bounded child-node page for packages, programs, and function groups.",
       inputSchema: {
         objectName: z.string().min(1),
         objectType: z.enum(ABAP_OBJECT_TYPES).optional(),
         connectionId: z.string().min(1),
-        includeStructure: z.boolean().default(false)
+        includeStructure: z.boolean().default(false),
+        includeChildren: z.boolean().default(false),
+        childStartIndex: z.number().int().min(0).default(0),
+        childMaxResults: z.number().int().min(1).max(500).default(50)
       },
       annotations: readOnlyAnnotations
     },
@@ -417,6 +420,9 @@ export function createMcpServer(
           objectName: input.objectName,
           connectionId: input.connectionId,
           includeStructure: input.includeStructure,
+          includeChildren: input.includeChildren,
+          childStartIndex: input.childStartIndex,
+          childMaxResults: input.childMaxResults,
           ...(input.objectType ? { objectType: input.objectType } : {})
         })
       )
@@ -574,7 +580,7 @@ export function createMcpServer(
     {
       title: "Create ABAP Object Programmatically",
       description:
-        "Validate and create an ADT repository object. Create-time source writing and activation are currently supported only for BDEF/BDO. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package.",
+        "Validate and create an ADT repository object. Textual ADT objects can include create-time source and activation. Non-local packages require an existing or new transport request; a configured profile write allowlist must include the package.",
       inputSchema: {
         objectType: z.string().min(1).describe("Creatable ADT type such as PROG/P or CLAS/OC"),
         name: z.string().min(1),
@@ -583,10 +589,10 @@ export function createMcpServer(
         parentName: z.string().min(1).optional(),
         connectionId: z.string().min(1),
         source: z.string().optional().describe(
-          "Create-time source; currently supported only for BDEF/BDO"
+          "Create-time source for BDEF, classes, interfaces, programs/includes, CDS/DCL/metadata extensions, and service definitions"
         ),
         activate: z.boolean().default(false).describe(
-          "Activate after create-time source writing; currently supported only for BDEF/BDO"
+          "Activate after writing create-time source"
         ),
         additionalOptions: z.object({
           serviceDefinition: z.string().min(1).optional(),
@@ -648,9 +654,12 @@ export function createMcpServer(
     {
       title: "Execute ABAP Data Query",
       description:
-        "Run a read-only SAP ADT data-preview query, process supplied structured data, return a bounded headless result, or export CSV/XLSX.",
+        "Run an opt-in, policy-checked SAP data query, process supplied data, return bounded results, or export CSV/XLSX.",
       inputSchema: {
         sql: z.string().min(1).optional(),
+        acknowledgeRisk: z.boolean().optional().describe(
+          "Set true only after reviewing a query that targets protected business-document tables."
+        ),
         data: z.object({
           columns: z.array(z.object({
             name: z.string().min(1),
@@ -691,6 +700,9 @@ export function createMcpServer(
           maxRows: input.maxRows,
           ...(input.webviewId ? { webviewId: input.webviewId } : {}),
           ...(input.sql ? { sql: input.sql } : {}),
+          ...(input.acknowledgeRisk !== undefined
+            ? { acknowledgeRisk: input.acknowledgeRisk }
+            : {}),
           ...(input.data ? {
             data: {
               columns: input.data.columns.map(column => ({
@@ -1755,7 +1767,8 @@ export function createMcpServer(
     z.object({
       action: z.literal("preview_class"),
       connectionId: z.string().min(1),
-      className: z.string().min(1)
+      className: z.string().min(1),
+      profiling: z.boolean().default(false)
     }).strict(),
     z.object({
       action: z.literal("preview_snippet"),
@@ -1773,6 +1786,9 @@ export function createMcpServer(
     action: z.enum(["repl_health", "preview_class", "preview_snippet", "execute"]),
     connectionId: z.string().min(1),
     className: z.string().min(1).optional(),
+    profiling: z.boolean().optional().describe(
+      "For preview_class, capture a bounded aggregate ABAP profiler trace"
+    ),
     code: z.string().min(1).max(98_304).optional(),
     planId: z.string().uuid().optional(),
     confirmation: z.string().min(1).optional()
@@ -1783,7 +1799,7 @@ export function createMcpServer(
     {
       title: "Run ABAP Application",
       description:
-        "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan.",
+        "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan, optionally with a bounded aggregate class profile.",
       inputSchema: runAbapApplicationInputShape,
       annotations: writeAnnotations
     },

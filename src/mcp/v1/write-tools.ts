@@ -434,8 +434,12 @@ export function registerV1WriteTools(
       description: z.string().min(1).max(60),
       packageName: NON_EMPTY.default("$TMP"),
       parentName: NON_EMPTY.optional(),
-      source: z.string().optional(),
-      activate: z.boolean().default(false),
+      source: z.string().optional().describe(
+        "Create-time source for textual ADT object types"
+      ),
+      activate: z.boolean().default(false).describe(
+        "Activate after writing create-time source"
+      ),
       additionalOptions: z.object({
         serviceDefinition: NON_EMPTY.optional(),
         bindingType: z.literal("ODATA").optional(),

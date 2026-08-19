@@ -65,6 +65,11 @@ const CAPABILITY_DEFINITIONS: SapCapabilityDefinition[] = [
     discoveryNeedle: "/sap/bc/adt/oo/classrun"
   },
   {
+    id: "execution.class_profiler",
+    category: "execution",
+    implementation: "implemented"
+  },
+  {
     id: "execution.abap_repl",
     category: "execution",
     implementation: "implemented"

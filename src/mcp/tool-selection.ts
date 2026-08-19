@@ -8,6 +8,12 @@ import {
   v1ToolsForToolsets,
   type V1ResourceName
 } from "./v1/toolsets.js"
+import { AppError } from "../errors.js"
+import {
+  V1_MCP_PRESETS,
+  V1_PRESET_RESOURCE_NAMES,
+  type V1PresetName
+} from "./v1/presets.js"
 
 export interface ServeToolSelection {
   enabledV0Tools?: ReadonlySet<string>
@@ -17,8 +23,24 @@ export interface ServeToolSelection {
 
 export function resolveServeToolSelection(
   apiVersion: McpApiVersion,
-  toolsets?: readonly ToolsetName[]
+  toolsets?: readonly ToolsetName[],
+  preset?: V1PresetName
 ): ServeToolSelection {
+  if (toolsets !== undefined && preset !== undefined) {
+    throw new AppError(
+      "TOOL_SELECTION_CONFLICT",
+      "Use either --preset or --toolsets, not both"
+    )
+  }
+  if (preset !== undefined) {
+    if (apiVersion !== "v1") {
+      throw new AppError("PRESET_REQUIRES_V1", "Tool presets require --api-version v1")
+    }
+    return {
+      enabledV1Tools: new Set(V1_MCP_PRESETS[preset]),
+      enabledV1Resources: new Set(V1_PRESET_RESOURCE_NAMES[preset])
+    }
+  }
   if (toolsets === undefined) {
     if (apiVersion !== "v1") return {}
     return {
