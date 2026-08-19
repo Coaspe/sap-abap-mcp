@@ -6,7 +6,8 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Version: `1.2.0`
+- Source release candidate: `1.3.0`
+- Currently published version: `1.2.0`
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -21,7 +22,7 @@ Short description:
 
 Long description:
 
-> SAP ABAP MCP is a headless, client-neutral, governance-first Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. Its default v1 surface provides 115 action-specific tools and seven Resources for source inspection and editing, semantic services, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, runtime inspection, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain, Windows DPAPI, or profile-specific environment variables on Linux. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
+> SAP ABAP MCP is a headless, client-neutral, governance-first Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. Its default v1 surface provides 120 action-specific tools and seven Resources for source and structured DDIC work, semantic and enhancement inspection, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, profiled execution, runtime feeds, optional classic Screen/GUI Status access, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain, Windows DPAPI, or profile-specific environment variables on Linux. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
 
 ## Generic local installation
 
@@ -69,7 +70,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 | Codex universal plugin directory | Blocked by prerequisites | The official `With MCP` flow requires completed OpenAI developer identity verification and a production public HTTPS MCP endpoint; the current local `stdio` server cannot be submitted as-is |
 | LobeHub | Live at 1.2.0 | [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp) was owner-updated with the official CLI and an introspected manifest containing the default 115 tools and seven Resources |
 | mcp.so | v1.2.0 submitted; review pending | [`chatmcp/mcpso#3642`](https://github.com/chatmcp/mcpso/issues/3642) contains the current release, install command, 115-tool/7-Resource default, token-efficient presets, and safety boundaries; the paid immediate-publication path was not used |
-| MCP Servers | Live with current v1 README | [`coaspe/sap-abap-mcp`](https://mcpservers.org/servers/coaspe/sap-abap-mcp) now displays the 115-tool v1 default, seven Resources, and v0 compatibility command |
+| MCP Servers | Live with 1.2.0 README | [`coaspe/sap-abap-mcp`](https://mcpservers.org/servers/coaspe/sap-abap-mcp) displays the published 115-tool v1 default, seven Resources, and v0 compatibility command; refresh after 1.3.0 publication |
 | MCP Market | Submitted; review queued | Free submission confirmed on 2026-07-15; the confirmation page reported an estimated 4–6 week queue and email notification when live |
 | Cline MCP Marketplace | Submitted; review pending | [`cline/mcp-marketplace#2030`](https://github.com/cline/mcp-marketplace/issues/2030) is open, and [the evidence comment](https://github.com/cline/mcp-marketplace/issues/2030#issuecomment-5337818239) now references v1.2.0 |
 | SAP Community | Submitted; awaiting review | The English article was submitted on 2026-07-29 as article `179906`. Its planned public URL is [`sap-abap-mcp-1-0-headless-abap-development-for-ai-coding-agents`](https://community.sap.com/t5/technology-blog-posts-by-members/sap-abap-mcp-1-0-headless-abap-development-for-ai-coding-agents/ba-p/14451008) |

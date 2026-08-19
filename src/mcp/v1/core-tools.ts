@@ -106,6 +106,8 @@ export function registerV1CoreTools(
           objectType: OBJECT_TYPE.optional(),
           includeStructure: z.boolean().default(false),
           includeChildren: z.boolean().default(false),
+          includeEnhancements: z.boolean().default(false),
+          includeEnhancementSource: z.boolean().default(false),
           childStartIndex: START_INDEX,
           childLimit: z.number().int().min(1).max(500).default(50)
         }).strict(),
@@ -117,9 +119,33 @@ export function registerV1CoreTools(
         objectName: input.objectName,
         includeStructure: input.includeStructure,
         includeChildren: input.includeChildren,
+        includeEnhancements: input.includeEnhancements,
+        includeEnhancementSource: input.includeEnhancementSource,
         childStartIndex: input.childStartIndex,
         childMaxResults: input.childLimit,
         ...(input.objectType ? { objectType: input.objectType } : {})
+      }))
+    )
+  }
+
+  if (enabled("sap.ddic.read", selected)) {
+    server.registerTool(
+      "sap.ddic.read",
+      {
+        title: "Read Structured ABAP Dictionary Object",
+        description: "Read typed Domain/Data Element properties or Table/Structure DDL source with an optimistic fingerprint.",
+        inputSchema: z.object({
+          systemId: SYSTEM_ID,
+          kind: z.enum(["domain", "data_element", "table", "structure"]),
+          name: OBJECT_NAME
+        }).strict(),
+        outputSchema: coreOutputSchema,
+        annotations: V1_READ_ONLY_ANNOTATIONS
+      },
+      input => serviceResult(input.systemId, systemId => service.readDdic({
+        connectionId: systemId,
+        kind: input.kind,
+        name: input.name
       }))
     )
   }

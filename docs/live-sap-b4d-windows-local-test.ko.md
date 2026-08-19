@@ -6,7 +6,7 @@
 
 ## 현재 구현 범위
 
-- 옵션 없는 `serve`: callable v1 도구 115개와 Resource 7개
+- 옵션 없는 `serve`: callable v1 도구 120개와 Resource 7개
 - `--api-version v0`: 하위 호환용 기존 53개 도구
 - `--toolsets core,analysis` 같은 명시적 선택은 schema 수를 줄여야 하는
   host에서만 사용하며, 생략 시 기본값은 `all`이다.
@@ -15,7 +15,7 @@
 
 따라서 실서버 테스트는 세션을 분리한다.
 
-1. 기본 v1 세션: 115개 v1 도구와 7개 Resource surface를 확인하고,
+1. 기본 v1 세션: 120개 v1 도구와 7개 Resource surface를 확인하고,
    mutation은 이 실행이 직접 만든 SAP local package `$TMP` 객체로만 제한한다.
 2. 선택적 v0 세션: `--api-version v0`로 53개 하위 호환 기능을 회귀 검증한다.
 
@@ -162,7 +162,7 @@ codex mcp list
 
 `remove`가 서버 없음 오류를 내면 처음 한 번은 무시할 수 있다. Codex를
 재시작한 뒤 `/mcp`에서 프로세스 연결을 확인한다. 이 모드의 기대 surface는
-v1 도구 115개와 Resource 7개다.
+v1 도구 120개와 Resource 7개다.
 
 ### v0 53개 및 `$TMP` mutation 세션
 
@@ -213,7 +213,7 @@ node .\scripts\smoke-v1-stdio.mjs
 ```
 
 기대 결과는 Node.js 20 이상, `Test-Path`의 `True`, `doctor`의 `ok: true`,
-그리고 smoke의 `115 v1 tools, 7 Resources`다. smoke가 실패하면 Claude
+그리고 smoke의 `120 v1 tools, 7 Resources`다. smoke가 실패하면 Claude
 등록 문제가 아니라 clone/build/runtime 문제다. `npm.cmd ci`와
 `npm.cmd run build`를 다시 실행하고 첫 오류를 해결한다.
 
@@ -243,8 +243,8 @@ claude --debug mcp
 
 ## 7. 프롬프트 A — 현재 v1 실서버 검증
 
-115개 전 행과 엄격한 RUN_OWNED `$TMP` mutation까지 한 세션에서 검증하려면
-[`live-sap-v1-115-tool-tmp-test-prompt.ko.md`](live-sap-v1-115-tool-tmp-test-prompt.ko.md)의
+120개 전 행과 엄격한 RUN_OWNED `$TMP` mutation까지 한 세션에서 검증하려면
+[`live-sap-v1-120-tool-tmp-test-prompt.ko.md`](live-sap-v1-120-tool-tmp-test-prompt.ko.md)의
 복사형 프롬프트를 사용한다. 아래 Prompt A는 mutation 전에 연결과 read-only
 surface만 빠르게 확인할 때 사용한다.
 
@@ -266,10 +266,10 @@ v1 모드로 연결한 새 세션의 repository root에서 아래 블록을 그�
 - credential, SAP URL, username, cookie, token, CSRF 또는 session 값을
   출력하거나 사용자에게 요청하지 않는다.
 
-먼저 MCP discovery를 실제로 확인하라. `docs/v1-parity-matrix.md`의 115개
+먼저 MCP discovery를 실제로 확인하라. `docs/v1-parity-matrix.md`의 120개
 v1 target과 실제 광고 이름을 exact set으로 비교한다. toolset별 기대 수는
-core 20, write 24, analysis 30, debug 10, operations 24, artifacts 7이다.
-v0 이름이 하나라도 있거나 총수가 115개보다 많거나 적으면 live call을
+core 21, write 26, analysis 30, debug 10, operations 26, artifacts 7이다.
+v0 이름이 하나라도 있거나 총수가 120개보다 많거나 적으면 live call을
 시작하지 말고 `SURFACE-FAIL`로 종료하라. 모든 tool은 input/output schema와
 네 annotation 필드를 가져야 하고, write/control annotation을 read-only로
 오인하지 않는다.
@@ -320,7 +320,7 @@ host가 raw Resource API를 제공하지 않으면 성공으로 추측하지 말
 
 1. Verdict: PASS-READ-ONLY | PARTIAL | SURFACE-FAIL | FAIL | STOP-SAFETY
 2. source commit과 실행 조건
-3. expected 115/advertised/missing/extra/duplicate tool 수와 toolset별 수
+3. expected 120/advertised/missing/extra/duplicate tool 수와 toolset별 수
 4. expected 7 Resource discovery/read/completion 검증 결과
 5. 민감정보를 제거한 B4D environment/client/release/system type
 6. tool별 calls/schema/envelope/resource link/status 표

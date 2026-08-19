@@ -33,7 +33,7 @@ npx @coaspe/sap-abap-mcp@latest setup remove DEV100
 
 Use `/mcp` to confirm that the plugin process is connected. That status alone does not prove that SAP authentication succeeded; the setup skill runs `doctor` for live ADT verification.
 
-OAuth client credentials are an explicit advanced profile type; the wizard continues to create Basic Auth profiles. Ask the setup skill for the local `profile add --auth-type oauth-client-credentials` workflow. Client secrets stay in the same protected local secret store or Linux environment variable, and access tokens remain in process memory.
+OAuth client credentials and browser OAuth Authorization Code with PKCE are explicit advanced profile types; the wizard continues to create Basic Auth profiles. Ask the setup skill for the local `profile add --auth-type oauth-client-credentials|oauth-authorization-code` workflow. Browser login requires macOS Keychain or Windows DPAPI; Linux's environment-only store cannot safely persist token rotation. Client secrets or browser tokens stay in the protected local secret store, and access tokens are never placed in MCP arguments. A self-hosted OIDC HTTP deployment can instead use an explicit `bearer-passthrough` profile when SAP accepts the same user token.
 
 ## Assess a transport before release
 
@@ -55,7 +55,7 @@ Install **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace in th
 
 Every SAP-facing tool requires an explicit `connectionId`. Live SAP behavior depends on the selected SAP release, configuration, and authorizations.
 
-The default v1 server advertises all 115 tools. For lower prompt/schema token use, launch with `serve --preset compact` (12 everyday read/inspect tools), `--preset development` (34 development tools), or `--preset assurance` (15 read-only review tools). The current repository surface supports bounded package/program/function-group child pages and create-time source for textual ADT objects such as classes, interfaces, programs, CDS/DCL artifacts, service definitions, and BDEFs. Confirmed class execution can optionally capture a bounded aggregate ABAP profiler trace without adding another tool to the advertised surface.
+The default v1 server advertises all 120 tools. For lower prompt/schema token use, launch with `serve --preset compact` (12 everyday read/inspect tools), `--preset development` (34 development tools), or `--preset assurance` (15 read-only review tools). The current surface adds typed DDIC workflows, enhancement inspection, bounded runtime feeds, confirmed executable-program profiling, and an opt-in same-origin Screen/GUI Status bridge while keeping the compact preset unchanged. See [`docs/advanced-workflows.md`](../../docs/advanced-workflows.md) and [`docs/classic-bridge.md`](../../docs/classic-bridge.md) for the composed and optional workflows.
 
 Node.js applications can also import `createEmbeddedMcpServer` from the package root, provide their own SAP connection provider, and attach the MCP transport managed by the host application. Importing the library entry does not start the CLI.
 

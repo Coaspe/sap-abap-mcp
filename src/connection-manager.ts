@@ -3,6 +3,7 @@ import {
   OAuthClientCredentialsProvider,
   type OAuthAccessTokenProvider
 } from "./oauth-client-credentials.js"
+import { OAuthAuthorizationCodeProvider } from "./oauth-authorization-code.js"
 import { ProfileStore, type SapProfile } from "./profile-store.js"
 import type { SecretStore } from "./secret-store.js"
 import {
@@ -23,9 +24,15 @@ export interface ConnectionSummary {
 }
 
 type OAuthProfile = Extract<SapProfile, { authType: "oauth_client_credentials" }>
+type AuthorizationCodeProfile = Extract<SapProfile, { authType: "oauth_authorization_code" }>
 export type OAuthProviderFactory = (
   profile: OAuthProfile,
   clientSecret: string
+) => OAuthAccessTokenProvider
+export type AuthorizationCodeProviderFactory = (
+  profile: AuthorizationCodeProfile,
+  credential: string,
+  persistCredential: (credential: string) => Promise<void>
 ) => OAuthAccessTokenProvider
 
 interface CachedClient {
@@ -41,6 +48,21 @@ const defaultOAuthProviderFactory: OAuthProviderFactory = (profile, clientSecret
     ...(profile.scope ? { scope: profile.scope } : {})
   })
 
+const defaultAuthorizationCodeProviderFactory: AuthorizationCodeProviderFactory = (
+  profile,
+  credential,
+  persistCredential
+) => new OAuthAuthorizationCodeProvider(
+  {
+    authorizationUrl: profile.authorizationUrl,
+    tokenUrl: profile.tokenUrl,
+    clientId: profile.clientId,
+    ...(profile.scope ? { scope: profile.scope } : {})
+  },
+  credential,
+  { persistCredential }
+)
+
 export class ConnectionManager {
   private readonly clients = new Map<string, CachedClient>()
 
@@ -49,7 +71,9 @@ export class ConnectionManager {
     private readonly secrets: SecretStore,
     private readonly factory: SapClientFactory = defaultSapClientFactory,
     private readonly allowedProfileId?: string,
-    private readonly oauthProviderFactory: OAuthProviderFactory = defaultOAuthProviderFactory
+    private readonly oauthProviderFactory: OAuthProviderFactory = defaultOAuthProviderFactory,
+    private readonly authorizationCodeProviderFactory: AuthorizationCodeProviderFactory =
+      defaultAuthorizationCodeProviderFactory
   ) {}
 
   async listConnections(): Promise<ConnectionSummary[]> {
@@ -96,6 +120,12 @@ export class ConnectionManager {
   }
 
   async validateCredentials(profile: SapProfile, secret: string): Promise<void> {
+    if (profile.authType === "bearer_passthrough") {
+      throw new AppError(
+        "AUTH_PASSTHROUGH_REQUIRED",
+        "bearer_passthrough profiles are validated from an authenticated HTTP session"
+      )
+    }
     const client = this.factory(profile, this.credential(profile, secret))
     await client.login()
     try {
@@ -117,6 +147,24 @@ export class ConnectionManager {
     this.clients.clear()
   }
 
+  async createBearerClient(connectionId: string, token: string): Promise<SapClient> {
+    const profile = await this.getAllowedProfile(connectionId)
+    if (profile.authType !== "bearer_passthrough") {
+      throw new AppError(
+        "AUTH_PASSTHROUGH_NOT_CONFIGURED",
+        `Profile ${profile.id} does not accept request-scoped bearer credentials`
+      )
+    }
+    if (!token) throw new AppError("AUTH_REQUIRED", "A SAP bearer token is required")
+    const client = this.factory(profile, { type: "bearer", fetchToken: async () => token })
+    await client.login()
+    return client
+  }
+
+  async usesBearerPassthrough(connectionId: string): Promise<boolean> {
+    return (await this.getAllowedProfile(connectionId)).authType === "bearer_passthrough"
+  }
+
   private async getAllowedProfile(connectionId: string): Promise<SapProfile> {
     const normalizedId = connectionId.trim().toUpperCase()
     if (this.allowedProfileId && normalizedId !== this.allowedProfileId.toUpperCase()) {
@@ -133,6 +181,12 @@ export class ConnectionManager {
     setTokenProvider: (provider: OAuthAccessTokenProvider) => void
   ): Promise<SapClient> {
     const secret = await this.secrets.get(profile.id)
+    if (profile.authType === "bearer_passthrough") {
+      throw new AppError(
+        "AUTH_PASSTHROUGH_REQUIRED",
+        `Profile ${profile.id} requires an OIDC-authenticated HTTP session`
+      )
+    }
     if (!secret) {
       throw new AppError(
         "AUTH_REQUIRED",
@@ -151,7 +205,16 @@ export class ConnectionManager {
     setTokenProvider?: (provider: OAuthAccessTokenProvider) => void
   ): SapCredential {
     if (profile.authType === "basic") return { type: "basic", password: secret }
-    const tokenProvider = this.oauthProviderFactory(profile, secret)
+    if (profile.authType === "bearer_passthrough") {
+      throw new AppError("AUTH_PASSTHROUGH_REQUIRED", "A request-scoped SAP token is required")
+    }
+    const tokenProvider = profile.authType === "oauth_client_credentials"
+      ? this.oauthProviderFactory(profile, secret)
+      : this.authorizationCodeProviderFactory(
+          profile,
+          secret,
+          credential => this.secrets.set(profile.id, credential)
+        )
     setTokenProvider?.(tokenProvider)
     return { type: "bearer", fetchToken: () => tokenProvider.getAccessToken() }
   }

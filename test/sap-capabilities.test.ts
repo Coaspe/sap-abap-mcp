@@ -77,7 +77,7 @@ test("OAuth client credentials is implemented but remains live-unverified", () =
   assert.equal(record.status, "unverified")
   assert.equal(
     capability(registry, "BTP100", "connection.auth.browser_sso", "connection").implementation,
-    "missing"
+    "implemented"
   )
 })
 

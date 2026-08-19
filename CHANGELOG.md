@@ -4,6 +4,24 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 1.3.0 - 2026-08-19
+
+### Added
+
+- **Structured DDIC workflows**: `sap.ddic.read` and `sap.ddic.update` read and update typed Domain/Data Element properties, while Tables and Structures use guarded DDL source with optimistic fingerprints, syntax checks, activation, transport policy, and read-back verification.
+- **Classic Screen and GUI Status bridge**: opt-in `sap.classic.read` and `sap.classic.write` tools reuse the configured SAP origin, ADT session, CSRF protection, package restrictions, transport policy, exact confirmation, and production guardrails. The bridge path must be relative to `/sap/...`; installation and support boundaries are documented in [`docs/classic-bridge.md`](docs/classic-bridge.md).
+- **Runtime feeds and program profiling**: `sap.runtime.feed.read` exposes bounded system-message and Gateway error feeds, and confirmed executable-program plans can run with a bounded server-time profiler trace. Class and snippet execution contracts remain compatible.
+- **Enhancement inspection and composed advanced workflows**: repository inspection can include bounded enhancement implementations, elements, and optionally source. Behavior implementation classes, CDS Unit, local test includes, and program profiling are documented as token-efficient compositions of existing action-specific tools.
+- **Browser OAuth Authorization Code with PKCE**: profiles can launch a loopback browser login, persist protected access/refresh credentials, refresh before expiry, and rotate the stored refresh credential without exposing tokens in MCP arguments.
+- **Request-scoped SAP bearer forwarding**: OIDC-authenticated HTTP sessions can use `bearer-passthrough` profiles so the caller's JWT reaches SAP only for that session and only for profiles that explicitly opt in. Static API keys are never forwarded, sessions remain principal-bound, and request-scoped SAP clients are closed with the MCP session.
+- **LobeHub manifest synchronization**: `npm run sync:lobehub` introspects the built unversioned runtime and keeps the committed full tool schemas and package version aligned. The default v1 surface now contains 120 tools and seven Resources; the compact preset remains 12 tools.
+
+### Security
+
+- Classic-bridge profiles reject absolute or cross-origin URLs and use the existing SAP session instead of accepting a second credential or endpoint in tool input.
+- OAuth authorization and token endpoints require clean HTTPS URLs; browser login validates `state`, uses S256 PKCE and a loopback callback, bounds its wait, and rejects malformed token responses.
+- Per-request SAP bearer clients are isolated by MCP session and optional `systemIds`, and are never inserted into the process-wide connection cache.
+
 ## 1.2.0 - 2026-08-19
 
 ### Added

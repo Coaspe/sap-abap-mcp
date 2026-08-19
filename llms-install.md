@@ -1,12 +1,12 @@
 # SAP ABAP MCP installation for coding agents
 
-This package is a local `stdio` MCP server. It connects directly from the user's machine to SAP ADT. Do not deploy it as a shared remote proxy and do not ask the user to paste an SAP password into chat.
+This package runs as a local `stdio` MCP server by default and connects directly from the user's machine to SAP ADT. A governed self-hosted Streamable HTTP mode is also available for operators who configure authentication, authorization, TLS termination, and audit controls. Do not ask the user to paste an SAP password or OAuth token into chat.
 
 ## Prerequisites
 
 - Node.js 20 or later
 - Network or VPN access to the SAP system
-- SAP ADT HTTPS URL and client number, plus either a user name with Basic Auth permission or an explicitly configured OAuth client-credentials client
+- SAP ADT HTTPS URL and client number, plus Basic Auth, OAuth client credentials, browser OAuth Authorization Code with PKCE, or an operator-managed OIDC token accepted by SAP
 
 ## Create and verify a local SAP profile
 
@@ -36,7 +36,17 @@ To change or remove a saved server, use the same local wizard. Omit the Server n
 
 Editing keeps the Server name fixed. On Windows and macOS it verifies SAP before replacing the saved values; Linux verifies when the matching password environment variable is available and otherwise prints the authentication steps again. Removal displays the selected server, defaults to `No`, and deletes its stored SAP and abapGit credentials after confirmation.
 
-The wizard creates Basic Auth profiles. For explicit OAuth client credentials, use `profile add --auth-type oauth-client-credentials --token-url <url> --client-id <id> [--scope <scope>] --login`; enter the client secret only at the hidden local prompt. On Linux omit `--login` and place the secret in the profile-specific environment variable printed by the setup guidance.
+The wizard creates Basic Auth profiles. For explicit OAuth client credentials, use `profile add --auth-type oauth-client-credentials --token-url <url> --client-id <id> [--scope <scope>] --login`; enter the client secret only at the hidden local prompt. On macOS or Windows, browser SSO uses `--auth-type oauth-authorization-code --authorization-url <url> --token-url <url> --client-id <id> [--scope <scope>] --login` with a loopback redirect and S256 PKCE. Linux's environment-only secret store cannot safely persist or rotate a browser credential, so browser login is refused there; use Basic Auth or client credentials from a profile-specific environment variable instead.
+
+In self-hosted HTTP mode, `--auth-type bearer-passthrough` creates a profile
+that accepts only an OIDC-authenticated session token and forwards it to SAP in
+an isolated request-scoped client. The token must already be valid for SAP;
+static API keys are never forwarded and this mode does not perform BTP token
+exchange.
+
+Optional Screen/Dynpro and GUI Status access requires a reviewed SAP-side
+bridge plus `--classic-bridge-path /sap/<path>`. Read
+[`docs/classic-bridge.md`](docs/classic-bridge.md) before enabling it.
 
 On Linux, the wizard saves the non-secret server settings and prints the exact `SAP_ABAP_MCP_PASSWORD_<NORMALIZED_SERVER_NAME>` commands. Set it with a hidden shell prompt and start Claude Code from the same shell. For example, `DEV-100` uses `SAP_ABAP_MCP_PASSWORD_DEV_100`:
 

@@ -166,6 +166,7 @@ class FakeSapClient implements SapClient {
   classRunResult?: string
   classRunError?: Error
   profiledClassRunCalls = 0
+  classicBridgeCalls = 0
   profiledClassRunResult: Awaited<ReturnType<SapClient["runClassWithProfiling"]>> = {
     output: "profiled runner output",
     profilerId: "/sap/bc/adt/runtime/traces/abaptraces/parameters/PROFILE-1",
@@ -348,6 +349,31 @@ class FakeSapClient implements SapClient {
 
   async getObjectEnhancements(): Promise<any> {
     return { implementations: [] }
+  }
+
+  async getDdicDefinition(kind: "domain" | "data_element", name: string): Promise<any> {
+    return {
+      kind,
+      uri: `/sap/bc/adt/ddic/${kind === "domain" ? "domains" : "dataelements"}/${name.toLowerCase()}`,
+      fingerprint: "a".repeat(64),
+      metaData: {
+        name,
+        description: "Demo DDIC object",
+        language: "EN",
+        masterLanguage: "EN",
+        masterSystem: "DEV",
+        responsible: "DEVELOPER",
+        packageName: "Z_DEMO"
+      },
+      properties: {}
+    }
+  }
+
+  async updateDdicDefinition(
+    kind: "domain" | "data_element",
+    name: string
+  ): Promise<any> {
+    return { definition: await this.getDdicDefinition(kind, name) }
   }
 
   async findUsageReferences(): Promise<any[]> {
@@ -746,6 +772,13 @@ class FakeSapClient implements SapClient {
     return {
       ...this.profiledClassRunResult,
       output: this.profiledClassRunResult.output || `profiled runner output: ${className}`
+    }
+  }
+
+  async runProgramWithProfiling(programName: string) {
+    return {
+      ...this.profiledClassRunResult,
+      output: `profiled program output: ${programName}`
     }
   }
 
@@ -1213,6 +1246,19 @@ class FakeSapClient implements SapClient {
     }
   }
 
+  async getRuntimeFeed(kind: string): Promise<any> {
+    return {
+      kind,
+      endpoint: "/sap/bc/adt/feeds",
+      entries: [{ id: "ENTRY-1", title: "Demo feed entry" }]
+    }
+  }
+
+  async callClassicBridge(action: string, parameters: Record<string, unknown>): Promise<any> {
+    this.classicBridgeCalls += 1
+    return { result: { action, ...parameters }, subrc: 0, message: "OK" }
+  }
+
   async getAdtDiscovery(): Promise<any> {
     return {
       discovery: [
@@ -1508,6 +1554,43 @@ test("profiled class execution uses a distinct confirmation and returns a trace 
   assert.equal(result.traceId, "TRACE-1")
   assert.equal(harness.fake.profiledClassRunCalls, 1)
   assert.equal(harness.fake.classRunCalls, 0)
+})
+
+test("classic writes preview an exact payload-bound confirmation before mutation", async () => {
+  const harness = createBdefHarness()
+  const input = {
+    connectionId: "DEV100",
+    kind: "screen" as const,
+    operation: "delete" as const,
+    programName: screenProgram.name,
+    screenNumber: "100",
+    transport: "DEVK900123"
+  }
+  const preview = await harness.service.writeClassicObject(input) as Record<string, any>
+
+  assert.equal(preview.preview, true)
+  assert.match(
+    preview.confirmation,
+    /^WRITE_CLASSIC:SCREEN:DELETE:ZDEMO_SCREEN:0100:[0-9a-f]{12}$/
+  )
+  assert.equal(harness.fake.classicBridgeCalls, 0)
+  assert.deepEqual(harness.fake.transportMutations, [])
+
+  await assert.rejects(
+    harness.service.writeClassicObject({ ...input, confirmation: "WRITE_CLASSIC:WRONG" }),
+    { code: "CONFIRMATION_MISMATCH" }
+  )
+  assert.equal(harness.fake.classicBridgeCalls, 0)
+
+  const result = await harness.service.writeClassicObject({
+    ...input,
+    confirmation: preview.confirmation
+  }) as Record<string, any>
+  assert.equal(result.operation, "delete")
+  assert.equal(harness.fake.classicBridgeCalls, 1)
+  assert.deepEqual(harness.fake.transportMutations, [
+    "object:DEVK900123:/sap/bc/adt/programs/programs/zdemo_screen"
+  ])
 })
 
 test("ABAP application execution blocks production and consumes each execution attempt once", async () => {

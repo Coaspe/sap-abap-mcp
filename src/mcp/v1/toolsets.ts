@@ -5,6 +5,7 @@ type PrimaryToolsetName = Exclude<ToolsetName, "all">
 
 export const V1_MCP_TOOLSETS: Record<PrimaryToolsetName, readonly string[]> = {
   core: [
+    "sap.ddic.read",
     "sap.repository.inspect",
     "sap.repository.resolve",
     "sap.repository.search",
@@ -27,6 +28,8 @@ export const V1_MCP_TOOLSETS: Record<PrimaryToolsetName, readonly string[]> = {
     "sap.ui.object_url"
   ],
   write: [
+    "sap.classic.write",
+    "sap.ddic.update",
     "sap.execution.execute",
     "sap.git.branch.switch",
     "sap.git.create",
@@ -97,6 +100,7 @@ export const V1_MCP_TOOLSETS: Record<PrimaryToolsetName, readonly string[]> = {
     "sap.debug.variables"
   ],
   operations: [
+    "sap.classic.read",
     "sap.execution.health",
     "sap.execution.preview",
     "sap.ops.watch.history",
@@ -113,6 +117,7 @@ export const V1_MCP_TOOLSETS: Record<PrimaryToolsetName, readonly string[]> = {
     "sap.ops.watch.watchlist.read",
     "sap.runtime.dump.inspect",
     "sap.runtime.dump.list",
+    "sap.runtime.feed.read",
     "sap.runtime.trace.configuration",
     "sap.runtime.trace.hit_list",
     "sap.runtime.trace.inspect",
