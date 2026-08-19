@@ -99,12 +99,15 @@ export function registerV1CoreTools(
       "sap.repository.inspect",
       {
         title: "Inspect SAP Repository Object",
-        description: "Read metadata and optional ADT structure for one ABAP object.",
+        description: "Read object metadata, optional ADT structure, and a bounded child-node page.",
         inputSchema: z.object({
           systemId: SYSTEM_ID,
           objectName: OBJECT_NAME,
           objectType: OBJECT_TYPE.optional(),
-          includeStructure: z.boolean().default(false)
+          includeStructure: z.boolean().default(false),
+          includeChildren: z.boolean().default(false),
+          childStartIndex: START_INDEX,
+          childLimit: z.number().int().min(1).max(500).default(50)
         }).strict(),
         outputSchema: coreOutputSchema,
         annotations: V1_READ_ONLY_ANNOTATIONS
@@ -113,6 +116,9 @@ export function registerV1CoreTools(
         connectionId: systemId,
         objectName: input.objectName,
         includeStructure: input.includeStructure,
+        includeChildren: input.includeChildren,
+        childStartIndex: input.childStartIndex,
+        childMaxResults: input.childLimit,
         ...(input.objectType ? { objectType: input.objectType } : {})
       }))
     )

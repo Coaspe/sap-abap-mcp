@@ -30,7 +30,7 @@ CLASS zcl_mcp_runner IMPLEMENTATION.
 ENDCLASS.
 ```
 
-For class fixtures, Create `CLAS/OC` without `source` and with `activate: false`. Read the generated class skeleton, replace that exact source through `replace_string_in_abap_object`, run diagnostics, and activate only after diagnostics contain no errors. Create-time `source` writing and `activate: true` in `create_object_programmatically` are currently supported only for `BDEF/BDO`.
+For class fixtures in this conservative acceptance procedure, Create `CLAS/OC` without `source` and with `activate: false`. Read the generated class skeleton, replace that exact source through `replace_string_in_abap_object`, run diagnostics, and activate only after diagnostics contain no errors. The runtime also supports create-time source and activation for known textual ADT object types, but each SAP release must verify those paths with disposable objects before this procedure relies on them.
 
 When preparing the two-object batch activation, insert the harmless inactive marker inside a method body. Do not add a comment between class sections or declarations, because that does not exercise the same syntax path as a method include.
 

@@ -11,12 +11,14 @@ import { enforceDataAccessPolicy, requireDataQueryOptIn } from "./data-access-po
 import {
   isCreatableTypeId,
   isGroupType,
+  isNodeParent,
   objectPath,
   parentTypeId,
   servicePreviewUrl,
   type NewBindingOptions,
   type NewObjectOptions,
   type NewPackageOptions,
+  type NodeParents,
   type NonGroupTypeIds,
   type PackageTypes,
   type Delta,
@@ -82,6 +84,19 @@ import { writeXlsxFile } from "./xlsx-export.js"
 type BindingCategory = "0" | "1"
 const execFileAsync = promisify(execFile)
 
+const SOURCE_CREATABLE_OBJECT_TYPES = new Set([
+  "BDEF/BDO",
+  "CLAS/OC",
+  "INTF/OI",
+  "PROG/P",
+  "PROG/I",
+  "DDLS/DF",
+  "DCLS/DL",
+  "DDLX/EX",
+  "DDLA/ADF",
+  "SRVD/SRV"
+])
+
 interface CachedAtcDecoration {
   object: {
     name: string
@@ -129,6 +144,9 @@ export interface GetObjectInfoInput {
   objectType?: string
   connectionId: string
   includeStructure: boolean
+  includeChildren?: boolean
+  childStartIndex?: number
+  childMaxResults?: number
 }
 
 export interface GetBatchLinesInput {
@@ -2393,10 +2411,10 @@ export class AbapToolService {
         { reason: "SOURCE_REQUIRED_FOR_ACTIVATION" }
       )
     }
-    if (input.source !== undefined && !isBdef) {
+    if (input.source !== undefined && !SOURCE_CREATABLE_OBJECT_TYPES.has(objectType)) {
       throw new AppError(
         "SAP_VALIDATION_FAILED",
-        "Create-time source is supported only for BDEF/BDO in this delivery",
+        `Create-time source is not supported for ${objectType}`,
         { reason: "CREATE_SOURCE_UNSUPPORTED" }
       )
     }
@@ -2615,17 +2633,22 @@ export class AbapToolService {
         activationSkipped: result.activationSkipped
       }
     } catch (error) {
-      this.capabilities.observeFailure(
-        input.connectionId,
-        "repository.create.bdef",
-        error,
-        stage
-      )
-      const normalized = normalizeCapabilityError(
-        error,
-        "repository.create.bdef",
-        stage
-      )
+      if (isBdef) {
+        this.capabilities.observeFailure(
+          input.connectionId,
+          "repository.create.bdef",
+          error,
+          stage
+        )
+      }
+      const normalized = isBdef
+        ? normalizeCapabilityError(error, "repository.create.bdef", stage)
+        : error instanceof AppError
+          ? error
+          : new AppError(
+              "SOURCE_WRITE_FAILED",
+              `Object ${name} was created, but its source could not be initialized`
+            )
       throw new AppError(
         error instanceof AppError ? error.code : normalized.code,
         normalized.message,
@@ -5642,14 +5665,31 @@ export class AbapToolService {
   async getObjectInfo(input: GetObjectInfoInput) {
     const client = await this.connections.getClient(input.connectionId)
     const object = await resolveObject(client, input.objectName, input.objectType)
-    const source = await client.readObject(object)
+    if (input.includeChildren && !isNodeParent(object.type)) {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        `${object.type} does not expose ADT child nodes`,
+        { reason: "CHILDREN_OBJECT_TYPE_UNSUPPORTED" }
+      )
+    }
+    const source = object.type === "DEVC/K" ? null : await client.readObject(object)
     const structure = await client.getObjectStructure(object.uri)
     const structureRecord = structure as unknown as Record<string, unknown>
+    const childPage = input.includeChildren
+      ? pageItems(
+          (await client.getNodeContents(
+            object.type as NodeParents,
+            object.name
+          )).nodes,
+          input.childStartIndex ?? 0,
+          input.childMaxResults ?? 50
+        )
+      : null
     return {
       connectionId: input.connectionId.toUpperCase(),
       object,
-      sourceUri: source.sourceUri,
-      totalLines: source.source.split(/\r?\n/).length,
+      sourceUri: source?.sourceUri ?? null,
+      totalLines: source ? source.source.split(/\r?\n/).length : null,
       structureSummary: {
         changedAt: structure.metaData["adtcore:changedAt"],
         changedBy: structure.metaData["adtcore:changedBy"],
@@ -5661,7 +5701,24 @@ export class AbapToolService {
           ? structureRecord.includes.length
           : 0
       },
-      ...(input.includeStructure ? { structure } : {})
+      ...(input.includeStructure ? { structure } : {}),
+      ...(childPage ? {
+        childPage: {
+          total: childPage.total,
+          startIndex: childPage.startIndex,
+          returned: childPage.returned,
+          truncated: childPage.truncated,
+          nextStartIndex: childPage.nextStartIndex
+        },
+        children: childPage.items.map(node => ({
+          name: node.OBJECT_NAME,
+          type: node.OBJECT_TYPE,
+          uri: node.OBJECT_URI,
+          workspaceUri: `adt://${input.connectionId.toLowerCase()}${node.OBJECT_URI}`,
+          ...(node.DESCRIPTION ? { description: node.DESCRIPTION } : {}),
+          expandable: node.EXPANDABLE === "X" || node.EXPANDABLE === "true"
+        }))
+      } : {})
     }
   }
 

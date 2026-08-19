@@ -139,6 +139,7 @@ class FakeSapClient implements SapClient {
   rapPreviewObjects: Array<{ uri: string; type: string; name: string; description: string }> | null = null
   rapGeneratedObjects: Array<{ uri: string; type: string; name: string; description: string }> | null = null
   runQueryCalls: string[] = []
+  nodeContentsResult: any = { nodes: [], categories: [], objectTypes: [] }
   missingReadBackUris = new Set<string>()
   batchActivationCalls = 0
   lastBatchActivation: import("abap-adt-api").InactiveObject[] = []
@@ -1008,7 +1009,7 @@ class FakeSapClient implements SapClient {
   }
 
   async getNodeContents(): Promise<any> {
-    return { nodes: [], categories: [], objectTypes: [] }
+    return this.nodeContentsResult
   }
 
   async startDebugSession(): Promise<any> {
@@ -2694,7 +2695,7 @@ test("create object direct callers may omit source and activate", async () => {
   assert.equal(fake.deleteObjectCalls, 0)
 })
 
-test("BDEF create object validation rejects invalid source combinations before SAP mutation", async () => {
+test("source-backed object creation writes exact source and rejects non-source types", async () => {
   const missingSource = createBdefHarness()
   await assert.rejects(
     missingSource.service.createObjectProgrammatically({
@@ -2722,15 +2723,64 @@ test("BDEF create object validation rejects invalid source combinations before S
   assert.deepEqual(missingSource.fake.readSourceCalls, [])
   assert.deepEqual(missingSource.fake.replaceSourceCalls, [])
 
-  const unsupportedSource = createBdefHarness()
-  await assert.rejects(
-    unsupportedSource.service.createObjectProgrammatically({
+  for (const fixture of [
+    {
       objectType: "CLAS/OC",
       name: "ZCL_DEMO",
       description: "Demo class",
+      source: "CLASS zcl_demo DEFINITION PUBLIC FINAL CREATE PUBLIC. ENDCLASS.",
+      objectUri: "/sap/bc/adt/oo/classes/ZCL_DEMO"
+    },
+    {
+      objectType: "DDLX/EX",
+      name: "ZME_DEMO",
+      description: "Demo metadata extension",
+      source: "@Metadata.layer: #CUSTOMER\nannotate entity ZI_DEMO with {};",
+      objectUri: "/sap/bc/adt/ddic/ddlx/sources/ZME_DEMO"
+    },
+    {
+      objectType: "SRVD/SRV",
+      name: "ZUI_DEMO",
+      description: "Demo service definition",
+      source: "define service ZUI_DEMO { expose ZI_DEMO; }",
+      objectUri: "/sap/bc/adt/ddic/srvd/sources/ZUI_DEMO"
+    }
+  ]) {
+    const harness = createBdefHarness()
+    const created = await harness.service.createObjectProgrammatically({
+      objectType: fixture.objectType,
+      name: fixture.name,
+      description: fixture.description,
       packageName: "Z_DEMO",
       connectionId: "DEV100",
-      source: "CLASS zcl_demo DEFINITION PUBLIC FINAL CREATE PUBLIC. ENDCLASS.",
+      source: fixture.source,
+      activate: true,
+      additionalOptions: {
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    }) as Record<string, any>
+    assert.equal(created.object.type, fixture.objectType)
+    assert.equal(created.activation.success, true)
+    assert.deepEqual(harness.fake.replaceSourceCalls, [{
+      objectName: fixture.name,
+      objectUri: fixture.objectUri,
+      sourceUri: `${fixture.objectUri}/source/main`,
+      expectedSource: source,
+      nextSource: fixture.source,
+      transport: "DEVK900123",
+      activate: true
+    }])
+  }
+
+  const unsupportedSource = createBdefHarness()
+  await assert.rejects(
+    unsupportedSource.service.createObjectProgrammatically({
+      objectType: "TABL/DT",
+      name: "ZT_DEMO",
+      description: "Demo table",
+      packageName: "Z_DEMO",
+      connectionId: "DEV100",
+      source: "not a supported textual table definition",
       activate: false,
       additionalOptions: {
         transportRequest: { type: "existing", number: "DEVK900123" }
@@ -2748,6 +2798,51 @@ test("BDEF create object validation rejects invalid source combinations before S
   assert.equal(unsupportedSource.fake.createTransportCalls, 0)
   assert.deepEqual(unsupportedSource.fake.readSourceCalls, [])
   assert.deepEqual(unsupportedSource.fake.replaceSourceCalls, [])
+})
+
+test("object info returns a bounded package child page", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.nodeContentsResult = {
+    nodes: Array.from({ length: 3 }, (_unused, index) => ({
+      OBJECT_TYPE: index === 0 ? "DEVC/K" : "CLAS/OC",
+      OBJECT_NAME: index === 0 ? "Z_DEMO_SUB" : `ZCL_DEMO_${index}`,
+      TECH_NAME: "",
+      OBJECT_URI: index === 0
+        ? "/sap/bc/adt/packages/z_demo_sub"
+        : `/sap/bc/adt/oo/classes/zcl_demo_${index}`,
+      OBJECT_VIT_URI: "",
+      EXPANDABLE: index === 0 ? "X" : "",
+      DESCRIPTION: `Child ${index}`
+    })),
+    categories: [],
+    objectTypes: []
+  }
+
+  const result = await service.getObjectInfo({
+    objectName: "Z_DEMO",
+    objectType: "DEVC",
+    connectionId: "DEV100",
+    includeStructure: false,
+    includeChildren: true,
+    childStartIndex: 1,
+    childMaxResults: 1
+  }) as Record<string, any>
+
+  assert.deepEqual(result.childPage, {
+    total: 3,
+    startIndex: 1,
+    returned: 1,
+    truncated: true,
+    nextStartIndex: 2
+  })
+  assert.deepEqual(result.children, [{
+    name: "ZCL_DEMO_1",
+    type: "CLAS/OC",
+    uri: "/sap/bc/adt/oo/classes/zcl_demo_1",
+    workspaceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo_1",
+    description: "Child 1",
+    expandable: false
+  }])
 })
 
 test("BDEF create object normalizes thrown validation and create failures", async () => {
@@ -4223,8 +4318,8 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     string,
     { description?: string }
   > | undefined
-  assert.match(createProperties?.source?.description ?? "", /BDEF\/BDO/)
-  assert.match(createProperties?.activate?.description ?? "", /BDEF\/BDO/)
+  assert.match(createProperties?.source?.description ?? "", /classes/)
+  assert.match(createProperties?.activate?.description ?? "", /source/)
   for (const tool of listed.tools) {
     assert.ok(tool.title?.trim(), `missing MCP directory title: ${tool.name}`)
     assert.equal(

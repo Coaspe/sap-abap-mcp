@@ -155,7 +155,7 @@ defects.
 
 The pinned ABAP FS 2.6.5 source exposes 43 MCP tools. This server provides a strict-compatible subset of 42; the omitted tool is `manage_subagents`, which depends on the VS Code agent host. With 10 headless feature extensions and `read_deferred_result`, this server advertises 53 tools in total.
 
-The first development-parity slice implements BDEF source creation, one-request batch activation, class-runner execution, the ABAP FS REPL contract, and detailed semantic inspection. These SAP-dependent capabilities remain `unverified` until they succeed against the selected live connection; call `get_sap_capabilities` for per-connection evidence.
+The development surface supports create-time source for BDEFs, classes, interfaces, programs/includes, CDS/DCL/metadata extensions, and service definitions, plus one-request batch activation, class-runner execution, the ABAP FS REPL contract, detailed semantic inspection, and paged repository-child discovery. SAP-dependent capabilities remain `unverified` until they succeed against the selected live connection; call `get_sap_capabilities` for per-connection evidence.
 
 Snippet execution requires `ZCL_ABAP_REPL` and an active SICF service at `/sap/bc/z_abap_repl`. Generic report/program-console execution is not implemented.
 
@@ -166,9 +166,9 @@ The server provides all 42 strict-compatible headless tools from the pinned ABAP
 | Area | Capabilities |
 |---|---|
 | Connections | Multiple SAP profiles, Basic Auth, opt-in OAuth client credentials, lazy login, system metadata, ADT discovery export |
-| Repository reads | Search, metadata, source ranges, batch reads, URI reads, source search, enhancements |
+| Repository reads | Search, metadata, paged package/program/function-group children, source ranges, batch reads, URI reads, source search, enhancements |
 | Semantic services | Completion details, definition lookup, documentation, type hierarchy, components, quick-fix discovery, SAP formatter preview |
-| Source writes | Exact source replacement, BDEF source creation, syntax diagnostics, single- and one-request batch activation, text elements |
+| Source writes | Exact source replacement, create-time source for textual ADT object types, syntax diagnostics, single- and one-request batch activation, text elements |
 | Refactoring | Rename, package move, extract method, quick-fix application, formatting, deletion |
 | Quality | ABAP Unit, ATC, diagnostics, test-include creation |
 | Transports | List, details, objects, read-only release assessment, JSON/SARIF/JUnit evidence, compare, create, release, delete, owner/user management, object resolution |

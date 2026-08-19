@@ -8,6 +8,8 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 - **Opt-in SAP data-query policy**: new profiles disable caller-supplied SAP SQL by default, production profiles cannot opt in, sensitive identity/credential/banking/payroll/tax tables remain blocked, and selected business-document tables require an explicit per-call risk acknowledgement. Dynamic table sources are refused when they cannot be inspected. SQL text is redacted from optional audit arguments.
 - **Token-efficient v1 presets**: `serve --preset compact|development|assurance` advertises curated 12-, 34-, or 15-tool surfaces without changing the default 115-tool contract. Automated byte budgets keep the compact preset near 5.5k estimated schema tokens; custom `--toolsets` remain available and cannot be combined with a preset.
+- **Broader source-backed object creation**: the existing repository-create tools can now write and optionally activate create-time source for classes, interfaces, programs/includes, CDS data definitions, DCL sources, metadata extensions, annotation definitions, service definitions, and BDEFs. Structured object types still reject textual source before any SAP mutation.
+- **Paged repository children**: the existing repository-inspection tools can return bounded child pages for ADT package, program, and function-group parents. Package inspection no longer assumes that a package has a source document, and no new tool schema is added to the default surface.
 
 ## 1.1.0 - 2026-08-19
 

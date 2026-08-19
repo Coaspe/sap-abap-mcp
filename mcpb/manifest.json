@@ -279,7 +279,7 @@
     },
     {
       "name": "sap.repository.inspect",
-      "description": "Read metadata and optional ADT structure for one ABAP object."
+      "description": "Read object metadata, optional ADT structure, and a bounded child-node page."
     },
     {
       "name": "sap.repository.resolve",
