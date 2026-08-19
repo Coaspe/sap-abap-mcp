@@ -3,6 +3,7 @@ import {
   type RegisteredTool,
   type ToolCallback
 } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { readFileSync } from "node:fs"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type {
   AnySchema,
@@ -92,6 +93,10 @@ interface ToolResultPolicy {
   summarize?: (value: unknown) => unknown
 }
 
+const packageVersion = (JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8")
+) as { version: string }).version
+
 export function createMcpServer(
   tools: AbapToolService,
   options: McpServerOptions = {}
@@ -101,7 +106,7 @@ export function createMcpServer(
   const server = new McpServer(
     {
       name: "sap-abap-mcp",
-      version: "1.0.1",
+      version: packageVersion,
       title: "SAP ABAP MCP",
       description:
         "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",

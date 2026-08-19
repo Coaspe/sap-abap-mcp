@@ -936,8 +936,8 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current source version: `1.0.0`
-- Published npm version: `1.0.0`
+- Current source version: `1.1.0`
+- Published npm version: `1.1.0`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP
