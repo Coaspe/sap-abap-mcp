@@ -923,10 +923,14 @@
   {
     "name": "execute_data_query",
     "title": "Execute ABAP Data Query",
-    "description": "Run a read-only SAP ADT data-preview query, process supplied structured data, return a bounded headless result, or export CSV/XLSX.",
+    "description": "Run an opt-in, policy-checked SAP data query, process supplied data, return bounded results, or export CSV/XLSX.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
+        "acknowledgeRisk": {
+          "description": "Set true only after reviewing a query that targets protected business-document tables.",
+          "type": "boolean"
+        },
         "connectionId": {
           "minLength": 1,
           "type": "string"

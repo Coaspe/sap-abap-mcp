@@ -341,6 +341,20 @@ Service keys that use X.509 client certificates instead of a client secret are
 rejected with `SERVICE_KEY_CERTIFICATE_UNSUPPORTED` rather than producing a
 profile that could never authenticate.
 
+## SAP data-query policy
+
+Direct SAP table queries are disabled for every new profile. Enable them only on a reviewed development or quality profile:
+
+```bash
+npx @coaspe/sap-abap-mcp@latest profile add DEV100 \
+  --url https://sap.example.com --client 100 --username DEVELOPER \
+  --environment development --allow-data-queries
+```
+
+Production profiles cannot enable the capability. Read-only SQL validation still applies, and a second policy layer blocks credential, banking, identity, payroll, and tax tables. Business-document tables such as `VBAK`, `VBAP`, `BKPF`, `BSEG`, and `ACDOCA` require `acknowledgeRisk=true` on the individual `sap.data.query`, `sap.data.export`, or `execute_data_query` call. Dynamic table sources are refused because they cannot be inspected before execution. SQL text is redacted even when audit argument capture is enabled.
+
+This policy applies only to caller-supplied SQL sent to SAP. Processing caller-supplied structured data, reading a cached data view, and bounded internal metadata checks used by connection diagnostics do not require the opt-in.
+
 ## Prerequisites
 
 Ask your SAP administrator for:
@@ -861,9 +875,14 @@ setup remove [<server-name>]
 profile add <id> --url <url> --client <nnn> [--language EN]
     [--environment development|quality|production]
     [--username <user>] [--packages ZPKG1,ZPKG2]
+    [--allow-data-queries]
     [--auth-type basic|oauth-client-credentials]
     [--token-url <url> --client-id <id> [--scope <scope>]]
     [--login [--password-stdin]]
+profile add <id> --service-key <path> [--language EN]
+    [--environment development|quality|production]
+    [--scope <scope>] [--packages ZPKG1,ZPKG2]
+    [--allow-data-queries]
 profile list
 profile remove <id>
 

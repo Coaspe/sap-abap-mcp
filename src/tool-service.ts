@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 import { createTwoFilesPatch, diffLines } from "diff"
 import { AppError } from "./errors.js"
+import { enforceDataAccessPolicy, requireDataQueryOptIn } from "./data-access-policy.js"
 import {
   isCreatableTypeId,
   isGroupType,
@@ -213,6 +214,7 @@ export type ActivateObjectInput =
 
 export interface ExecuteDataQueryInput {
   sql?: string
+  acknowledgeRisk?: boolean
   data?: {
     columns: Array<{ name: string; type: string; description?: string }>
     values: Array<Record<string, unknown>>
@@ -2654,7 +2656,11 @@ export class AbapToolService {
         "Headless query results are blocked for production profiles; use download_to_file"
       )
     }
-    if (input.sql) validateReadOnlySql(input.sql)
+    if (input.sql) {
+      validateReadOnlySql(input.sql)
+      requireDataQueryOptIn(client.profile)
+      enforceDataAccessPolicy(input.sql, input.acknowledgeRisk)
+    }
     if (input.displayMode === "internal") {
       if (!input.rowRange) {
         throw new AppError("ROW_RANGE_REQUIRED", "Internal mode requires rowRange")
@@ -5154,6 +5160,8 @@ export class AbapToolService {
         const ping = await client.ping()
         if (task.sampleQuery) {
           validateReadOnlySql(task.sampleQuery)
+          requireDataQueryOptIn(client.profile)
+          enforceDataAccessPolicy(task.sampleQuery)
           const query = await client.runQuery(task.sampleQuery, 1000)
           const count = query.values.length
           result = {

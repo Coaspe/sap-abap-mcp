@@ -138,6 +138,7 @@ class FakeSapClient implements SapClient {
   serviceBindingProtocol = "V4"
   rapPreviewObjects: Array<{ uri: string; type: string; name: string; description: string }> | null = null
   rapGeneratedObjects: Array<{ uri: string; type: string; name: string; description: string }> | null = null
+  runQueryCalls: string[] = []
   missingReadBackUris = new Set<string>()
   batchActivationCalls = 0
   lastBatchActivation: import("abap-adt-api").InactiveObject[] = []
@@ -468,6 +469,7 @@ class FakeSapClient implements SapClient {
   }
 
   async runQuery(sql: string): Promise<any> {
+    this.runQueryCalls.push(sql)
     if (sql.includes("Z_TOKEN_BUDGET")) {
       return {
         columns: [{ name: "ROW_ID", type: "I", description: "Row" }],
@@ -3170,6 +3172,49 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
     }),
     "QUERY_NOT_READ_ONLY"
   )
+
+  const queryProfile: SapProfile = {
+    id: "DEV100", url: "https://sap.example.test", client: "100", language: "EN",
+    environment: "development", authType: "basic", username: "DEVELOPER",
+    allowedPackages: ["Z_DEMO"]
+  }
+  const queryFake = new FakeSapClient(queryProfile)
+  const queryService = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() { return queryFake }
+  })
+  const queryInput = {
+    displayMode: "internal" as const,
+    connectionId: "DEV100",
+    maxRows: 10,
+    rowRange: { start: 0, end: 10 }
+  }
+  await rejectsCode(
+    queryService.executeDataQuery({ ...queryInput, sql: "SELECT MATNR FROM MARA" }),
+    "DATA_QUERY_NOT_ALLOWED"
+  )
+  assert.equal(queryFake.runQueryCalls.length, 0)
+
+  queryProfile.allowDataQueries = true
+  await rejectsCode(
+    queryService.executeDataQuery({
+      ...queryInput,
+      sql: "SELECT BNAME FROM USR02",
+      acknowledgeRisk: true
+    }),
+    "DATA_QUERY_TABLE_DENIED"
+  )
+  await rejectsCode(
+    queryService.executeDataQuery({ ...queryInput, sql: "SELECT VBELN FROM VBAK" }),
+    "DATA_QUERY_CONFIRMATION_REQUIRED"
+  )
+  assert.equal(queryFake.runQueryCalls.length, 0)
+  await queryService.executeDataQuery({
+    ...queryInput,
+    sql: "SELECT VBELN FROM VBAK",
+    acknowledgeRisk: true
+  })
+  assert.deepEqual(queryFake.runQueryCalls, ["SELECT VBELN FROM VBAK"])
 })
 
 test("mutation plans reject stale SAP state and transport writes reject production", async () => {
@@ -4131,6 +4176,7 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     environment: "development",
     authType: "basic",
     username: "DEVELOPER",
+    allowDataQueries: true,
     allowedPackages: ["Z_DEMO", "Z_OTHER"]
   }
   const fake = new FakeSapClient(profile)

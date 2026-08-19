@@ -51,11 +51,11 @@
     },
     {
       "name": "sap.data.export",
-      "description": "Export one read-only data query or cached data view to CSV or XLSX."
+      "description": "Export one opt-in, policy-checked data query or cached data view to CSV or XLSX."
     },
     {
       "name": "sap.data.query",
-      "description": "Run one bounded read-only SAP ADT data-preview query."
+      "description": "Run one bounded, opt-in, policy-checked SAP data-preview query."
     },
     {
       "name": "sap.debug.breakpoint.remove",

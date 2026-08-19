@@ -648,9 +648,12 @@ export function createMcpServer(
     {
       title: "Execute ABAP Data Query",
       description:
-        "Run a read-only SAP ADT data-preview query, process supplied structured data, return a bounded headless result, or export CSV/XLSX.",
+        "Run an opt-in, policy-checked SAP data query, process supplied data, return bounded results, or export CSV/XLSX.",
       inputSchema: {
         sql: z.string().min(1).optional(),
+        acknowledgeRisk: z.boolean().optional().describe(
+          "Set true only after reviewing a query that targets protected business-document tables."
+        ),
         data: z.object({
           columns: z.array(z.object({
             name: z.string().min(1),
@@ -691,6 +694,9 @@ export function createMcpServer(
           maxRows: input.maxRows,
           ...(input.webviewId ? { webviewId: input.webviewId } : {}),
           ...(input.sql ? { sql: input.sql } : {}),
+          ...(input.acknowledgeRisk !== undefined
+            ? { acknowledgeRisk: input.acknowledgeRisk }
+            : {}),
           ...(input.data ? {
             data: {
               columns: input.data.columns.map(column => ({

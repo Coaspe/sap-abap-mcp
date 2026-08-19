@@ -72,10 +72,10 @@ Commands:
       [--environment development|quality|production] [--username <user>]
       [--auth-type basic|oauth-client-credentials]
       [--token-url <url> --client-id <id> [--scope <scope>]]
-      [--packages ZPKG1,ZPKG2] [--login [--password-stdin]]
+      [--packages ZPKG1,ZPKG2] [--allow-data-queries] [--login [--password-stdin]]
   profile add <id> --service-key <path> [--language EN]
       [--environment development|quality|production] [--scope <scope>]
-      [--packages ZPKG1,ZPKG2]
+      [--packages ZPKG1,ZPKG2] [--allow-data-queries]
       Imports an SAP BTP ABAP environment service key, verifies it live, and
       stores the client secret in the protected credential store.
   profile list
@@ -286,6 +286,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
         ...(language ? { language } : {}),
         ...(environment ? { environment: environment as SapProfile["environment"] } : {}),
         ...(username ? { username } : {}),
+        allowDataQueries: parsed.options.has("allow-data-queries"),
         authType: "oauth_client_credentials",
         tokenUrl: key.tokenUrl,
         clientId: key.clientId,
@@ -323,6 +324,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
       ...(language ? { language } : {}),
       ...(environment ? { environment: environment as SapProfile["environment"] } : {}),
       ...(username ? { username } : {}),
+      allowDataQueries: parsed.options.has("allow-data-queries"),
       authType,
       ...(authType === "oauth_client_credentials"
         ? {

@@ -188,6 +188,9 @@ export function registerV1ArtifactTools(
   const dataSourceSchema = z.object({
     systemId: SYSTEM_ID,
     sql: NON_EMPTY.optional(),
+    acknowledgeRisk: z.boolean().optional().describe(
+      "Set true only after reviewing a query that targets protected business-document tables."
+    ),
     data: z.object({
       columns: z.array(z.object({
         name: NON_EMPTY,
@@ -216,7 +219,7 @@ export function registerV1ArtifactTools(
   registerTool(
     "sap.data.export",
     "Export SAP Data",
-    "Export one read-only data query or cached data view to CSV or XLSX.",
+    "Export one opt-in, policy-checked data query or cached data view to CSV or XLSX.",
     dataSourceSchema,
     OVERWRITE_ANNOTATIONS,
     input => artifactResult(evidenceStore, "data-export", input.systemId, systemId =>
@@ -227,6 +230,9 @@ export function registerV1ArtifactTools(
         filePath: input.filePath,
         fileType: input.fileType,
         ...(input.sql ? { sql: input.sql } : {}),
+        ...(input.acknowledgeRisk !== undefined
+          ? { acknowledgeRisk: input.acknowledgeRisk }
+          : {}),
         ...(input.data ? {
           data: {
             columns: input.data.columns.map(column => ({
