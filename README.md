@@ -270,13 +270,13 @@ Before the first SAP-facing request, create and verify at least one local SAP pr
 Registry publication does not change the live-evidence boundary. SAP-dependent development-parity capabilities remain `unverified` until they succeed against the selected live connection.
 
 The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp)
-installs the validated local MCPB bundle. Its published 1.2.0 catalog contains
-115 tools and seven Resources; the 1.3.0 source catalog contains 120 tools and
-is synchronized from the runtime before publication.
+installs the validated local MCPB bundle. Its current catalog contains 120
+tools and seven Resources and is synchronized from the runtime before
+publication.
 
 The public [LobeHub listing](https://lobehub.com/mcp/coaspe-sap-abap-mcp)
-uses the owner-validated [`lhm.plugin.json`](lhm.plugin.json) manifest. Version
-1.2.0 advertises the same default 115 tools and seven Resources.
+uses the owner-validated [`lhm.plugin.json`](lhm.plugin.json) manifest. The
+current listing advertises the same default 120 tools and seven Resources.
 
 ## Privacy Policy
 
@@ -1027,8 +1027,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current source version: `1.3.0`
-- Published npm version: `1.2.0` (the 1.3.0 release is being prepared from this source)
+- Current release version: `1.3.1`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP
