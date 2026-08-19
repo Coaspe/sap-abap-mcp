@@ -11,6 +11,7 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 - **Broader source-backed object creation**: the existing repository-create tools can now write and optionally activate create-time source for classes, interfaces, programs/includes, CDS data definitions, DCL sources, metadata extensions, annotation definitions, service definitions, and BDEFs. Structured object types still reject textual source before any SAP mutation.
 - **Paged repository children**: the existing repository-inspection tools can return bounded child pages for ADT package, program, and function-group parents. Package inspection no longer assumes that a package has a source document, and no new tool schema is added to the default surface.
 - **Confirmed class profiling**: class execution previews accept `profiling: true` and produce a distinct one-use confirmation before creating a bounded aggregate ABAP profiler trace. The default trace excludes SQL and DB detail to limit SAP overhead and response volume; successful class output is retained with a warning if the follow-up trace lookup is unavailable.
+- **Embeddable library entry**: package-root imports now expose `createEmbeddedMcpServer`, `createMcpServer`, `AbapToolService`, and their provider/client types without running the CLI. Applications supply a connection provider and choose their own MCP transport; the CLI binary and local-first defaults remain unchanged.
 
 ## 1.1.0 - 2026-08-19
 

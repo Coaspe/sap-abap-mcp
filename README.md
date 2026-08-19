@@ -798,6 +798,30 @@ SAP — true principal propagation through Cloud Connector or the BTP
 not in this release. The HTTP listener also speaks plain HTTP; terminate TLS at a
 reverse proxy.
 
+## Embed in another Node.js application
+
+The npm package root is a side-effect-free library entry; importing it does not
+start the CLI. Supply an application-owned `ConnectionProvider`, then connect
+the returned server to any MCP transport supported by the SDK:
+
+```ts
+import { createEmbeddedMcpServer } from "@coaspe/sap-abap-mcp"
+
+const runtime = createEmbeddedMcpServer({
+  connectionProvider,
+  serverOptions: { apiVersion: "v1" }
+})
+
+await runtime.server.connect(transport)
+// On application shutdown:
+await runtime.close()
+```
+
+The host retains ownership of SAP credentials and connection lifecycle. For
+lower-level composition, the same entry exports `createMcpServer`,
+`AbapToolService`, and the relevant provider/client types. The executable remains
+`sap-abap-mcp serve`; embedding does not change local CLI or registry launches.
+
 ## Token-efficient operation
 
 The server is designed to keep model context usage bounded without removing useful data:

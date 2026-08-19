@@ -28,6 +28,8 @@
   "license": "MIT",
   "mcpName": "io.github.Coaspe/sap-abap-mcp",
   "type": "module",
+  "main": "dist/src/library.js",
+  "types": "dist/src/library.d.ts",
   "bin": {
     "sap-abap-mcp": "dist/src/index.js"
   },
