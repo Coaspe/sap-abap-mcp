@@ -58,6 +58,7 @@ import {
   type TextElementCategory,
   type TextElementsResult,
   type TraceHitList,
+  type TraceParameters,
   type TraceRequestList,
   type TraceResults,
   type TraceStatementResponse,
@@ -122,6 +123,13 @@ export interface SapSourceMutationResult {
   diagnostics: SyntaxCheckResult[]
   activation?: ActivationResult
   activationSkipped: boolean
+}
+
+export interface SapProfiledClassRunResult {
+  output: string
+  profilerId: string
+  traceId: string | null
+  traceLookupWarning?: "TRACE_NOT_FOUND" | "TRACE_LOOKUP_FAILED"
 }
 
 export type SapNewObjectOptions = NewObjectOptions | NewPackageOptions | NewBindingOptions
@@ -303,6 +311,7 @@ export interface SapClient {
   ): Promise<HierarchyNode[]>
   getClassComponents(objectUri: string): Promise<ClassComponent>
   runClass(className: string): Promise<string>
+  runClassWithProfiling(className: string): Promise<SapProfiledClassRunResult>
   checkReplAvailability(): Promise<ReplHealthCheck>
   executeAbapCode(code: string): Promise<ReplResponse>
   findDefinition(
@@ -1157,6 +1166,89 @@ export class AdtSapClient implements SapClient {
         }
       )
     }
+  }
+
+  async runClassWithProfiling(className: string): Promise<SapProfiledClassRunResult> {
+    const name = className.trim().toUpperCase()
+    return this.serializeMutation(async () => {
+      let baselineAvailable = true
+      let previousTraceIds = new Set<string>()
+      try {
+        previousTraceIds = new Set((await this.client.tracesList()).runs.map(run => run.id))
+      } catch {
+        baselineAvailable = false
+      }
+
+      const parameters: TraceParameters = {
+        allMiscAbapStatements: false,
+        allProceduralUnits: true,
+        allInternalTableEvents: false,
+        allDynproEvents: false,
+        description: `MCP profiled class ${name}`,
+        aggregate: true,
+        explicitOnOff: false,
+        withRfcTracing: false,
+        allSystemKernelEvents: false,
+        sqlTrace: false,
+        allDbEvents: false,
+        maxSizeForTraceFile: 10_240,
+        maxTimeForTracing: 300
+      }
+
+      let profilerId: string
+      let output: string
+      try {
+        profilerId = await this.client.tracesSetParameters(parameters)
+        const response = await this.client.httpClient.request(
+          `/sap/bc/adt/oo/classrun/${name}`,
+          {
+            method: "POST",
+            qs: { profilerId },
+            headers: {
+              Accept: "text/plain",
+              "X-sap-adt-profiling": "server-time"
+            }
+          }
+        )
+        output = String(response.body)
+      } catch (error) {
+        const evidence = adtFailureEvidence(error)
+        if (Object.keys(evidence).length === 0) throw error
+        throw new AppError(
+          "SAP_CLASS_RUN_FAILED",
+          `SAP rejected profiling class ${name}. It must implement IF_OO_ADT_CLASSRUN and be active.`,
+          {
+            className: name,
+            endpoint: "/sap/bc/adt/oo/classrun",
+            ...(isHttpError(error) ? { httpStatus: error.status } : {}),
+            ...evidence
+          }
+        )
+      }
+
+      try {
+        const runs = (await this.client.tracesList()).runs
+          .filter(run => !baselineAvailable || !previousTraceIds.has(run.id))
+          .sort((left, right) => right.published.getTime() - left.published.getTime())
+        const matching = runs.filter(run =>
+          `${run.title} ${run.extendedData.objectName}`.toUpperCase().includes(name)
+        )
+        const trace = matching[0] ?? (baselineAvailable && runs.length === 1 ? runs[0] : undefined)
+        return {
+          output,
+          profilerId,
+          traceId: trace?.id ?? null,
+          ...(trace ? {} : { traceLookupWarning: "TRACE_NOT_FOUND" as const })
+        }
+      } catch {
+        return {
+          output,
+          profilerId,
+          traceId: null,
+          traceLookupWarning: "TRACE_LOOKUP_FAILED"
+        }
+      }
+    })
   }
 
   async checkReplAvailability(): Promise<ReplHealthCheck> {

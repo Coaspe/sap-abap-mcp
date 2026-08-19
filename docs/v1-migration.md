@@ -77,6 +77,9 @@ server run.
   artifact evidence.
 - Preserve confirmation values and plan IDs exactly for mutation and execution
   tools. v1 adapters use the existing v0 safety and policy enforcement.
+- Set `profiling: true` on the class branch of `sap.execution.preview` when an
+  aggregate ABAP profiler trace is needed. Execute the returned one-use plan
+  unchanged; ordinary class execution remains the default.
 - Delete one exact repository object through `sap.repository.delete.preview`,
   then pass its unchanged `planId` and `confirmation` to
   `sap.repository.delete.execute`. Generic refactoring tools reject delete plans.

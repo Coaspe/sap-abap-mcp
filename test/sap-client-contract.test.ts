@@ -732,6 +732,96 @@ test("activation, semantic detail, and class execution wrappers preserve ADT con
   ])
 })
 
+test("profiled class execution configures a bounded trace and returns the new trace id", async () => {
+  const calls: Array<{ method: string; args: unknown[] }> = []
+  let traceListCall = 0
+  const traceRun = {
+    id: "TRACE-NEW",
+    title: "MCP profiled class ZCL_PROFILED",
+    published: new Date("2026-08-19T00:00:01.000Z"),
+    extendedData: { objectName: "ZCL_PROFILED" }
+  }
+  const fakeAdt: any = {
+    tracesList: async () => {
+      calls.push({ method: "tracesList", args: [] })
+      traceListCall += 1
+      return { runs: traceListCall === 1 ? [] : [traceRun] }
+    },
+    tracesSetParameters: async (...args: unknown[]) => {
+      calls.push({ method: "tracesSetParameters", args })
+      return "/sap/bc/adt/runtime/traces/abaptraces/parameters/PROFILE-1"
+    },
+    httpClient: {
+      request: async (...args: unknown[]) => {
+        calls.push({ method: "request", args })
+        return { body: "profiled output", status: 200, statusText: "OK", headers: {} }
+      }
+    }
+  }
+  const client = clientWithAdt(fakeAdt)
+
+  const result = await client.runClassWithProfiling("zcl_profiled")
+
+  assert.deepEqual(result, {
+    output: "profiled output",
+    profilerId: "/sap/bc/adt/runtime/traces/abaptraces/parameters/PROFILE-1",
+    traceId: "TRACE-NEW"
+  })
+  assert.equal(calls[0]?.method, "tracesList")
+  assert.equal(calls[1]?.method, "tracesSetParameters")
+  assert.deepEqual(calls[2], {
+    method: "request",
+    args: [
+      "/sap/bc/adt/oo/classrun/ZCL_PROFILED",
+      {
+        method: "POST",
+        qs: {
+          profilerId: "/sap/bc/adt/runtime/traces/abaptraces/parameters/PROFILE-1"
+        },
+        headers: {
+          Accept: "text/plain",
+          "X-sap-adt-profiling": "server-time"
+        }
+      }
+    ]
+  })
+  const parameters = calls[1]?.args[0] as import("abap-adt-api").TraceParameters
+  assert.equal(parameters.aggregate, true)
+  assert.equal(parameters.sqlTrace, false)
+  assert.equal(parameters.allDbEvents, false)
+  assert.equal(parameters.maxTimeForTracing, 300)
+  assert.equal(calls[3]?.method, "tracesList")
+})
+
+test("profiled class execution preserves output when trace lookup fails", async () => {
+  let traceListCall = 0
+  const fakeAdt: any = {
+    tracesList: async () => {
+      traceListCall += 1
+      if (traceListCall > 1) throw new Error("trace feed unavailable")
+      return { runs: [] }
+    },
+    tracesSetParameters: async () => "/sap/bc/adt/runtime/traces/parameters/PROFILE-2",
+    httpClient: {
+      request: async () => ({
+        body: "completed output",
+        status: 200,
+        statusText: "OK",
+        headers: {}
+      })
+    }
+  }
+
+  const result = await clientWithAdt(fakeAdt).runClassWithProfiling("ZCL_PROFILED")
+
+  assert.deepEqual(result, {
+    output: "completed output",
+    profilerId: "/sap/bc/adt/runtime/traces/parameters/PROFILE-2",
+    traceId: null,
+    traceLookupWarning: "TRACE_LOOKUP_FAILED"
+  })
+})
+
 test("batch activations execute one at a time", async () => {
   const firstActivation = deferred<import("abap-adt-api").ActivationResult>()
   const secondActivation = deferred<import("abap-adt-api").ActivationResult>()

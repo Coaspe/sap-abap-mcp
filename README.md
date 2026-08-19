@@ -175,7 +175,7 @@ The server provides all 42 strict-compatible headless tools from the pinned ABAP
 | Versions | Active revision history, revision comparison, inactive source, guarded revision restore |
 | abapGit | Repository list, remote information, create, pull, unlink, stage, push, check, branch switch (requires the abapGit ADT backend on the SAP system) |
 | RAP | Availability, paged schema, defaults, validation, preview, generation, service binding details, and OData V2/V4 publication and unpublication |
-| Runtime | Guarded class-runner and fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
+| Runtime | Guarded class-runner with optional bounded aggregate profiling, fixed-contract ABAP REPL execution, debugger, breakpoints, stack, variables, dumps, traces, heartbeat checks |
 | Cross-system | Source comparison across configured SAP systems |
 | Dependency analysis | Bounded where-used dependency graph |
 | SAP GUI integration | Validated WebGUI transaction URL generation and optional local launch |

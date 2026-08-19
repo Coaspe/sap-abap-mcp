@@ -1767,7 +1767,8 @@ export function createMcpServer(
     z.object({
       action: z.literal("preview_class"),
       connectionId: z.string().min(1),
-      className: z.string().min(1)
+      className: z.string().min(1),
+      profiling: z.boolean().default(false)
     }).strict(),
     z.object({
       action: z.literal("preview_snippet"),
@@ -1785,6 +1786,9 @@ export function createMcpServer(
     action: z.enum(["repl_health", "preview_class", "preview_snippet", "execute"]),
     connectionId: z.string().min(1),
     className: z.string().min(1).optional(),
+    profiling: z.boolean().optional().describe(
+      "For preview_class, capture a bounded aggregate ABAP profiler trace"
+    ),
     code: z.string().min(1).max(98_304).optional(),
     planId: z.string().uuid().optional(),
     confirmation: z.string().min(1).optional()
@@ -1795,7 +1799,7 @@ export function createMcpServer(
     {
       title: "Run ABAP Application",
       description:
-        "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan.",
+        "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan, optionally with a bounded aggregate class profile.",
       inputSchema: runAbapApplicationInputShape,
       annotations: writeAnnotations
     },

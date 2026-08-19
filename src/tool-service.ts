@@ -635,12 +635,17 @@ interface RefactorPlan {
 
 export type RunAbapApplicationInput =
   | { action: "repl_health"; connectionId: string }
-  | { action: "preview_class"; connectionId: string; className: string }
+  | {
+      action: "preview_class"
+      connectionId: string
+      className: string
+      profiling?: boolean
+    }
   | { action: "preview_snippet"; connectionId: string; code: string }
   | { action: "execute"; connectionId: string; planId: string; confirmation: string }
 
 type ExecutionPlanPayload =
-  | { kind: "class"; className: string; code?: never }
+  | { kind: "class"; className: string; profiling: boolean; code?: never }
   | { kind: "snippet"; code: string; className?: never }
 
 type ExecutionPlan = {
@@ -6057,6 +6062,7 @@ export class AbapToolService {
     if (input.action === "preview_class") {
       requireExecutableProfile(client)
       const className = input.className.trim()
+      const profiling = input.profiling ?? false
       if (
         className !== className.toUpperCase() ||
         className.length > 30 ||
@@ -6072,16 +6078,20 @@ export class AbapToolService {
         kind: "class",
         connectionId,
         className,
-        confirmation: `RUN_CLASS:${connectionId}:${className}`
+        profiling,
+        confirmation: profiling
+          ? `PROFILE_CLASS:${connectionId}:${className}`
+          : `RUN_CLASS:${connectionId}:${className}`
       })
       return {
         action: input.action,
         planId: plan.id,
         confirmation: plan.confirmation,
         expiresAt: new Date(plan.expiresAt).toISOString(),
+        ...(profiling ? { profiling: true } : {}),
         capabilityStatusAtExecution: this.capabilities.status(
           connectionId,
-          "execution.class_runner"
+          profiling ? "execution.class_profiler" : "execution.class_runner"
         )
       }
     }
@@ -6116,6 +6126,30 @@ export class AbapToolService {
     const plan = this.takeExecutionPlan(input.planId, input.confirmation, connectionId)
     requireExecutableProfile(client)
     if (plan.kind === "class") {
+      if (plan.profiling) {
+        const { result, capabilityStatusAtExecution } = await this.executeCapability(
+          connectionId,
+          "execution.class_profiler",
+          "/sap/bc/adt/runtime/traces/abaptraces/parameters",
+          () => client.runClassWithProfiling(plan.className)
+        )
+        const output = boundInlineText(result.output)
+        return {
+          connectionId,
+          kind: plan.kind,
+          profiling: true,
+          output: output.content,
+          originalBytes: output.originalBytes,
+          returnedBytes: output.returnedBytes,
+          truncated: output.truncated,
+          profilerId: result.profilerId,
+          traceId: result.traceId,
+          ...(result.traceLookupWarning
+            ? { traceLookupWarning: result.traceLookupWarning }
+            : {}),
+          capabilityStatusAtExecution
+        }
+      }
       const { result, capabilityStatusAtExecution } = await this.executeCapability(
         connectionId,
         "execution.class_runner",

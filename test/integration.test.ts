@@ -165,6 +165,12 @@ class FakeSapClient implements SapClient {
   classRunCalls = 0
   classRunResult?: string
   classRunError?: Error
+  profiledClassRunCalls = 0
+  profiledClassRunResult: Awaited<ReturnType<SapClient["runClassWithProfiling"]>> = {
+    output: "profiled runner output",
+    profilerId: "/sap/bc/adt/runtime/traces/abaptraces/parameters/PROFILE-1",
+    traceId: "TRACE-1"
+  }
   replHealthCalls = 0
   replProduction = false
   replHealthResult?: Awaited<ReturnType<SapClient["checkReplAvailability"]>>
@@ -733,6 +739,14 @@ class FakeSapClient implements SapClient {
     this.classRunCalls += 1
     if (this.classRunError) throw this.classRunError
     return this.classRunResult ?? `runner output: ${className}`
+  }
+
+  async runClassWithProfiling(className: string) {
+    this.profiledClassRunCalls += 1
+    return {
+      ...this.profiledClassRunResult,
+      output: this.profiledClassRunResult.output || `profiled runner output: ${className}`
+    }
   }
 
   async checkReplAvailability() {
@@ -1466,6 +1480,34 @@ test("ABAP application plans enforce exact confirmations, connection binding, ex
   } finally {
     Date.now = originalNow
   }
+})
+
+test("profiled class execution uses a distinct confirmation and returns a trace reference", async () => {
+  const harness = createApplicationHarness()
+  const preview = await harness.service.runAbapApplication({
+    action: "preview_class",
+    connectionId: "DEV100",
+    className: "ZCL_PROFILED",
+    profiling: true
+  }) as Record<string, any>
+
+  assert.equal(preview.confirmation, "PROFILE_CLASS:DEV100:ZCL_PROFILED")
+  assert.equal(preview.profiling, true)
+  assert.equal(preview.capabilityStatusAtExecution, "unverified")
+
+  const result = await harness.service.runAbapApplication({
+    action: "execute",
+    connectionId: "DEV100",
+    planId: preview.planId,
+    confirmation: preview.confirmation
+  }) as Record<string, any>
+
+  assert.equal(result.kind, "class")
+  assert.equal(result.profiling, true)
+  assert.equal(result.profilerId, harness.fake.profiledClassRunResult.profilerId)
+  assert.equal(result.traceId, "TRACE-1")
+  assert.equal(harness.fake.profiledClassRunCalls, 1)
+  assert.equal(harness.fake.classRunCalls, 0)
 })
 
 test("ABAP application execution blocks production and consumes each execution attempt once", async () => {
@@ -4182,7 +4224,7 @@ test("MCP run_abap_application exposes strict health, class, and snippet actions
   assert.equal(applicationTool?.title, "Run ABAP Application")
   assert.equal(
     applicationTool?.description,
-    "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan."
+    "Check the audited ABAP FS REPL or preview and execute a confirmed class/snippet plan, optionally with a bounded aggregate class profile."
   )
   assert.deepEqual(applicationTool?.annotations, {
     readOnlyHint: false,
@@ -4197,7 +4239,7 @@ test("MCP run_abap_application exposes strict health, class, and snippet actions
   )
   assert.deepEqual(
     Object.keys(applicationTool?.inputSchema.properties ?? {}),
-    ["action", "connectionId", "className", "code", "planId", "confirmation"]
+    ["action", "connectionId", "className", "profiling", "code", "planId", "confirmation"]
   )
 
   const callRaw = (arguments_: Record<string, unknown>) => client.callTool({

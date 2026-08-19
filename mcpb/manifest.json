@@ -107,7 +107,7 @@
     },
     {
       "name": "sap.execution.preview",
-      "description": "Create a short-lived execution plan for a class or ABAP snippet."
+      "description": "Create a short-lived execution plan for a class, optional aggregate profile, or ABAP snippet."
     },
     {
       "name": "sap.git.branch.switch",

@@ -75,7 +75,9 @@ test("operations adapters call shared service capabilities with fixed actions", 
 
   const invocations: Array<{ name: string; arguments: Record<string, unknown> }> = [
     { name: "sap.execution.health", arguments: { systemId: "dev100" } },
-    { name: "sap.execution.preview", arguments: { systemId: "dev100", kind: "class", className: "ZCL_DEMO" } },
+    { name: "sap.execution.preview", arguments: {
+      systemId: "dev100", kind: "class", className: "ZCL_DEMO", profiling: true
+    } },
     { name: "sap.execution.preview", arguments: { systemId: "dev100", kind: "snippet", code: "WRITE / 'OK'." } },
     { name: "sap.ops.watch.history", arguments: {} },
     { name: "sap.ops.watch.start", arguments: {} },
@@ -133,5 +135,17 @@ test("operations adapters call shared service capabilities with fixed actions", 
       { connectionId: "DEV100", mode: "summary" },
       { connectionId: "DEV100", mode: "full" }
     ]
+  )
+  assert.deepEqual(
+    calls.find(call =>
+      call.method === "runAbapApplication" &&
+      (call.input as { action?: string }).action === "preview_class"
+    )?.input,
+    {
+      action: "preview_class",
+      connectionId: "DEV100",
+      className: "ZCL_DEMO",
+      profiling: true
+    }
   )
 })
