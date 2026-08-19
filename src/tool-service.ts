@@ -19,7 +19,6 @@ import {
   type NonGroupTypeIds,
   type PackageTypes,
   type Delta,
-  type FixProposal,
   type GenericRefactoring,
   type GitRepo,
   type GitStaging,

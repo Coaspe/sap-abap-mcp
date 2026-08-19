@@ -8,10 +8,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { strFromU8, unzipSync } from "fflate"
 import { ConnectionManager, type ConnectionSummary } from "../src/connection-manager.js"
-import {
-  IMPLEMENTED_TOOL_NAMES,
-  toolsForToolsets
-} from "../src/compat/abap-fs-tools.js"
+import { IMPLEMENTED_TOOL_NAMES } from "../src/compat/abap-fs-tools.js"
 import {
   DEFERRED_RESULT_TOOL_NAME,
   type DeferredResultEnvelope
