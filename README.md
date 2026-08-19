@@ -106,6 +106,7 @@ Normal clients should omit both `--api-version` and `--toolsets`.
 | Invocation | Advertised surface |
 |---|---|
 | `serve --profile DEV100` | Current v1, all 115 tools and seven Resources |
+| `serve --profile DEV100 --preset compact` | Token-efficient v1, 12 everyday read/inspect tools |
 | `serve --profile DEV100 --toolsets core,analysis` | Selected v1 toolsets only |
 | `serve --profile DEV100 --api-version v0` | Legacy 53-tool compatibility surface |
 
@@ -801,8 +802,11 @@ reverse proxy.
 
 The server is designed to keep model context usage bounded without removing useful data:
 
-- Related operations are grouped into action-based tools.
-- The complete 53-tool schema is kept below a 64 KiB automated guardrail.
+- The default v1 surface keeps all 115 action-specific tools for compatibility. Token-constrained clients can register a curated preset instead of loading unrelated schemas.
+- The legacy v0 complete 53-tool schema remains below a 64 KiB automated guardrail.
+- `--preset compact` advertises 12 everyday read/inspect tools at about 22.0 KiB (about 5.5k tokens), below the compared package's measured compact surface.
+- `--preset development` advertises 34 read, edit, quality, Git, and transport tools at about 50.1 KiB (about 12.6k tokens).
+- `--preset assurance` advertises 15 read-only review and transport-assurance tools at about 24.5 KiB (about 6.2k tokens).
 - Source, search, SQL, ATC, dump, trace, transport, version, Git, and RAP schema responses are paged or summarized.
 - Unified diffs are limited by both line count and byte size.
 - Large source responses are bounded by an inline byte budget.
@@ -825,10 +829,10 @@ For a response with `format: "compact-v1"`, use `summary` first. Call `read_defe
 Hosts without automatic tool search can register only selected toolsets:
 
 ```bash
-sap-abap-mcp serve --profile DEV100 --toolsets core,write,analysis
+sap-abap-mcp serve --profile DEV100 --preset compact
 ```
 
-Available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, and `all`. The default is `all`.
+Presets are `compact`, `development`, and `assurance`. For custom composition, use `--toolsets core,write,analysis`; available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, and `all`. `--preset` and `--toolsets` are mutually exclusive. The default remains all 115 v1 tools.
 
 ## Real SAP acceptance testing
 
@@ -904,6 +908,7 @@ assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
 
 doctor <id> [--include-components]
 serve [--profile <id>] [--api-version v0|v1]
+    [--preset compact|development|assurance]
     [--toolsets core,write,analysis,debug,operations,artifacts|all]
     [--audit-log none|stderr|file] [--audit-log-file <path>]
     [--audit-include-arguments]

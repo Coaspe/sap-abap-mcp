@@ -37,6 +37,7 @@ import { createMcpServer, startStdioServer } from "./mcp-server.js"
 import { parseMcpApiVersion } from "./mcp/api-version.js"
 import { resolveServeToolSelection } from "./mcp/tool-selection.js"
 import { V1_IMPLEMENTED_TOOL_NAMES } from "./mcp/v1/migration-catalog.js"
+import { V1_PRESET_NAMES, type V1PresetName } from "./mcp/v1/presets.js"
 import {
   TOOLSET_NAMES,
   type ToolsetName
@@ -95,7 +96,9 @@ Commands:
       [--fail-on incomplete|failed]
       Read-only transport change assurance for CI. Exit 0 passed, 1 failed,
       2 incomplete. Never releases or modifies the transport.
-  serve [--profile <id>] [--api-version v0|v1] [--toolsets core,write,analysis,debug,operations,artifacts|all]
+  serve [--profile <id>] [--api-version v0|v1]
+      [--preset compact|development|assurance]
+      [--toolsets core,write,analysis,debug,operations,artifacts|all]
       [--audit-log none|stderr|file] [--audit-log-file <path>] [--audit-include-arguments]
       [--http [--api-keys-file <path>]
        [--oidc-issuer <url> --oidc-audience <aud> [--oidc-jwks-uri <url>]
@@ -107,7 +110,7 @@ Commands:
        [--rate-limit <requests-per-minute>] [--max-concurrent <n>]
        [--max-sessions <n>] [--session-timeout <seconds>]]
        Requires --api-keys-file, --oidc-issuer, or both.
-      Defaults: api-version v1, toolsets all, audit-log none, stdio transport
+      Defaults: api-version v1, all tools, audit-log none, stdio transport
 `
 
 interface ParsedArguments {
@@ -744,6 +747,24 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
   const profileId = option(parsed, "profile")
   if (profileId) await profiles.get(profileId)
   const toolsetsValue = option(parsed, "toolsets")
+  const rawPreset = parsed.options.get("preset")
+  if (rawPreset === true) {
+    throw new AppError("OPTION_REQUIRED", "--preset requires a value")
+  }
+  const preset = rawPreset as V1PresetName | undefined
+  if (preset && !V1_PRESET_NAMES.includes(preset)) {
+    throw new AppError(
+      "INVALID_PRESET",
+      `Unknown preset: ${preset}`,
+      { available: V1_PRESET_NAMES }
+    )
+  }
+  if (preset && toolsetsValue) {
+    throw new AppError(
+      "TOOL_SELECTION_CONFLICT",
+      "Use either --preset or --toolsets, not both"
+    )
+  }
   let selectedToolsets: ToolsetName[] | undefined
   if (toolsetsValue) {
     const toolsets = toolsetsValue.split(",").map(value => value.trim()).filter(Boolean)
@@ -760,7 +781,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
     selectedToolsets = toolsets as ToolsetName[]
   }
 
-  const selection = resolveServeToolSelection(apiVersion, selectedToolsets)
+  const selection = resolveServeToolSelection(apiVersion, selectedToolsets, preset)
   if (apiVersion === "v1" && selection.enabledV1Tools &&
     !V1_IMPLEMENTED_TOOL_NAMES.some(name => selection.enabledV1Tools!.has(name))) {
     throw new AppError(

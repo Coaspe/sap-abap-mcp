@@ -13,6 +13,9 @@ Normal use needs neither `--api-version` nor `--toolsets`:
 npx @coaspe/sap-abap-mcp@latest serve
 
 # Optional schema-budget control for hosts that should preload fewer tools.
+npx @coaspe/sap-abap-mcp@latest serve --preset compact
+
+# Custom schema-budget control.
 npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis
 
 # Explicit legacy compatibility surface: 53 v0 tools.
@@ -25,6 +28,11 @@ success/error envelope, and a thin adapter to the same `AbapToolService` used by
 v0. The combined v0 + v1 surface is internal to automated parity tests and is not accepted by the CLI.
 
 ## Toolsets
+
+For common workloads, prefer a curated preset: `compact` exposes 12 everyday
+read/inspect tools, `development` exposes 34 read/write/quality tools, and
+`assurance` exposes 15 read-only review tools. Presets and toolsets are mutually
+exclusive, and presets apply only to v1.
 
 Toolsets are optional schema-budget controls, not feature levels. Omitting the
 flag enables `all`. Select one or more comma-separated toolsets only when a host

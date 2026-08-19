@@ -4,9 +4,15 @@ import type { ToolsetName } from "../src/compat/abap-fs-tools.js"
 import { V1_IMPLEMENTED_TOOL_NAMES } from "../src/mcp/v1/migration-catalog.js"
 import {
   V1_MAX_TOOL_SCHEMA_BYTES,
+  V1_PRESET_SURFACE_BUDGETS,
   V1_SURFACE_BUDGETS,
   measureToolSurface
 } from "../src/mcp/v1/surface-budget.js"
+import {
+  V1_MCP_PRESETS,
+  V1_PRESET_NAMES,
+  V1_PRESET_RESOURCE_NAMES
+} from "../src/mcp/v1/presets.js"
 import { v1ResourcesForToolsets, v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
 
@@ -47,4 +53,18 @@ test("token proxy is the ceiling of minified bytes divided by four", async () =>
     measurement.estimatedTokensCeilBytesDiv4,
     Math.ceil(measurement.schemaBytes / 4)
   )
+})
+
+test("token-efficient presets stay inside their advertised budgets", async () => {
+  for (const preset of V1_PRESET_NAMES) {
+    const tools = await advertisedTools({
+      apiVersion: "v1",
+      enabledV1Tools: new Set(V1_MCP_PRESETS[preset]),
+      enabledV1Resources: new Set(V1_PRESET_RESOURCE_NAMES[preset])
+    })
+    const measurement = measureToolSurface(tools)
+    const budget = V1_PRESET_SURFACE_BUDGETS[preset]
+    assert.ok(measurement.toolCount <= budget.maxTools, preset)
+    assert.ok(measurement.schemaBytes <= budget.maxSchemaBytes, preset)
+  }
 })

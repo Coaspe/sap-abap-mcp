@@ -40,6 +40,7 @@ test("v1 migration guide documents the complete local contract and live boundary
       .map(match => match[0]),
     [
       "npx @coaspe/sap-abap-mcp@latest serve",
+      "npx @coaspe/sap-abap-mcp@latest serve --preset compact",
       "npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis",
       "npx @coaspe/sap-abap-mcp@latest serve --api-version v0",
     ]

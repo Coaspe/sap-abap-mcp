@@ -5,6 +5,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { createMcpServer } from "../dist/src/mcp-server.js"
 import { resolveServeToolSelection } from "../dist/src/mcp/tool-selection.js"
 import { V1_IMPLEMENTED_TOOL_NAMES } from "../dist/src/mcp/v1/migration-catalog.js"
+import { V1_PRESET_NAMES } from "../dist/src/mcp/v1/presets.js"
 import { measureToolSurface } from "../dist/src/mcp/v1/surface-budget.js"
 import { AbapToolService } from "../dist/src/tool-service.js"
 
@@ -56,6 +57,31 @@ async function measure(toolset, apiVersion) {
   }
 }
 
+async function measurePreset(preset) {
+  const selection = resolveServeToolSelection("v1", undefined, preset)
+  const service = new AbapToolService({
+    async listConnections() { return [] },
+    async getClient() {
+      throw new Error("No SAP call is allowed during schema benchmarking")
+    }
+  })
+  const server = createMcpServer(service, { apiVersion: "v1", ...selection })
+  const client = new Client({ name: "sap-abap-mcp-benchmark", version: "1.0.0" })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  await server.connect(serverTransport)
+  await client.connect(clientTransport)
+  try {
+    return {
+      apiVersion: "v1",
+      preset,
+      ...measureToolSurface((await client.listTools()).tools)
+    }
+  } finally {
+    await client.close()
+    await server.close()
+  }
+}
+
 const report = {
   schemaVersion: "1.0",
   generatedAt: new Date().toISOString(),
@@ -63,11 +89,15 @@ const report = {
   liveSapCalls: 0,
   v0Toolsets: [],
   v1Toolsets: [],
+  v1Presets: [],
   versionedSurfaces: []
 }
 for (const toolset of TOOLSETS) {
   report.v0Toolsets.push(await measure(toolset, "v0"))
   report.v1Toolsets.push(await measure(toolset, "v1"))
+}
+for (const preset of V1_PRESET_NAMES) {
+  report.v1Presets.push(await measurePreset(preset))
 }
 report.versionedSurfaces.push(await measure("all", "all"))
 
