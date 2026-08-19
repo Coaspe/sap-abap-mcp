@@ -14,18 +14,20 @@ invokes its shared `AbapToolService` method.
 | Surface | Catalog | Callable now | Missing handler/schema | Runtime result |
 | --- | ---: | ---: | ---: | --- |
 | v0 Tools | 53 | 53 | 0 | `--api-version v0` advertises 53 |
-| v1 Tools | 115 | 115 | 0 | unversioned `serve` advertises 115 |
-| Internal combined Tools | 168 | 168 | 0 | Programmatic parity tests only; not a CLI mode |
+| v1 Tools | 120 | 120 | 0 | unversioned `serve` advertises 120 |
+| Internal combined Tools | 173 | 173 | 0 | Programmatic parity tests only; not a CLI mode |
 | v1 Resources | 7 | 7 | 0 | One fixed Resource and six Resource Templates |
 
 The initial baseline build and automated suite passed 260/260 tests. The current
-parity gate discovers all 115 v1 handlers and all seven Resources, and the final
-local automated suite passes 283/283 tests.
+parity gate discovers all 120 v1 handlers and all seven Resources; the complete
+automated suite remains the release gate rather than a permanently fixed test
+count.
 
-## Core (20 targets; 20 callable)
+## Core (21 targets; 21 callable)
 
 | v1 target | v0 source capability | Current handler | Current input/output schema | Current test state |
 | --- | --- | --- | --- | --- |
+| `sap.ddic.read` | structured DDIC extension | `src/mcp/v1/core-tools.ts` | Strict typed Domain/Data Element or Table/Structure input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
 | `sap.repository.inspect` | `get_abap_object_info`: summary, includeStructure, paged child nodes | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
 | `sap.repository.resolve` | `get_abap_object_workspace_uri`: workspaceUri; `open_object`: headless | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
 | `sap.repository.search` | `search_abap_objects`: search | `src/mcp/v1/repository-tools.ts` | Strict `{systemId, pattern, objectTypes, limit}` + typed v1 envelope | Contract + call: `test/v1-repository-search.test.ts` |
@@ -47,10 +49,12 @@ local automated suite passes 283/283 tests.
 | `sap.text_elements.read` | `manage_text_elements`: read | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
 | `sap.ui.object_url` | `get_abap_object_url`: url | `src/mcp/v1/core-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-core-tools.test.ts` |
 
-## Write (24 targets; 24 callable)
+## Write (26 targets; 26 callable)
 
 | v1 target | v0 source capability | Current handler | Current input/output schema | Current test state |
 | --- | --- | --- | --- | --- |
+| `sap.classic.write` | optional classic bridge extension | `src/mcp/v1/write-tools.ts` | Strict preview/execute Screen or GUI Status input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
+| `sap.ddic.update` | structured DDIC extension | `src/mcp/v1/write-tools.ts` | Strict typed optimistic update input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
 | `sap.execution.execute` | `run_abap_application`: executeClass, executeSnippet through confirmed execute plan | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
 | `sap.git.branch.switch` | `manage_abapgit`: switch_branch | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
 | `sap.git.create` | `manage_abapgit`: create_repository | `src/mcp/v1/write-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-write-tools.test.ts` |
@@ -126,12 +130,13 @@ local automated suite passes 283/283 tests.
 | `sap.debug.step` | `abap_debug_step`: continue, stepInto, stepOver, stepReturn, jumpToLine | `src/mcp/v1/debug-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-debug-tools.test.ts` |
 | `sap.debug.variables` | `abap_debug_variable`: variables and scoped expansion | `src/mcp/v1/debug-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-debug-tools.test.ts` |
 
-## Operations (24 targets; 24 callable)
+## Operations (26 targets; 26 callable)
 
 | v1 target | v0 source capability | Current handler | Current input/output schema | Current test state |
 | --- | --- | --- | --- | --- |
+| `sap.classic.read` | optional classic bridge extension | `src/mcp/v1/operations-tools.ts` | Strict Screen or GUI Status read input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
 | `sap.execution.health` | `run_abap_application`: repl_health | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
-| `sap.execution.preview` | `run_abap_application`: preview_class, preview_snippet | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
+| `sap.execution.preview` | `run_abap_application`: preview_class, preview_snippet; profiled program extension | `src/mcp/v1/operations-tools.ts` | Strict class/program/snippet input + one-use plan envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
 | `sap.ops.watch.history` | `manage_heartbeat`: history | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
 | `sap.ops.watch.start` | `manage_heartbeat`: start | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
 | `sap.ops.watch.status` | `manage_heartbeat`: status | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
@@ -146,6 +151,7 @@ local automated suite passes 283/283 tests.
 | `sap.ops.watch.watchlist.read` | `manage_heartbeat`: get_watchlist | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
 | `sap.runtime.dump.inspect` | `analyze_abap_dumps`: analyze_dump | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
 | `sap.runtime.dump.list` | `analyze_abap_dumps`: list_dumps | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
+| `sap.runtime.feed.read` | bounded runtime-feed extension | `src/mcp/v1/operations-tools.ts` | Strict catalog/variant/system-message/Gateway feed input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
 | `sap.runtime.trace.configuration` | `analyze_abap_traces`: list_configurations | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
 | `sap.runtime.trace.hit_list` | `analyze_abap_traces`: get_hitlist | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |
 | `sap.runtime.trace.inspect` | `analyze_abap_traces`: analyze_run | `src/mcp/v1/operations-tools.ts` | Strict action-free input + v1 success envelope | Contract + one-call adapter: `test/v1-operations-tools.test.ts` |

@@ -17,6 +17,7 @@ import {
   type ChangeAssuranceGateStatus
 } from "./change-assurance.js"
 import { ConnectionManager } from "./connection-manager.js"
+import { browserOAuthLogin } from "./oauth-authorization-code.js"
 import {
   generateApiKey,
   generateApiKeyPepper,
@@ -32,6 +33,7 @@ import {
   type OidcAuthenticator
 } from "./http/oidc.js"
 import { ScopedConnectionProvider } from "./http/scoped-connections.js"
+import { RequestScopedConnectionProvider } from "./http/request-scoped-connections.js"
 import { startHttpMcpServer } from "./http/server.js"
 import { createMcpServer, startStdioServer } from "./mcp-server.js"
 import { parseMcpApiVersion } from "./mcp/api-version.js"
@@ -71,8 +73,9 @@ Commands:
   setup remove [<server-name>]
   profile add <id> --url <url> --client <nnn> [--language EN]
       [--environment development|quality|production] [--username <user>]
-      [--auth-type basic|oauth-client-credentials]
-      [--token-url <url> --client-id <id> [--scope <scope>]]
+      [--auth-type basic|oauth-client-credentials|oauth-authorization-code|bearer-passthrough]
+      [--authorization-url <url>] [--token-url <url> --client-id <id> [--scope <scope>]]
+      [--classic-bridge-path /sap/bc/rest/zmcp_rfc]
       [--packages ZPKG1,ZPKG2] [--allow-data-queries] [--login [--password-stdin]]
   profile add <id> --service-key <path> [--language EN]
       [--environment development|quality|production] [--scope <scope>]
@@ -247,11 +250,17 @@ export async function addProfile(
     throw new AppError("USERNAME_REQUIRED", "Provide --username when using --login")
   }
   if (!login.password) {
+    if (profile.authType === "bearer_passthrough") {
+      throw new AppError(
+        "AUTH_PASSTHROUGH_REQUIRED",
+        "bearer-passthrough profiles receive credentials from OIDC-authenticated HTTP sessions"
+      )
+    }
     throw new AppError(
-      profile.authType === "basic" ? "PASSWORD_REQUIRED" : "CLIENT_SECRET_REQUIRED",
+      profile.authType === "basic" ? "PASSWORD_REQUIRED" : "OAUTH_CREDENTIAL_REQUIRED",
       profile.authType === "basic"
         ? "SAP password cannot be empty"
-        : "OAuth client secret cannot be empty"
+        : "OAuth credential cannot be empty"
     )
   }
   await login.validateCredentials(profile, login.password)
@@ -276,6 +285,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     const username = option(parsed, "username")
     const packages = option(parsed, "packages")
     const serviceKeyPath = option(parsed, "service-key")
+    const classicBridgePath = option(parsed, "classic-bridge-path")
 
     if (serviceKeyPath) {
       // A BTP service key already carries the endpoint, client id, and client
@@ -289,6 +299,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
         ...(language ? { language } : {}),
         ...(environment ? { environment: environment as SapProfile["environment"] } : {}),
         ...(username ? { username } : {}),
+        ...(classicBridgePath ? { classicBridgePath } : {}),
         allowDataQueries: parsed.options.has("allow-data-queries"),
         authType: "oauth_client_credentials",
         tokenUrl: key.tokenUrl,
@@ -311,15 +322,14 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     }
 
     const authTypeOption = option(parsed, "auth-type") ?? "basic"
-    if (authTypeOption !== "basic" && authTypeOption !== "oauth-client-credentials") {
+    if (!["basic", "oauth-client-credentials", "oauth-authorization-code", "bearer-passthrough"]
+      .includes(authTypeOption)) {
       throw new AppError(
         "AUTH_TYPE_INVALID",
-        "--auth-type must be basic or oauth-client-credentials"
+        "--auth-type must be basic, oauth-client-credentials, oauth-authorization-code, or bearer-passthrough"
       )
     }
-    const authType = authTypeOption === "oauth-client-credentials"
-      ? "oauth_client_credentials" as const
-      : "basic" as const
+    const authType = authTypeOption.replaceAll("-", "_") as SapProfile["authType"]
     const input: SapProfileInput = {
       id,
       url: requiredOption(parsed, "url"),
@@ -327,12 +337,16 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
       ...(language ? { language } : {}),
       ...(environment ? { environment: environment as SapProfile["environment"] } : {}),
       ...(username ? { username } : {}),
+      ...(classicBridgePath ? { classicBridgePath } : {}),
       allowDataQueries: parsed.options.has("allow-data-queries"),
       authType,
-      ...(authType === "oauth_client_credentials"
+      ...(authType === "oauth_client_credentials" || authType === "oauth_authorization_code"
         ? {
             tokenUrl: requiredOption(parsed, "token-url"),
             clientId: requiredOption(parsed, "client-id"),
+            ...(authType === "oauth_authorization_code"
+              ? { authorizationUrl: requiredOption(parsed, "authorization-url") }
+              : {}),
             ...(option(parsed, "scope") ? { scope: option(parsed, "scope") } : {})
           }
         : {}),
@@ -344,14 +358,33 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     }
 
     const candidate = normalizeProfile(input)
+    if (candidate.authType === "bearer_passthrough") {
+      throw new AppError(
+        "AUTH_PASSTHROUGH_REQUIRED",
+        "bearer-passthrough profiles do not use profile add --login"
+      )
+    }
     if (candidate.authType === "basic" && !candidate.username) {
       throw new AppError("USERNAME_REQUIRED", "Provide --username when using --login")
     }
-    const password = parsed.options.has("password-stdin")
-      ? await readAllStdin()
-      : await promptSecret(
-          candidate.authType === "basic" ? "SAP password: " : "OAuth client secret: "
-        )
+    if (candidate.authType === "oauth_authorization_code" && process.platform === "linux") {
+      throw new AppError(
+        "SECRET_STORE_READ_ONLY",
+        "Browser OAuth login requires macOS Keychain or Windows DPAPI; Linux credentials are environment-only"
+      )
+    }
+    const password = candidate.authType === "oauth_authorization_code"
+      ? await browserOAuthLogin({
+          authorizationUrl: candidate.authorizationUrl,
+          tokenUrl: candidate.tokenUrl,
+          clientId: candidate.clientId,
+          ...(candidate.scope ? { scope: candidate.scope } : {})
+        })
+      : parsed.options.has("password-stdin")
+        ? await readAllStdin()
+        : await promptSecret(
+            candidate.authType === "basic" ? "SAP password: " : "OAuth client secret: "
+          )
     const manager = new ConnectionManager(profiles, secrets)
     writeJson(await addProfile(input, profiles, secrets, {
       password,
@@ -396,23 +429,42 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
 
   if (action === "login") {
     const storedProfile = await profiles.get(id)
+    if (storedProfile.authType === "bearer_passthrough") {
+      throw new AppError(
+        "AUTH_PASSTHROUGH_REQUIRED",
+        "bearer-passthrough profiles receive credentials from OIDC-authenticated HTTP sessions"
+      )
+    }
     const username = option(parsed, "username") ?? storedProfile.username
     if (storedProfile.authType === "basic" && !username) {
       throw new AppError("USERNAME_REQUIRED", "Provide --username or store it in the profile")
     }
+    if (storedProfile.authType === "oauth_authorization_code" && process.platform === "linux") {
+      throw new AppError(
+        "SECRET_STORE_READ_ONLY",
+        "Browser OAuth login requires macOS Keychain or Windows DPAPI; Linux credentials are environment-only"
+      )
+    }
 
     const profile = username ? withUsername(storedProfile, username) : storedProfile
-    const password = parsed.options.has("password-stdin")
-      ? await readAllStdin()
-      : await promptSecret(
-          profile.authType === "basic" ? "SAP password: " : "OAuth client secret: "
-        )
+    const password = profile.authType === "oauth_authorization_code"
+      ? await browserOAuthLogin({
+          authorizationUrl: profile.authorizationUrl,
+          tokenUrl: profile.tokenUrl,
+          clientId: profile.clientId,
+          ...(profile.scope ? { scope: profile.scope } : {})
+        })
+      : parsed.options.has("password-stdin")
+        ? await readAllStdin()
+        : await promptSecret(
+            profile.authType === "basic" ? "SAP password: " : "OAuth client secret: "
+          )
     if (!password) {
       throw new AppError(
-        profile.authType === "basic" ? "PASSWORD_REQUIRED" : "CLIENT_SECRET_REQUIRED",
+        profile.authType === "basic" ? "PASSWORD_REQUIRED" : "OAUTH_CREDENTIAL_REQUIRED",
         profile.authType === "basic"
           ? "SAP password cannot be empty"
-          : "OAuth client secret cannot be empty"
+          : "OAuth credential cannot be empty"
       )
     }
 
@@ -843,9 +895,16 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
       // snapshots, and execution plans are never shared between principals. The
       // ConnectionManager stays shared so SAP logins are pooled, while the
       // scoping provider limits each principal to its own SAP profiles.
-      createMcpServerForSession: ({ principal, auditRecorder: sessionRecorder }) => {
+      createMcpServerForSession: ({
+        principal,
+        auditRecorder: sessionRecorder,
+        sapBearerToken
+      }) => {
+        const requestConnections = sapBearerToken
+          ? new RequestScopedConnectionProvider(manager, sapBearerToken, principal.systemIds)
+          : undefined
         const service = new AbapToolService(
-          new ScopedConnectionProvider(manager, principal.systemIds),
+          requestConnections ?? new ScopedConnectionProvider(manager, principal.systemIds),
           secrets
         )
         return {
@@ -855,7 +914,10 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
             role: principal.role,
             ...(sessionRecorder ? { auditRecorder: sessionRecorder } : {})
           }),
-          dispose: () => service.dispose()
+          dispose: async () => {
+            service.dispose()
+            await requestConnections?.close()
+          }
         }
       }
     })

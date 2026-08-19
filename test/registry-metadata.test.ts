@@ -26,7 +26,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const packageJson = JSON.parse(readText("package.json"))
   const serverJson = JSON.parse(readText("server.json"))
 
-  assert.equal(packageJson.version, "1.2.0")
+  assert.equal(packageJson.version, "1.3.0")
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
@@ -125,8 +125,8 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.deepEqual(manifest.compatibility.platforms, ["darwin", "win32"])
   assert.equal(manifest.compatibility.runtimes.node, ">=20")
   assert.equal(manifest.tools_generated, false)
-  assert.equal(manifest.tools.length, 115)
-  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 115)
+  assert.equal(manifest.tools.length, 120)
+  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 120)
   const toolNames = new Set(manifest.tools.map((tool: { name: string }) => tool.name))
   for (const toolName of [
     "sap.repository.search",

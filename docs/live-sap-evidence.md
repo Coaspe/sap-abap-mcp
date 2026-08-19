@@ -58,6 +58,9 @@ release-dependent finding, not flakiness. See **Class runner and debugger**.
 
 ## Advertised surface per role
 
+These counts record the 115-tool runtime snapshot used by this live run; they
+are evidence for that run, not the current 120-tool source catalog.
+
 | Role | Tools advertised |
 |---|---|
 | `viewer` | 71 |

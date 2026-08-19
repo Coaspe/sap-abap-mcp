@@ -26,6 +26,7 @@ function method(
 function createCoreService() {
   const calls: RecordedCall[] = []
   const service = {
+    readDdic: method(calls, "readDdic"),
     getObjectInfo: method(calls, "getObjectInfo"),
     getObjectWorkspaceUri: method(calls, "getObjectWorkspaceUri"),
     openObject: method(calls, "openObject"),
@@ -76,7 +77,7 @@ test("the complete core toolset is advertised with action-free v1 contracts", as
     tools.map(tool => tool.name).sort(),
     [...V1_MCP_TOOLSETS.core].sort()
   )
-  assert.equal(tools.length, 20)
+  assert.equal(tools.length, 21)
   for (const tool of tools) {
     assert.ok(tool.outputSchema, `${tool.name} outputSchema`)
     assert.equal("action" in (tool.inputSchema.properties ?? {}), false, tool.name)
@@ -91,6 +92,10 @@ test("core adapters call the shared service once with normalized fixed operation
   t.after(() => connection.close())
 
   const invocations: Array<{ name: string; arguments: Record<string, unknown> }> = [
+    {
+      name: "sap.ddic.read",
+      arguments: { systemId: "dev100", kind: "domain", name: "ZDOMAIN" }
+    },
     {
       name: "sap.repository.inspect",
       arguments: {
@@ -190,12 +195,18 @@ test("core adapters call the shared service once with normalized fixed operation
 
   assert.deepEqual(calls, [
     {
+      method: "readDdic",
+      input: { connectionId: "DEV100", kind: "domain", name: "ZDOMAIN" }
+    },
+    {
       method: "getObjectInfo",
       input: {
         connectionId: "DEV100",
         objectName: "ZCL_DEMO",
         includeStructure: true,
         includeChildren: true,
+        includeEnhancements: false,
+        includeEnhancementSource: false,
         childStartIndex: 10,
         childMaxResults: 25
       }

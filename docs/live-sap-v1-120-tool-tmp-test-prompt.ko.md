@@ -1,4 +1,4 @@
-# B4D v1 115개 도구 `$TMP` 격리 실서버 테스트 프롬프트
+# B4D v1 120개 도구 `$TMP` 격리 실서버 테스트 프롬프트
 
 이 문서는 Windows의 Claude Code에서 옵션 없는 v1/all MCP 연결을 대상으로
 한다. `$TMP`는 Windows 임시 directory가 아니라 SAP의 local package다. 로컬
@@ -9,7 +9,7 @@ artifact만 Windows `%TEMP%` 아래의 이번 실행 전용 directory에 기록�
 
 ~~~~text
 너는 SAP ABAP MCP v1의 B4D 실서버 acceptance controller다. 목표는 실제
-광고된 v1 도구 115개와 Resource 7개를 한 행도 빠뜨리지 않고 검증하되,
+광고된 v1 도구 120개와 Resource 7개를 한 행도 빠뜨리지 않고 검증하되,
 기존 SAP 객체를 절대로 수정하거나 삭제하지 않는 것이다.
 
 ## 1. 고정 범위
@@ -28,15 +28,15 @@ artifact만 Windows `%TEMP%` 아래의 이번 실행 전용 directory에 기록�
 - production environment이거나 profile의 non-empty allowedPackages에 literal
   `$TMP`가 없으면 모든 SAP mutation을 중단하고 읽기 검증만 계속한다.
 
-## 2. 115행 surface ledger
+## 2. 120행 surface ledger
 
-MCP discovery와 `docs/v1-parity-matrix.md`를 함께 읽어 115행 ledger를 먼저
+MCP discovery와 `docs/v1-parity-matrix.md`를 함께 읽어 120행 ledger를 먼저
 만든다. runtime에 광고된 이름을 진실의 원천으로 삼고, matrix의 중복 행은
 중복 도구로 세지 않는다. 다음 exact gate를 통과하기 전에는 live call을 하지
 않는다.
 
-- 광고된 tool 이름의 unique count = 115
-- toolset별 count = core 20, write 24, analysis 30, debug 10, operations 24,
+- 광고된 tool 이름의 unique count = 120
+- toolset별 count = core 21, write 26, analysis 30, debug 10, operations 26,
   artifacts 7
 - 모든 이름이 `sap.`으로 시작하며 v0 이름은 0개
 - 각 tool에 inputSchema, outputSchema, title, description, 네 annotation
@@ -50,8 +50,8 @@ ledger 열은 다음과 같다.
 `tool | toolset | annotation | schema checked | planned case | terminal status | requestId/evidence | mutation target`
 
 terminal status는 `PASS`, `EXPECTED-ERROR`, `SKIP-SCOPE`,
-`SKIP-PREREQUISITE`, `UNSUPPORTED`, `FAIL` 중 하나만 사용한다. 모든 115행은
-정확히 하나의 terminal status를 가져야 하며 합계가 반드시 115이어야 한다.
+`SKIP-PREREQUISITE`, `UNSUPPORTED`, `FAIL` 중 하나만 사용한다. 모든 120행은
+정확히 하나의 terminal status를 가져야 하며 합계가 반드시 120이어야 한다.
 호출하지 않은 도구를 `PASS`로 표시하지 않는다.
 
 ## 3. RUN_OWNED 소유권 상태 기계
@@ -111,13 +111,14 @@ fixture source는 최소한 다음 검증을 가능하게 해야 한다.
 추측하거나 실패 후 임의의 parameter 변형을 연속 시도하지 않는다. 같은
 logical test를 불필요하게 반복하지 않는다.
 
-### core 20
+### core 21
 
-20개 모두 실제 호출한다. 기존 객체를 대상으로 하는 호출은 read-only로만
+21개 모두 실제 호출한다. 기존 객체를 대상으로 하는 호출은 read-only로만
 사용한다. source, batch, search, diagnostics, semantic, text read, object URL,
 repository inspect/resolve/where-used는 가능하면 RUN_OWNED fixture를 사용한다.
+`sap.ddic.read`는 기존 비민감 DDIC 객체를 읽기만 하며 변경하지 않는다.
 
-### write 24
+### write 26
 
 다음 mutation은 RUN_OWNED preflight와 도구 자체 confirmation을 모두 만족할
 때만 실제 호출한다: repository create, repository delete execute(cleanup only),
@@ -135,6 +136,11 @@ schema/discovery만 검증하고 `SKIP-SCOPE`로 기록한다.
 
 대상 객체가 RUN_OWNED임을 증명할 수 없는 write tool도 동일하게
 `SKIP-SCOPE`다. 성공하지 않은 도구를 성공으로 포장하지 않는다.
+`sap.ddic.update`는 이번 실행이 만들고 exact read-back한 DDIC fixture가 없으면
+`SKIP-SCOPE`, `sap.classic.write`는 RUN_OWNED screen program과 검증된 bridge가
+둘 다 없으면 `SKIP-PREREQUISITE`로 기록한다. classic write는 confirmation을
+생략한 preview가 SAP mutation을 일으키지 않는지 확인한 뒤에만 exact 값을
+재전송한다.
 
 ### analysis 30
 
@@ -161,13 +167,16 @@ RUN_OWNED class의 exact URI/line만 breakpoint 대상으로 사용한다. 이�
 다른 사용자 session을 만들지 말고 10행 각각을 `SKIP-PREREQUISITE`로
 기록한다. 시작했다면 오류가 나도 stop/remove cleanup을 시도한다.
 
-### operations 24
+### operations 26
 
 execution health/preview, discovery, transaction URL, dump/trace list와 가능한
 read-only detail은 실제 호출한다. dump/trace fixture를 만들기 위해 오류나
 trace를 인위적으로 발생시키지 않는다. 실제 ID가 없으면 detail 행은
 `SKIP-PREREQUISITE`다. transaction launch는 외부 UI side effect이므로
 `SKIP-SCOPE`, URL 생성은 `PASS` 가능하다.
+`sap.runtime.feed.read`는 작은 limit로 실제 호출하고, `sap.classic.read`는
+profile에 bridge가 구성된 경우에만 기존 screen/GUI Status를 읽는다. bridge가
+없으면 추측한 endpoint를 호출하지 않고 `SKIP-PREREQUISITE`로 기록한다.
 
 watch 도구는 이번 MCP process에서 `RUN_ID`가 포함된 task만 add/list/update/
 enable/disable/trigger/history/remove하고, 이번 실행이 만든 watch/task ID만
@@ -225,17 +234,17 @@ local artifact directory, RUN_OWNED SAP object 순이다. SAP object 삭제는 �
 
 다음 순서로 보고한다.
 
-1. HEAD, B4D, environment, surface 115/7 exact-set 결과
+1. HEAD, B4D, environment, surface 120/7 exact-set 결과
 2. toolset별 `PASS / EXPECTED-ERROR / SKIP-SCOPE / SKIP-PREREQUISITE /
-   UNSUPPORTED / FAIL` 수와 총합 115 검산
-3. 115행 ledger 전체
+   UNSUPPORTED / FAIL` 수와 총합 120 검산
+3. 120행 ledger 전체
 4. Resource 7행 결과
 5. RUN_OWNED manifest: create receipt + immediate exact read-back + mutation별
    read-back + cleanup 결과
 6. 호출하지 못한 도구의 정확한 이유
 7. 남은 객체/파일/session/task와 수동 조치가 필요한 항목
 
-115행 중 하나라도 누락되거나 cleanup을 확인하지 못하면 “전체 통과”라고
+120행 중 하나라도 누락되거나 cleanup을 확인하지 못하면 “전체 통과”라고
 말하지 않는다. strict `$TMP` 경계 때문에 의도적으로 건너뛴 도구는 정상적인
 `SKIP-SCOPE`이며, 이것을 `PASS`로 바꾸지 않는다.
 ~~~~

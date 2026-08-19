@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 import { ConnectionManager } from "../src/connection-manager.js"
+import { RequestScopedConnectionProvider } from "../src/http/request-scoped-connections.js"
 import type { OAuthAccessTokenProvider } from "../src/oauth-client-credentials.js"
 import { ProfileStore } from "../src/profile-store.js"
 import type { SapClient, SapCredential } from "../src/sap-client.js"
@@ -81,4 +82,75 @@ test("ConnectionManager recreates an OAuth ADT client before its bearer token ex
 
   await manager.close()
   assert.equal(clients[1]?.logoutCount, 1)
+})
+
+test("bearer-passthrough creates an uncached SAP client from the request token only", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-passthrough-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const profiles = new ProfileStore(directory)
+  await profiles.upsert({
+    id: "USER100",
+    url: "https://abap.example.test",
+    client: "100",
+    authType: "bearer_passthrough"
+  })
+  const secrets = new MemorySecretStore()
+  let credential: SapCredential | undefined
+  const manager = new ConnectionManager(profiles, secrets, (profile, value) => {
+    credential = value
+    return {
+      profile,
+      async login() {},
+      async logout() {}
+    } as unknown as SapClient
+  })
+
+  await assert.rejects(() => manager.getClient("USER100"), { code: "AUTH_PASSTHROUGH_REQUIRED" })
+  await manager.createBearerClient("USER100", "person-token")
+  assert.equal(credential?.type, "bearer")
+  assert.equal(credential?.type === "bearer" ? await credential.fetchToken() : "", "person-token")
+})
+
+test("request-scoped provider closes only passthrough clients", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-request-scoped-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const profiles = new ProfileStore(directory)
+  await profiles.upsert({
+    id: "SHARED100",
+    url: "https://abap.example.test",
+    client: "100",
+    username: "DEVELOPER"
+  })
+  await profiles.upsert({
+    id: "USER100",
+    url: "https://abap.example.test",
+    client: "100",
+    authType: "bearer_passthrough"
+  })
+  const secrets = new MemorySecretStore()
+  await secrets.set("SHARED100", "shared-password")
+  const clients: Array<SapClient & { logoutCount: number }> = []
+  const manager = new ConnectionManager(profiles, secrets, (profile) => {
+    let logoutCount = 0
+    const client = {
+      profile,
+      get logoutCount() { return logoutCount },
+      async login() {},
+      async logout() { logoutCount += 1 }
+    } as unknown as SapClient & { logoutCount: number }
+    clients.push(client)
+    return client
+  })
+  const provider = new RequestScopedConnectionProvider(manager, "person-token")
+
+  const shared = await manager.getClient("SHARED100") as SapClient & { logoutCount: number }
+  assert.equal(await provider.getClient("SHARED100"), shared)
+  const scoped = await provider.getClient("USER100") as SapClient & { logoutCount: number }
+
+  await provider.close()
+  assert.equal(shared.logoutCount, 0)
+  assert.equal(scoped.logoutCount, 1)
+
+  await manager.close()
+  assert.equal(shared.logoutCount, 1)
 })

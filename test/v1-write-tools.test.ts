@@ -24,6 +24,8 @@ function createWriteService() {
   const calls: RecordedCall[] = []
   const service = {
     runAbapApplication: operation(calls, "runAbapApplication"),
+    updateDdic: operation(calls, "updateDdic"),
+    writeClassicObject: operation(calls, "writeClassicObject"),
     manageAbapGit: operation(calls, "manageAbapGit"),
     async createTestInclude(className: string, connectionId: string, transport?: string) {
       calls.push({ method: "createTestInclude", input: { className, connectionId, transport } })
@@ -84,7 +86,7 @@ const RAP_CONTENT = {
   }
 }
 
-test("the write toolset advertises 24 action-free v1 contracts", async () => {
+test("the write toolset advertises 26 action-free v1 contracts", async () => {
   const tools = await advertisedTools({
     apiVersion: "v1",
     enabledV1Tools: v1ToolsForToolsets(["write"]),
@@ -94,7 +96,7 @@ test("the write toolset advertises 24 action-free v1 contracts", async () => {
     tools.map(tool => tool.name).sort(),
     [...V1_MCP_TOOLSETS.write].sort()
   )
-  assert.equal(tools.length, 24)
+  assert.equal(tools.length, 26)
   for (const tool of tools) {
     assert.ok(tool.outputSchema, `${tool.name} outputSchema`)
     assert.equal("action" in (tool.inputSchema.properties ?? {}), false, tool.name)
@@ -121,6 +123,27 @@ test("write adapters inject fixed service actions and preserve safety inputs", a
         systemId: " dev100 ",
         planId: "00000000-0000-4000-8000-000000000001",
         confirmation: "EXECUTE"
+      }
+    },
+    {
+      name: "sap.ddic.update",
+      arguments: {
+        systemId: "dev100",
+        kind: "table",
+        name: "ZTABLE",
+        expectedFingerprint: "0".repeat(64),
+        source: "define table ztable { key client : abap.clnt not null; }"
+      }
+    },
+    {
+      name: "sap.classic.write",
+      arguments: {
+        systemId: "dev100",
+        kind: "screen",
+        operation: "delete",
+        programName: "ZREPORT",
+        screenNumber: "100",
+        confirmation: "WRITE_CLASSIC:SCREEN:DELETE:ZREPORT:0100"
       }
     },
     {
@@ -291,9 +314,11 @@ test("write adapters inject fixed service actions and preserve safety inputs", a
     assert.deepEqual(result.structuredContent, JSON.parse(firstText(result)), invocation.name)
   }
 
-  assert.equal(calls.length, 24)
+  assert.equal(calls.length, 26)
   assert.deepEqual(calls.map(call => call.method), [
     "runAbapApplication",
+    "updateDdic",
+    "writeClassicObject",
     ...Array(6).fill("manageAbapGit"),
     "createTestInclude",
     ...Array(3).fill("manageRap"),
@@ -337,10 +362,10 @@ test("write adapters inject fixed service actions and preserve safety inputs", a
     const systemId = input.connectionId
     if (systemId !== undefined) assert.equal(systemId, "DEV100", call.method)
   }
-  assert.equal((calls[11]?.input as { expectedPlanKind: string }).expectedPlanKind, "refactor")
-  assert.equal((calls[12]?.input as { expectedPlanKind: string }).expectedPlanKind, "delete")
-  assert.equal((calls[21]?.input as { ignoreLocks: boolean }).ignoreLocks, true)
-  assert.equal((calls[21]?.input as { ignoreAtc: boolean }).ignoreAtc, true)
-  assert.equal((calls[4]?.input as { authorName?: string }).authorName, undefined)
-  assert.equal((calls[4]?.input as { committerName?: string }).committerName, undefined)
+  assert.equal((calls[13]?.input as { expectedPlanKind: string }).expectedPlanKind, "refactor")
+  assert.equal((calls[14]?.input as { expectedPlanKind: string }).expectedPlanKind, "delete")
+  assert.equal((calls[23]?.input as { ignoreLocks: boolean }).ignoreLocks, true)
+  assert.equal((calls[23]?.input as { ignoreAtc: boolean }).ignoreAtc, true)
+  assert.equal((calls[6]?.input as { authorName?: string }).authorName, undefined)
+  assert.equal((calls[6]?.input as { committerName?: string }).committerName, undefined)
 })
