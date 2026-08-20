@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 import { createTwoFilesPatch, diffLines } from "diff"
 import { AppError } from "./errors.js"
-import { enforceDataAccessPolicy, requireDataQueryOptIn } from "./data-access-policy.js"
+import { requireDataQueryOptIn } from "./data-access-policy.js"
 import {
   isCreatableTypeId,
   isGroupType,
@@ -292,7 +292,6 @@ export type ActivateObjectInput =
 
 export interface ExecuteDataQueryInput {
   sql?: string
-  acknowledgeRisk?: boolean
   data?: {
     columns: Array<{ name: string; type: string; description?: string }>
     values: Array<Record<string, unknown>>
@@ -2768,7 +2767,6 @@ export class AbapToolService {
     if (input.sql) {
       validateReadOnlySql(input.sql)
       requireDataQueryOptIn(client.profile)
-      enforceDataAccessPolicy(input.sql, input.acknowledgeRisk)
     }
     if (input.displayMode === "internal") {
       if (!input.rowRange) {
@@ -2900,6 +2898,8 @@ export class AbapToolService {
       dialect: "SAP ADT data preview SQL",
       rules: [
         "Only SELECT and WITH statements are accepted by this MCP tool.",
+        "Caller-supplied SQL requires a development or quality profile with data queries explicitly enabled during setup or with --allow-data-queries.",
+        "The opt-in permits all read-only table queries, including access to sensitive business and personal data allowed by the SAP user.",
         "Use ABAP Dictionary table/view names and ABAP field names, not CDS SQL-view aliases unless the backend exposes them.",
         "Use single quotes for character literals and double single-quotes to escape an apostrophe.",
         "Prefer explicit field lists. Do not send INSERT, UPDATE, DELETE, MODIFY, DDL, comments, or multiple statements.",
@@ -5270,7 +5270,6 @@ export class AbapToolService {
         if (task.sampleQuery) {
           validateReadOnlySql(task.sampleQuery)
           requireDataQueryOptIn(client.profile)
-          enforceDataAccessPolicy(task.sampleQuery)
           const query = await client.runQuery(task.sampleQuery, 1000)
           const count = query.values.length
           result = {
