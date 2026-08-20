@@ -12,7 +12,7 @@
       "name": "sap-docs-data-query",
       "title": "SAP Data Query Documentation",
       "uri": "sap-docs://data-query",
-      "description": "Safe SAP ADT data-preview SQL rules and examples.",
+      "description": "Read-only SAP ADT data-preview SQL rules and examples.",
       "mimeType": "application/json"
     },
     {
@@ -599,7 +599,7 @@
     {
       "name": "sap.data.export",
       "title": "Export SAP Data",
-      "description": "Export one opt-in, policy-checked data query or cached data view to CSV or XLSX.",
+      "description": "Export one opt-in SAP read-only data query or cached data view to CSV or XLSX.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -610,10 +610,6 @@
           "sql": {
             "type": "string",
             "minLength": 1
-          },
-          "acknowledgeRisk": {
-            "description": "Set true only after reviewing a query that targets protected business-document tables.",
-            "type": "boolean"
           },
           "data": {
             "type": "object",
@@ -807,7 +803,7 @@
     {
       "name": "sap.data.query",
       "title": "Query SAP Data",
-      "description": "Run one bounded, opt-in, policy-checked SAP data-preview query.",
+      "description": "Run one bounded, opt-in SAP read-only data-preview query.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -818,10 +814,6 @@
           "sql": {
             "type": "string",
             "minLength": 1
-          },
-          "acknowledgeRisk": {
-            "description": "Set true only after reviewing a query that targets protected business-document tables.",
-            "type": "boolean"
           },
           "data": {
             "type": "object",
@@ -12536,5 +12528,5 @@
       }
     }
   ],
-  "version": "1.3.1"
+  "version": "1.4.0"
 }

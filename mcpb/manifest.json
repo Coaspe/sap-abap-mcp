@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "sap-abap-mcp",
   "display_name": "SAP ABAP MCP",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents.",
   "long_description": "SAP ABAP MCP is a local-first Model Context Protocol server that enables AI coding agents to develop, test, analyze, and operate SAP ABAP systems through the official ABAP Development Tools HTTP services. It supports repository search and source editing, structured DDIC workflows, enhancement inspection, paged package navigation, source-backed object creation, semantic services, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, debugging, bounded class and executable-program profiling, runtime dumps, traces and feeds, cross-system comparison, dependency analysis, guarded refactoring, and an opt-in same-origin Screen/GUI Status bridge. Curated compact, development, and assurance presets reduce tool-schema token use without removing capabilities from the default surface. The default local stdio mode can be extended with governed self-hosted Streamable HTTP, API-key roles, OIDC/JWT authentication, request-scoped SAP bearer forwarding, per-session isolation, rate limits, structured audit logs, or a side-effect-free embeddable Node.js API. It also includes browser OAuth Authorization Code with PKCE, a read-only transport assurance CLI and GitHub Action, BTP service-key profile import, and live-SAP evidence tooling. SAP profiles and credentials remain on the user's computer, with passwords and OAuth credentials protected by macOS Keychain or Windows DPAPI. SAP-dependent capabilities are validated against the user's own SAP release, configuration, and authorizations.",
   "author": {
@@ -59,11 +59,11 @@
     },
     {
       "name": "sap.data.export",
-      "description": "Export one opt-in, policy-checked data query or cached data view to CSV or XLSX."
+      "description": "Export one opt-in SAP read-only data query or cached data view to CSV or XLSX."
     },
     {
       "name": "sap.data.query",
-      "description": "Run one bounded, opt-in, policy-checked SAP data-preview query."
+      "description": "Run one bounded, opt-in SAP read-only data-preview query."
     },
     {
       "name": "sap.ddic.read",

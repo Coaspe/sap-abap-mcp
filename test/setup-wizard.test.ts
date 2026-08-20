@@ -17,6 +17,7 @@ import {
 class ScriptedPrompter implements SetupPrompter {
   readonly output: string[] = []
   readonly labels: string[] = []
+  readonly selectDefaults = new Map<string, string>()
 
   constructor(private readonly answers: Array<string | boolean>) {}
 
@@ -30,9 +31,10 @@ class ScriptedPrompter implements SetupPrompter {
   async select(
     label: string,
     _choices: readonly SetupChoice[],
-    _defaultValue: string
+    defaultValue: string
   ): Promise<string> {
     this.labels.push(label)
+    this.selectDefaults.set(label, defaultValue)
     const answer = this.next()
     assert.equal(typeof answer, "string")
     return answer as string
@@ -83,6 +85,7 @@ test("setup wizard creates and verifies a server using beginner-facing labels", 
     "DEVELOPER",
     "EN",
     "development",
+    "enabled",
     "Z_TEST,Z_SHARED",
     true,
     "secret"
@@ -114,7 +117,7 @@ test("setup wizard creates and verifies a server using beginner-facing labels", 
     environment: "development",
     authType: "basic",
     username: "DEVELOPER",
-    allowDataQueries: false,
+    allowDataQueries: true,
     allowedPackages: ["Z_TEST", "Z_SHARED"]
   })
   assert.equal(await secrets.get("DEV100"), "secret")
@@ -123,6 +126,7 @@ test("setup wizard creates and verifies a server using beginner-facing labels", 
   assert.ok(prompter.labels.every(label => !/Profile ID|System/.test(label)))
   assert.match(prompter.output.join("\n"), /Server name: DEV100/)
   assert.match(prompter.output.join("\n"), /SAP URL: https:\/\/sap\.example\.test/)
+  assert.match(prompter.output.join("\n"), /SAP data queries: Enabled \(all read-only SQL\)/)
 })
 
 test("setup edit targets one server and keeps its name fixed", async t => {
@@ -131,7 +135,8 @@ test("setup edit targets one server and keeps its name fixed", async t => {
     id: "DEV100",
     url: "https://old.example.test",
     client: "100",
-    username: "OLD_USER"
+    username: "OLD_USER",
+    allowDataQueries: true
   })
   await secrets.set("DEV100", "old-secret")
   const prompter = new ScriptedPrompter([
@@ -140,6 +145,7 @@ test("setup edit targets one server and keeps its name fixed", async t => {
     "NEW_USER",
     "EN",
     "quality",
+    "enabled",
     "Z_NEW",
     true,
     "new-secret"
@@ -164,6 +170,7 @@ test("setup edit targets one server and keeps its name fixed", async t => {
     sapUrl: "https://new.example.test"
   })
   assert.ok(!prompter.labels.includes("Server name"))
+  assert.equal(prompter.selectDefaults.get("SAP table data queries"), "enabled")
   assert.deepEqual(await profiles.get("DEV100"), {
     id: "DEV100",
     url: "https://new.example.test",
@@ -172,7 +179,7 @@ test("setup edit targets one server and keeps its name fixed", async t => {
     environment: "quality",
     authType: "basic",
     username: "NEW_USER",
-    allowDataQueries: false,
+    allowDataQueries: true,
     allowedPackages: ["Z_NEW"]
   })
   assert.equal(await secrets.get("DEV100"), "new-secret")
@@ -239,6 +246,7 @@ test("setup wizard uses an existing server as defaults and preserves it on login
     "NEW_USER",
     "",
     "development",
+    "disabled",
     "",
     true,
     "wrong-secret"
@@ -271,6 +279,7 @@ test("setup wizard cancellation leaves profiles unchanged", async t => {
     "DEVELOPER",
     "EN",
     "development",
+    "disabled",
     "",
     false
   ])
@@ -299,6 +308,7 @@ test("setup wizard explains Linux environment authentication without collecting 
     "DEVELOPER",
     "EN",
     "development",
+    "enabled",
     "",
     true
   ])
@@ -320,7 +330,34 @@ test("setup wizard explains Linux environment authentication without collecting 
   })
   assert.ok(prompter.labels.every(label => label !== "SAP password"))
   assert.match(prompter.output.join("\n"), /SAP_ABAP_MCP_PASSWORD_DEV_100/)
-  assert.equal((await profiles.get("DEV-100")).url, "https://sap.example.test")
+  assert.equal((await profiles.get("DEV-100")).allowDataQueries, true)
+})
+
+test("setup wizard keeps SAP data queries disabled for production", async t => {
+  const { profiles, secrets } = await setupStores(t)
+  const prompter = new ScriptedPrompter([
+    "prd100",
+    "https://sap.example.test",
+    "100",
+    "DISPLAY_USER",
+    "EN",
+    "production",
+    "",
+    true,
+    "secret"
+  ])
+
+  await runSetupWizard({
+    profiles,
+    secrets,
+    prompter,
+    platform: "darwin",
+    async validateCredentials() {}
+  })
+
+  assert.equal((await profiles.get("PRD100")).allowDataQueries, false)
+  assert.ok(!prompter.labels.includes("SAP table data queries"))
+  assert.match(prompter.output.join("\n"), /SAP data queries: Disabled \(production policy\)/)
 })
 
 test("setup wizard preserves an OAuth profile and redirects it to the explicit CLI", async t => {
