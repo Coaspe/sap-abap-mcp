@@ -58,7 +58,7 @@ macOS or Linux:
 npx @coaspe/sap-abap-mcp@latest setup
 ```
 
-The wizard calls the local connection alias `Server name` and the endpoint `SAP URL`. Windows and macOS validate SAP before saving and protect the password with DPAPI or Keychain. Linux saves only non-secret settings and prints the password environment-variable commands to run before starting the MCP client.
+The wizard calls the local connection alias `Server name` and the endpoint `SAP URL`. On development and quality profiles it also asks whether to enable all read-only SAP table queries; keep them disabled unless the profile may expose its business and personal data to MCP clients. Windows and macOS validate SAP before saving and protect the password with DPAPI or Keychain. Linux saves only non-secret settings and prints the password environment-variable commands to run before starting the MCP client.
 
 ### 2. Register the MCP server
 
@@ -375,7 +375,7 @@ profile that could never authenticate.
 
 ## SAP data-query policy
 
-Direct SAP table queries are disabled for every new profile. Enable them only on a reviewed development or quality profile:
+Direct SAP table queries are disabled by default. The interactive `setup` wizard asks whether to enable them on development and quality profiles. Automated and OAuth profile creation enables them with one explicit flag:
 
 ```bash
 npx @coaspe/sap-abap-mcp@latest profile add DEV100 \
@@ -383,7 +383,7 @@ npx @coaspe/sap-abap-mcp@latest profile add DEV100 \
   --environment development --allow-data-queries
 ```
 
-Production profiles cannot enable the capability. Read-only SQL validation still applies, and a second policy layer blocks credential, banking, identity, payroll, and tax tables. Business-document tables such as `VBAK`, `VBAP`, `BKPF`, `BSEG`, and `ACDOCA` require `acknowledgeRisk=true` on the individual `sap.data.query`, `sap.data.export`, or `execute_data_query` call. Dynamic table sources are refused because they cannot be inspected before execution. SQL text is redacted even when audit argument capture is enabled.
+On a development or quality profile, `--allow-data-queries` enables every caller-supplied query that passes the read-only SQL validator, including queries over sensitive business and personal data. Production profiles cannot enable the capability. Write SQL remains blocked, result bounds remain enforced, and SQL text is redacted even when audit argument capture is enabled.
 
 This policy applies only to caller-supplied SQL sent to SAP. Processing caller-supplied structured data, reading a cached data view, and bounded internal metadata checks used by connection diagnostics do not require the opt-in.
 
@@ -418,7 +418,7 @@ node --version
 npx.cmd @coaspe/sap-abap-mcp@latest setup
 ```
 
-The first run may ask whether npm may download the package; enter `y` to continue. The setup wizard collects the SAP URL, client, username, environment, and optional writable-package restriction. `Server name` is the local name used later as `connectionId`, for example `DEV100`. Keep production servers classified as `production`; they are read-only even if the package restriction is empty.
+The first run may ask whether npm may download the package; enter `y` to continue. The setup wizard collects the SAP URL, client, username, environment, data-query permission, and optional writable-package restriction. `Server name` is the local name used later as `connectionId`, for example `DEV100`. Development and quality profiles can enable all read-only SAP table queries; the review screen shows the saved choice. Keep production servers classified as `production`; they are read-only and cannot enable data queries even if the package restriction is empty.
 
 When `SAP password:` appears, enter the password and press Enter; the input remains hidden. The server configuration and password are stored only after the MCP validates the credentials against SAP. Windows protects the password with DPAPI and never writes it to the profile file.
 
@@ -1027,7 +1027,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current release version: `1.3.1`
+- Current release version: `1.4.0`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP

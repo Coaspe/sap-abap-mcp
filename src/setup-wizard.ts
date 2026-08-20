@@ -230,6 +230,19 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       ],
       existing?.environment ?? "development"
     ) as SapProfile["environment"]
+    const allowDataQueries = environment === "production"
+      ? false
+      : await prompter.select(
+        "SAP table data queries",
+        [
+          { value: "disabled", label: "Disabled — block direct table queries" },
+          {
+            value: "enabled",
+            label: "Enabled — allow all read-only SQL, including sensitive business data"
+          }
+        ],
+        existing?.allowDataQueries ? "enabled" : "disabled"
+      ) === "enabled"
     const packagesDefault = existing?.allowedPackages.join(",")
     const packagesText = packagesDefault
       ? await prompter.input("Writable packages (comma-separated; use - to allow all)", packagesDefault)
@@ -242,6 +255,7 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       username,
       language,
       environment,
+      allowDataQueries,
       allowedPackages: packageList(packagesText)
     }
     const profile = normalizeProfile(input)
@@ -256,6 +270,11 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       `  Username: ${profile.username}`,
       `  Language: ${profile.language}`,
       `  Environment: ${environmentLabel(profile.environment)}`,
+      `  SAP data queries: ${profile.allowDataQueries
+        ? "Enabled (all read-only SQL)"
+        : profile.environment === "production"
+          ? "Disabled (production policy)"
+          : "Disabled"}`,
       `  Writable packages: ${profile.allowedPackages.length > 0 ? profile.allowedPackages.join(", ") : "All packages"}`
     ].join("\n"))
 

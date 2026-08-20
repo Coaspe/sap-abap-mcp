@@ -4,6 +4,14 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 1.4.0 - 2026-08-21
+
+### Changed
+
+- **One explicit data-query opt-in**: `--allow-data-queries` now enables every caller-supplied SAP query that passes the existing read-only SQL validation on development and quality profiles. The redundant table denylist, dynamic-source parser, and per-call `acknowledgeRisk` field were removed; production opt-in remains forbidden, write SQL remains blocked, result bounds remain enforced, and SQL stays redacted from audit arguments.
+- **Discoverable setup flow**: the interactive Basic Auth wizard now asks whether to enable all read-only SAP table queries on development and quality profiles, shows the choice in its review, preserves it during `setup edit`, and explains that sensitive business data may be exposed. Production profiles remain disabled without presenting an unsafe choice.
+- **Smaller query schemas**: `sap.data.query`, `sap.data.export`, and `execute_data_query` no longer advertise the obsolete `acknowledgeRisk` input, reducing schema tokens and making the profile-level permission the single query-access decision.
+
 ## 1.3.1 - 2026-08-19
 
 ### Fixed

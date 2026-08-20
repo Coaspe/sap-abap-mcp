@@ -3416,25 +3416,12 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
   assert.equal(queryFake.runQueryCalls.length, 0)
 
   queryProfile.allowDataQueries = true
-  await rejectsCode(
-    queryService.executeDataQuery({
-      ...queryInput,
-      sql: "SELECT BNAME FROM USR02",
-      acknowledgeRisk: true
-    }),
-    "DATA_QUERY_TABLE_DENIED"
-  )
-  await rejectsCode(
-    queryService.executeDataQuery({ ...queryInput, sql: "SELECT VBELN FROM VBAK" }),
-    "DATA_QUERY_CONFIRMATION_REQUIRED"
-  )
-  assert.equal(queryFake.runQueryCalls.length, 0)
-  await queryService.executeDataQuery({
-    ...queryInput,
-    sql: "SELECT VBELN FROM VBAK",
-    acknowledgeRisk: true
-  })
-  assert.deepEqual(queryFake.runQueryCalls, ["SELECT VBELN FROM VBAK"])
+  await queryService.executeDataQuery({ ...queryInput, sql: "SELECT BNAME FROM USR02" })
+  await queryService.executeDataQuery({ ...queryInput, sql: "SELECT VBELN FROM VBAK" })
+  assert.deepEqual(queryFake.runQueryCalls, [
+    "SELECT BNAME FROM USR02",
+    "SELECT VBELN FROM VBAK"
+  ])
 })
 
 test("mutation plans reject stale SAP state and transport writes reject production", async () => {
