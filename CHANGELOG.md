@@ -4,6 +4,12 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 1.4.1 - 2026-08-25
+
+### Fixed
+
+- **Copyable MCP registration commands**: the npm README now separates Codex and Claude Code commands, uses the broadly supported `npx -y` form, and registers `serve` without a literal example profile so users do not receive `PROFILE_NOT_FOUND` for `DEV100`. The server still requires an explicit `connectionId` for every SAP-facing tool call.
+
 ## 1.4.0 - 2026-08-21
 
 ### Changed

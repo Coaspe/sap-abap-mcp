@@ -62,21 +62,35 @@ The wizard calls the local connection alias `Server name` and the endpoint `SAP 
 
 ### 2. Register the MCP server
 
-After setup, run the command for your client on Windows:
+After setup, run only the command for your client. On Windows, use `npx.cmd`.
+
+Codex CLI:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
-claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
+codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@latest serve
 ```
 
-On macOS or Linux, replace `npx.cmd` with `npx`:
+Claude Code:
+
+```powershell
+claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@latest serve
+```
+
+On macOS or Linux, use `npx`.
+
+Codex CLI:
 
 ```bash
-codex mcp add sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
-claude mcp add --transport stdio --scope user sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@latest serve
 ```
 
-Replace `DEV100` with the Server name selected in the wizard. Restart the client, then use `codex mcp list`, `claude mcp get sap-abap`, or `/mcp` to confirm that the process starts. The completed wizard already performs live SAP verification; `/mcp` alone does not prove that SAP authentication succeeded.
+Claude Code:
+
+```bash
+claude mcp add --transport stdio --scope user sap-abap -- npx -y @coaspe/sap-abap-mcp@latest serve
+```
+
+This registration exposes all saved SAP profiles; every SAP-facing tool still requires an explicit `connectionId`. Restart the client, then use `codex mcp list`, `claude mcp get sap-abap`, or `/mcp` to confirm that the process starts. The completed wizard already performs live SAP verification; `/mcp` alone does not prove that SAP authentication succeeded.
 
 Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#claude-code-and-codex-plugin-marketplaces); the included setup skill guides the same local wizard without putting the SAP password in chat. See the detailed [Windows](#detailed-setup-on-windows), [macOS](#detailed-setup-on-macos), and [Linux](#linux-and-containers) sections for platform-specific behavior and server management.
 
@@ -1027,7 +1041,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current release version: `1.4.0`
+- Current release version: `1.4.1`
 - Release channel: npm `latest` (resolved automatically when the MCP process starts)
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP
