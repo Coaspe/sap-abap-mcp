@@ -4,6 +4,12 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 1.4.2 - 2026-08-25
+
+### Changed
+
+- **Focused npm README**: reduced the published README from 1,072 to about 320 lines while keeping profile creation, profile list/edit/remove, MCP registration, connection verification, safety defaults, deployment choices, and troubleshooting in the main flow. Detailed profile/authentication, HTTP/security, and CLI material now lives in dedicated linked guides so one canonical Quick start owns the copyable registration commands.
+
 ## 1.4.1 - 2026-08-25
 
 ### Fixed
