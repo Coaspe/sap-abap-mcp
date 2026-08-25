@@ -98,19 +98,29 @@ test("MCPB catalog matches the unversioned v1 runtime", async () => {
   )
 })
 
-test("README documents current defaults, strict TMP ownership, and connection diagnosis", async () => {
+test("published docs preserve current defaults, strict TMP ownership, and connection diagnosis", async () => {
   const readme = await readFile("README.md", "utf8")
+  const acceptancePrompt = await readFile(
+    "docs/live-sap-v1-120-tool-tmp-test-prompt.ko.md",
+    "utf8"
+  )
 
   for (const statement of [
     "Normal clients should omit both `--api-version` and `--toolsets`.",
     "Existing SAP objects may be used for reads, searches, and analysis.",
-    "A candidate becomes `RUN_OWNED` only after both a successful create receipt and an immediate exact read-back",
-    "docs/live-sap-v1-120-tool-tmp-test-prompt.ko.md",
+    "docs/live-sap-acceptance.md",
     "`-32000` (`ConnectionClosed`)"
   ]) {
     assert.ok(readme.includes(statement), statement)
   }
-  assert.doesNotMatch(readme, /--api-version all|168 tools/)
+  for (const statement of [
+    "RUN_OWNED",
+    "create receipt",
+    "immediate exact read-back"
+  ]) {
+    assert.ok(acceptancePrompt.includes(statement), statement)
+  }
+  assert.doesNotMatch(readme + acceptancePrompt, /--api-version all|168 tools/)
 })
 
 test("published launch guard rejects versioned or post-serve arguments", () => {
