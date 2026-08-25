@@ -6,8 +6,8 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Current source release: `1.4.1`
-- Currently published version: `1.4.1`
+- Current source release: `1.4.2`
+- Currently published version: `1.4.2`
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -32,8 +32,7 @@ Long description:
     "sap-abap": {
       "command": "npx",
       "args": [
-        "--yes",
-        "--prefer-online",
+        "-y",
         "@coaspe/sap-abap-mcp@latest",
         "serve"
       ]
@@ -51,11 +50,11 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 - Network traffic goes directly from the user's computer to the configured SAP system and to npm when `npx` installs or updates the package.
 - Automated tests use an in-memory SAP implementation. SAP-dependent capabilities remain `unverified` until they succeed against the selected live SAP connection.
 
-## Submission status (2026-08-21)
+## Submission status (2026-08-25)
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| npm | Live at 1.4.1 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 1.4.1 on `latest`; published through the provenance-enabled [`Publish npm`](../.github/workflows/publish-npm.yml) workflow |
+| npm | Live at 1.4.2 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 1.4.2 on `latest`; published through the provenance-enabled [`Publish npm`](../.github/workflows/publish-npm.yml) workflow |
 | Official MCP Registry | Live at 1.4.0 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) exposes 1.4.0; published through the GitHub OIDC [`Publish MCP Registry`](../.github/workflows/publish-mcp-registry.yml) workflow |
 | GitHub Release | Complete | [`v1.4.0`](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v1.4.0) includes release notes, `sap-abap-mcp-1.4.0.mcpb`, and its SHA-256 checksum |
 | Smithery | Live with 120 tools | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp) has the current release metadata and complete 120-tool runtime schemas |
@@ -66,7 +65,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 | GitHub Discussions | Live | [`SAP ABAP MCP 1.0` announcement](https://github.com/Coaspe/sap-abap-mcp/discussions/4) is published; repository Discussions and adoption feedback are enabled |
 | Claude Code Community Marketplace | Submitted; review pending | Submitted through the Anthropic Console on 2026-07-15 as `Coaspe ABAP MCP` for Claude Code; the public GitHub plugin validates and installs as `sap-abap-mcp@coaspe-sap` |
 | Claude Desktop MCPB directory | v1.4.0 update pending | The prior v1.0.0 update was submitted on 2026-07-29; the validated v1.4.0 MCPB is attached to GitHub Release and needs a new Anthropic directory submission |
-| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap`; its manifests advertise 1.4.1 and resolve the npm 1.4.1 `latest` runtime |
+| Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap`; its manifests advertise 1.4.2 and resolve the npm 1.4.2 `latest` runtime |
 | Codex universal plugin directory | Blocked by prerequisites | The official `With MCP` flow requires completed OpenAI developer identity verification and a production public HTTPS MCP endpoint; the current local `stdio` server cannot be submitted as-is |
 | LobeHub | Live at 1.4.0 | [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp) was owner-updated with the official CLI and an introspected manifest containing the default 120 tools and seven Resources |
 | mcp.so | v1.4.0 submitted; review pending | [`chatmcp/mcpso#3642`](https://github.com/chatmcp/mcpso/issues/3642) contains the current release, install command, 120-tool/7-Resource default, token-efficient presets, and safety boundaries; the paid immediate-publication path was not used |
