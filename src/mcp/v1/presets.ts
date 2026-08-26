@@ -1,6 +1,14 @@
-import type { V1ResourceName } from "./toolsets.js"
+import {
+  V1_RESOURCE_NAMES,
+  type V1ResourceName
+} from "./toolsets.js"
 
-export const V1_PRESET_NAMES = ["compact", "development", "assurance"] as const
+export const V1_PRESET_NAMES = [
+  "compact",
+  "development",
+  "assurance",
+  "adaptive"
+] as const
 export type V1PresetName = typeof V1_PRESET_NAMES[number]
 
 const COMPACT_TOOLS = [
@@ -61,7 +69,8 @@ export const V1_MCP_PRESETS: Record<V1PresetName, readonly string[]> = {
     "sap.transport.inspect",
     "sap.transport.list",
     "sap.transport.object.resolve"
-  ]
+  ],
+  adaptive: COMPACT_TOOLS
 }
 
 export const V1_PRESET_RESOURCE_NAMES: Record<
@@ -80,5 +89,6 @@ export const V1_PRESET_RESOURCE_NAMES: Record<
     "sap-capability-evidence",
     "sap-evidence",
     "sap-transport"
-  ]
+  ],
+  adaptive: V1_RESOURCE_NAMES
 }

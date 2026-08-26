@@ -4,6 +4,22 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 1.5.0 - 2026-08-26
+
+### Added
+
+- **Lossless adaptive tool discovery**: `serve --preset adaptive` advertises the
+  12 compact tools plus five fixed catalog, schema, and risk-separated invocation
+  tools. All 120 v1 capabilities remain discoverable and callable through the
+  same existing validation, role, safety, Resource-evidence, and audit paths.
+
+### Changed
+
+- **Client-specific schema defaults**: Codex plugin and direct-registration
+  examples now use `adaptive`, Cursor documentation recommends `adaptive`, and
+  Claude Code retains the full surface so its native MCP Tool Search can defer
+  schemas while preserving original tool names and per-tool policy.
+
 ## 1.4.2 - 2026-08-25
 
 ### Changed

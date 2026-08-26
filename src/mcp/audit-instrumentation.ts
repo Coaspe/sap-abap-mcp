@@ -10,9 +10,31 @@ const UNKNOWN_ERROR_CODE = "UNKNOWN_ERROR"
 interface ToolConfigLike {
   inputSchema?: unknown
   annotations?: ToolAnnotations
+  _meta?: Record<string, unknown>
 }
 
+export const ADAPTIVE_AUDIT_META_KEY =
+  "io.github.Coaspe/sap-abap-mcp/adaptive-audit"
+
 type AnyCallback = (...args: unknown[]) => unknown
+
+interface AdaptiveAuditMetadata {
+  nameArgument: string
+  argumentsArgument: string
+}
+
+function adaptiveAuditMetadata(config: ToolConfigLike): AdaptiveAuditMetadata | undefined {
+  const value = config._meta?.[ADAPTIVE_AUDIT_META_KEY]
+  if (value === null || typeof value !== "object") return undefined
+  const record = value as Record<string, unknown>
+  return typeof record.nameArgument === "string" &&
+    typeof record.argumentsArgument === "string"
+    ? {
+        nameArgument: record.nameArgument,
+        argumentsArgument: record.argumentsArgument
+      }
+    : undefined
+}
 
 interface InstrumentableServer {
   registerTool: (
@@ -121,6 +143,7 @@ export function instrumentAudit(
     const annotations = config?.annotations
     const mutation = annotations?.readOnlyHint !== true
     const destructive = annotations?.destructiveHint === true
+    const adaptiveAudit = adaptiveAuditMetadata(config)
     // The SDK passes `(input, extra)` when an input schema is declared and
     // `(extra)` when it is not. See McpServer.executeToolHandler.
     const hasInputSchema = config?.inputSchema !== undefined
@@ -128,16 +151,26 @@ export function instrumentAudit(
       const startedAt = process.hrtime.bigint()
       const toolArguments = hasInputSchema ? args[0] : undefined
       const extra = hasInputSchema ? args[1] : args[0]
+      const argumentRecord = toolArguments !== null && typeof toolArguments === "object"
+        ? toolArguments as Record<string, unknown>
+        : undefined
+      const adaptiveName = adaptiveAudit &&
+        typeof argumentRecord?.[adaptiveAudit.nameArgument] === "string"
+        ? argumentRecord[adaptiveAudit.nameArgument] as string
+        : undefined
+      const auditedArguments = adaptiveAudit && argumentRecord
+        ? argumentRecord[adaptiveAudit.argumentsArgument]
+        : toolArguments
       const finish = (outcome: Parameters<typeof recorder.record>[0]["outcome"],
         errorCode?: string) => {
         recorder.record({
           kind: "tool",
-          name,
+          name: adaptiveName ?? name,
           mutation,
           destructive,
           outcome,
           durationMs: elapsedMs(startedAt),
-          arguments: toolArguments,
+          arguments: auditedArguments,
           ...(errorCode !== undefined ? { errorCode } : {}),
           ...sessionFields(extra)
         })
