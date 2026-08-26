@@ -15,6 +15,9 @@ npx @coaspe/sap-abap-mcp@latest serve
 # Optional schema-budget control for hosts that should preload fewer tools.
 npx @coaspe/sap-abap-mcp@latest serve --preset compact
 
+# Lossless discovery gateway: 17 advertised tools, all 120 reachable on demand.
+npx @coaspe/sap-abap-mcp@latest serve --preset adaptive
+
 # Custom schema-budget control.
 npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis
 
@@ -27,12 +30,31 @@ v1 tool has an action-free input contract, a declared output schema, the v1
 success/error envelope, and a thin adapter to the same `AbapToolService` used by
 v0. The combined v0 + v1 surface is internal to automated parity tests and is not accepted by the CLI.
 
+## Host recommendation
+
+| Host | Recommended launch |
+|---|---|
+| Codex | `serve --preset adaptive` |
+| Cursor | `serve --preset adaptive` |
+| Current Claude Code with MCP Tool Search | `serve` |
+| Claude Code without Tool Search | `serve --preset adaptive` |
+| Claude Desktop / MCPB | `serve` |
+
+Adding or removing `--preset adaptive` does not change saved SAP profiles or
+credentials. Replace another `--preset` and remove `--toolsets` before enabling
+it because the selectors are mutually exclusive. Keep
+`sap.capability.invoke_write` and `sap.capability.invoke_destructive` subject to
+host approval; hidden capabilities share those gateway policy names.
+
 ## Toolsets
 
 For common workloads, prefer a curated preset: `compact` exposes 12 everyday
 read/inspect tools, `development` exposes 34 read/write/quality tools, and
-`assurance` exposes 15 read-only review tools. Presets and toolsets are mutually
-exclusive, and presets apply only to v1.
+`assurance` exposes 15 read-only review tools. `adaptive` advertises those 12
+compact tools plus five fixed search, schema, and risk-separated invocation
+tools; every one of the 120 v1 capabilities remains reachable through the
+gateway. Presets and toolsets are mutually exclusive, and presets apply only to
+v1.
 
 Toolsets are optional schema-budget controls, not feature levels. Omitting the
 flag enables `all`. Select one or more comma-separated toolsets only when a host
