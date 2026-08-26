@@ -53,15 +53,17 @@ codex plugin marketplace add Coaspe/sap-abap-mcp
 
 Install **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace in the Codex app, then start a new task.
 
-The Codex plugin launches the `adaptive` preset: 17 tools are advertised
-initially and all 120 capabilities remain discoverable and callable on demand.
-Keep `sap.capability.invoke_write` and
-`sap.capability.invoke_destructive` in prompt/approval mode.
+The repository plugin launches the full 120-tool surface through the shared
+`.mcp.json` manifest accepted by Codex and Claude Code. For a smaller initial
+surface, register the npm package directly with `serve --preset adaptive`; 17
+tools are then advertised initially and all 120 capabilities remain reachable.
+Keep `sap.capability.invoke_write` and `sap.capability.invoke_destructive` in
+prompt/approval mode when using that preset.
 
 Every SAP-facing tool requires an explicit `connectionId`. Live SAP behavior depends on the selected SAP release, configuration, and authorizations.
 
-The Claude Code plugin keeps the full 120-tool surface because current Claude
-Code releases defer MCP schemas with native Tool Search. For manual launches,
+Current Claude Code releases can defer the full plugin surface with native Tool
+Search. For manual launches,
 `serve --preset compact` exposes 12 everyday read/inspect tools,
 `--preset development` exposes 34 development tools, and `--preset assurance`
 exposes 15 read-only review tools. See [`docs/advanced-workflows.md`](../../docs/advanced-workflows.md) and [`docs/classic-bridge.md`](../../docs/classic-bridge.md) for the composed and optional workflows.
