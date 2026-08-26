@@ -341,7 +341,7 @@ See [CLI reference](docs/cli-reference.md) for local-build registration.
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current release version: `1.5.1`
+- Current release version: `1.5.2`
 - Runtime: Node.js 20 or later
 - Default transport: local MCP over `stdio`
 - SAP authentication: Basic Auth, OAuth client credentials, Authorization Code
