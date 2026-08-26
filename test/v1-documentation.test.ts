@@ -41,6 +41,7 @@ test("v1 migration guide documents the complete local contract and live boundary
     [
       "npx @coaspe/sap-abap-mcp@latest serve",
       "npx @coaspe/sap-abap-mcp@latest serve --preset compact",
+      "npx @coaspe/sap-abap-mcp@latest serve --preset adaptive",
       "npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis",
       "npx @coaspe/sap-abap-mcp@latest serve --api-version v0",
     ]
@@ -107,6 +108,10 @@ test("published docs preserve current defaults, strict TMP ownership, and connec
 
   for (const statement of [
     "Normal clients should omit both `--api-version` and `--toolsets`.",
+    "The Codex plugin and the recommended Codex and Cursor configurations use",
+    "Current Claude Code with MCP Tool Search",
+    "Host-side per-tool allow/deny and approval",
+    "remove `--preset adaptive` and",
     "Existing SAP objects may be used for reads, searches, and analysis.",
     "docs/live-sap-acceptance.md",
     "`-32000` (`ConnectionClosed`)"

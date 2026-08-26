@@ -90,7 +90,7 @@ Run only the command for your client.
 Windows with Codex:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@latest serve
+codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@latest serve --preset adaptive
 ```
 
 Windows with Claude Code:
@@ -102,13 +102,27 @@ claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap
 macOS or Linux with Codex:
 
 ```bash
-codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@latest serve
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@latest serve --preset adaptive
 ```
 
 macOS or Linux with Claude Code:
 
 ```bash
 claude mcp add --transport stdio --scope user sap-abap -- npx -y @coaspe/sap-abap-mcp@latest serve
+```
+
+Cursor users can add this global configuration to `~/.cursor/mcp.json` (use
+`npx.cmd` on Windows):
+
+```json
+{
+  "mcpServers": {
+    "sap-abap": {
+      "command": "npx",
+      "args": ["-y", "@coaspe/sap-abap-mcp@latest", "serve", "--preset", "adaptive"]
+    }
+  }
+}
 ```
 
 The unscoped `serve` command exposes all saved profiles. Every SAP-facing tool
@@ -140,7 +154,8 @@ Claude Code:
 Codex users can run `codex plugin marketplace add Coaspe/sap-abap-mcp`, install
 **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace, and ask Codex
 to use the included `sap-abap-setup` skill. Profiles live outside plugin caches
-and survive updates.
+and survive updates. The Codex plugin launches `adaptive`; the Claude Code
+plugin keeps the full surface for Claude Code's native MCP Tool Search.
 
 ## What it supports
 
@@ -168,7 +183,41 @@ The legacy complete 53-tool schema remains available with `--api-version v0`.
 | `serve --preset compact` | 12 common read and inspection tools |
 | `serve --preset development` | 34 development tools |
 | `serve --preset assurance` | 15 read-only review and assurance tools |
+| `serve --preset adaptive` | 17 initially advertised tools; all 120 tools remain reachable on demand |
 | `serve --toolsets core,analysis` | Selected v1 toolsets |
+
+### Choosing adaptive
+
+The unversioned `serve`, MCPB, and Claude Code plugin stay on the full surface.
+The Codex plugin and the recommended Codex and Cursor configurations use
+`adaptive`. No choice requires an SAP profile or credential migration.
+
+| Host | Recommended surface | Reason |
+|---|---|---|
+| Codex | `adaptive` | Reduces the initial advertised schema while retaining all capabilities |
+| Cursor | `adaptive` | Avoids preloading the complete 120-tool schema; keep gateway writes on approval |
+| Current Claude Code with MCP Tool Search | full `serve` | Claude defers MCP schemas natively and can call the original tool names |
+| Claude Code without Tool Search | `adaptive` | Prevents the complete schema from loading up front |
+| Claude Desktop / MCPB | full `serve` | Compatibility baseline until Desktop-specific deferral is verified |
+
+Claude Code enables MCP Tool Search by default on supported models and loads
+tool schemas on demand. See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search).
+Use `--preset adaptive` for Claude Code only when Tool Search is disabled or
+unavailable, such as an unsupported model or proxy.
+
+The gateway preserves server-side roles, production write blocking, package and
+transport policy, validation, preview/confirmation contracts, Resources, and
+audit events. The MCP host nevertheless sees hidden calls through
+`sap.capability.invoke_read`, `sap.capability.invoke_write`, or
+`sap.capability.invoke_destructive`. Host-side per-tool allow/deny and approval
+rules therefore apply to those gateway names, not to each hidden capability.
+Keep the write and destructive gateways in prompt/approval mode, and use the
+full or `development` surface when individual capability policy is required.
+
+Hosts with native MCP tool deferral should normally keep the full surface. For
+hosts that preload every advertised schema, adaptive trades two discovery calls
+for a smaller initial schema. To roll back, remove `--preset adaptive` and
+restart the MCP server; saved profiles and credentials are unchanged.
 
 Normal clients should omit both `--api-version` and `--toolsets`. See the
 [v1 migration guide](docs/v1-migration.md), [parity matrix](docs/v1-parity-matrix.md),
@@ -290,7 +339,7 @@ See [CLI reference](docs/cli-reference.md) for local-build registration.
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current release version: `1.4.2`
+- Current release version: `1.5.0`
 - Runtime: Node.js 20 or later
 - Default transport: local MCP over `stdio`
 - SAP authentication: Basic Auth, OAuth client credentials, Authorization Code

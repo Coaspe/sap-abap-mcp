@@ -100,7 +100,7 @@ Commands:
       Read-only transport change assurance for CI. Exit 0 passed, 1 failed,
       2 incomplete. Never releases or modifies the transport.
   serve [--profile <id>] [--api-version v0|v1]
-      [--preset compact|development|assurance]
+      [--preset compact|development|assurance|adaptive]
       [--toolsets core,write,analysis,debug,operations,artifacts|all]
       [--audit-log none|stderr|file] [--audit-log-file <path>] [--audit-include-arguments]
       [--http [--api-keys-file <path>]
