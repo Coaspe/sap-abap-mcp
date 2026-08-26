@@ -34,7 +34,8 @@ v0. The combined v0 + v1 surface is internal to automated parity tests and is no
 
 | Host | Recommended launch |
 |---|---|
-| Codex | `serve --preset adaptive` |
+| Codex direct registration | `serve --preset adaptive` |
+| Codex repository plugin | `serve` |
 | Cursor | `serve --preset adaptive` |
 | Current Claude Code with MCP Tool Search | `serve` |
 | Claude Code without Tool Search | `serve --preset adaptive` |
