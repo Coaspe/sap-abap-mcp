@@ -4,6 +4,14 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 1.5.2 - 2026-08-26
+
+### Fixed
+
+- **Codex plugin prompt metadata**: limited `interface.defaultPrompt` to the
+  three prompts accepted by Codex 0.137.0 so the host no longer ignores the
+  complete default-prompt list during plugin loading.
+
 ## 1.5.1 - 2026-08-26
 
 ### Fixed
