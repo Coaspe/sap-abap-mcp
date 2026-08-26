@@ -28,7 +28,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const readme = readText("README.md")
   const directoryReference = readText("docs/mcp-directory-submissions.md")
 
-  assert.equal(packageJson.version, "1.5.0")
+  assert.equal(packageJson.version, "1.5.1")
   assert.ok(readme.includes("Current release version: `" + packageJson.version + "`"))
   assert.ok(
     directoryReference.includes("Currently published version: `" + packageJson.version + "`")
@@ -181,19 +181,7 @@ test("Claude Code and Codex plugins launch the same published local MCP package"
   assert.equal(codexManifest.name, "sap-abap-mcp")
   assert.equal(codexManifest.version, packageJson.version)
   assert.equal(codexManifest.license, "MIT")
-  assert.deepEqual(codexManifest.mcpServers, {
-    "sap-abap": {
-      command: "npx",
-      args: [
-        "--yes",
-        "--prefer-online",
-        "@coaspe/sap-abap-mcp@latest",
-        "serve",
-        "--preset",
-        "adaptive"
-      ]
-    }
-  })
+  assert.equal(codexManifest.mcpServers, "./.mcp.json")
   assert.equal(
     codexManifest.interface.privacyPolicyURL,
     "https://github.com/Coaspe/sap-abap-mcp/blob/main/PRIVACY.md"

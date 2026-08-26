@@ -154,8 +154,9 @@ Claude Code:
 Codex users can run `codex plugin marketplace add Coaspe/sap-abap-mcp`, install
 **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace, and ask Codex
 to use the included `sap-abap-setup` skill. Profiles live outside plugin caches
-and survive updates. The Codex plugin launches `adaptive`; the Claude Code
-plugin keeps the full surface for Claude Code's native MCP Tool Search.
+and survive updates. Both repository plugins use the shared full surface through
+the `.mcp.json` manifest accepted by Codex and Claude Code. Use the direct Codex
+registration command above when a smaller initial adaptive surface is preferred.
 
 ## What it supports
 
@@ -188,13 +189,14 @@ The legacy complete 53-tool schema remains available with `--api-version v0`.
 
 ### Choosing adaptive
 
-The unversioned `serve`, MCPB, and Claude Code plugin stay on the full surface.
-The Codex plugin and the recommended Codex and Cursor configurations use
+The unversioned `serve`, MCPB, and Codex and Claude Code repository plugins stay
+on the full surface. The recommended direct Codex and Cursor configurations use
 `adaptive`. No choice requires an SAP profile or credential migration.
 
 | Host | Recommended surface | Reason |
 |---|---|---|
-| Codex | `adaptive` | Reduces the initial advertised schema while retaining all capabilities |
+| Codex direct registration | `adaptive` | Reduces the initial advertised schema while retaining all capabilities |
+| Codex repository plugin | full `serve` | Uses the shared `.mcp.json` plugin format verified by Codex |
 | Cursor | `adaptive` | Avoids preloading the complete 120-tool schema; keep gateway writes on approval |
 | Current Claude Code with MCP Tool Search | full `serve` | Claude defers MCP schemas natively and can call the original tool names |
 | Claude Code without Tool Search | `adaptive` | Prevents the complete schema from loading up front |
@@ -339,7 +341,7 @@ See [CLI reference](docs/cli-reference.md) for local-build registration.
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current release version: `1.5.0`
+- Current release version: `1.5.1`
 - Runtime: Node.js 20 or later
 - Default transport: local MCP over `stdio`
 - SAP authentication: Basic Auth, OAuth client credentials, Authorization Code

@@ -61,8 +61,10 @@ serve [--profile <id>] [--api-version v0|v1]
 audit sink, and local `stdio`. HTTP mode requires API keys, OIDC, or both.
 The `adaptive` preset advertises the 12 compact tools plus five fixed discovery
 and invocation tools while keeping every v1 capability reachable on demand.
-Use it for Codex and Cursor. Current Claude Code users should normally keep the
-full surface because Claude Code defers MCP schemas with native Tool Search.
+Use it for direct Codex and Cursor registrations. The Codex repository plugin
+keeps the shared full configuration for plugin-host compatibility. Current
+Claude Code users should normally keep the full surface because Claude Code
+defers MCP schemas with native Tool Search.
 
 ## Local-build registration
 

@@ -108,7 +108,7 @@ test("published docs preserve current defaults, strict TMP ownership, and connec
 
   for (const statement of [
     "Normal clients should omit both `--api-version` and `--toolsets`.",
-    "The Codex plugin and the recommended Codex and Cursor configurations use",
+    "The recommended direct Codex and Cursor configurations use",
     "Current Claude Code with MCP Tool Search",
     "Host-side per-tool allow/deny and approval",
     "remove `--preset adaptive` and",
