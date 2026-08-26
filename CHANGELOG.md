@@ -4,6 +4,15 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 1.5.1 - 2026-08-26
+
+### Fixed
+
+- **Codex repository plugin compatibility**: restored the Codex manifest to the
+  shared `.mcp.json` path accepted by Codex 0.137.0. Codex and Claude Code
+  repository plugins keep the full compatibility surface; direct Codex and
+  Cursor registrations continue to use `adaptive`.
+
 ## 1.5.0 - 2026-08-26
 
 ### Added
@@ -15,10 +24,10 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ### Changed
 
-- **Client-specific schema defaults**: Codex plugin and direct-registration
-  examples now use `adaptive`, Cursor documentation recommends `adaptive`, and
-  Claude Code retains the full surface so its native MCP Tool Search can defer
-  schemas while preserving original tool names and per-tool policy.
+- **Client-specific schema guidance**: direct Codex registration examples and
+  Cursor documentation use `adaptive`, while Claude Code retains the full
+  surface so its native MCP Tool Search can defer schemas while preserving
+  original tool names and per-tool policy.
 
 ## 1.4.2 - 2026-08-25
 
