@@ -50,21 +50,21 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 - Network traffic goes directly from the user's computer to the configured SAP system and to npm when `npx` installs or updates the package.
 - Automated tests use an in-memory SAP implementation. SAP-dependent capabilities remain `unverified` until they succeed against the selected live SAP connection.
 
-## Submission status (2026-08-25)
+## Submission status (2026-08-26)
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| npm | Live at 1.5.0 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 1.5.0 on `latest`; published through the provenance-enabled [`Publish npm`](../.github/workflows/publish-npm.yml) workflow |
-| Official MCP Registry | Live at 1.4.0 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) exposes 1.4.0; published through the GitHub OIDC [`Publish MCP Registry`](../.github/workflows/publish-mcp-registry.yml) workflow |
-| GitHub Release | Complete | [`v1.4.0`](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v1.4.0) includes release notes, `sap-abap-mcp-1.4.0.mcpb`, and its SHA-256 checksum |
-| Smithery | Live with 120 tools | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp) has the current release metadata and complete 120-tool runtime schemas |
+| npm | Live at 1.5.0 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 1.5.0 on `latest`; the provenance-enabled [publish run](https://github.com/Coaspe/sap-abap-mcp/actions/runs/32915568574) completed successfully |
+| Official MCP Registry | Live at 1.5.0 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) exposes 1.5.0 as `isLatest: true`; the GitHub OIDC [publish run](https://github.com/Coaspe/sap-abap-mcp/actions/runs/32915640801) completed successfully |
+| GitHub Release | Complete | [`v1.5.0`](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v1.5.0) includes release notes, `sap-abap-mcp-1.5.0.mcpb`, and its SHA-256 checksum |
+| Smithery | Live with 120 tools | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp) accepted deployment `f063e133-b8ee-4d80-86a2-01d280458b04` with status `SUCCESS` and the complete 120-tool runtime schemas |
 | Glama | Live; automatic re-index pending | [`Coaspe/sap-abap-mcp`](https://glama.ai/mcp/servers/Coaspe/sap-abap-mcp) is claimed and author-verified. Glama continuously synchronizes GitHub repositories, but its public page still showed the earlier README during the 2026-07-29 verification |
 | PulseMCP | Pending ingestion | The site imports the Official MCP Registry daily and processes new entries weekly |
 | MCP Server Hub | Submitted | Awaiting directory review |
 | Awesome MCP Servers | Ready for review | [`punkpeye/awesome-mcp-servers#10129`](https://github.com/punkpeye/awesome-mcp-servers/pull/10129) is open; the submission description references v1.4.0 and the current 120-tool catalog |
 | GitHub Discussions | Live | [`SAP ABAP MCP 1.0` announcement](https://github.com/Coaspe/sap-abap-mcp/discussions/4) is published; repository Discussions and adoption feedback are enabled |
 | Claude Code Community Marketplace | Submitted; review pending | Submitted through the Anthropic Console on 2026-07-15 as `Coaspe ABAP MCP` for Claude Code; the public GitHub plugin validates and installs as `sap-abap-mcp@coaspe-sap` |
-| Claude Desktop MCPB directory | v1.4.0 update pending | The prior v1.0.0 update was submitted on 2026-07-29; the validated v1.4.0 MCPB is attached to GitHub Release and needs a new Anthropic directory submission |
+| Claude Desktop MCPB directory | v1.5.0 update pending | The prior v1.0.0 update was submitted on 2026-07-29; the validated v1.5.0 MCPB is attached to GitHub Release and needs a new Anthropic directory submission |
 | Codex repository marketplace | Live | Public GitHub marketplace installs as `sap-abap-mcp@coaspe-sap`; its manifest advertises 1.5.0 and launches the npm `latest` runtime with the adaptive preset |
 | Codex universal plugin directory | Blocked by prerequisites | The official `With MCP` flow requires completed OpenAI developer identity verification and a production public HTTPS MCP endpoint; the current local `stdio` server cannot be submitted as-is |
 | LobeHub | Live at 1.4.0 | [`coaspe-sap-abap-mcp`](https://lobehub.com/mcp/coaspe-sap-abap-mcp) was owner-updated with the official CLI and an introspected manifest containing the default 120 tools and seven Resources |
