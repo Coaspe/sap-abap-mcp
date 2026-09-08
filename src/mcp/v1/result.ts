@@ -29,13 +29,17 @@ const V1_SUCCESS_SCHEMA = z.object({
 })
 
 const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
+  BATCH_LINE_LIMIT: "validation",
+  CAPABILITY_NOT_FOUND: "capability",
+  CAPABILITY_RISK_MISMATCH: "validation",
+  CAPABILITY_ARGUMENTS_REQUIRED: "validation",
+  CAPABILITY_ARGUMENTS_INVALID: "validation",
+  CAPABILITY_SCHEMA_CHANGED: "conflict",
+  CAPABILITY_GATEWAY_CLOSED: "transport",
   AUTH_REQUIRED: "authentication",
   OAUTH_CLIENT_CREDENTIALS_REQUIRED: "authentication",
   SAP_AUTHORIZATION_DENIED: "authorization",
-  DATA_QUERY_CONFIRMATION_REQUIRED: "policy",
   DATA_QUERY_NOT_ALLOWED: "policy",
-  DATA_QUERY_SOURCE_UNRESOLVED: "policy",
-  DATA_QUERY_TABLE_DENIED: "policy",
   PROFILE_NOT_ALLOWED: "policy",
   PRODUCTION_DATA_BLOCKED: "policy",
   PRODUCTION_WRITE_BLOCKED: "policy",

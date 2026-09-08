@@ -12,7 +12,9 @@ const profile = JSON.parse(
 
 function parseLaunchArguments(argv) {
   let command = process.execPath
-  let args = [join(root, "dist", "src", "index.js"), "serve"]
+  // The compatibility profile requires directly advertised tools. The default
+  // adaptive CLI exposes the same capabilities through discovery instead.
+  let args = [join(root, "dist", "src", "index.js"), "serve", "--toolsets", "all"]
 
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index]

@@ -6,8 +6,9 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Current source release: `1.3.1`
-- Currently published version: `1.3.1`
+- Current source release: `1.7.0-beta.1` (unpublished)
+- npm published version: `1.6.0` (`latest`, verified 2026-09-07)
+- Source and npm release history differ; see [release source audit](release-source-audit-2026-09-07.md) before submitting an update.
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -22,7 +23,7 @@ Short description:
 
 Long description:
 
-> SAP ABAP MCP is a headless, client-neutral, governance-first Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. Its default v1 surface provides 120 action-specific tools and seven Resources for source and structured DDIC work, semantic and enhancement inspection, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, profiled execution, runtime feeds, optional classic Screen/GUI Status access, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain, Windows DPAPI, or profile-specific environment variables on Linux. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
+> SAP ABAP MCP is a headless, client-neutral, governance-first Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. Its unreleased local v1 default exposes five discovery/invocation gateways, with 120 capabilities and seven Resources for source and structured DDIC work, semantic and enhancement inspection, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, profiled execution, runtime feeds, optional classic Screen/GUI Status access, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain, Windows DPAPI, or profile-specific environment variables on Linux. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
 
 ## Generic local installation
 
@@ -55,7 +56,7 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 
 | Target | Status | Evidence or next action |
 |---|---|---|
-| npm | Live at 1.3.1 | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 1.3.1 on `latest`; published through the provenance-enabled [`Publish npm`](../.github/workflows/publish-npm.yml) workflow |
+| npm | Public 1.6.0; beta unpublished | [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coaspe/sap-abap-mcp) has version 1.6.0 on `latest`; published through the provenance-enabled [`Publish npm`](../.github/workflows/publish-npm.yml) workflow |
 | Official MCP Registry | Live at 1.3.1 | [`io.github.Coaspe/sap-abap-mcp`](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp) exposes 1.3.1; published through the GitHub OIDC [`Publish MCP Registry`](../.github/workflows/publish-mcp-registry.yml) workflow |
 | GitHub Release | Complete | [`v1.3.1`](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v1.3.1) includes release notes, `sap-abap-mcp-1.3.1.mcpb`, and its SHA-256 checksum |
 | Smithery | Live with 120 tools | [`aspalt85/sap-abap-mcp`](https://smithery.ai/servers/aspalt85/sap-abap-mcp) has the current release metadata and complete 120-tool runtime schemas |

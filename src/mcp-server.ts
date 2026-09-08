@@ -37,6 +37,10 @@ import type {
 } from "./tool-service.js"
 import type { McpApiVersion } from "./mcp/api-version.js"
 import { registerV1Tools } from "./mcp/v1/register.js"
+import { registerV1WorkflowPrompts } from "./mcp/v1/workflow-prompts.js"
+import { registerAdaptiveV1Tools } from "./mcp/v1/adaptive-tools.js"
+import { V1EvidenceStore } from "./mcp/v1/evidence-store.js"
+import { V1_MCP_PRESETS } from "./mcp/v1/presets.js"
 import {
   v1ResourcesForToolsets,
   v1ToolsForToolsets,
@@ -84,6 +88,9 @@ export interface McpServerOptions {
   auditRecorder?: AuditRecorder
   /** Restrict the advertised surface to what this role may call. */
   role?: HttpRole
+  /** Keep common tools direct and discover other capabilities on demand. */
+  adaptive?: boolean
+  singleTool?: boolean
 }
 
 interface ToolResultPolicy {
@@ -100,6 +107,14 @@ const packageVersion = (JSON.parse(
 export function createMcpServer(
   tools: AbapToolService,
   options: McpServerOptions = {}
+): McpServer {
+  return createMcpServerInternal(tools, options, options.adaptive ? new V1EvidenceStore() : undefined)
+}
+
+function createMcpServerInternal(
+  tools: AbapToolService,
+  options: McpServerOptions,
+  evidenceStore?: V1EvidenceStore
 ): McpServer {
   const apiVersion = options.apiVersion ?? "v1"
   const includeV0 = apiVersion === "v0" || apiVersion === "all"
@@ -119,7 +134,11 @@ export function createMcpServer(
     },
     {
       instructions: apiVersion === "v1"
-        ? "Call sap.system.list when systemId is unknown, then use sap.system.inspect for normalized SAP system metadata. Delete one exact repository object only by calling sap.repository.delete.preview first, then pass its unchanged planId and confirmation to sap.repository.delete.execute."
+        ? options.singleTool
+          ? "Use sap with name=search and arguments={query} to find capabilities, or name=describe and arguments={name} for a known capability. Invoke its actual name with the described risk, schemaHash and arguments. Describe again on CAPABILITY_SCHEMA_CHANGED."
+          : options.adaptive
+          ? "Use advertised tools directly. For a known capability name, skip search: call sap.capability.describe, then the matching invoke_read, invoke_write or invoke_destructive with its schemaHash and arguments. Otherwise use sap.capability.search; browse categories if needed. Reuse schemas until CAPABILITY_SCHEMA_CHANGED. If systemId is unknown, describe sap.system.list."
+          : "Call sap.system.list when systemId is unknown, then use sap.system.inspect for normalized SAP system metadata. Delete one exact repository object only by calling sap.repository.delete.preview first, then pass its unchanged planId and confirmation to sap.repository.delete.execute."
         : "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
   )
@@ -654,12 +673,9 @@ export function createMcpServer(
     {
       title: "Execute ABAP Data Query",
       description:
-        "Run an opt-in, policy-checked SAP data query, process supplied data, return bounded results, or export CSV/XLSX.",
+        "Run an opt-in SAP read-only data query, process supplied data, return bounded results, or export CSV/XLSX.",
       inputSchema: {
         sql: z.string().min(1).optional(),
-        acknowledgeRisk: z.boolean().optional().describe(
-          "Set true only after reviewing a query that targets protected business-document tables."
-        ),
         data: z.object({
           columns: z.array(z.object({
             name: z.string().min(1),
@@ -700,9 +716,6 @@ export function createMcpServer(
           maxRows: input.maxRows,
           ...(input.webviewId ? { webviewId: input.webviewId } : {}),
           ...(input.sql ? { sql: input.sql } : {}),
-          ...(input.acknowledgeRisk !== undefined
-            ? { acknowledgeRisk: input.acknowledgeRisk }
-            : {}),
           ...(input.data ? {
             data: {
               columns: input.data.columns.map(column => ({
@@ -729,7 +742,7 @@ export function createMcpServer(
     "get_abap_sql_syntax",
     {
       title: "Get ABAP SQL Syntax",
-      description: "Return the safe SAP ADT data-preview SQL rules used by execute_data_query.",
+      description: "Return the read-only SAP ADT data-preview SQL rules used by execute_data_query.",
       inputSchema: {},
       annotations: readOnlyAnnotations
     },
@@ -1887,7 +1900,7 @@ export function createMcpServer(
 
   if (apiVersion === "v1" || apiVersion === "all") {
     const defaultV1Tools = apiVersion === "v1"
-      ? v1ToolsForToolsets(["all"])
+      ? options.adaptive ? new Set(V1_MCP_PRESETS.compact) : v1ToolsForToolsets(["all"])
       : undefined
     const defaultV1Resources = apiVersion === "v1"
       ? v1ResourcesForToolsets(["all"])
@@ -1896,8 +1909,29 @@ export function createMcpServer(
     const enabledResources = options.enabledV1Resources ?? defaultV1Resources
     registerV1Tools(server, tools, {
       ...(enabledTools ? { enabledTools } : {}),
-      ...(enabledResources ? { enabledResources } : {})
+      ...(enabledResources ? { enabledResources } : {}),
+      ...(evidenceStore ? { evidenceStore } : {})
     })
+    registerV1WorkflowPrompts(server, enabledTools, options.role, options.adaptive, options.singleTool)
+    if (options.adaptive && apiVersion === "v1") {
+      const gateway = registerAdaptiveV1Tools(server, {
+        ...(options.singleTool ? { singleTool: true, readOnly: options.role === "viewer" } : {}),
+        createInternalServer: () => createMcpServerInternal(tools, {
+          apiVersion: "v1",
+          enabledV1Resources: new Set<V1ResourceName>(),
+          ...(options.role ? { role: options.role } : {})
+        }, evidenceStore)
+      })
+      const closeServer = server.close.bind(server)
+      let closePromise: Promise<void> | undefined
+      server.close = () => {
+        closePromise ??= (async () => {
+          await gateway.close()
+          await closeServer()
+        })()
+        return closePromise
+      }
+    }
   }
 
   return server

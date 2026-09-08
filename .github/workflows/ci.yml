@@ -24,6 +24,11 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm run check
+      - name: Verify Node 20 protocol and discovery
+        if: matrix.node == '20'
+        run: |
+          node scripts/smoke-v1-stdio.mjs
+          node scripts/benchmark-capability-discovery.mjs --tokens
 
   package:
     runs-on: ubuntu-latest
@@ -36,6 +41,26 @@ jobs:
       - run: npm ci
       - run: npm run smoke:v1
       - run: npm run conformance:v1
-      - run: npm pack --dry-run
+      - run: npm run benchmark:workflow -- --tokens
+      - run: npm run benchmark:workflow -- --tokens --known-capabilities
+      - run: npm run benchmark:contracts
+      - run: npm run benchmark:tokens
+      - run: npm run benchmark:batch
+      - run: npm run benchmark:discovery -- --tokens
+      - run: node scripts/sync-mcpb-tools.mjs --check
+      - run: node scripts/sync-lobehub-manifest.mjs --check
+      - name: Verify installed runtime package
+        run: |
+          package_dir="$(mktemp -d)"
+          trap 'rm -rf "$package_dir"' EXIT
+          npm pack --json --pack-destination "$package_dir" > "$package_dir/pack.json"
+          package_file="$(node -e 'console.log(require(process.argv[1])[0].filename)' "$package_dir/pack.json")"
+          npm install --prefix "$package_dir" --omit=dev --ignore-scripts --no-audit --no-fund "$package_dir/$package_file"
+          cd "$package_dir/node_modules/@coaspe/sap-abap-mcp"
+          node scripts/smoke-v1-stdio.mjs
+          node scripts/check-profile-conformance.mjs
+          node scripts/benchmark-mcp-workflow.mjs
+          node scripts/benchmark-capability-discovery.mjs
+          node scripts/benchmark-public-contracts.mjs
       - run: npm audit --omit=dev
       - run: npm audit signatures

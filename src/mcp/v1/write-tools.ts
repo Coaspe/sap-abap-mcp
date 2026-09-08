@@ -8,6 +8,7 @@ import type {
 } from "@modelcontextprotocol/sdk/server/zod-compat.js"
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
+import { objectInput } from "./object-input.js"
 import type { RapGeneratorContent } from "abap-adt-api"
 import type { AbapToolService } from "../../tool-service.js"
 import { V1_SCHEMA_VERSION } from "./contracts.js"
@@ -165,7 +166,7 @@ export function registerV1WriteTools(
     "sap.ddic.update",
     "Update Structured ABAP Dictionary Object",
     "Optimistically replace typed Domain/Data Element properties or Table/Structure DDL source.",
-    z.union([
+    objectInput(z.discriminatedUnion("kind", [
       z.object({
         ...ddicWriteCommon,
         kind: z.literal("domain"),
@@ -186,7 +187,7 @@ export function registerV1WriteTools(
         kind: z.literal("structure"),
         source: z.string().min(1).max(98304)
       }).strict()
-    ]),
+    ])),
     MUTATION_ANNOTATIONS,
     input => serviceResult(input.systemId, systemId => {
       const common = {
@@ -218,27 +219,29 @@ export function registerV1WriteTools(
     "sap.classic.write",
     "Write Classic ABAP Screen or GUI Status",
     "Preview or execute one confirmed Screen/Dynpro or full GUI Status write through an opt-in same-origin classic bridge. Omit confirmation to preview, then resubmit the returned exact value.",
-    z.union([
-      z.object({
-        ...classicWriteCommon,
-        kind: z.literal("screen"),
-        operation: z.literal("upsert"),
-        screenNumber: z.string().regex(/^\d{1,4}$/),
-        definition: z.string().min(1).max(98304)
-      }).strict(),
-      z.object({
-        ...classicWriteCommon,
-        kind: z.literal("screen"),
-        operation: z.literal("delete"),
-        screenNumber: z.string().regex(/^\d{1,4}$/)
-      }).strict(),
+    objectInput(z.discriminatedUnion("kind", [
+      z.discriminatedUnion("operation", [
+        z.object({
+          ...classicWriteCommon,
+          kind: z.literal("screen"),
+          operation: z.literal("upsert"),
+          screenNumber: z.string().regex(/^\d{1,4}$/),
+          definition: z.string().min(1).max(98304)
+        }).strict(),
+        z.object({
+          ...classicWriteCommon,
+          kind: z.literal("screen"),
+          operation: z.literal("delete"),
+          screenNumber: z.string().regex(/^\d{1,4}$/)
+        }).strict()
+      ]),
       z.object({
         ...classicWriteCommon,
         kind: z.literal("gui_status"),
         operation: z.literal("upsert"),
         definition: z.string().min(1).max(98304)
       }).strict()
-    ]),
+    ])),
     MUTATION_ANNOTATIONS,
     input => serviceResult(input.systemId, systemId => service.writeClassicObject({
       connectionId: systemId!,

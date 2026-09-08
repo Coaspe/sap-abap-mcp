@@ -9,6 +9,7 @@ import {
   type SapProfileInput
 } from "./profile-store.js"
 import type { SecretStore } from "./secret-store.js"
+import { saveProfileCredential } from "./save-profile-credential.js"
 
 export interface SetupChoice {
   value: string
@@ -230,18 +231,33 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       ],
       existing?.environment ?? "development"
     ) as SapProfile["environment"]
+    const allowDataQueries = environment === "production"
+      ? false
+      : await prompter.select(
+        "SAP table data queries",
+        [
+          { value: "disabled", label: "Disabled — block direct table queries" },
+          {
+            value: "enabled",
+            label: "Enabled — allow all read-only SQL, including sensitive business data"
+          }
+        ],
+        existing?.allowDataQueries ? "enabled" : "disabled"
+      ) === "enabled"
     const packagesDefault = existing?.allowedPackages.join(",")
     const packagesText = packagesDefault
       ? await prompter.input("Writable packages (comma-separated; use - to allow all)", packagesDefault)
       : await prompter.input("Writable packages (comma-separated; blank allows all)")
 
     const input: SapProfileInput = {
+      ...existing,
       id: serverName,
       url: sapUrl,
       client,
       username,
       language,
       environment,
+      allowDataQueries,
       allowedPackages: packageList(packagesText)
     }
     const profile = normalizeProfile(input)
@@ -256,6 +272,8 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       `  Username: ${profile.username}`,
       `  Language: ${profile.language}`,
       `  Environment: ${environmentLabel(profile.environment)}`,
+      `  SAP data queries: ${profile.allowDataQueries ? "Enabled (all read-only SQL)" : profile.environment === "production" ? "Disabled (production policy)" : "Disabled"}`,
+      ...(profile.classicBridgePath ? [`  Classic bridge: ${profile.classicBridgePath}`] : []),
       `  Writable packages: ${profile.allowedPackages.length > 0 ? profile.allowedPackages.join(", ") : "All packages"}`
     ].join("\n"))
 
@@ -288,8 +306,8 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
     const password = linuxPassword ?? await requiredSecret(prompter)
     prompter.write("\nTesting SAP connection...")
     await validateCredentials(profile, password)
-    await profiles.upsert(input)
-    if (platform !== "linux") await secrets.set(profile.id, password)
+    if (platform === "linux") await profiles.upsert(input)
+    else await saveProfileCredential(profiles, secrets, input, password)
     prompter.write([
       "✓ SAP connection verified.",
       `✓ Server ${profile.id} is ready.`,

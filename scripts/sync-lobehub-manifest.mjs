@@ -31,12 +31,20 @@ try {
     cursor = result.nextCursor
   } while (cursor)
   tools.sort((left, right) => left.name.localeCompare(right.name))
+  const prompts = []
+  cursor = undefined
+  do {
+    const result = await client.listPrompts(cursor ? { cursor } : undefined)
+    prompts.push(...result.prompts)
+    cursor = result.nextCursor
+  } while (cursor)
+  prompts.sort((left, right) => left.name.localeCompare(right.name))
 
   const [manifest, packageJson] = await Promise.all([
     readFile(manifestPath, "utf8").then(JSON.parse),
     readFile(packagePath, "utf8").then(JSON.parse)
   ])
-  const next = { ...manifest, tools, version: packageJson.version }
+  const next = { ...manifest, tools, prompts, version: packageJson.version }
   const serialized = `${JSON.stringify(next, null, 2)}\n`
   const current = `${JSON.stringify(manifest, null, 2)}\n`
 

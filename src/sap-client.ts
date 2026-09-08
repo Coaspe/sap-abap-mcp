@@ -1,4 +1,7 @@
 import { createHash, randomUUID } from "node:crypto"
+import { decodeKnowledgeTransferDocument } from "./knowledge-transfer.js"
+import { SourceCache } from "./source-cache.js"
+import { TransportAdtClient, type AdtTransportFactory } from "./transport-adt-client.js"
 import {
   ADTClient,
   isDebuggee,
@@ -377,6 +380,7 @@ export interface SapClient {
     superTypes: boolean
   ): Promise<HierarchyNode[]>
   getClassComponents(objectUri: string): Promise<ClassComponent>
+  getKnowledgeTransferDocument(name: string): Promise<{ uri: string; markdown: string } | null>
   runClass(className: string): Promise<string>
   runClassWithProfiling(className: string): Promise<SapProfiledClassRunResult>
   runProgramWithProfiling(programName: string): Promise<SapProfiledClassRunResult>
@@ -537,7 +541,7 @@ export interface SapClient {
   ): Promise<SapSystemInfo>
 }
 
-export type SapClientFactory = (profile: SapProfile, credential: SapCredential) => SapClient
+export type SapClientFactory = (profile: SapProfile, credential: SapCredential, transportFactory?: AdtTransportFactory) => SapClient
 
 function mapSearchResult(result: SearchResult): SapObjectReference {
   return {
@@ -681,8 +685,23 @@ function parseUtcOffset(rawOffset: string): string {
   return `UTC${sign}${hours}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`
 }
 
+function canProbeAnotherSourceUri(error: unknown, allowLegacyStructureError = false): boolean {
+  if (error === null || typeof error !== "object") return allowLegacyStructureError
+  const candidate = error as {
+    status?: unknown; err?: unknown; response?: { status?: unknown }
+    details?: { httpStatus?: unknown }; code?: unknown
+  }
+  const status = [candidate.response?.status, candidate.status, candidate.err, candidate.details?.httpStatus]
+    .find(value => typeof value === "number" && value >= 100 && value <= 599)
+  if (status !== undefined) return status === 404 || status === 405 || status === 501
+  // Legacy structure parsers may fail without HTTP status. Transport and local
+  // consistency errors must not be hidden by probing another source endpoint.
+  return allowLegacyStructureError && !(error instanceof AppError) && candidate.code === undefined
+}
+
 export class AdtSapClient implements SapClient {
   private readonly client: ADTClient
+  private readonly sourceCache = new SourceCache((uri, options) => this.client.httpClient.request(uri, options))
   private readonly credential: SapCredential
   private mutationQueue: Promise<void> = Promise.resolve()
   private debugRuntime: DebugRuntime | undefined
@@ -690,7 +709,8 @@ export class AdtSapClient implements SapClient {
 
   constructor(
     readonly profile: SapProfile,
-    credential: SapCredential | string
+    credential: SapCredential | string,
+    private readonly transportFactory?: AdtTransportFactory
   ) {
     this.credential = typeof credential === "string"
       ? { type: "basic", password: credential }
@@ -698,14 +718,28 @@ export class AdtSapClient implements SapClient {
     if (!profile.username && this.credential.type === "basic") {
       throw new AppError("USERNAME_REQUIRED", `SAP profile ${profile.id} has no username`)
     }
-    this.client = new ADTClient(
-      profile.url,
-      profile.username ?? "OAUTH",
-      this.credential.type === "basic"
-        ? this.credential.password
-        : this.credential.fetchToken,
-      profile.client,
-      profile.language
+    this.client = this.createAdtClient()
+  }
+
+  private createAdtClient(): ADTClient {
+    const credential = this.credential.type === "basic"
+      ? this.credential.password
+      : this.credential.fetchToken
+    if (this.transportFactory) {
+      return new TransportAdtClient(
+        this.transportFactory,
+        this.profile.username ?? "OAUTH",
+        credential,
+        this.profile.client,
+        this.profile.language
+      )
+    }
+    return new ADTClient(
+      this.profile.url,
+      this.profile.username ?? "OAUTH",
+      credential,
+      this.profile.client,
+      this.profile.language
     )
   }
 
@@ -714,6 +748,7 @@ export class AdtSapClient implements SapClient {
   }
 
   async logout(): Promise<void> {
+    this.sourceCache.clear()
     await this.stopDebugSession().catch(() => undefined)
     await this.client.logout()
   }
@@ -732,27 +767,29 @@ export class AdtSapClient implements SapClient {
   }
 
   async readSourceByUri(uri: string, version?: ObjectVersion): Promise<SapSourceByUri> {
+    if (ADTClient.isMainInclude(uri)) {
+      // Explicit source locations must not be replaced by an object's main include.
+      return { source: await this.sourceCache.read(uri, version), sourceUri: uri }
+    }
     const candidates: string[] = []
 
     try {
       const structure = await this.client.objectStructure(uri, version)
       candidates.push(ADTClient.mainInclude(structure))
-    } catch {
+    } catch (error) {
+      if (!canProbeAnotherSourceUri(error, true)) throw error
       // Older backends can reject object structure for some object types.
     }
 
-    if (ADTClient.isMainInclude(uri)) candidates.push(uri)
-    else candidates.push(`${uri.replace(/\/+$/, "")}/source/main`, uri)
+    candidates.push(`${uri.replace(/\/+$/, "")}/source/main`, uri)
 
     let lastError: unknown
     for (const sourceUri of [...new Set(candidates)]) {
       try {
-        const source = await this.client.getObjectSource(
-          sourceUri,
-          version ? { version } : undefined
-        )
+        const source = await this.sourceCache.read(sourceUri, version)
         return { source, sourceUri }
       } catch (error) {
+        if (!canProbeAnotherSourceUri(error)) throw error
         lastError = error
       }
     }
@@ -1365,6 +1402,19 @@ export class AdtSapClient implements SapClient {
       column,
       superTypes
     )
+  }
+
+  async getKnowledgeTransferDocument(name: string): Promise<{ uri: string; markdown: string } | null> {
+    const uri = `/sap/bc/adt/documentation/ktd/documents/${encodeURIComponent(name.toLowerCase())}`
+    try {
+      const xml = await this.sourceCache.read(uri, "active", "application/vnd.sap.adt.sktdv2+xml")
+      return { uri, markdown: decodeKnowledgeTransferDocument(xml) }
+    } catch (error) {
+      const failure = error as { err?: unknown; status?: unknown; response?: { status?: unknown }; details?: { httpStatus?: unknown } } | null
+      if (failure?.response?.status === 404 || failure?.status === 404 || failure?.err === 404 ||
+          failure?.details?.httpStatus === 404) return null
+      throw error
+    }
   }
 
   async getClassComponents(objectUri: string): Promise<ClassComponent> {
@@ -2244,15 +2294,7 @@ export class AdtSapClient implements SapClient {
         }
         if (!isDebuggee(event)) continue
 
-        const executionClient = new ADTClient(
-          this.profile.url,
-          this.profile.username ?? "OAUTH",
-          this.credential.type === "basic"
-            ? this.credential.password
-            : this.credential.fetchToken,
-          this.profile.client,
-          this.profile.language
-        )
+        const executionClient = this.createAdtClient()
         await executionClient.login()
         executionClient.stateful = session_types.stateful
         await executionClient.adtCoreDiscovery()
@@ -2275,7 +2317,15 @@ export class AdtSapClient implements SapClient {
   }
 
   private serializeMutation<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.mutationQueue.then(operation, operation)
+    const execute = async () => {
+      this.sourceCache.clear()
+      try {
+        return await operation()
+      } finally {
+        this.sourceCache.clear()
+      }
+    }
+    const result = this.mutationQueue.then(execute, execute)
     this.mutationQueue = result.then(() => undefined, () => undefined)
     return result
   }
@@ -2384,5 +2434,5 @@ export class AdtSapClient implements SapClient {
   }
 }
 
-export const defaultSapClientFactory: SapClientFactory = (profile, credential) =>
-  new AdtSapClient(profile, credential)
+export const defaultSapClientFactory: SapClientFactory = (profile, credential, transportFactory) =>
+  new AdtSapClient(profile, credential, transportFactory)

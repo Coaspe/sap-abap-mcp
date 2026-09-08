@@ -6,8 +6,11 @@ import { dirname, isAbsolute, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 import { createTwoFilesPatch, diffLines } from "diff"
+import { sanitizeV1Message } from "./mcp/v1/result.js"
+import { toAdtResourceUri } from "./mcp/v1/resource-uri.js"
+import { PublicApiCache } from "./public-api-cache.js"
 import { AppError } from "./errors.js"
-import { enforceDataAccessPolicy, requireDataQueryOptIn } from "./data-access-policy.js"
+import { requireDataQueryOptIn } from "./data-access-policy.js"
 import {
   isCreatableTypeId,
   isGroupType,
@@ -150,6 +153,7 @@ export interface SearchObjectLinesInput {
 }
 
 export interface GetObjectInfoInput {
+  documentation?: { offset: number; maxChars: number }
   objectName: string
   objectType?: string
   connectionId: string
@@ -292,7 +296,6 @@ export type ActivateObjectInput =
 
 export interface ExecuteDataQueryInput {
   sql?: string
-  acknowledgeRisk?: boolean
   data?: {
     columns: Array<{ name: string; type: string; description?: string }>
     values: Array<Record<string, unknown>>
@@ -401,6 +404,13 @@ export interface InspectCodeInput extends WorkspaceFileInput {
   endColumn?: number
   implementation: boolean
   superTypes?: boolean
+  publicApi?: boolean
+  definitionName?: string
+  includeRelated?: boolean
+  documentation?: { offset: number; maxChars: number }
+  ifNoneMatch?: string
+  componentPath?: string[]
+  visibility?: "public" | "protected" | "private"
   startIndex: number
   maxResults: number
 }
@@ -736,6 +746,8 @@ interface GitStageState {
 const INLINE_TEXT_BYTE_LIMIT = 96 * 1024
 const DIFF_PATCH_BYTE_LIMIT = 64 * 1024
 const MAX_BATCH_LINES = 5000
+const MAX_BATCH_SOURCE_BYTES = 64 * 1024
+const MAX_BATCH_READ_CONCURRENCY = 4
 const PLAN_TTL_MS = 10 * 60 * 1000
 const MAX_CACHED_PLANS = 100
 
@@ -839,7 +851,8 @@ function selectLines(
   lines: string[],
   startIndex: number,
   lineCount: number,
-  byteLimit = INLINE_TEXT_BYTE_LIMIT
+  byteLimit = INLINE_TEXT_BYTE_LIMIT,
+  allowOversizedLine = true
 ) {
   const selected: string[] = []
   let bytes = 0
@@ -847,7 +860,7 @@ function selectLines(
   for (let index = startIndex; index < requestedEnd; index += 1) {
     const line = lines[index] ?? ""
     const lineBytes = Buffer.byteLength(line, "utf8") + (selected.length > 0 ? 1 : 0)
-    if (selected.length > 0 && bytes + lineBytes > byteLimit) break
+    if ((selected.length > 0 || !allowOversizedLine) && bytes + lineBytes > byteLimit) break
     selected.push(line)
     bytes += lineBytes
   }
@@ -1083,9 +1096,13 @@ function parseAdtLocation(value: string, explicitConnectionId?: string) {
         `URI connection ${uri.hostname} does not match ${explicitConnectionId}`
       )
     }
+    try { decodeURIComponent(uri.pathname) } catch {
+      throw new AppError("INVALID_ADT_URI", "ADT path contains invalid percent encoding")
+    }
     return {
       connectionId: uri.hostname.toUpperCase(),
-      path: decodeURIComponent(uri.pathname)
+      // Encoded slashes belong to namespaced object names, not path separators.
+      path: uri.pathname
     }
   }
 
@@ -1385,6 +1402,7 @@ function stripHtml(html: string): string {
 }
 
 export class AbapToolService {
+  private publicApiCache?: PublicApiCache
   private readonly atcDecorations = new Map<string, CachedAtcDecoration[]>()
   private readonly capabilities = new SapCapabilityRegistry()
   private readonly dataViews = new Map<string, DataViewState>()
@@ -1410,6 +1428,7 @@ export class AbapToolService {
    * closing session must also stop any heartbeat it started.
    */
   dispose(): void {
+    this.publicApiCache?.clear()
     this.heartbeatActive = false
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
     this.heartbeatTimer = undefined
@@ -1772,7 +1791,249 @@ export class AbapToolService {
     }
   }
 
+  private async parsePublicApi(source: string, name: string) {
+    const { extractPublicApi } = await import("./public-api.js")
+    this.publicApiCache ??= new PublicApiCache(extractPublicApi)
+    return this.publicApiCache.read(source, name)
+  }
+
+  private async inspectComponents(input: InspectCodeInput) {
+    if (input.definitionName !== undefined && !input.publicApi) {
+      throw new AppError("SAP_VALIDATION_FAILED", "definitionName requires publicApi")
+    }
+    if (input.ifNoneMatch !== undefined && !input.publicApi) {
+      throw new AppError("SAP_VALIDATION_FAILED", "ifNoneMatch requires publicApi")
+    }
+    if (input.includeRelated && !input.publicApi) {
+      throw new AppError("SAP_VALIDATION_FAILED", "includeRelated requires publicApi")
+    }
+    if (input.documentation && !input.publicApi) {
+      throw new AppError("SAP_VALIDATION_FAILED", "documentation requires publicApi")
+    }
+    const location = parseAdtLocation(input.fileUri, input.connectionId)
+    const client = await this.connections.getClient(location.connectionId)
+    const objectUri = objectUriFromSourceUri(location.path)
+    const structure = await client.getObjectStructure(objectUri)
+    const object = {
+      name: structure.metaData["adtcore:name"],
+      type: structure.metaData["adtcore:type"],
+      uri: objectUri
+    }
+    const objectType = object.type.toUpperCase()
+    const baseObjectType = objectType.split("/")[0]
+    if (baseObjectType !== "CLAS" && baseObjectType !== "INTF") {
+      throw new AppError(
+        "SAP_VALIDATION_FAILED",
+        "components requires a class or interface",
+        { reason: "COMPONENTS_OBJECT_TYPE_INVALID", objectType: object.type }
+      )
+    }
+    if (input.publicApi) {
+      if (input.componentPath !== undefined || input.visibility !== undefined) {
+        throw new AppError("SAP_VALIDATION_FAILED", "Public API view cannot use componentPath or visibility")
+      }
+      const definitionName = input.definitionName?.toUpperCase() ?? object.name
+      const source = await client.readSourceByUri(input.definitionName ? location.path : objectUri, "active")
+      if (input.definitionName && location.path !== objectUri && source.sourceUri !== location.path.replace(/[?#].*$/, "")) {
+        throw new AppError("SAP_VALIDATION_FAILED", "Public definition source differs from the requested source", { reason: "DEFINITION_SOURCE_MISMATCH" })
+      }
+      const declarations = await this.parsePublicApi(source.source, definitionName)
+      const selected = []
+      let remaining = 32 * 1024
+      for (const declaration of declarations.slice(input.startIndex, input.startIndex + input.maxResults)) {
+        const bounded = boundInlineText(declaration.code, remaining)
+        selected.push({ ...declaration, code: bounded.content, codeTruncated: bounded.truncated,
+          ...(bounded.truncated ? { sourceRead: {
+            tool: "sap.source.read",
+            arguments: { systemId: location.connectionId,
+              resourceUri: toAdtResourceUri(location.connectionId, source.sourceUri),
+              startLine: declaration.startLine,
+              lineCount: Math.min(50, declaration.endLine - declaration.startLine + 1) },
+            stopAfterLine: declaration.endLine
+          } } : {}),
+          ...(declaration.relatedTypes ? {
+            relatedTypes: declaration.relatedTypes.slice(0, 20),
+            relatedTypesTruncated: declaration.relatedTypes.length > 20
+          } : {}) })
+        remaining -= bounded.returnedBytes
+        if (bounded.truncated || remaining === 0) break
+      }
+      const next = input.startIndex + selected.length
+      const relatedContracts: Array<Record<string, unknown>> = []
+      let relatedReferences = 0
+      let relatedAttempted = 0
+      let relatedDepthLimited = false
+      if (input.includeRelated) {
+        const refs = declarations.slice(input.startIndex, next).flatMap(item => item.relatedTypes ?? [])
+        const unique = [...new Map(refs.map(ref => [ref.name, ref])).values()]
+        relatedReferences = unique.length
+        const queue: Array<{ ref: typeof unique[number] & { depth?: number; fromSourceUri?: string }; origin: typeof source; depth: number }> =
+          unique.map(ref => ({ ref, origin: source, depth: 1 }))
+        const queued = new Set(unique.map(ref => `${source.sourceUri}:${ref.name}`))
+        const seen = new Map(definitionName.toUpperCase() === object.name.toUpperCase()
+          ? [[objectUri.toLowerCase(), object.name.toUpperCase()]] : [])
+        const sourceFiles = new Map([[source.sourceUri, source]])
+        const includedLocalContracts = new Set<string>()
+        for (let index = 0; index < queue.length && relatedAttempted < 5; index++) {
+          const { ref, origin, depth } = queue[index]!
+          if (remaining === 0) break
+          relatedAttempted++
+          const definition = await client.findDefinition(origin.sourceUri, origin.source,
+            ref.line, ref.column, ref.column + ref.name.length, false)
+          const uri = objectUriFromSourceUri(definition.url ?? "")
+          let validName = false
+          try { validName = /^(?:\/[a-z0-9_]+\/)?[a-z0-9_]+$/i.test(decodeURIComponent(uri.split("/").at(-1) ?? "")) } catch { /* Invalid URI encoding is not a contract target. */ }
+          // Resolve only local global OO contracts; never follow external or arbitrary URLs.
+          if (!validName || !/^\/sap\/bc\/adt\/oo\/(classes|interfaces)\/[a-z0-9_%]+$/i.test(uri)) {
+            relatedContracts.push({ ...ref, status: "unresolved" })
+            continue
+          }
+          const includedName = seen.get(uri.toLowerCase())
+          if (includedName === ref.name) {
+            relatedContracts.push({ ...ref, uri, status: "already_included" })
+            continue
+          }
+          const relatedName = includedName ?? (await client.getObjectStructure(uri)).metaData["adtcore:name"]
+          const local = relatedName.toUpperCase() !== ref.name
+          let relatedSource
+          let contract
+          if (local) {
+            const target = (definition.url ?? "").replace(/[?#].*$/, "")
+            if (target === source.sourceUri && ref.name === definitionName) {
+              relatedContracts.push({ ...ref, uri, status: "already_included" })
+              continue
+            }
+            if (target !== `${uri}/source/main` && !["definitions", "implementations", "testclasses"].some(include => target === `${uri}/includes/${include}`)) {
+              relatedContracts.push({ ...ref, uri, status: "unresolved", reason: "TARGET_NAME_DIFFERS" })
+              continue
+            }
+            if (includedLocalContracts.has(`${target}#${ref.name}`)) {
+              relatedContracts.push({ ...ref, uri, sourceUri: target, scope: "local", status: "already_included" })
+              continue
+            }
+            relatedSource = sourceFiles.get(target) ?? await client.readSourceByUri(target, "active")
+            if (relatedSource.sourceUri !== target) {
+              relatedContracts.push({ ...ref, uri, status: "unresolved", reason: "DEFINITION_SOURCE_MISMATCH" })
+              continue
+            }
+            sourceFiles.set(target, relatedSource)
+            try { contract = await this.parsePublicApi(relatedSource.source, ref.name) }
+            catch (error) {
+              if (!(error instanceof AppError) || error.details?.reason !== "PUBLIC_API_PARSE_FAILED") throw error
+              relatedContracts.push({ ...ref, uri, status: "unresolved", reason: "LOCAL_CONTRACT_UNAVAILABLE" })
+              continue
+            }
+          } else {
+            relatedSource = await client.readSourceByUri(uri, "active")
+            contract = await this.parsePublicApi(relatedSource.source, relatedName)
+            sourceFiles.set(relatedSource.sourceUri, relatedSource)
+            seen.set(uri.toLowerCase(), relatedName.toUpperCase())
+          }
+          const text = boundInlineText(contract.map(item => item.code).join("\n"), remaining)
+          remaining -= text.returnedBytes
+          if (local) includedLocalContracts.add(`${relatedSource.sourceUri}#${ref.name}`)
+          relatedContracts.push({ ...ref, uri, name: local ? ref.name : relatedName, status: "included",
+            ...(local ? { scope: "local", startLine: contract[0]!.startLine } : {}),
+            sourceUri: relatedSource.sourceUri,
+            sourceHash: createHash("sha256").update(relatedSource.source).digest("hex"),
+            code: text.content, codeTruncated: text.truncated })
+          const ancestors = contract.flatMap(item => item.relatedTypes ?? [])
+            .filter(item => item.relation === "superclass" || item.relation === "interface")
+          if (depth === 2 && ancestors.length > 0) relatedDepthLimited = true
+          if (depth < 2) {
+            for (const ancestor of ancestors) {
+              const key = `${relatedSource.sourceUri}:${ancestor.name}`
+              if (queued.has(key)) continue
+              queued.add(key)
+              relatedReferences++
+              queue.push({ ref: { ...ancestor, depth: depth + 1, fromSourceUri: relatedSource.sourceUri },
+                origin: relatedSource, depth: depth + 1 })
+            }
+          }
+        }
+      }
+      const documentation = input.documentation
+        ? { ...await this.readDocumentationPage(client, object.name, input.documentation), objectName: object.name }
+        : undefined
+      const result = {
+        connectionId: location.connectionId, object: objectIdentity(object), view: "public_api",
+        ...(input.definitionName ? { definitionName } : {}),
+        sourceUri: source.sourceUri, sourceHash: createHash("sha256").update(source.source).digest("hex"),
+        coverage: { declaredPublicOnly: true, inheritanceResolved: false },
+        total: declarations.length, startIndex: input.startIndex, returned: selected.length,
+        truncated: next < declarations.length || selected.some(item => item.codeTruncated),
+        nextStartIndex: next < declarations.length ? next : null,
+        declarations: selected,
+        ...(documentation ? { documentation } : {}),
+        ...(input.includeRelated ? { relatedContracts, relatedCoverage: {
+          scope: "explicit_public_types_on_page_and_ancestors", depth: 2,
+          references: relatedReferences, attempted: relatedAttempted,
+          truncated: relatedDepthLimited || relatedAttempted < relatedReferences || relatedContracts.some(item => item.codeTruncated === true),
+          depthLimited: relatedDepthLimited,
+          complete: false
+        } } : {})
+      }
+      const contentHash = createHash("sha256").update(JSON.stringify(result)).digest("hex")
+      if (input.ifNoneMatch === contentHash) {
+        return { connectionId: location.connectionId, object: result.object,
+          view: "public_api", ...(input.definitionName ? { definitionName } : {}), contentHash, notModified: true }
+      }
+      return { ...result, contentHash, notModified: false }
+    }
+    const { result, capabilityStatusAtExecution } = await this.executeCapability(
+      location.connectionId,
+      "semantic.components",
+      `${objectUri}/objectstructure`,
+      () => client.getClassComponents(objectUri)
+    )
+    let selected = result
+    const componentPath: string[] = []
+    for (const name of input.componentPath ?? []) {
+      const matches = selected.components.filter(
+        item => item["adtcore:name"].toUpperCase() === name.toUpperCase()
+      )
+      if (matches.length !== 1) {
+        throw new AppError("SAP_VALIDATION_FAILED", "Component path must identify one component", {
+          reason: matches.length === 0 ? "COMPONENT_NOT_FOUND" : "COMPONENT_AMBIGUOUS",
+          componentPath: [...componentPath, name]
+        })
+      }
+      selected = matches[0]!
+      componentPath.push(selected["adtcore:name"])
+    }
+    const children = input.visibility === undefined
+      ? selected.components
+      : selected.components.filter(item => item.visibility.toLowerCase() === input.visibility)
+    const page = pageItems(children, input.startIndex, input.maxResults)
+    return {
+      connectionId: location.connectionId,
+      object: objectIdentity(object),
+      root: {
+        name: selected["adtcore:name"],
+        type: selected["adtcore:type"],
+        visibility: selected.visibility
+      },
+      ...(input.componentPath !== undefined ? { componentPath } : {}),
+      ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
+      total: page.total,
+      startIndex: page.startIndex,
+      returned: page.returned,
+      truncated: page.truncated,
+      nextStartIndex: page.nextStartIndex,
+      components: page.items.map(item => ({
+        name: item["adtcore:name"],
+        type: item["adtcore:type"],
+        visibility: item.visibility,
+        constant: item.constant ?? false,
+        readOnly: item.readOnly ?? false,
+        childCount: item.components.length
+      })),
+      capabilityStatusAtExecution
+    }
+  }
+
   async inspectCode(input: InspectCodeInput) {
+    if (input.action === "components") return this.inspectComponents(input)
     const target = await this.resolveEditableTarget(input)
     if (input.action === "completion") {
       const proposals = await target.client.getCodeCompletions(
@@ -1895,47 +2156,6 @@ export class AbapToolService {
       }
     }
 
-    if (input.action === "components") {
-      const objectType = target.object.type.toUpperCase()
-      const baseObjectType = objectType.split("/")[0]
-      if (baseObjectType !== "CLAS" && baseObjectType !== "INTF") {
-        throw new AppError(
-          "SAP_VALIDATION_FAILED",
-          "components requires a class or interface",
-          { reason: "COMPONENTS_OBJECT_TYPE_INVALID", objectType: target.object.type }
-        )
-      }
-      const { result, capabilityStatusAtExecution } = await this.executeCapability(
-        target.connectionId,
-        "semantic.components",
-        `${target.objectUri}/objectstructure`,
-        () => target.client.getClassComponents(target.objectUri)
-      )
-      const page = pageItems(result.components, input.startIndex, input.maxResults)
-      return {
-        connectionId: target.connectionId,
-        object: objectIdentity(target.object),
-        root: {
-          name: result["adtcore:name"],
-          type: result["adtcore:type"],
-          visibility: result.visibility
-        },
-        total: page.total,
-        startIndex: page.startIndex,
-        returned: page.returned,
-        truncated: page.truncated,
-        nextStartIndex: page.nextStartIndex,
-        components: page.items.map(item => ({
-          name: item["adtcore:name"],
-          type: item["adtcore:type"],
-          visibility: item.visibility,
-          constant: item.constant ?? false,
-          readOnly: item.readOnly ?? false,
-          childCount: item.components.length
-        })),
-        capabilityStatusAtExecution
-      }
-    }
 
     if (input.action === "definition") {
       const range = input.endColumn === undefined
@@ -2768,7 +2988,6 @@ export class AbapToolService {
     if (input.sql) {
       validateReadOnlySql(input.sql)
       requireDataQueryOptIn(client.profile)
-      enforceDataAccessPolicy(input.sql, input.acknowledgeRisk)
     }
     if (input.displayMode === "internal") {
       if (!input.rowRange) {
@@ -2900,6 +3119,8 @@ export class AbapToolService {
       dialect: "SAP ADT data preview SQL",
       rules: [
         "Only SELECT and WITH statements are accepted by this MCP tool.",
+        "Caller-supplied SQL requires a development or quality profile with data queries explicitly enabled during setup or with --allow-data-queries.",
+        "The opt-in permits all read-only table queries, including access to sensitive business and personal data allowed by the SAP user.",
         "Use ABAP Dictionary table/view names and ABAP field names, not CDS SQL-view aliases unless the backend exposes them.",
         "Use single quotes for character literals and double single-quotes to escape an apostrophe.",
         "Prefer explicit field lists. Do not send INSERT, UPDATE, DELETE, MODIFY, DDL, comments, or multiple statements.",
@@ -5270,7 +5491,6 @@ export class AbapToolService {
         if (task.sampleQuery) {
           validateReadOnlySql(task.sampleQuery)
           requireDataQueryOptIn(client.profile)
-          enforceDataAccessPolicy(task.sampleQuery)
           const query = await client.runQuery(task.sampleQuery, 1000)
           const count = query.values.length
           result = {
@@ -5748,6 +5968,25 @@ export class AbapToolService {
     }
   }
 
+  private async readDocumentationPage(client: SapClient, objectName: string, page: { offset: number; maxChars: number }) {
+    const document = await client.getKnowledgeTransferDocument(objectName)
+    if (document === null) {
+      return { status: "not_found_or_unsupported", version: "active" }
+    } else {
+      const characters = Array.from(document.markdown)
+      const offset = page.offset
+      const content = characters.slice(offset, offset + page.maxChars).join("")
+      const returned = Array.from(content).length
+      return {
+        status: "available", uri: document.uri, version: "active", format: "markdown",
+        documentHash: createHash("sha256").update(document.markdown).digest("hex"),
+        content, offset, returned, totalChars: characters.length,
+        nextOffset: offset + returned < characters.length ? offset + returned : null,
+        truncated: offset + returned < characters.length
+      }
+    }
+  }
+
   async getObjectInfo(input: GetObjectInfoInput) {
     const client = await this.connections.getClient(input.connectionId)
     const object = await resolveObject(client, input.objectName, input.objectType)
@@ -5761,6 +6000,9 @@ export class AbapToolService {
     const source = object.type === "DEVC/K" ? null : await client.readObject(object)
     const structure = await client.getObjectStructure(object.uri)
     const structureRecord = structure as unknown as Record<string, unknown>
+    const documentation = input.documentation
+      ? await this.readDocumentationPage(client, object.name, input.documentation)
+      : undefined
     const childPage = input.includeChildren
       ? pageItems(
           (await client.getNodeContents(
@@ -5819,6 +6061,7 @@ export class AbapToolService {
           : 0
       },
       ...(input.includeStructure ? { structure } : {}),
+      ...(documentation ? { documentation } : {}),
       ...(enhancementImplementations ? {
         enhancements: enhancementImplementations,
         enhancementCount: enhancements!.implementations.length,
@@ -6128,32 +6371,50 @@ export class AbapToolService {
         { requestedLines, maxLines: MAX_BATCH_LINES }
       )
     }
-    const results = await Promise.allSettled(
-      input.requests.map(request =>
-        this.getObjectLines({
-          objectName: request.objectName,
-          startLine: request.startLine + 1,
-          lineCount: request.lineCount,
-          connectionId: input.connectionId
-        })
-      )
-    )
+    let remaining = MAX_BATCH_SOURCE_BYTES
+    const formatResult = (result: PromiseSettledResult<Awaited<ReturnType<AbapToolService["getObjectLines"]>>>, index: number) => {
+      if (result.status === "rejected") return {
+        request: input.requests[index], ok: false as const,
+        error: sanitizeV1Message(result.reason instanceof Error ? result.reason.message : String(result.reason))
+      }
+      const { connectionId: _connectionId, ...value } = result.value
+      const lines = value.endLine < value.startLine ? [] : value.code.split("\n")
+      const page = selectLines(lines, 0, lines.length, remaining, false)
+      const code = page.selected.join("\n")
+      remaining -= Buffer.byteLength(code)
+      return { request: input.requests[index], ok: true as const, result: {
+        ...value, code,
+        endLine: value.startLine + page.selected.length - 1,
+        truncated: value.truncated || page.truncated,
+        nextLine: page.truncated ? value.startLine + page.selected.length : value.nextLine,
+        ...(page.truncated ? { truncationReason: "batch_byte_budget" } : {})
+      } }
+    }
+    const items: Array<ReturnType<typeof formatResult> | {
+      request: GetBatchLinesInput["requests"][number]; ok: false; deferred: true; error: string
+    }> = []
+    for (let start = 0; start < input.requests.length; start += MAX_BATCH_READ_CONCURRENCY) {
+      const chunk = input.requests.slice(start, start + MAX_BATCH_READ_CONCURRENCY)
+      const results = await Promise.allSettled(chunk.map(request => this.getObjectLines({
+        objectName: request.objectName, startLine: request.startLine + 1,
+        lineCount: request.lineCount, connectionId: input.connectionId
+      })))
+      const formatted = results.map((result, index) => formatResult(result, start + index))
+      items.push(...formatted)
+      if (formatted.some(item => item.ok && item.result.truncationReason === "batch_byte_budget")) {
+        items.push(...input.requests.slice(start + chunk.length).map(request => ({
+          request, ok: false as const, deferred: true as const,
+          error: "Batch source budget reached; retry this unchanged request in a smaller batch"
+        })))
+        break
+      }
+    }
     return {
-      connectionId: input.connectionId.toUpperCase(),
-      count: results.length,
-      requestedLines,
-      results: results.map((result, index) =>
-        result.status === "fulfilled"
-          ? (() => {
-              const { connectionId: _connectionId, ...value } = result.value
-              return { request: input.requests[index], ok: true as const, result: value }
-            })()
-          : {
-              request: input.requests[index],
-              ok: false as const,
-              error: result.reason instanceof Error ? result.reason.message : String(result.reason)
-            }
-      )
+      connectionId: input.connectionId.toUpperCase(), count: items.length, requestedLines,
+      sourceByteLimit: MAX_BATCH_SOURCE_BYTES,
+      returnedSourceBytes: MAX_BATCH_SOURCE_BYTES - remaining,
+      truncated: items.some(item => item.ok ? item.result.truncated : "deferred" in item),
+      results: items
     }
   }
 
@@ -6373,13 +6634,13 @@ export class AbapToolService {
       ...(input.line !== undefined ? { line: input.line } : {}),
       ...(input.column !== undefined ? { column: input.column } : {})
     }]
+    const scheduled = new Set<string>([rootId])
     const expanded = new Set<string>()
+    const depthBoundary = new Set<string>()
     let limited = false
     while (queue.length > 0) {
       const current = queue.shift()!
-      const expansionKey = `${current.id}:${current.uri}`
-      if (expanded.has(expansionKey) || current.level >= input.depth) continue
-      expanded.add(expansionKey)
+      expanded.add(current.id)
       const references = await client.findUsageReferences(
         current.uri,
         current.line ?? 1,
@@ -6414,8 +6675,17 @@ export class AbapToolService {
             ...(parsed.member ? { member: parsed.member } : {})
           })
         }
-        if (parsed.canExpand && current.level + 1 < input.depth) {
-          queue.push({ id: parsed.id, uri: parsed.uri, level: current.level + 1 })
+        if (parsed.canExpand && !scheduled.has(parsed.id)) {
+          if (current.level + 1 < input.depth) {
+            scheduled.add(parsed.id)
+            queue.push({
+              id: parsed.id,
+              uri: parsed.uri.replace(/#.*$/, ""),
+              level: current.level + 1
+            })
+          } else {
+            depthBoundary.add(parsed.id)
+          }
         }
       }
     }
@@ -6427,6 +6697,12 @@ export class AbapToolService {
       nodeCount: nodes.size,
       edgeCount: edges.size,
       truncated: limited,
+      coverage: {
+        direction: "where_used" as const,
+        expandedNodes: expanded.size,
+        depthLimited: [...depthBoundary].some(id => !expanded.has(id)),
+        nodeLimited: limited
+      },
       nodes: [...nodes.values()],
       edges: [...edges.values()]
     }
