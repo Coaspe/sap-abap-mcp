@@ -64,16 +64,20 @@ import {
   runSetupRemoval,
   runSetupWizard
 } from "./setup-wizard.js"
+import { runOnboard } from "./onboard.js"
 
 const HELP = `sap-abap-mcp
 
 Commands:
+  onboard
+      Opens a local browser wizard for first-time Claude, Codex, MCP, and SAP setup.
   setup
   setup edit [<server-name>]
   setup remove [<server-name>]
   profile add <id> --url <url> --client <nnn> [--language EN]
       [--environment development|quality|production] [--username <user>]
-      [--auth-type basic|oauth-client-credentials|oauth-authorization-code|bearer-passthrough]
+      [--auth-type basic|oauth-client-credentials|oauth-authorization-code|bearer-passthrough|btp-destination]
+      [--destination-name <name> --destination-auth OAuth2UserTokenExchange|PrincipalPropagation]
       [--authorization-url <url>] [--token-url <url> --client-id <id> [--scope <scope>]]
       [--classic-bridge-path /sap/bc/rest/zmcp_rfc]
       [--packages ZPKG1,ZPKG2] [--allow-data-queries] [--login [--password-stdin]]
@@ -100,7 +104,7 @@ Commands:
       Read-only transport change assurance for CI. Exit 0 passed, 1 failed,
       2 incomplete. Never releases or modifies the transport.
   serve [--profile <id>] [--api-version v0|v1]
-      [--preset compact|development|assurance|adaptive]
+      [--preset adaptive|minimal|single|compact|development|assurance]
       [--toolsets core,write,analysis,debug,operations,artifacts|all]
       [--audit-log none|stderr|file] [--audit-log-file <path>] [--audit-include-arguments]
       [--http [--api-keys-file <path>]
@@ -250,10 +254,10 @@ export async function addProfile(
     throw new AppError("USERNAME_REQUIRED", "Provide --username when using --login")
   }
   if (!login.password) {
-    if (profile.authType === "bearer_passthrough") {
+    if (profile.authType === "bearer_passthrough" || profile.authType === "btp_destination") {
       throw new AppError(
         "AUTH_PASSTHROUGH_REQUIRED",
-        "bearer-passthrough profiles receive credentials from OIDC-authenticated HTTP sessions"
+        "Request-scoped profiles receive credentials from OIDC-authenticated HTTP sessions"
       )
     }
     throw new AppError(
@@ -322,11 +326,11 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     }
 
     const authTypeOption = option(parsed, "auth-type") ?? "basic"
-    if (!["basic", "oauth-client-credentials", "oauth-authorization-code", "bearer-passthrough"]
+    if (!["basic", "oauth-client-credentials", "oauth-authorization-code", "bearer-passthrough", "btp-destination"]
       .includes(authTypeOption)) {
       throw new AppError(
         "AUTH_TYPE_INVALID",
-        "--auth-type must be basic, oauth-client-credentials, oauth-authorization-code, or bearer-passthrough"
+        "--auth-type must be basic, oauth-client-credentials, oauth-authorization-code, bearer-passthrough, or btp-destination"
       )
     }
     const authType = authTypeOption.replaceAll("-", "_") as SapProfile["authType"]
@@ -340,6 +344,10 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
       ...(classicBridgePath ? { classicBridgePath } : {}),
       allowDataQueries: parsed.options.has("allow-data-queries"),
       authType,
+      ...(authType === "btp_destination" ? {
+        destinationName: requiredOption(parsed, "destination-name"),
+        destinationAuthentication: requiredOption(parsed, "destination-auth") as "OAuth2UserTokenExchange" | "PrincipalPropagation"
+      } : {}),
       ...(authType === "oauth_client_credentials" || authType === "oauth_authorization_code"
         ? {
             tokenUrl: requiredOption(parsed, "token-url"),
@@ -358,10 +366,10 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     }
 
     const candidate = normalizeProfile(input)
-    if (candidate.authType === "bearer_passthrough") {
+    if (candidate.authType === "bearer_passthrough" || candidate.authType === "btp_destination") {
       throw new AppError(
         "AUTH_PASSTHROUGH_REQUIRED",
-        "bearer-passthrough profiles do not use profile add --login"
+        "Request-scoped profiles do not use profile add --login; connect through an OIDC-authenticated HTTP session"
       )
     }
     if (candidate.authType === "basic" && !candidate.username) {
@@ -411,6 +419,14 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
 
   if (action === "status") {
     const profile = await profiles.get(id)
+    if (profile.authType === "btp_destination" || profile.authType === "bearer_passthrough") {
+      writeJson({
+        profileId: profile.id, authType: profile.authType, username: profile.username ?? null,
+        credentialAvailable: false, credentialSource: "http_oidc", localCredentialRequired: false,
+        nextAction: "Connect through an OIDC-authenticated HTTP session; no local password login is required"
+      })
+      return
+    }
     writeJson({
       profileId: profile.id,
       authType: profile.authType,
@@ -429,10 +445,10 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
 
   if (action === "login") {
     const storedProfile = await profiles.get(id)
-    if (storedProfile.authType === "bearer_passthrough") {
+    if (storedProfile.authType === "bearer_passthrough" || storedProfile.authType === "btp_destination") {
       throw new AppError(
         "AUTH_PASSTHROUGH_REQUIRED",
-        "bearer-passthrough profiles receive credentials from OIDC-authenticated HTTP sessions"
+        "Request-scoped profiles receive credentials from OIDC-authenticated HTTP sessions"
       )
     }
     const username = option(parsed, "username") ?? storedProfile.username
@@ -538,6 +554,13 @@ async function abapGitCommand(
 
 async function doctorCommand(parsed: ParsedArguments, profiles: ProfileStore, secrets: SecretStore) {
   const id = requiredPosition(parsed, 1, "profile id")
+  const profile = await profiles.get(id)
+  if (profile.authType === "btp_destination") {
+    const { btpConfigurationDiagnostics } = await import("./btp-diagnostics.js")
+    writeJson(btpConfigurationDiagnostics(profile, process.env.VCAP_SERVICES))
+    process.exitCode = 2
+    return
+  }
   const manager = new ConnectionManager(profiles, secrets, undefined, id)
   try {
     const client = await manager.getClient(id)
@@ -577,6 +600,22 @@ async function setupCommand(
       platform: process.platform,
       ...(action === "edit" ? { mode: "edit" as const } : {}),
       ...(serverName ? { serverName } : {}),
+      validateCredentials: (profile, password) => manager.validateCredentials(profile, password)
+    })
+  } finally {
+    await manager.close()
+  }
+}
+
+async function onboardCommand(
+  profiles: ProfileStore,
+  secrets: SecretStore
+): Promise<void> {
+  const manager = new ConnectionManager(profiles, secrets)
+  try {
+    await runOnboard({
+      profiles,
+      secrets,
       validateCredentials: (profile, password) => manager.validateCredentials(profile, password)
     })
   } finally {
@@ -833,8 +872,9 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
     selectedToolsets = toolsets as ToolsetName[]
   }
 
-  const selection = resolveServeToolSelection(apiVersion, selectedToolsets, preset)
-  if (apiVersion === "v1" && selection.enabledV1Tools &&
+  const selection = resolveServeToolSelection(apiVersion, selectedToolsets,
+    preset ?? (apiVersion === "v1" && selectedToolsets === undefined ? "minimal" : undefined))
+  if (apiVersion === "v1" && !selection.adaptive && selection.enabledV1Tools &&
     !V1_IMPLEMENTED_TOOL_NAMES.some(name => selection.enabledV1Tools!.has(name))) {
     throw new AppError(
       "V1_TOOLSET_EMPTY",
@@ -966,6 +1006,7 @@ export async function runCli(args = process.argv.slice(2)): Promise<void> {
 
   const profiles = new ProfileStore()
   const secrets = createDefaultSecretStore()
+  if (command === "onboard") return onboardCommand(profiles, secrets)
   if (command === "setup") return setupCommand(parsed, profiles, secrets)
   if (command === "profile") return profileCommand(parsed, profiles, secrets)
   if (command === "auth") return authCommand(parsed, profiles, secrets)

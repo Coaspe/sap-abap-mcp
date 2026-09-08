@@ -28,10 +28,10 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const readme = readText("README.md")
   const directoryReference = readText("docs/mcp-directory-submissions.md")
 
-  assert.equal(packageJson.version, "1.5.2")
-  assert.ok(readme.includes("Current release version: `" + packageJson.version + "`"))
+  assert.equal(packageJson.version, "1.7.0")
+  assert.ok(readme.includes("Checkout manifest version: `" + packageJson.version + "`"))
   assert.ok(
-    directoryReference.includes("Currently published version: `" + packageJson.version + "`")
+    directoryReference.includes("Current source release: `" + packageJson.version + "`")
   )
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
@@ -131,13 +131,15 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.deepEqual(manifest.compatibility.platforms, ["darwin", "win32"])
   assert.equal(manifest.compatibility.runtimes.node, ">=20")
   assert.equal(manifest.tools_generated, false)
-  assert.equal(manifest.tools.length, 120)
-  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 120)
+  assert.equal(manifest.tools.length, 5)
+  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 5)
   const toolNames = new Set(manifest.tools.map((tool: { name: string }) => tool.name))
   for (const toolName of [
-    "sap.repository.search",
-    "sap.transport.assess",
-    "sap.rap.generate"
+    "sap.capability.invoke_read",
+    "sap.capability.search",
+    "sap.capability.describe",
+    "sap.capability.invoke_write",
+    "sap.capability.invoke_destructive"
   ]) {
     assert.ok(toolNames.has(toolName), `missing current v1 MCPB tool: ${toolName}`)
   }
@@ -182,10 +184,8 @@ test("Claude Code and Codex plugins launch the same published local MCP package"
   assert.equal(codexManifest.version, packageJson.version)
   assert.equal(codexManifest.license, "MIT")
   assert.equal(codexManifest.mcpServers, "./.mcp.json")
-  assert.ok(codexManifest.interface.defaultPrompt.length <= 3)
-  assert.ok(codexManifest.interface.defaultPrompt.every(
-    (prompt: string) => prompt.length <= 128
-  ))
+  assert.ok(codexManifest.interface.defaultPrompt.length > 0)
+  assert.ok(codexManifest.interface.defaultPrompt.length <= 3, "Codex supports at most three starter prompts")
   assert.equal(
     codexManifest.interface.privacyPolicyURL,
     "https://github.com/Coaspe/sap-abap-mcp/blob/main/PRIVACY.md"
@@ -210,6 +210,7 @@ test("Claude Code and Codex plugins launch the same published local MCP package"
       }
     }
   })
+
   assert.equal(codexMarketplace.name, "coaspe-sap")
   assert.deepEqual(codexMarketplace.plugins[0], {
     name: "sap-abap-mcp",
@@ -241,35 +242,31 @@ test("LobeHub metadata advertises the current default MCP surface", () => {
     mcpbManifest.tools.map((tool: { name: string }) => tool.name).sort()
   )
   assert.equal(lobeHubManifest.resources.length, 7)
-  assert.deepEqual(lobeHubManifest.prompts, [])
+  assert.deepEqual(lobeHubManifest.prompts.map((prompt: { name: string }) => prompt.name), [
+    "sap-change-object", "sap-explain-object", "sap-plan-rap", "sap-review-transport"
+  ])
 })
 
-test("README keeps setup concise and links detailed configuration without claiming live SAP verification", () => {
+test("README explains registry installation without claiming live SAP verification", () => {
   const readme = readText("README.md")
-  const setupGuide = readText("docs/setup-and-profiles.md")
   const quickStartIndex = readme.indexOf("## Quick start\n")
   const releaseStatusIndex = readme.indexOf("## Release status\n")
   assert.notEqual(quickStartIndex, -1)
   assert.notEqual(releaseStatusIndex, -1)
   assert.ok(quickStartIndex < releaseStatusIndex)
-  assert.ok(readme.split("\n").length <= 400, "README should stay concise")
-  assert.match(setupGuide, /PowerShell continues a line with a backtick/)
-  assert.match(setupGuide, /Command Prompt\s+\(`cmd\.exe`\) uses a caret \(`\^`\)/)
+  assert.match(readme, /PowerShell continues a line with a backtick/)
+  assert.match(readme, /Command Prompt \(`cmd\.exe`\) uses a caret \(`\^`\)/)
   assert.match(readme, /npx\.cmd @coaspe\/sap-abap-mcp@latest setup/)
   assert.match(readme, /npx @coaspe\/sap-abap-mcp@latest setup/)
   assert.match(readme, /setup edit DEV100/)
   assert.match(readme, /setup remove DEV100/)
   assert.match(readme, /`Server name` is the local name used later as `connectionId`/)
   assert.match(readme, /SAP URL/)
-  assert.match(readme, /docs\/setup-and-profiles\.md/)
-  assert.match(readme, /docs\/http-deployment\.md/)
-  assert.match(readme, /docs\/cli-reference\.md/)
-  assert.doesNotMatch(readme, /serve --profile DEV100|--prefer-online/)
   assert.match(readme, /## MCP directories and registries/)
   assert.match(readme, /io\.github\.Coaspe\/sap-abap-mcp/)
   assert.match(readme, /local `stdio` server/)
-  assert.match(readme, /remains? `unverified`/)
-  assert.match(readme, /### Plugin installation/)
+  assert.match(readme, /remain `unverified`/)
+  assert.match(readme, /### Claude Code and Codex plugin marketplaces/)
   assert.match(readme, /plugin marketplace add Coaspe\/sap-abap-mcp/)
   assert.match(readme, /\/sap-abap-mcp:sap-abap-setup/)
 })

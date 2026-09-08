@@ -8,6 +8,7 @@ import {
 import { V1_IMPLEMENTED_TOOL_NAMES } from "../src/mcp/v1/migration-catalog.js"
 import { v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
+import { resolveServeToolSelection } from "../src/mcp/tool-selection.js"
 
 function assertUnversionedServeArgs(args: readonly string[]): void {
   assert.equal(
@@ -26,8 +27,8 @@ test("v1 migration guide documents the complete local contract and live boundary
   const guide = await readFile("docs/v1-migration.md", "utf8")
 
   for (const statement of [
-    "The unversioned `serve` is the complete current v1 surface.",
-    "With no `--toolsets`, all six v1 toolsets are enabled.",
+    "The unversioned `serve` uses the minimal v1 surface.",
+    "With no `--toolsets` or `--preset`, minimal mode is enabled.",
     "The complete v1 surface contains 120 callable tools and seven Resources.",
     "All 53 v0 capabilities remain available through `--api-version v0`.",
     "Live SAP acceptance remains a separate gate",
@@ -41,7 +42,7 @@ test("v1 migration guide documents the complete local contract and live boundary
     [
       "npx @coaspe/sap-abap-mcp@latest serve",
       "npx @coaspe/sap-abap-mcp@latest serve --preset compact",
-      "npx @coaspe/sap-abap-mcp@latest serve --preset adaptive",
+      "npx @coaspe/sap-abap-mcp@latest serve --toolsets all",
       "npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis",
       "npx @coaspe/sap-abap-mcp@latest serve --api-version v0",
     ]
@@ -87,7 +88,7 @@ test("MCPB catalog matches the unversioned v1 runtime", async () => {
     tools_generated: boolean
     tools: Array<{ name: string; description: string }>
   }
-  const tools = await advertisedTools()
+  const tools = await advertisedTools(resolveServeToolSelection("v1", undefined, "minimal"))
 
   assert.equal(manifest.tools_generated, false)
   assert.deepEqual(
@@ -99,33 +100,19 @@ test("MCPB catalog matches the unversioned v1 runtime", async () => {
   )
 })
 
-test("published docs preserve current defaults, strict TMP ownership, and connection diagnosis", async () => {
+test("README documents current defaults, strict TMP ownership, and connection diagnosis", async () => {
   const readme = await readFile("README.md", "utf8")
-  const acceptancePrompt = await readFile(
-    "docs/live-sap-v1-120-tool-tmp-test-prompt.ko.md",
-    "utf8"
-  )
 
   for (const statement of [
     "Normal clients should omit both `--api-version` and `--toolsets`.",
-    "The recommended direct Codex and Cursor configurations use",
-    "Current Claude Code with MCP Tool Search",
-    "Host-side per-tool allow/deny and approval",
-    "remove `--preset adaptive` and",
     "Existing SAP objects may be used for reads, searches, and analysis.",
-    "docs/live-sap-acceptance.md",
+    "A candidate becomes `RUN_OWNED` only after both a successful create receipt and an immediate exact read-back",
+    "docs/live-sap-v1-120-tool-tmp-test-prompt.ko.md",
     "`-32000` (`ConnectionClosed`)"
   ]) {
     assert.ok(readme.includes(statement), statement)
   }
-  for (const statement of [
-    "RUN_OWNED",
-    "create receipt",
-    "immediate exact read-back"
-  ]) {
-    assert.ok(acceptancePrompt.includes(statement), statement)
-  }
-  assert.doesNotMatch(readme + acceptancePrompt, /--api-version all|168 tools/)
+  assert.doesNotMatch(readme, /--api-version all|168 tools/)
 })
 
 test("published launch guard rejects versioned or post-serve arguments", () => {

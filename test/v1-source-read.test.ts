@@ -77,11 +77,13 @@ function createSourceService() {
   return { service, lineCalls, uriCalls }
 }
 
-async function connectedClient(service: V1ReadService) {
+async function connectedClient(service: V1ReadService, adaptive = false) {
   const server = createMcpServer(service as AbapToolService, {
     apiVersion: "v1",
-    enabledV1Tools: v1ToolsForToolsets(["core"]),
-    enabledV1Resources: v1ResourcesForToolsets(["core"])
+    ...(adaptive ? { adaptive: true } : {
+      enabledV1Tools: v1ToolsForToolsets(["core"]),
+      enabledV1Resources: v1ResourcesForToolsets(["core"])
+    })
   })
   const client = new Client({ name: "v1-source-test", version: "1.0.0" })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -96,12 +98,116 @@ async function connectedClient(service: V1ReadService) {
   }
 }
 
+async function callTool(client: Client, params: Parameters<Client["callTool"]>[0]): Promise<CallToolResult> {
+  return await client.callTool(params) as CallToolResult
+}
+
 function textContent(result: CallToolResult): string {
   const content = result.content.find(item => item.type === "text")
   assert.equal(content?.type, "text")
   if (content?.type !== "text") throw new Error("expected text content")
   return content.text
 }
+
+for (const adaptive of [false, true]) {
+  test(`conditional source read reduces unchanged response bytes (${adaptive ? "adaptive" : "direct"})`, async t => {
+    const { service, lineCalls } = createSourceService()
+    let code = Array.from({ length: 200 }, (_, index) => `WRITE 'ABAP line ${index}: repeated source does not need retransmission'.`).join("\n")
+    service.getObjectLines = async input => {
+      lineCalls.push(input)
+      return {
+        connectionId: input.connectionId,
+        object: { name: input.objectName, type: "CLAS" },
+        sourceUri: "/sap/bc/adt/oo/classes/zcl_demo/source/main",
+        code, startLine: 1, endLine: 200, totalLines: 200, truncated: false, nextLine: null
+      }
+    }
+    const connection = await connectedClient(service, adaptive)
+    t.after(() => connection.close())
+    let schemaHash = ""
+    if (adaptive) {
+      const description = await callTool(connection.client, {
+        name: "sap.capability.describe", arguments: { name: "sap.source.read" }
+      })
+      schemaHash = (description.structuredContent?.data as { capability: { schemaHash: string } }).capability.schemaHash
+    }
+    const read = (ifNoneMatch?: string) => {
+      const args = { systemId: "DEV100", objectName: "ZCL_DEMO", lineCount: 200, ...(ifNoneMatch ? { ifNoneMatch } : {}) }
+      return callTool(connection.client, adaptive ? {
+        name: "sap.capability.invoke_read", arguments: { name: "sap.source.read", schemaHash, arguments: args }
+      } : { name: "sap.source.read", arguments: args })
+    }
+    const first = await read()
+    const firstData = first.structuredContent?.data as Record<string, unknown>
+    assert.equal(firstData.notModified, false)
+    assert.equal(firstData.code, code)
+    const second = await read(String(firstData.contentHash))
+    const secondData = second.structuredContent?.data as Record<string, unknown>
+    assert.equal(secondData.notModified, true)
+    assert.equal("code" in secondData, false)
+    assert.equal(secondData.contentHash, firstData.contentHash)
+    assert.equal(lineCalls.length, 2, "conditional reads must still reach the authorized service")
+    assert.equal(second.content.length, 1, "unchanged replies need no redundant resource link")
+    const firstBytes = Buffer.byteLength(JSON.stringify(first))
+    const repeatBytes = Buffer.byteLength(JSON.stringify(second))
+    assert.ok(repeatBytes < firstBytes * 0.05, `${repeatBytes}/${firstBytes}`)
+    t.diagnostic(`full=${firstBytes} bytes, unchanged=${repeatBytes} bytes`)
+    code += "\nWRITE 'external edit'."
+    const changed = await read(String(firstData.contentHash))
+    const changedData = changed.structuredContent?.data as Record<string, unknown>
+    assert.equal(changedData.notModified, false)
+    assert.equal(changedData.code, code)
+    assert.notEqual(changedData.contentHash, firstData.contentHash)
+    const reread = await read()
+    assert.equal((reread.structuredContent?.data as Record<string, unknown>).code, code)
+  })
+}
+
+test("conditional source hashes bind system, range, method and paging metadata", async t => {
+  const { service } = createSourceService()
+  const connection = await connectedClient(service)
+  t.after(() => connection.close())
+  const args = { systemId: "DEV100", objectName: "ZCL_DEMO" }
+  const first = await callTool(connection.client, { name: "sap.source.read", arguments: args })
+  const hash = (first.structuredContent?.data as Record<string, unknown>).contentHash
+  for (const change of [{ systemId: "QA100" }, { startLine: 2 }, { methodName: "GREET" }]) {
+    const result = await callTool(connection.client, { name: "sap.source.read", arguments: { ...args, ...change, ifNoneMatch: hash } })
+    const data = result.structuredContent?.data as Record<string, unknown>
+    assert.equal(data.notModified, false)
+    assert.notEqual(data.contentHash, hash)
+  }
+  const repeat = await callTool(connection.client, { name: "sap.source.read", arguments: { ...args, ifNoneMatch: hash } })
+  const data = repeat.structuredContent?.data as Record<string, unknown>
+  assert.equal(data.notModified, true)
+  assert.equal(data.truncated, true)
+  assert.equal(data.nextLine, 3)
+  const original = service.getObjectLines.bind(service)
+  service.getObjectLines = async input => {
+    const result = await original(input)
+    return result.methodName !== undefined ? result : { ...result, totalLines: 121 }
+  }
+  const changed = await callTool(connection.client, { name: "sap.source.read", arguments: { ...args, ifNoneMatch: hash } })
+  assert.equal((changed.structuredContent?.data as Record<string, unknown>).notModified, false)
+})
+
+test("conditional URI reads recheck access and validate hashes before calling SAP", async t => {
+  const { service, uriCalls } = createSourceService()
+  const connection = await connectedClient(service)
+  t.after(() => connection.close())
+  const args = { systemId: "DEV100", resourceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main" }
+  const first = await callTool(connection.client, { name: "sap.source.read", arguments: args })
+  const hash = (first.structuredContent?.data as Record<string, unknown>).contentHash
+  const repeated = await callTool(connection.client, { name: "sap.source.read", arguments: { ...args, ifNoneMatch: hash } })
+  assert.equal((repeated.structuredContent?.data as Record<string, unknown>).notModified, true)
+  assert.equal(uriCalls.length, 2)
+  const invalid = await callTool(connection.client, { name: "sap.source.read", arguments: { ...args, ifNoneMatch: "invalid" } })
+  assert.equal(invalid.isError, true)
+  assert.equal(uriCalls.length, 2)
+  service.getObjectByUri = async () => { throw new Error("SAP access denied") }
+  const denied = await callTool(connection.client, { name: "sap.source.read", arguments: { ...args, ifNoneMatch: hash } })
+  assert.equal(denied.isError, true)
+  assert.equal(denied.structuredContent, undefined)
+})
 
 test("v1 source read advertises the exact implemented tool contract", async () => {
   const v1Tools = await advertisedTools({
@@ -135,7 +241,8 @@ test("v1 source read advertises the exact implemented tool contract", async () =
     "objectType",
     "methodName",
     "startLine",
-    "lineCount"
+    "lineCount",
+    "ifNoneMatch"
   ])
   assert.deepEqual(tool.inputSchema.required, ["systemId"])
   assert.equal(
@@ -159,7 +266,8 @@ test("v1 source read advertises the exact implemented tool contract", async () =
     "endLine",
     "truncated",
     "nextLine",
-    "code"
+    "contentHash",
+    "notModified"
   ])
   assert.deepEqual(Object.keys(data?.properties ?? {}), [
     "object",
@@ -171,7 +279,9 @@ test("v1 source read advertises the exact implemented tool contract", async () =
     "totalLines",
     "truncated",
     "nextLine",
-    "code"
+    "code",
+    "contentHash",
+    "notModified"
   ])
 })
 
@@ -206,7 +316,10 @@ test("v1 source read makes one shared service call and maps full object source",
   assert.equal(data.resourceUri, "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main")
   assert.equal("sourceUri" in data, false)
   assert.equal("connectionId" in data, false)
+  assert.match(String(data.contentHash), /^[0-9a-f]{64}$/)
   assert.deepEqual(data, {
+    contentHash: data.contentHash,
+    notModified: false,
     object: { name: "ZCL_DEMO", type: "CLAS" },
     resourceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
     startLine: 4,
@@ -249,7 +362,10 @@ test("v1 source read preserves the method contract without extra SAP calls", asy
   assert.deepEqual(uriCalls, [])
   assert.deepEqual(result.structuredContent, JSON.parse(textContent(result)))
   const data = result.structuredContent?.data as Record<string, unknown>
+  assert.match(String(data.contentHash), /^[0-9a-f]{64}$/)
   assert.deepEqual(data, {
+    contentHash: data.contentHash,
+    notModified: false,
     object: { name: "ZCL_DEMO", type: "CLAS" },
     resourceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
     methodName: "GREET",
@@ -287,7 +403,11 @@ test("v1 source read accepts one canonical ADT Resource URI", async t => {
   }])
   assert.deepEqual(result.structuredContent, JSON.parse(textContent(result)))
   assert.equal(result.structuredContent?.systemId, "DEV100")
-  assert.deepEqual(result.structuredContent?.data, {
+  const data = result.structuredContent?.data as Record<string, unknown>
+  assert.match(String(data.contentHash), /^[0-9a-f]{64}$/)
+  assert.deepEqual(data, {
+    contentHash: data.contentHash,
+    notModified: false,
     resourceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
     startLine: 2,
     endLine: 3,

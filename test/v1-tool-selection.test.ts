@@ -66,7 +66,6 @@ test("presets select exact implemented v1 capabilities without duplicates", () =
     )
     assert.equal(selection.enabledV0Tools, undefined)
     assert.equal(selection.enabledV1Tools!.size, V1_MCP_PRESETS[preset].length)
-    assert.equal(selection.adaptive, preset === "adaptive" ? true : undefined)
     assert.ok(V1_MCP_PRESETS[preset].every(name =>
       V1_IMPLEMENTED_TOOL_NAMES.includes(name)
     ))

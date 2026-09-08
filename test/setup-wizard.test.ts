@@ -185,6 +185,26 @@ test("setup edit targets one server and keeps its name fixed", async t => {
   assert.equal(await secrets.get("DEV100"), "new-secret")
 })
 
+test("setup edit preserves advanced Basic settings and disables queries when switching to production", async t => {
+  for (const environment of ["quality", "production"] as const) {
+    const { profiles, secrets } = await setupStores(t)
+    await profiles.upsert({ id: "DEV100", url: "https://sap.example.test", client: "100", username: "USER",
+      allowDataQueries: true, classicBridgePath: "/sap/bc/zbridge", allowedPackages: ["Z_LOCKED"] })
+    const prompter = new ScriptedPrompter(["", "", "", "", environment, ...(environment === "production" ? [] : ["enabled"]), "", true, "new-secret"])
+    await runSetupWizard({ profiles, secrets, prompter, platform: "darwin", mode: "edit", serverName: "DEV100",
+      async validateCredentials(profile) {
+        assert.equal(profile.classicBridgePath, "/sap/bc/zbridge")
+        assert.equal(profile.allowDataQueries, environment !== "production")
+      } })
+    const saved = await profiles.get("DEV100")
+    assert.equal(saved.classicBridgePath, "/sap/bc/zbridge")
+    assert.equal(saved.allowDataQueries, environment !== "production")
+    assert.deepEqual(saved.allowedPackages, ["Z_LOCKED"])
+    assert.match(prompter.output.join("\n"), /Classic bridge: \/sap\/bc\/zbridge/)
+    assert.match(prompter.output.join("\n"), environment === "production" ? /SAP data queries: Disabled/ : /SAP data queries: Enabled/)
+  }
+})
+
 test("setup remove deletes the selected server and all stored credentials", async t => {
   const { profiles, secrets } = await setupStores(t)
   await profiles.upsert({

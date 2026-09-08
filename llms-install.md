@@ -82,12 +82,4 @@ Use `npx` on macOS/Linux and `npx.cmd` on Windows:
 
 Omit `--profile DEV100` only when the user intentionally wants all locally configured profiles exposed. Every SAP-facing tool still requires an explicit `connectionId`.
 
-For Codex or Cursor, add `"--preset", "adaptive"` after `"serve"` to advertise
-17 tools initially while keeping all 120 capabilities reachable. Current Claude
-Code users should normally keep the full `serve` command because native MCP Tool
-Search defers schemas automatically. If Claude Code Tool Search is disabled or
-unsupported, use `adaptive` there as well. The Codex and Claude Code repository
-plugins share the full `serve` configuration for plugin-host compatibility;
-direct Codex and Cursor registrations can select `adaptive` explicitly.
-
 Start with read-only discovery and source inspection. SAP-dependent development-parity capabilities remain `unverified` until they succeed against the selected live connection.

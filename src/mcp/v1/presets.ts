@@ -7,7 +7,9 @@ export const V1_PRESET_NAMES = [
   "compact",
   "development",
   "assurance",
-  "adaptive"
+  "adaptive",
+  "minimal",
+  "single"
 ] as const
 export type V1PresetName = typeof V1_PRESET_NAMES[number]
 
@@ -70,6 +72,8 @@ export const V1_MCP_PRESETS: Record<V1PresetName, readonly string[]> = {
     "sap.transport.list",
     "sap.transport.object.resolve"
   ],
+  minimal: [],
+  single: [],
   adaptive: COMPACT_TOOLS
 }
 
@@ -90,5 +94,7 @@ export const V1_PRESET_RESOURCE_NAMES: Record<
     "sap-evidence",
     "sap-transport"
   ],
+  minimal: V1_RESOURCE_NAMES,
+  single: V1_RESOURCE_NAMES,
   adaptive: V1_RESOURCE_NAMES
 }

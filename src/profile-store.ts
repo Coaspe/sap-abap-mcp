@@ -51,7 +51,21 @@ const profileSchema = z.discriminatedUnion("authType", [
   baseProfileSchema.extend({
     authType: z.literal("bearer_passthrough"),
     username: z.string().min(1).optional()
-  })
+  }),
+  baseProfileSchema.extend({
+    authType: z.literal("btp_destination"),
+    destinationName: z.string().trim().min(1),
+    destinationAuthentication: z.enum(["OAuth2UserTokenExchange", "PrincipalPropagation"]),
+    username: z.string().min(1).optional()
+  }).refine(profile => {
+    try {
+      const url = new URL(profile.url)
+      return !url.username && !url.password && !url.search && !url.hash &&
+        (url.protocol === "https:" || (url.protocol === "http:" && profile.destinationAuthentication === "PrincipalPropagation"))
+    } catch {
+      return false
+    }
+  }, "BTP Destination URL must use HTTPS, or HTTP for principal propagation, without credentials, query or fragment")
 ])
 
 const profileFileSchema = z.object({
@@ -80,6 +94,8 @@ export interface SapProfileInput {
   authorizationUrl?: string
   clientId?: string
   scope?: string | undefined
+  destinationName?: string
+  destinationAuthentication?: "OAuth2UserTokenExchange" | "PrincipalPropagation"
   classicBridgePath?: string | undefined
 }
 
@@ -101,6 +117,10 @@ export function normalizeProfile(input: SapProfileInput): StoredSapProfile {
     environment: input.environment ?? "development",
     allowDataQueries: input.allowDataQueries ?? false,
     authType,
+    ...(authType === "btp_destination" ? {
+      destinationName: input.destinationName?.trim(),
+      destinationAuthentication: input.destinationAuthentication
+    } : {}),
     ...(input.username ? { username: input.username.trim() } : {}),
     ...(input.classicBridgePath?.trim()
       ? { classicBridgePath: input.classicBridgePath.trim().replace(/\/+$/, "") }

@@ -8,6 +8,7 @@ import type {
 } from "@modelcontextprotocol/sdk/server/zod-compat.js"
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
+import { objectInput } from "./object-input.js"
 import type { AbapToolService, HeartbeatInput } from "../../tool-service.js"
 import { V1_SCHEMA_VERSION } from "./contracts.js"
 import { normalizeV1SystemId } from "./resource-uri.js"
@@ -111,7 +112,7 @@ export function registerV1OperationsTools(
     "sap.execution.preview",
     "Preview ABAP Execution",
     "Create a short-lived execution plan for a class, profiled executable program, or ABAP snippet.",
-    z.discriminatedUnion("kind", [
+    objectInput(z.discriminatedUnion("kind", [
       z.object({
         systemId: SYSTEM_ID,
         kind: z.literal("class"),
@@ -130,7 +131,7 @@ export function registerV1OperationsTools(
         kind: z.literal("program"),
         programName: NON_EMPTY
       }).strict()
-    ]),
+    ])),
     CONTROL_ANNOTATIONS,
     input => serviceResult(input.systemId, systemId => service.runAbapApplication(
       input.kind === "class"
@@ -183,7 +184,7 @@ export function registerV1OperationsTools(
     "sap.classic.read",
     "Read Classic ABAP Screen or GUI Status",
     "Read a Screen/Dynpro or full GUI Status document through an opt-in same-origin classic bridge.",
-    z.discriminatedUnion("kind", [
+    objectInput(z.discriminatedUnion("kind", [
       z.object({
         systemId: SYSTEM_ID,
         kind: z.literal("screen"),
@@ -195,7 +196,7 @@ export function registerV1OperationsTools(
         kind: z.literal("gui_status"),
         programName: NON_EMPTY
       }).strict()
-    ]),
+    ])),
     READ_ANNOTATIONS,
     input => serviceResult(input.systemId, systemId => service.readClassicObject({
       connectionId: systemId!,

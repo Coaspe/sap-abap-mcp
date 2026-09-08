@@ -100,6 +100,7 @@ function systemInfo(profile: SapProfile): SapSystemInfo {
 }
 
 class FakeSapClient implements SapClient {
+  async getKnowledgeTransferDocument(_name: string): Promise<{ uri: string; markdown: string } | null> { return null }
   loginCount = 0
   logoutCount = 0
   currentSource = source
@@ -5622,4 +5623,607 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     action: "stop"
   })
   assert.equal(debugStopped.active, false)
+})
+
+test("component paths navigate namespaced children and filter before paging without recursive output", async () => {
+  const { fake, service } = createBdefHarness()
+  const leaf = structuredClone(DEVELOPMENT_PARITY_FIXTURES.components.components[0]!)
+  fake.classComponentsResult.components = [{
+    ...leaf,
+    "adtcore:name": "/NS/IF_DEMO~RUN",
+    components: [
+      { ...leaf, "adtcore:name": "HIDDEN", visibility: "private" },
+      { ...leaf, "adtcore:name": "FIRST" },
+      { ...leaf, "adtcore:name": "SECOND", components: [leaf] }
+    ]
+  }]
+  const input = {
+    action: "components" as const,
+    fileUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    line: 1, column: 0, implementation: false, startIndex: 0, maxResults: 1,
+    componentPath: ["/ns/if_demo~run"]
+  }
+  const page = await service.inspectCode({ ...input, visibility: "public", startIndex: 1 }) as any
+  assert.deepEqual(page.componentPath, ["/NS/IF_DEMO~RUN"])
+  assert.equal(page.root.name, "/NS/IF_DEMO~RUN")
+  assert.equal(page.visibility, "public")
+  assert.equal(page.total, 2)
+  assert.equal(page.returned, 1)
+  assert.equal(page.truncated, false)
+  assert.equal(page.components[0].name, "SECOND")
+  assert.equal(page.components[0].childCount, 1)
+  assert.equal(page.components[0].components, undefined)
+  const all = await service.inspectCode(input) as any
+  assert.equal(all.total, 3)
+  assert.equal(all.components[0].name, "HIDDEN")
+  assert.equal(all.nextStartIndex, 1)
+  const empty = await service.inspectCode({ ...input, componentPath: [...input.componentPath, "first"] }) as any
+  assert.equal(empty.root.name, "FIRST")
+  assert.equal(empty.total, 0)
+  assert.deepEqual(empty.components, [])
+  await assert.rejects(service.inspectCode({ ...input, componentPath: ["MISSING"] }),
+    (error: any) => error.details?.reason === "COMPONENT_NOT_FOUND")
+  fake.classComponentsResult.components.push({ ...fake.classComponentsResult.components[0]! })
+  await assert.rejects(service.inspectCode(input),
+    (error: any) => error.details?.reason === "COMPONENT_AMBIGUOUS")
+})
+
+test("component inspection uses metadata without source reads or repository search", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.readSourceByUri = async () => { throw new Error("Unexpected full source read") }
+  fake.searchObjects = async () => { throw new Error("Unexpected repository search") }
+  const seen: string[] = []
+  const getStructure = fake.getObjectStructure.bind(fake)
+  fake.getObjectStructure = async uri => {
+    seen.push(uri)
+    return getStructure(uri)
+  }
+  const base = {
+    action: "components" as const, line: 1, column: 0,
+    implementation: false, startIndex: 0, maxResults: 10
+  }
+  const objectUri = "/sap/bc/adt/oo/classes/zcl_demo"
+  for (const path of [objectUri, `${objectUri}/source/main`, `${objectUri}/includes/locals_def`, `${objectUri}/source/main?version=active#start=1`]) {
+    const result = await service.inspectCode({ ...base, fileUri: path, connectionId: "DEV100" }) as any
+    assert.deepEqual(result.object, { name: "ZCL_DEMO", type: "CLAS/OC" })
+    assert.equal(result.components[0].name, "RUN")
+  }
+  assert.deepEqual(seen, Array(4).fill(objectUri))
+  assert.deepEqual(fake.classComponentsArgs, Array(4).fill(objectUri))
+
+  fake.objectStructureType = "INTF/OI"
+  const interfaceUri = "/sap/bc/adt/oo/interfaces/zif_demo"
+  await service.inspectCode({ ...base, fileUri: `adt://dev100${interfaceUri}/source/main` })
+  assert.equal(seen.at(-1), interfaceUri)
+  assert.equal(fake.classComponentsArgs.at(-1), interfaceUri)
+  const calls = seen.length
+  await assert.rejects(service.inspectCode({ ...base, fileUri: `adt://other${objectUri}`, connectionId: "DEV100" }),
+    (error: any) => error.code === "CONNECTION_MISMATCH")
+  assert.equal(seen.length, calls)
+})
+
+test("component metadata denial stops inspection and never falls back to source", async () => {
+  const { fake, service } = createBdefHarness()
+  const denied = Object.assign(new Error("Access denied"), { status: 403 })
+  fake.getObjectStructure = async () => { throw denied }
+  fake.readSourceByUri = async () => { throw new Error("Unexpected fallback") }
+  await assert.rejects(service.inspectCode({
+    action: "components", fileUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    line: 1, column: 0, implementation: false, startIndex: 0, maxResults: 10
+  }), error => error === denied)
+  assert.equal(fake.classComponentsCalls, 0)
+})
+
+test("repository inspection pages KTD by Unicode characters only when requested", async () => {
+  const { fake, service } = createBdefHarness()
+  let calls = 0
+  fake.getKnowledgeTransferDocument = async () => {
+    calls++
+    return { uri: "/sap/bc/adt/documentation/ktd/documents/zcl_demo", markdown: "한🙂글 docs" }
+  }
+  const args = { connectionId: "DEV100", objectName: "ZCL_DEMO", includeStructure: false }
+  const omitted = await service.getObjectInfo(args) as any
+  assert.equal(omitted.documentation, undefined)
+  assert.equal(calls, 0)
+  const first = await service.getObjectInfo({ ...args, documentation: { offset: 0, maxChars: 2 } }) as any
+  assert.equal(first.documentation.content, "한🙂")
+  assert.equal(first.documentation.nextOffset, 2)
+  const next = await service.getObjectInfo({ ...args, documentation: { offset: 2, maxChars: 20 } }) as any
+  assert.equal(next.documentation.content, "글 docs")
+  assert.match(first.documentation.documentHash, /^[0-9a-f]{64}$/)
+  assert.equal(next.documentation.documentHash, first.documentation.documentHash)
+  assert.equal(next.documentation.truncated, false)
+  assert.equal(next.documentation.nextOffset, null)
+  fake.getKnowledgeTransferDocument = async () => null
+  const missing = await service.getObjectInfo({ ...args, documentation: { offset: 0, maxChars: 20 } }) as any
+  assert.equal(missing.documentation.status, "not_found_or_unsupported")
+})
+
+test("public API view pages exact declarations without invoking ADT component enumeration", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.currentSource = "CLASS zcl_demo DEFINITION PUBLIC.\nPUBLIC SECTION.\nMETHODS run IMPORTING iv_text TYPE string.\nPRIVATE SECTION.\nDATA hidden TYPE i.\nENDCLASS."
+  const args = { action: "components" as const, fileUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    line: 1, column: 0, implementation: false, publicApi: true, startIndex: 0, maxResults: 1 }
+  const first = await service.inspectCode(args) as any
+  assert.equal(first.view, "public_api")
+  assert.equal(first.total, 2)
+  assert.equal(first.nextStartIndex, 1)
+  assert.equal(first.coverage.inheritanceResolved, false)
+  const next = await service.inspectCode({ ...args, startIndex: 1 }) as any
+  assert.equal(next.declarations[0].code, "METHODS run IMPORTING iv_text TYPE string.")
+  assert.equal(next.declarations[0].startLine, 3)
+  assert.equal(next.declarations[0].sourceRead, undefined)
+  assert.equal(next.nextStartIndex, null)
+  assert.equal(next.sourceHash, first.sourceHash)
+  assert.equal(fake.classComponentsCalls, 0)
+  await assert.rejects(service.inspectCode({ ...args, visibility: "private" }), /cannot use componentPath or visibility/)
+  fake.currentSource = `CLASS zcl_demo DEFINITION PUBLIC.
+PUBLIC SECTION.
+CONSTANTS giant TYPE string VALUE '${"x".repeat(40000)}'.
+ENDCLASS.`
+  const bounded = await service.inspectCode({ ...args, startIndex: 1 }) as any
+  assert.equal(bounded.declarations[0].codeTruncated, true)
+  assert.equal(Buffer.byteLength(bounded.declarations[0].code), 32 * 1024)
+  assert.equal(bounded.truncated, true)
+  assert.equal(bounded.nextStartIndex, null)
+  const recovery = bounded.declarations[0].sourceRead
+  assert.deepEqual(recovery, {
+    tool: "sap.source.read",
+    arguments: { systemId: "DEV100", resourceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+      startLine: 3, lineCount: 1 }, stopAfterLine: 3
+  })
+  const recovered = await service.getObjectByUri({ connectionId: recovery.arguments.systemId,
+    uri: new URL(recovery.arguments.resourceUri).pathname,
+    startLine: recovery.arguments.startLine - 1, lineCount: recovery.arguments.lineCount })
+  assert.equal(recovered.code, fake.currentSource.split("\n")[2])
+  assert.ok(recovered.code.endsWith("'."))
+  assert.notEqual(bounded.sourceHash, first.sourceHash)
+  fake.currentSource = `CLASS zcl_demo DEFINITION PUBLIC.
+PUBLIC SECTION.
+"! ${"설명".repeat(8000)}
+METHODS documented.
+ENDCLASS.`
+  const documented = await service.inspectCode({ ...args, startIndex: 1 }) as any
+  assert.match(documented.declarations[0].code, /^"! /)
+  assert.equal(documented.declarations[0].startLine, 3)
+  assert.equal(documented.declarations[0].codeTruncated, true)
+  assert.ok(Buffer.byteLength(documented.declarations[0].code) <= 32 * 1024)
+  assert.equal(documented.nextStartIndex, null)
+  assert.equal(documented.declarations[0].sourceRead.arguments.lineCount, 2)
+  assert.equal(documented.declarations[0].sourceRead.stopAfterLine, 4)
+  const recoveredDoc = await service.getObjectByUri({ connectionId: "DEV100",
+    uri: new URL(documented.declarations[0].sourceRead.arguments.resourceUri).pathname,
+    startLine: documented.declarations[0].sourceRead.arguments.startLine - 1,
+    lineCount: documented.declarations[0].sourceRead.arguments.lineCount })
+  assert.equal(recoveredDoc.code, fake.currentSource.split("\n").slice(2, 4).join("\n"))
+  fake.currentSource = `CLASS zcl_demo DEFINITION PUBLIC.
+PUBLIC SECTION.
+${Array.from({ length: 60 }, () => `"! ${"x".repeat(700)}`).join("\n")}
+METHODS documented.
+PRIVATE SECTION.
+DATA hidden TYPE i.
+ENDCLASS.`
+  const manyLines = await service.inspectCode({ ...args, startIndex: 1 }) as any
+  const followup = manyLines.declarations[0].sourceRead
+  assert.equal(followup.arguments.lineCount, 50)
+  const chunks: string[] = []
+  let line = followup.arguments.startLine
+  while (line <= followup.stopAfterLine) {
+    const page = await service.getObjectByUri({ connectionId: "DEV100",
+      uri: new URL(followup.arguments.resourceUri).pathname, startLine: line - 1,
+      lineCount: Math.min(50, followup.stopAfterLine - line + 1) })
+    chunks.push(page.code)
+    if (page.nextLine === null) break
+    line = page.nextLine + 1
+  }
+  assert.equal(chunks.length, 2)
+  assert.equal(chunks.join("\n"), fake.currentSource.split("\n").slice(2, 63).join("\n"))
+  assert.doesNotMatch(chunks.join("\n"), /PRIVATE|hidden/)
+  fake.currentSource = `CLASS zcl_demo DEFINITION PUBLIC.
+PUBLIC SECTION.
+INTERFACES: ${Array.from({ length: 25 }, (_, i) => `zif_contract${i}`).join(", ")}.
+ENDCLASS.`
+  const contracts = await service.inspectCode({ ...args, startIndex: 1 }) as any
+  assert.equal(contracts.declarations[0].relatedTypes.length, 20)
+  assert.equal(contracts.declarations[0].relatedTypesTruncated, true)
+  assert.equal(contracts.coverage.inheritanceResolved, false)
+})
+
+test("related contracts resolve one hop with shared budget and distinguish different names at one URI", async () => {
+  const { fake, service } = createBdefHarness()
+  const root = "/sap/bc/adt/oo/classes/zcl_demo"
+  const base = "/sap/bc/adt/oo/classes/zcl_base"
+  fake.currentSource = `CLASS zcl_demo DEFINITION PUBLIC INHERITING FROM zcl_base.
+PUBLIC SECTION.
+INTERFACES zif_alias.
+METHODS use_base IMPORTING value TYPE REF TO zcl_base.
+ENDCLASS.`
+  const originalRead = fake.readSourceByUri.bind(fake)
+  fake.readSourceByUri = async uri => uri === base ? {
+    sourceUri: `${base}/source/main`, source: `CLASS zcl_base DEFINITION PUBLIC.
+PUBLIC SECTION.
+METHODS run.
+PRIVATE SECTION.
+DATA secret TYPE string.
+ENDCLASS.`
+  } : originalRead(uri)
+  let resolutions = 0
+  fake.findDefinition = async (_uri, text, line, start, end) => {
+    assert.equal(text, fake.currentSource)
+    assert.match(text.split("\n")[line - 1]!.slice(start, end), /zcl_base|zif_alias/)
+    resolutions++
+    return { url: `${base}/source/main#start=1,0` }
+  }
+  const args = { action: "components" as const, fileUri: `adt://dev100${root}/source/main`,
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }
+  const result = await service.inspectCode(args) as any
+  assert.equal(resolutions, 2)
+  assert.deepEqual(result.relatedContracts.map((item: any) => item.status), ["included", "unresolved"])
+  assert.equal(result.relatedContracts[1].reason, "LOCAL_CONTRACT_UNAVAILABLE")
+  assert.match(result.relatedContracts[0].code, /METHODS run/)
+  assert.doesNotMatch(result.relatedContracts[0].code, /secret/)
+  assert.equal(result.relatedCoverage.depth, 2)
+  assert.equal(result.relatedCoverage.complete, false)
+  const repeated = await service.inspectCode({ ...args, ifNoneMatch: result.contentHash }) as any
+  assert.equal(repeated.notModified, true)
+  assert.equal(repeated.contentHash, result.contentHash)
+  assert.equal(repeated.declarations, undefined)
+  assert.equal(repeated.relatedContracts, undefined)
+  assert.equal(resolutions, 4, "Matching hashes must still resolve live dependency targets")
+  const otherPage = await service.inspectCode({ ...args, startIndex: 1, ifNoneMatch: result.contentHash }) as any
+  assert.equal(otherPage.notModified, false)
+  const rootOnly = await service.inspectCode({ ...args, includeRelated: false, ifNoneMatch: result.contentHash }) as any
+  assert.equal(rootOnly.notModified, false)
+  fake.readSourceByUri = async uri => uri === base ? {
+    sourceUri: `${base}/source/main`, source: `CLASS zcl_base DEFINITION PUBLIC.
+PUBLIC SECTION.
+"! ${"x".repeat(40000)}
+METHODS run.
+ENDCLASS.`
+  } : originalRead(uri)
+  const bounded = await service.inspectCode({ ...args, ifNoneMatch: result.contentHash }) as any
+  assert.equal(bounded.notModified, false, "Changed related source invalidates the representation even with unchanged root")
+  assert.notEqual(bounded.contentHash, result.contentHash)
+  const bytes = [...bounded.declarations, ...bounded.relatedContracts]
+    .reduce((sum: number, item: any) => sum + Buffer.byteLength(item.code ?? ""), 0)
+  assert.ok(bytes <= 32 * 1024)
+  assert.equal(bounded.relatedContracts[0].codeTruncated, true)
+  assert.equal(bounded.relatedCoverage.truncated, true)
+  assert.equal(bounded.relatedCoverage.attempted, 1)
+  await assert.rejects(service.inspectCode({ ...args, publicApi: false }), /requires publicApi/)
+  fake.findDefinition = async () => { throw new Error("SAP permission denied") }
+  await assert.rejects(service.inspectCode({ ...args, ifNoneMatch: result.contentHash }), /SAP permission denied/)
+})
+
+test("related contract fanout rejects unsafe locations and stops at five attempts", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.currentSource = `CLASS zcl_demo DEFINITION PUBLIC.
+PUBLIC SECTION.
+INTERFACES: ${Array.from({ length: 8 }, (_, i) => `zif_${i}`).join(", ")}.
+ENDCLASS.`
+  const targets = ["https://other.example/sap/bc/adt/oo/classes/zcl_other",
+    "/sap/bc/adt/oo/classes/%2e%2e", "/sap/bc/adt/oo/classes/%zz",
+    "/sap/bc/adt/oo/classes/%2f..%2fadmin", ""]
+  let calls = 0
+  fake.findDefinition = async () => ({ url: targets[calls++] })
+  const result = await service.inspectCode({ action: "components", fileUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }) as any
+  assert.equal(calls, 5)
+  assert.equal(result.relatedCoverage.references, 8)
+  assert.equal(result.relatedCoverage.truncated, true)
+  assert.ok(result.relatedContracts.every((item: any) => item.status === "unresolved"))
+  assert.equal(fake.readSourceCalls.length, 1)
+})
+
+test("public exception references resolve and include the exception class contract", async () => {
+  const { fake, service } = createBdefHarness()
+  const exceptionUri = "/sap/bc/adt/oo/classes/zcx_failure"
+  const parentUri = "/sap/bc/adt/oo/classes/cx_static_check"
+  fake.currentSource = "CLASS zcl_demo DEFINITION PUBLIC.\nPUBLIC SECTION.\nMETHODS run RAISING zcx_failure.\nENDCLASS."
+  const read = fake.readSourceByUri.bind(fake)
+  fake.readSourceByUri = async uri => uri === exceptionUri ? {
+    sourceUri: `${uri}/source/main`, source: "CLASS zcx_failure DEFINITION PUBLIC INHERITING FROM cx_static_check.\nPUBLIC SECTION.\nMETHODS recover.\nENDCLASS."
+  } : uri === parentUri ? { sourceUri: `${parentUri}/source/main`,
+    source: "CLASS cx_static_check DEFINITION PUBLIC.\nPUBLIC SECTION.\nMETHODS inherited.\nENDCLASS." } : read(uri)
+  fake.findDefinition = async (uri, source, line, start, end) => {
+    const name = source.split("\n")[line - 1]!.slice(start, end)
+    assert.equal(name, uri === `${exceptionUri}/source/main` ? "cx_static_check" : "zcx_failure")
+    return { url: `${name === "zcx_failure" ? exceptionUri : parentUri}/source/main` }
+  }
+  const result = await service.inspectCode({ action: "components", fileUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }) as any
+  assert.equal(result.relatedContracts.length, 2)
+  assert.equal(result.relatedContracts[0].relation, "exception_class")
+  assert.equal(result.relatedContracts[0].status, "included")
+  assert.match(result.relatedContracts[0].code, /METHODS recover/)
+  assert.equal(result.relatedCoverage.attempted, 2)
+  assert.equal(result.relatedContracts[1].relation, "superclass")
+  assert.match(result.relatedContracts[1].code, /METHODS inherited/)
+})
+
+test("a local type definition is not represented as its enclosing global class contract", async () => {
+  const { fake, service } = createBdefHarness()
+  const root = "/sap/bc/adt/oo/classes/zcl_demo"
+  const other = "/sap/bc/adt/oo/classes/zcl_other"
+  fake.currentSource = `CLASS zcl_demo DEFINITION PUBLIC.
+PUBLIC SECTION.
+METHODS use IMPORTING local TYPE REF TO lcl_local self TYPE REF TO zcl_demo other TYPE REF TO lcl_other.
+ENDCLASS.`
+  fake.findDefinition = async (_uri, source, line, start, end) => ({
+    url: `${source.split("\n")[line - 1]!.slice(start, end) === "lcl_other" ? other : root}/source/main`
+  })
+  const result = await service.inspectCode({ action: "components", fileUri: `adt://dev100${root}/source/main`,
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }) as any
+  assert.deepEqual(result.relatedContracts.map((item: any) => item.status), ["unresolved", "already_included", "unresolved"])
+  assert.equal(result.relatedContracts[0].reason, "LOCAL_CONTRACT_UNAVAILABLE")
+  assert.equal(result.relatedContracts[2].reason, "LOCAL_CONTRACT_UNAVAILABLE")
+  assert.deepEqual(fake.readSourceCalls, [root, `${other}/source/main`])
+})
+
+test("namespaced workspace URIs preserve encoded slashes through source and structure reads", async () => {
+  const { fake, service } = createBdefHarness()
+  const path = "/sap/bc/adt/oo/classes/%2Fabc%2Fcl_demo"
+  fake.currentSource = "CLASS /abc/cl_demo DEFINITION PUBLIC.\nPUBLIC SECTION.\nMETHODS run.\nENDCLASS."
+  const structures: string[] = []
+  const structure = fake.getObjectStructure.bind(fake)
+  fake.getObjectStructure = async uri => {
+    structures.push(uri)
+    const result = await structure(uri)
+    result.metaData["adtcore:name"] = "/ABC/CL_DEMO"
+    return result
+  }
+  const args = { action: "components" as const, fileUri: `adt://dev100${path}/source/main`,
+    line: 1, column: 0, implementation: false, publicApi: true, startIndex: 0, maxResults: 20 }
+  const workspace = await service.inspectCode(args) as any
+  const direct = await service.inspectCode({ ...args, connectionId: "DEV100", fileUri: `${path}/source/main` }) as any
+  assert.equal(workspace.contentHash, direct.contentHash)
+  assert.equal(workspace.sourceUri, `${path}/source/main`)
+  assert.deepEqual(structures, [path, path])
+  assert.deepEqual(fake.readSourceCalls, [path, path])
+  await assert.rejects(service.inspectCode({ ...args, fileUri: "adt://dev100/sap/bc/adt/oo/classes/%GG/source/main" }), /invalid percent encoding/)
+})
+
+test("local contracts use the exact definition include, reuse it and revalidate changes", async () => {
+  const { fake, service } = createBdefHarness()
+  const root = "/sap/bc/adt/oo/classes/zcl_demo"
+  const include = `${root}/includes/definitions`
+  fake.currentSource = "CLASS zcl_demo DEFINITION PUBLIC.\nPUBLIC SECTION.\nMETHODS use IMPORTING a TYPE REF TO lcl_first b TYPE REF TO lcl_second.\nENDCLASS."
+  let localSource = "CLASS lcl_first DEFINITION.\nPUBLIC SECTION.\nMETHODS run.\nPRIVATE SECTION.\nDATA secret TYPE string.\nENDCLASS.\nCLASS lcl_second DEFINITION.\nPUBLIC SECTION.\nMETHODS other.\nENDCLASS."
+  let reads = 0
+  const read = fake.readSourceByUri.bind(fake)
+  fake.readSourceByUri = async uri => {
+    if (uri !== include) return read(uri)
+    reads++
+    return { sourceUri: include, source: localSource }
+  }
+  fake.findDefinition = async () => ({ url: `${include}#start=1,0` })
+  const args = { action: "components" as const, fileUri: `adt://dev100${root}/source/main`,
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }
+  const first = await service.inspectCode(args) as any
+  assert.equal(reads, 1)
+  assert.deepEqual(first.relatedContracts.map((item: any) => [item.name, item.scope, item.status]), [
+    ["LCL_FIRST", "local", "included"], ["LCL_SECOND", "local", "included"]
+  ])
+  assert.ok(first.relatedContracts.every((item: any) => item.sourceUri === include))
+  assert.doesNotMatch(JSON.stringify(first.relatedContracts), /secret/)
+  localSource = localSource.replace("METHODS run.", "METHODS changed.")
+  const changed = await service.inspectCode({ ...args, ifNoneMatch: first.contentHash }) as any
+  assert.equal(reads, 2)
+  assert.equal(changed.notModified, false)
+  assert.match(changed.relatedContracts[0].code, /METHODS changed/)
+  const follow = { ...args, fileUri: `adt://dev100${include}`, definitionName: "LCL_FIRST", includeRelated: false, maxResults: 1 }
+  const page = await service.inspectCode(follow) as any
+  assert.equal(page.definitionName, "LCL_FIRST")
+  assert.equal(page.sourceUri, include)
+  assert.equal(page.nextStartIndex, 1)
+  const next = await service.inspectCode({ ...follow, startIndex: 1, ifNoneMatch: page.contentHash }) as any
+  assert.equal(next.notModified, false)
+  assert.equal(next.declarations[0].code, "METHODS changed.")
+  assert.equal(next.nextStartIndex, null)
+  const again = await service.inspectCode({ ...follow, startIndex: 1, ifNoneMatch: next.contentHash }) as any
+  assert.equal(again.notModified, true)
+  assert.equal(again.definitionName, "LCL_FIRST")
+  localSource = localSource.replace("METHODS changed.", "METHODS changed IMPORTING owner TYPE REF TO zcl_demo self TYPE REF TO lcl_first.")
+  fake.findDefinition = async (_uri, source, line, start, end) => ({
+    url: source.split("\n")[line - 1]!.slice(start, end) === "zcl_demo" ? `${root}/source/main` : include
+  })
+  const localWithRelated = await service.inspectCode({ ...follow, maxResults: 20, includeRelated: true }) as any
+  assert.deepEqual(localWithRelated.relatedContracts.map((item: any) => [item.name, item.status]), [
+    ["ZCL_DEMO", "included"], ["LCL_FIRST", "already_included"]
+  ])
+  await assert.rejects(service.inspectCode({ ...follow, definitionName: "LCL_MISSING" }), /could not be parsed completely/)
+  await assert.rejects(service.inspectCode({ ...follow, publicApi: false }), /definitionName requires publicApi/)
+  fake.readSourceByUri = async uri => uri === include ? { sourceUri: `${root}/source/main`, source: localSource } : read(uri)
+  await assert.rejects(service.inspectCode(follow), /source differs from the requested source/)
+  const redirected = await service.inspectCode(args) as any
+  assert.ok(redirected.relatedContracts.every((item: any) => item.reason === "DEFINITION_SOURCE_MISMATCH"))
+})
+
+
+test("public contracts compose bounded KTD and revalidate documentation before conditional responses", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.currentSource = "CLASS zcl_demo DEFINITION PUBLIC.\nPUBLIC SECTION.\nMETHODS run.\nENDCLASS."
+  const args = { action: "components" as const, fileUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }
+  let markdown = "한🙂글 docs"
+  let calls = 0
+  fake.getKnowledgeTransferDocument = async name => {
+    calls++
+    assert.equal(name, "ZCL_DEMO")
+    return { uri: "/sap/bc/adt/documentation/ktd/documents/zcl_demo", markdown }
+  }
+  const omitted = await service.inspectCode(args) as any
+  assert.equal(omitted.documentation, undefined)
+  assert.equal(calls, 0)
+  const input = { ...args, documentation: { offset: 0, maxChars: 2 } }
+  const first = await service.inspectCode(input) as any
+  assert.equal(first.documentation.content, "한🙂")
+  assert.equal(first.documentation.objectName, "ZCL_DEMO")
+  assert.equal(first.documentation.nextOffset, 2)
+  assert.ok(first.declarations.length > 0)
+  assert.deepEqual(first.relatedContracts, [])
+  const unchanged = await service.inspectCode({ ...input, ifNoneMatch: first.contentHash }) as any
+  assert.equal(unchanged.notModified, true)
+  assert.equal(unchanged.documentation, undefined)
+  assert.equal(calls, 2)
+  markdown += " changed beyond the returned page"
+  const changed = await service.inspectCode({ ...input, ifNoneMatch: first.contentHash }) as any
+  assert.equal(changed.notModified, false)
+  assert.notEqual(changed.contentHash, first.contentHash)
+  fake.getKnowledgeTransferDocument = async () => null
+  const missing = await service.inspectCode(input) as any
+  assert.equal(missing.documentation.status, "not_found_or_unsupported")
+  assert.ok(missing.declarations.length > 0)
+  const failure = new Error("KTD access denied")
+  fake.getKnowledgeTransferDocument = async () => { throw failure }
+  await assert.rejects(service.inspectCode({ ...input, ifNoneMatch: first.contentHash }), error => error === failure)
+  await assert.rejects(service.inspectCode({ ...input, publicApi: false }), /requires publicApi/)
+})
+
+test("public context resolves qualified type owners once through SAP definition navigation", async () => {
+  const { fake, service } = createBdefHarness()
+  const base = "/sap/bc/adt/oo/classes/zcl_base"
+  fake.currentSource = `CLASS zcl_demo DEFINITION PUBLIC.
+PUBLIC SECTION.
+METHODS run IMPORTING value TYPE zcl_base=>ty_input.
+TYPES ty_rows TYPE STANDARD TABLE OF zcl_base=>ty_row WITH EMPTY KEY.
+ENDCLASS.`
+  const original = fake.readSourceByUri.bind(fake)
+  fake.readSourceByUri = async uri => uri === base ? { sourceUri: `${base}/source/main`,
+    source: "CLASS zcl_base DEFINITION PUBLIC.\nPUBLIC SECTION.\nTYPES: ty_input TYPE string, ty_row TYPE i.\nENDCLASS." } : original(uri)
+  let definitions = 0
+  fake.findDefinition = async (_uri, source, line, start, end) => {
+    assert.equal(source.split("\n")[line - 1]!.slice(start, end), "zcl_base")
+    definitions++
+    return { url: `${base}/source/main` }
+  }
+  const result = await service.inspectCode({ action: "components", fileUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main",
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }) as any
+  assert.equal(definitions, 1)
+  assert.equal(result.relatedContracts.length, 1)
+  assert.equal(result.relatedContracts[0].relation, "qualified_type")
+  assert.equal(result.relatedContracts[0].status, "included")
+  assert.match(result.relatedContracts[0].code, /ty_input TYPE string/)
+  assert.match(result.relatedContracts[0].code, /ty_row TYPE i/)
+  assert.equal(result.relatedCoverage.complete, false)
+})
+
+test("public context follows bounded ancestry using each declaring source and revalidates ancestor changes", async () => {
+  const { fake, service } = createBdefHarness()
+  const root = "/sap/bc/adt/oo/classes/zcl_demo"
+  const base = "/sap/bc/adt/oo/classes/zcl_base"
+  const parent = "/sap/bc/adt/oo/classes/zcl_parent"
+  fake.currentSource = "CLASS zcl_demo DEFINITION PUBLIC INHERITING FROM zcl_base.\nPUBLIC SECTION.\nMETHODS run.\nENDCLASS."
+  const sources = new Map([
+    [base, "CLASS zcl_base DEFINITION PUBLIC INHERITING FROM zcl_parent.\nPUBLIC SECTION.\nMETHODS base_method.\nENDCLASS."],
+    [parent, "CLASS zcl_parent DEFINITION PUBLIC.\nPUBLIC SECTION.\nMETHODS ancestor_method.\nPRIVATE SECTION.\nDATA hidden TYPE string.\nENDCLASS."]
+  ])
+  const originalRead = fake.readSourceByUri.bind(fake)
+  fake.readSourceByUri = async uri => sources.has(uri)
+    ? { sourceUri: `${uri}/source/main`, source: sources.get(uri)! } : originalRead(uri)
+  const resolved: string[] = []
+  fake.findDefinition = async (uri, source, line, start, end) => {
+    const name = source.split("\n")[line - 1]!.slice(start, end)
+    assert.equal(source, uri === `${root}/source/main` ? fake.currentSource : sources.get(base))
+    assert.ok(name === "zcl_base" || name === "zcl_parent" || name === "zcl_demo")
+    resolved.push(uri)
+    return { url: `/sap/bc/adt/oo/classes/${name}/source/main` }
+  }
+  const input = { action: "components" as const, fileUri: `adt://dev100${root}/source/main`,
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }
+  const first = await service.inspectCode(input) as any
+  assert.deepEqual(resolved, [`${root}/source/main`, `${base}/source/main`])
+  assert.deepEqual(first.relatedContracts.map((item: any) => item.name), ["ZCL_BASE", "ZCL_PARENT"])
+  assert.match(first.relatedContracts[1].code, /ancestor_method/)
+  assert.doesNotMatch(first.relatedContracts[1].code, /hidden/)
+  assert.equal(first.relatedContracts[1].fromSourceUri, `${base}/source/main`)
+  assert.equal(first.relatedContracts[1].depth, 2)
+  assert.equal(first.relatedCoverage.truncated, false)
+  assert.equal(first.coverage.inheritanceResolved, false)
+  assert.equal((await service.inspectCode({ ...input, ifNoneMatch: first.contentHash }) as any).notModified, true)
+  sources.set(parent, sources.get(parent)!.replace("ancestor_method", "changed_method"))
+  const changed = await service.inspectCode({ ...input, ifNoneMatch: first.contentHash }) as any
+  assert.equal(changed.notModified, false)
+  assert.match(changed.relatedContracts[1].code, /changed_method/)
+  sources.set(parent, sources.get(parent)!.replace("DEFINITION PUBLIC.", "DEFINITION PUBLIC INHERITING FROM zcl_great."))
+  const limited = await service.inspectCode(input) as any
+  assert.equal(limited.relatedCoverage.depthLimited, true)
+  assert.equal(limited.relatedCoverage.truncated, true)
+  assert.equal(limited.relatedCoverage.attempted, 2)
+  sources.set(base, sources.get(base)!.replace("zcl_parent", "zcl_demo"))
+  const cycle = await service.inspectCode(input) as any
+  assert.deepEqual(cycle.relatedContracts.map((item: any) => item.status), ["included", "already_included"])
+  assert.equal(cycle.relatedCoverage.attempted, 2)
+})
+
+test("ancestry shares the five-lookup and 32 KiB budgets with direct contracts", async () => {
+  const { fake, service } = createBdefHarness()
+  const prefix = "/sap/bc/adt/oo/classes/"
+  fake.currentSource = `CLASS zcl_demo DEFINITION PUBLIC.\nPUBLIC SECTION.\n${[1, 2, 3].map(i => `DATA dep${i} TYPE REF TO zcl_b${i}.`).join("\n")}\nENDCLASS.`
+  const sources = new Map<string, string>()
+  for (const i of [1, 2, 3]) {
+    sources.set(`${prefix}zcl_b${i}`, `CLASS zcl_b${i} DEFINITION PUBLIC INHERITING FROM zcl_p${i}.\nPUBLIC SECTION.\nMETHODS run.\nENDCLASS.`)
+    sources.set(`${prefix}zcl_p${i}`, `CLASS zcl_p${i} DEFINITION PUBLIC.\nPUBLIC SECTION.\nMETHODS inherited.\nENDCLASS.`)
+  }
+  const originalRead = fake.readSourceByUri.bind(fake)
+  fake.readSourceByUri = async uri => sources.has(uri)
+    ? { sourceUri: `${uri}/source/main`, source: sources.get(uri)! } : originalRead(uri)
+  let lookups = 0
+  fake.findDefinition = async (_uri, source, line, start, end) => {
+    lookups++
+    return { url: `${prefix}${source.split("\n")[line - 1]!.slice(start, end)}/source/main` }
+  }
+  const input = { action: "components" as const, fileUri: `adt://dev100${prefix}zcl_demo/source/main`,
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }
+  const result = await service.inspectCode(input) as any
+  assert.equal(lookups, 5)
+  assert.equal(result.relatedCoverage.references, 6)
+  assert.equal(result.relatedCoverage.attempted, 5)
+  assert.equal(result.relatedCoverage.truncated, true)
+  assert.deepEqual(result.relatedContracts.map((item: any) => item.name), ["ZCL_B1", "ZCL_B2", "ZCL_B3", "ZCL_P1", "ZCL_P2"])
+  sources.set(`${prefix}zcl_p1`, `CLASS zcl_p1 DEFINITION PUBLIC.\nPUBLIC SECTION.\n"! ${"x".repeat(40000)}\nMETHODS inherited.\nENDCLASS.`)
+  lookups = 0
+  const bounded = await service.inspectCode(input) as any
+  assert.equal(lookups, 4)
+  assert.equal(bounded.relatedContracts.at(-1).codeTruncated, true)
+  const bytes = [...bounded.declarations, ...bounded.relatedContracts]
+    .reduce((total, item) => total + Buffer.byteLength(item.code ?? ""), 0)
+  assert.ok(bytes <= 32 * 1024)
+})
+
+test("ancestry deduplicates the same local contract but preserves names shared by different files", async () => {
+  const { fake, service } = createBdefHarness()
+  const prefix = "/sap/bc/adt/oo/classes/"
+  fake.currentSource = "CLASS zcl_demo DEFINITION PUBLIC.\nPUBLIC SECTION.\nDATA first TYPE REF TO zcl_b1.\nDATA second TYPE REF TO zcl_b2.\nENDCLASS."
+  const sources = new Map([
+    [`${prefix}zcl_b1`, "CLASS zcl_b1 DEFINITION PUBLIC.\nPUBLIC SECTION.\nINTERFACES lif_shared.\nENDCLASS."],
+    [`${prefix}zcl_b2`, "CLASS zcl_b2 DEFINITION PUBLIC.\nPUBLIC SECTION.\nINTERFACES lif_shared.\nENDCLASS."],
+    [`${prefix}zcl_owner/includes/definitions`, "INTERFACE lif_shared.\nMETHODS shared_method.\nENDINTERFACE."],
+    [`${prefix}zcl_other/includes/definitions`, "INTERFACE lif_shared.\nMETHODS different_method.\nENDINTERFACE."]
+  ])
+  const read = fake.readSourceByUri.bind(fake)
+  fake.readSourceByUri = async uri => sources.has(uri) ? {
+    sourceUri: uri.includes("/includes/") ? uri : `${uri}/source/main`, source: sources.get(uri)!
+  } : read(uri)
+  let separateFiles = false
+  fake.findDefinition = async (uri, source, line, start, end) => {
+    const name = source.split("\n")[line - 1]!.slice(start, end)
+    return { url: name === "lif_shared"
+      ? `${prefix}${separateFiles && uri.includes("zcl_b2/") ? "zcl_other" : "zcl_owner"}/includes/definitions`
+      : `${prefix}${name}/source/main` }
+  }
+  const input = { action: "components" as const, fileUri: `adt://dev100${prefix}zcl_demo/source/main`,
+    line: 1, column: 0, implementation: false, publicApi: true, includeRelated: true, startIndex: 0, maxResults: 20 }
+  const shared = await service.inspectCode(input) as any
+  assert.deepEqual(shared.relatedContracts.map((item: any) => item.status), ["included", "included", "included", "already_included"])
+  assert.equal(shared.relatedContracts.filter((item: any) => item.code?.includes("shared_method")).length, 1)
+  assert.equal(shared.relatedContracts[3].sourceUri, `${prefix}zcl_owner/includes/definitions`)
+  assert.equal(shared.relatedContracts[3].scope, "local")
+  assert.equal(shared.relatedCoverage.truncated, false)
+  separateFiles = true
+  const distinct = await service.inspectCode({ ...input, ifNoneMatch: shared.contentHash }) as any
+  assert.equal(distinct.notModified, false)
+  assert.ok(distinct.relatedContracts.every((item: any) => item.status === "included"))
+  assert.match(distinct.relatedContracts[2].code, /shared_method/)
+  assert.match(distinct.relatedContracts[3].code, /different_method/)
 })
