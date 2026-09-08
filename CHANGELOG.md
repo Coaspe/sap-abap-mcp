@@ -2,7 +2,123 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
-## Unreleased
+## 1.7.0-beta.1 — unpublished test build
+
+Compatibility: this beta reconciles the integrity-verified npm 1.6.0 runtime
+with the local improvements. It preserves profile-level SQL opt-in, production
+blocking and the 53-tool v0 catalog; minimal is the intentional new CLI default.
+No npm publication or live company SAP acceptance is implied. See
+[reconciliation record](docs/reconciliation-1.7.0-beta.1.md).
+
+### Added
+
+- Added a public declaration view to `sap.semantic.components`, using a lazily loaded ABAP parser to return exact active-source spans, bounded declaration pages and source hashes. Private/protected declarations and implementations are excluded; inherited members remain explicitly unresolved. Adaptive startup still advertises 17 tools.
+
+- KTD page reads now reuse the connection-local ETag cache with media-type isolation, preserving active-version revalidation and invalidation on missing/denied reads, mutation and logout. No additional MCP input or tool schema is required.
+
+- Optional active KTD design-document pages in `sap.repository.inspect`, with Unicode-safe offsets, strict XML/Base64 decoding, a 1 MiB parse limit, and explicit absent-or-unsupported status. The object explanation prompt now consults documentation as untrusted reference material and checks it against source. No new tool is registered.
+
+- Bounded component navigation through `sap.semantic.components` with case-insensitive name paths and visibility filtering before pagination. Missing or ambiguous paths fail explicitly; nested component bodies are not dumped recursively.
+
+- Conditional `sap.source.read`: responses include `contentHash`; callers retaining the previous range can pass `ifNoneMatch` to recheck access/source and receive `notModified: true` without repeated code. Changed content or range metadata returns the full range. No additional tool is registered.
+- Per-connection, memory-only source caching with SAP ETag revalidation on every hit, separate source versions, bounded retention, and mutation/logout invalidation. Missing validators and `no-store` responses are not retained; failed reads never fall back to stale source. Locked write precondition reads continue to bypass the cache.
+- Default CLI startup and new browser registrations now use the minimal preset: five discovery/invocation gateways. Explicit adaptive mode retains 12 common direct tools plus the five gateways. The measured short source-review workflow used 16.4% fewer counted tokens with minimal; fixed schema cost fell from 6,583 to 883 tokens, with extra discovery calls. All 120 v1 capabilities remain reachable with original schemas, role policy and audit attribution. Use `--toolsets all` for direct-tool compatibility; library embedding retains its existing default.
+- Four native MCP workflow prompts for source explanation, scoped changes, transport review, and RAP planning. Registration respects selected tools and viewer permissions; retrieving a prompt does not access SAP.
+- Dependency graphs now report traversal direction, expanded-node count, depth boundaries, and node-limit coverage without changing the existing `truncated` field's node-limit meaning.
+
+### Fixed
+
+- The live read evidence runner uses the v1 source result's canonical `resourceUri` instead of the internal-only `sourceUri`, allowing class/interface contract validation to proceed. It validates Resource system identity and preserves encoded namespace paths before dispatch.
+
+- Adaptive, minimal and single gateways treat shutdown as terminal. Discovery and invocation after shutdown, including requests awaiting initialization, return `CAPABILITY_GATEWAY_CLOSED` without starting another internal server or dispatching a new operation. Repeated close calls share the same cleanup promise.
+
+- Workspace URI handling preserves percent-encoded namespace slashes when forwarding ADT paths. Namespaced class source and structure reads now use the same path as direct ADT URIs, while malformed encoding remains rejected.
+
+- Setup flows save protected credentials before publishing profile changes and restore the prior credential if profile persistence fails. Failed restoration produces an explicit recovery-required error instead of reporting readiness. Linux environment credentials remain read-only.
+
+- Basic Auth profile editing preserves existing data-query and classic bridge settings in the terminal and browser setup flows. Production transitions disable data queries. The terminal review shows retained advanced settings; browser editing restores package restrictions and no longer treats every connection failure as a missing password.
+
+- Updated transitive `fast-uri` to 3.1.7 and `qs` to 6.16.0 within the MCP SDK dependency ranges; the runtime dependency audit now reports no known vulnerabilities.
+
+- Cache revalidation honors 304 no-store/Vary updates and rejects mismatched validators. If the ADT adapter strips 304 headers, it returns the validated body once and evicts it so subsequent reads refresh the complete policy; this trades some transfer savings for correct retention behavior.
+
+- Source URI probing preserves authorization, rate-limit, server, transport and local consistency failures instead of hiding them behind later fallback errors. Alternate source endpoints are attempted for 404/405/501 compatibility responses; legacy unclassified structure-parser fallback remains supported.
+
+- Restored the published Codex plugin compatibility fix: at most three starter prompts. LobeHub metadata generation now includes runtime workflow prompts, and CI checks both distribution catalogs for drift.
+
+- Component inspection no longer reads the complete source or searches the repository before requesting structure. It resolves the object URI and checks metadata directly, preserving type and connection validation.
+
+- Where-used graph traversal schedules each object once, preventing duplicate SAP requests from URI aliases and cycles. Caller location fragments are removed before expanding an object.
+
+### Verification
+
+- Added an opt-in read-only live context evidence runner with explicit profile/object/type inputs, response sizes and timings, source revalidation checks, and exit codes separating success, failure and missing prerequisites. Reports omit source/document content and do not equate SAP-facing MCP calls with backend request counts.
+
+- Added a reproducible full/adaptive workflow payload benchmark covering deferred capability discovery, schema retrieval, component inspection, and first/unchanged/changed source reads. CI checks semantic results and conditional-read payload reduction; reported bytes are not billed model tokens.
+
+- Added protocol-level prompt tests, graph regression tests, and prompt discovery/retrieval to the default stdio smoke check. Live SAP workflow completion remains a separate acceptance gate.
+
+## 1.6.0 - 2026-09-02
+
+### Added
+
+- **Guided local onboarding**: `onboard` opens a token-protected loopback UI,
+  detects npm, Claude Code, Codex, `.claude` and `.codex` settings, verifies a
+  Basic Auth SAP profile, stores its password with Windows DPAPI or macOS
+  Keychain, and registers the local MCP server through the installed client CLI.
+
+## 1.5.2 - 2026-08-26
+
+### Fixed
+
+- **Codex plugin prompt metadata**: limited `interface.defaultPrompt` to the
+  three prompts accepted by Codex 0.137.0 so the host no longer ignores the
+  complete default-prompt list during plugin loading.
+
+## 1.5.1 - 2026-08-26
+
+### Fixed
+
+- **Codex repository plugin compatibility**: restored the Codex manifest to the
+  shared `.mcp.json` path accepted by Codex 0.137.0. Codex and Claude Code
+  repository plugins keep the full compatibility surface; direct Codex and
+  Cursor registrations continue to use `adaptive`.
+
+## 1.5.0 - 2026-08-26
+
+### Added
+
+- **Lossless adaptive tool discovery**: `serve --preset adaptive` advertises the
+  12 compact tools plus five fixed catalog, schema, and risk-separated invocation
+  tools. All 120 v1 capabilities remain discoverable and callable through the
+  same existing validation, role, safety, Resource-evidence, and audit paths.
+
+### Changed
+
+- **Client-specific schema guidance**: direct Codex registration examples and
+  Cursor documentation use `adaptive`, while Claude Code retains the full
+  surface so its native MCP Tool Search can defer schemas while preserving
+  original tool names and per-tool policy.
+
+## 1.4.2 - 2026-08-25
+
+### Changed
+
+- **Focused npm README**: reduced the published README from 1,072 to about 320 lines while keeping profile creation, profile list/edit/remove, MCP registration, connection verification, safety defaults, deployment choices, and troubleshooting in the main flow. Detailed profile/authentication, HTTP/security, and CLI material now lives in dedicated linked guides so one canonical Quick start owns the copyable registration commands.
+
+## 1.4.1 - 2026-08-25
+
+### Fixed
+
+- **Copyable MCP registration commands**: the npm README now separates Codex and Claude Code commands, uses the broadly supported `npx -y` form, and registers `serve` without a literal example profile so users do not receive `PROFILE_NOT_FOUND` for `DEV100`. The server still requires an explicit `connectionId` for every SAP-facing tool call.
+
+## 1.4.0 - 2026-08-21
+
+### Changed
+
+- **One explicit data-query opt-in**: `--allow-data-queries` now enables every caller-supplied SAP query that passes the existing read-only SQL validation on development and quality profiles. The redundant table denylist, dynamic-source parser, and per-call `acknowledgeRisk` field were removed; production opt-in remains forbidden, write SQL remains blocked, result bounds remain enforced, and SQL stays redacted from audit arguments.
+- **Discoverable setup flow**: the interactive Basic Auth wizard now asks whether to enable all read-only SAP table queries on development and quality profiles, shows the choice in its review, preserves it during `setup edit`, and explains that sensitive business data may be exposed. Production profiles remain disabled without presenting an unsafe choice.
+- **Smaller query schemas**: `sap.data.query`, `sap.data.export`, and `execute_data_query` no longer advertise the obsolete `acknowledgeRisk` input, reducing schema tokens and making the profile-level permission the single query-access decision.
 
 ## 1.3.1 - 2026-08-19
 

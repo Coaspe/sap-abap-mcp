@@ -1,49 +1,95 @@
-name: Professional services inquiry
-description: Ask about a paid compatibility assessment or DEV/QAS pilot without sharing confidential information.
-title: "Professional services inquiry: "
+name: Transport release evidence pilot
+description: Check fit for a paid, read-only transport evidence diagnostic or pilot without sharing confidential information.
+title: "Transport evidence pilot: "
 labels: []
 body:
   - type: markdown
     attributes:
       value: |
-        Use this form only for non-confidential background. Do not post SAP host names, credentials, source code, tokens, customer data, or internal architecture.
+        This is a public issue and the initial contact channel. Do not post company or customer names, SAP host names, transport numbers, credentials, source code, logs, tokens, internal architecture, or other confidential information.
+
+        This service does not replace SAP Cloud ALM, ChaRM, ActiveControl, Rev-Trac, Project "Piper", or an already complete release-evidence workflow. See the [scope and prices](https://github.com/Coaspe/sap-abap-mcp/blob/main/SERVICES.md) before submitting.
+
   - type: dropdown
     id: service
     attributes:
-      label: Service
+      label: Requested next step
       options:
-        - Compatibility assessment
-        - Five-day DEV/QAS pilot
-        - Ongoing adoption support
+        - Paid compatibility diagnostic (up to two hours)
+        - Three-business-day transport evidence pilot
+        - 90-minute team workshop without SAP access
         - Not sure yet
     validations:
       required: true
+
   - type: input
-    id: organization
+    id: organization_type
     attributes:
       label: Organization type
-      description: For example, SAP partner, internal ERP team, or independent consultant. A company name is optional.
+      description: Do not provide a company or customer name.
+      placeholder: Small SAP implementation partner, internal ERP team, or independent consultant
     validations:
       required: true
-  - type: textarea
-    id: goal
-    attributes:
-      label: Intended outcome
-      description: Describe the workflow you want to evaluate without confidential system details.
-      placeholder: Evaluate read-only ABAP inspection and ATC from Codex in a DEV environment.
-    validations:
-      required: true
+
   - type: dropdown
-    id: environment
+    id: landscape
     attributes:
-      label: Authorized environment
+      label: Landscape category
       options:
-        - DEV only
-        - DEV and QAS
-        - No environment available yet
-        - Other non-production environment
+        - ECC with classic transports
+        - SAP S/4HANA on-premise or private cloud with classic transports
+        - SAP BTP ABAP Environment
+        - Mixed or not sure
     validations:
       required: true
+
+  - type: dropdown
+    id: current_control
+    attributes:
+      label: Current release evidence flow
+      options:
+        - ATC or ABAP Unit is manual or only partially enforced
+        - Checks run, but results and the release decision are stored separately
+        - Cloud ALM or ChaRM already preserves the complete evidence flow
+        - ActiveControl or Rev-Trac already preserves the complete evidence flow
+        - Project "Piper" or equivalent CI already preserves the complete evidence flow
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence_gap
+    attributes:
+      label: Evidence gap to close
+      description: Describe the release decision or evidence problem without identifiers, code, logs, or architecture details.
+      placeholder: ATC is run before release, but the result and approval decision are not retained with the transport.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runner
+    attributes:
+      label: Customer-controlled runner
+      description: Could an approved DEV/QAS machine run a read-only CLI and retain reports locally?
+      options:
+        - Yes
+        - Possibly, subject to security review
+        - No external CLI can run
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: timing
+    attributes:
+      label: Intended timing
+      options:
+        - Within 30 days
+        - Within 90 days
+        - Researching for later
+    validations:
+      required: true
+
   - type: input
     id: timezone
     attributes:
@@ -51,15 +97,13 @@ body:
       placeholder: Asia/Seoul, weekdays 09:00-18:00
     validations:
       required: true
-  - type: textarea
-    id: constraints
-    attributes:
-      label: Non-confidential constraints
-      description: Mention known restrictions such as VPN-only access, SSO-only authentication, or unavailable ADT. Do not include endpoints or account details.
+
   - type: checkboxes
     id: confirmation
     attributes:
-      label: Confirmation
+      label: Confirmations
       options:
-        - label: I have not included credentials, source code, tokens, customer data, host names, or internal architecture in this public issue.
+        - label: I am authorized to discuss this non-confidential background for my organization or project.
+          required: true
+        - label: I have not included names, credentials, source code, logs, tokens, host names, transport numbers, internal architecture, or other confidential information.
           required: true

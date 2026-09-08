@@ -255,7 +255,7 @@ test("API version CLI validation rejects before starting a transport", async () 
     (error: unknown) => error instanceof AppError &&
       error.code === "INVALID_PRESET" &&
       assert.deepEqual(error.details, {
-        available: ["compact", "development", "assurance"]
+        available: ["compact", "development", "assurance", "adaptive", "minimal", "single"]
       }) === undefined
   )
   await assert.rejects(

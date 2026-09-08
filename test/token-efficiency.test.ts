@@ -568,3 +568,121 @@ test("heartbeat mutations honor includeDetails=false", async () => {
   assert.equal("sampleQuery" in task, false)
   assert.equal("checkInstructions" in task, false)
 })
+
+test("batch reads share a UTF-8 byte budget and retain whole-line continuation for every object", async () => {
+  const service = createService()
+  const line = "한".repeat(10000)
+  service.getObjectLines = async input => ({ connectionId: input.connectionId, object: { name: input.objectName, type: "CLAS/OC" },
+    sourceUri: "/sap/bc/adt/oo/classes/zcl_test/source/main", startLine: input.startLine,
+    endLine: input.startLine + 1, totalLines: 20, truncated: false, nextLine: input.startLine + 2, code: `${line}\n${line}` })
+  const result = await service.getBatchLines({ connectionId: "DEV100", requests: [
+    { objectName: "ZCL_FIRST", startLine: 0, lineCount: 2 },
+    { objectName: "ZCL_SECOND", startLine: 9, lineCount: 2 }
+  ] })
+  assert.equal(result.sourceByteLimit, 65536)
+  assert.equal(result.returnedSourceBytes, 60001)
+  assert.equal(result.truncated, true)
+  const first = result.results[0]!
+  const second = result.results[1]!
+  assert.ok(first.ok && second.ok)
+  assert.equal(first.result.code, `${line}\n${line}`)
+  assert.equal(first.result.nextLine, 3)
+  assert.equal(second.result.code, "")
+  assert.equal(second.result.endLine, 9)
+  assert.equal(second.result.nextLine, 10)
+  assert.equal(second.result.truncationReason, "batch_byte_budget")
+  const single = await service.getBatchLines({ connectionId: "DEV100", requests: [
+    { objectName: "ZCL_SECOND", startLine: second.result.nextLine! - 1, lineCount: 2 }
+  ] })
+  assert.ok(single.results[0]!.ok)
+  assert.equal(single.results[0]!.result.code, `${line}\n${line}`)
+  service.getObjectLines = async input => ({ connectionId: input.connectionId, object: { name: input.objectName, type: "CLAS/OC" },
+    sourceUri: "/sap/bc/adt/oo/classes/zcl_test/source/main", startLine: 1,
+    endLine: 1, totalLines: 1, truncated: false, nextLine: null, code: "x".repeat(70000) })
+  const giant = await service.getBatchLines({ connectionId: "DEV100", requests: [{ objectName: "ZCL_GIANT", startLine: 0, lineCount: 1 }] })
+  assert.equal(giant.returnedSourceBytes, 0)
+  assert.ok(giant.results[0]!.ok)
+  assert.equal(giant.results[0]!.result.nextLine, 1)
+  assert.equal(giant.results[0]!.result.truncated, true)
+})
+
+test("batch failures redact credentials and bound error text without redacting successful source", async () => {
+  const service = createService()
+  const original = service.getObjectLines.bind(service)
+  service.getObjectLines = async input => {
+    if (input.objectName === "ZFAILED") throw new Error('Authorization: Bearer TOP_SECRET\npassword="PRIVATE_PASSWORD"\n' + "한".repeat(3000))
+    return original(input)
+  }
+  const result = await service.getBatchLines({ connectionId: "DEV100", requests: [
+    { objectName: "ZFAILED", startLine: 0, lineCount: 1 },
+    { objectName: object.name, startLine: 0, lineCount: 2 }
+  ] })
+  const failed = result.results[0]!
+  assert.equal(failed.ok, false)
+  if (failed.ok) throw new Error("Expected failed object")
+  assert.ok(Buffer.byteLength(failed.error) <= 512)
+  assert.match(failed.error, /REDACTED/)
+  assert.doesNotMatch(JSON.stringify(result), /TOP_SECRET|PRIVATE_PASSWORD/)
+  const successful = result.results[1]!
+  assert.equal(successful.ok, true)
+  if (!successful.ok) throw new Error("Expected successful object")
+  const expected = await original({ connectionId: "DEV100", objectName: object.name, startLine: 1, lineCount: 2 })
+  assert.equal(successful.result.code, expected.code)
+})
+
+test("batch source work is limited to four concurrent reads and preserves order after failures", async () => {
+  const service = createService()
+  let active = 0
+  let peak = 0
+  const started: string[] = []
+  const release: Array<() => void> = []
+  service.getObjectLines = async input => {
+    const index = started.length
+    started.push(input.objectName)
+    peak = Math.max(peak, ++active)
+    await new Promise<void>(resolve => { release[index] = resolve })
+    active--
+    if (input.objectName === "ZOBJ1") throw new Error("denied")
+    return { connectionId: input.connectionId, object: { name: input.objectName, type: "CLAS/OC" },
+      sourceUri: "/sap/bc/adt/oo/classes/zcl_test/source/main", code: input.objectName,
+      startLine: 1, endLine: 1, totalLines: 1, truncated: false, nextLine: null }
+  }
+  const requests = Array.from({ length: 9 }, (_, i) => ({ objectName: `ZOBJ${i}`, startLine: 0, lineCount: 1 }))
+  const pending = service.getBatchLines({ connectionId: "DEV100", requests })
+  assert.equal(started.length, 4)
+  for (const finish of release.slice().reverse()) finish()
+  await new Promise<void>(resolve => setImmediate(resolve))
+  assert.equal(started.length, 8)
+  for (const finish of release.slice(4).reverse()) finish()
+  await new Promise<void>(resolve => setImmediate(resolve))
+  assert.equal(started.length, 9)
+  release[8]!()
+  const result = await pending
+  assert.equal(peak, 4)
+  assert.equal(active, 0)
+  assert.deepEqual(result.results.map(item => item.request?.objectName), requests.map(item => item.objectName))
+  assert.equal(result.results[1]!.ok, false)
+  assert.equal(result.results.filter(item => item.ok).length, 8)
+  for (const item of result.results) if (item.ok) assert.equal(item.result.code, item.request?.objectName)
+})
+
+test("batch stops scheduling later groups after the code budget is exhausted", async () => {
+  const service = createService()
+  const readNames: string[] = []
+  service.getObjectLines = async input => {
+    readNames.push(input.objectName)
+    return { connectionId: input.connectionId, object: { name: input.objectName, type: "CLAS/OC" },
+      sourceUri: "/sap/bc/adt/oo/classes/zcl_test/source/main", code: "x".repeat(40000),
+      startLine: 1, endLine: 1, totalLines: 1, truncated: false, nextLine: null }
+  }
+  const requests = Array.from({ length: 12 }, (_, i) => ({ objectName: `ZOBJ${i}`, startLine: 0, lineCount: 1 }))
+  const result = await service.getBatchLines({ connectionId: "DEV100", requests })
+  assert.deepEqual(readNames, ["ZOBJ0", "ZOBJ1", "ZOBJ2", "ZOBJ3"])
+  assert.equal(result.count, 12)
+  assert.equal(result.truncated, true)
+  assert.equal(result.returnedSourceBytes, 40000)
+  for (const [index, item] of result.results.slice(4).entries()) {
+    assert.ok(!item.ok && "deferred" in item && item.deferred)
+    assert.deepEqual(item.request, requests[index + 4])
+  }
+})

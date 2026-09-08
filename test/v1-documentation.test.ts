@@ -8,6 +8,7 @@ import {
 import { V1_IMPLEMENTED_TOOL_NAMES } from "../src/mcp/v1/migration-catalog.js"
 import { v1ToolsForToolsets } from "../src/mcp/v1/toolsets.js"
 import { advertisedTools } from "./helpers/mcp-surface.js"
+import { resolveServeToolSelection } from "../src/mcp/tool-selection.js"
 
 function assertUnversionedServeArgs(args: readonly string[]): void {
   assert.equal(
@@ -26,8 +27,8 @@ test("v1 migration guide documents the complete local contract and live boundary
   const guide = await readFile("docs/v1-migration.md", "utf8")
 
   for (const statement of [
-    "The unversioned `serve` is the complete current v1 surface.",
-    "With no `--toolsets`, all six v1 toolsets are enabled.",
+    "The unversioned `serve` uses the minimal v1 surface.",
+    "With no `--toolsets` or `--preset`, minimal mode is enabled.",
     "The complete v1 surface contains 120 callable tools and seven Resources.",
     "All 53 v0 capabilities remain available through `--api-version v0`.",
     "Live SAP acceptance remains a separate gate",
@@ -41,6 +42,7 @@ test("v1 migration guide documents the complete local contract and live boundary
     [
       "npx @coaspe/sap-abap-mcp@latest serve",
       "npx @coaspe/sap-abap-mcp@latest serve --preset compact",
+      "npx @coaspe/sap-abap-mcp@latest serve --toolsets all",
       "npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis",
       "npx @coaspe/sap-abap-mcp@latest serve --api-version v0",
     ]
@@ -86,7 +88,7 @@ test("MCPB catalog matches the unversioned v1 runtime", async () => {
     tools_generated: boolean
     tools: Array<{ name: string; description: string }>
   }
-  const tools = await advertisedTools()
+  const tools = await advertisedTools(resolveServeToolSelection("v1", undefined, "minimal"))
 
   assert.equal(manifest.tools_generated, false)
   assert.deepEqual(

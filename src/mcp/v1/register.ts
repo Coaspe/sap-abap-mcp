@@ -21,6 +21,7 @@ export { V1_READ_ONLY_ANNOTATIONS }
 export interface V1RegistrationOptions {
   enabledTools?: ReadonlySet<string>
   enabledResources?: ReadonlySet<V1ResourceName>
+  evidenceStore?: V1EvidenceStore
 }
 
 export function isV1ToolEnabled(
@@ -35,7 +36,7 @@ export function registerV1Tools(
   service: AbapToolService,
   options: V1RegistrationOptions = {}
 ): void {
-  const evidenceStore = new V1EvidenceStore()
+  const evidenceStore = options.evidenceStore ?? new V1EvidenceStore()
   const systemToolNames = [
     "sap.system.list",
     "sap.system.inspect",

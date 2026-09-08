@@ -28,10 +28,10 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const readme = readText("README.md")
   const directoryReference = readText("docs/mcp-directory-submissions.md")
 
-  assert.equal(packageJson.version, "1.3.1")
-  assert.ok(readme.includes("Current release version: `" + packageJson.version + "`"))
+  assert.equal(packageJson.version, "1.7.0-beta.1")
+  assert.ok(readme.includes("Checkout manifest version: `" + packageJson.version + "`"))
   assert.ok(
-    directoryReference.includes("Currently published version: `" + packageJson.version + "`")
+    directoryReference.includes("Current source release: `" + packageJson.version + "`")
   )
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
@@ -131,13 +131,15 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.deepEqual(manifest.compatibility.platforms, ["darwin", "win32"])
   assert.equal(manifest.compatibility.runtimes.node, ">=20")
   assert.equal(manifest.tools_generated, false)
-  assert.equal(manifest.tools.length, 120)
-  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 120)
+  assert.equal(manifest.tools.length, 5)
+  assert.equal(new Set(manifest.tools.map((tool: { name: string }) => tool.name)).size, 5)
   const toolNames = new Set(manifest.tools.map((tool: { name: string }) => tool.name))
   for (const toolName of [
-    "sap.repository.search",
-    "sap.transport.assess",
-    "sap.rap.generate"
+    "sap.capability.invoke_read",
+    "sap.capability.search",
+    "sap.capability.describe",
+    "sap.capability.invoke_write",
+    "sap.capability.invoke_destructive"
   ]) {
     assert.ok(toolNames.has(toolName), `missing current v1 MCPB tool: ${toolName}`)
   }
@@ -182,6 +184,8 @@ test("Claude Code and Codex plugins launch the same published local MCP package"
   assert.equal(codexManifest.version, packageJson.version)
   assert.equal(codexManifest.license, "MIT")
   assert.equal(codexManifest.mcpServers, "./.mcp.json")
+  assert.ok(codexManifest.interface.defaultPrompt.length > 0)
+  assert.ok(codexManifest.interface.defaultPrompt.length <= 3, "Codex supports at most three starter prompts")
   assert.equal(
     codexManifest.interface.privacyPolicyURL,
     "https://github.com/Coaspe/sap-abap-mcp/blob/main/PRIVACY.md"
@@ -238,7 +242,9 @@ test("LobeHub metadata advertises the current default MCP surface", () => {
     mcpbManifest.tools.map((tool: { name: string }) => tool.name).sort()
   )
   assert.equal(lobeHubManifest.resources.length, 7)
-  assert.deepEqual(lobeHubManifest.prompts, [])
+  assert.deepEqual(lobeHubManifest.prompts.map((prompt: { name: string }) => prompt.name), [
+    "sap-change-object", "sap-explain-object", "sap-plan-rap", "sap-review-transport"
+  ])
 })
 
 test("README explains registry installation without claiming live SAP verification", () => {

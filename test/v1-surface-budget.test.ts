@@ -60,6 +60,8 @@ test("token-efficient presets stay inside their advertised budgets", async () =>
     const tools = await advertisedTools({
       apiVersion: "v1",
       enabledV1Tools: new Set(V1_MCP_PRESETS[preset]),
+      ...((preset === "adaptive" || preset === "minimal" || preset === "single") ? { adaptive: true } : {}),
+      ...(preset === "single" ? { singleTool: true } : {}),
       enabledV1Resources: new Set(V1_PRESET_RESOURCE_NAMES[preset])
     })
     const measurement = measureToolSurface(tools)

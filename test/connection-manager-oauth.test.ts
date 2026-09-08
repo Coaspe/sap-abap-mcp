@@ -154,3 +154,57 @@ test("request-scoped provider closes only passthrough clients", async t => {
   await manager.close()
   assert.equal(shared.logoutCount, 1)
 })
+
+test("concurrent OAuth refreshes share one replacement while the old session logs out", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-oauth-refresh-race-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const profiles = new ProfileStore(directory)
+  const profile = await profiles.upsert({ id: "BTP100", url: "https://abap.example.test", client: "100",
+    authType: "oauth_client_credentials", tokenUrl: "https://auth.example.test/token", clientId: "mcp" })
+  profiles.get = async () => profile
+  const secrets = new MemorySecretStore()
+  await secrets.set(profile.id, "secret")
+  const providers: FakeTokenProvider[] = []
+  const clients: SapClient[] = []
+  let releaseLogout!: () => void
+  const logoutGate = new Promise<void>(resolve => { releaseLogout = resolve })
+  let logouts = 0
+  let failNextLogin = false
+  const failure = new Error("replacement login failed")
+  const manager = new ConnectionManager(profiles, secrets, () => {
+    const index = clients.length
+    const client = { async login() {
+      if (failNextLogin) { failNextLogin = false; throw failure }
+    }, async logout() {
+      logouts++
+      if (index === 0) await logoutGate
+    } } as unknown as SapClient
+    clients.push(client)
+    return client
+  }, undefined, () => {
+    const provider = new FakeTokenProvider()
+    providers.push(provider)
+    return provider
+  })
+  t.after(async () => { releaseLogout(); await manager.close() })
+  await manager.getClient(profile.id)
+  providers[0]!.needsRefresh = true
+  const waiting = Array.from({ length: 8 }, () => manager.getClient(profile.id))
+  await new Promise<void>(resolve => setImmediate(resolve))
+  const createdBeforeLogout = clients.length
+  releaseLogout()
+  const replacements = await Promise.all(waiting)
+  assert.equal(createdBeforeLogout, 1, "Replacement waits for old session cleanup")
+  assert.equal(clients.length, 2, "Exactly one replacement is created")
+  assert.ok(replacements.every(client => client === clients[1]))
+  assert.equal(await manager.getClient(profile.id), clients[1])
+  assert.equal(logouts, 1)
+  providers[1]!.needsRefresh = true
+  failNextLogin = true
+  const failed = await Promise.allSettled(Array.from({ length: 8 }, () => manager.getClient(profile.id)))
+  assert.ok(failed.every(result => result.status === "rejected" && result.reason === failure))
+  assert.equal(clients.length, 3)
+  const recovered = await manager.getClient(profile.id)
+  assert.equal(recovered, clients[3])
+  assert.equal(await manager.getClient(profile.id), recovered)
+})

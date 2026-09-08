@@ -270,7 +270,7 @@ export function registerV1Resources(
       "sap-docs://data-query",
       {
         title: "SAP Data Query Documentation",
-        description: "Safe SAP ADT data-preview SQL rules and examples.",
+        description: "Read-only SAP ADT data-preview SQL rules and examples.",
         mimeType: "application/json"
       },
       uri => readDataQueryDocumentation(uri.toString(), service)

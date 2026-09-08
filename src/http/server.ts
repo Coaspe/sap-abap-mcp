@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import {
   createServer,
   type IncomingMessage,
@@ -93,6 +93,7 @@ interface McpSession {
   transport: StreamableHTTPServerTransport
   instance: McpSessionInstance
   principal: HttpPrincipal
+  credentialHash?: string
   lastSeenAt: number
 }
 
@@ -416,7 +417,7 @@ export async function startHttpMcpServer(
       }
       // Bind a session to the principal that opened it, so a captured session
       // id cannot be replayed under a different API key.
-      if (session.principal.id !== principal.id) {
+      if (session.principal.id !== principal.id || session.principal.source !== principal.source) {
         recordSessionEvent(
           {
             outcome: "denied",
@@ -428,6 +429,16 @@ export async function startHttpMcpServer(
           startedAt
         )
         sendJson(response, 403, jsonRpcError(-32003, "Session belongs to another principal"))
+        return
+      }
+      if (session.credentialHash !== undefined &&
+          session.credentialHash !== createHash("sha256").update(credential ?? "").digest("hex")) {
+        recordSessionEvent({
+          outcome: "denied", name: "http.session.bind", errorCode: "SESSION_CREDENTIAL_CHANGED",
+          principalId: principal.id, principalSource: principal.source
+        }, startedAt)
+        await closeSession(sessionId)
+        sendJson(response, 404, jsonRpcError(-32004, "Authentication changed; initialize a new MCP session"))
         return
       }
       session.lastSeenAt = Date.now()
@@ -513,6 +524,9 @@ export async function startHttpMcpServer(
         transport,
         instance,
         principal,
+        ...(principal.source === "oidc" && credential
+          ? { credentialHash: createHash("sha256").update(credential).digest("hex") }
+          : {}),
         lastSeenAt: Date.now()
       })
       recordSessionEvent(

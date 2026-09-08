@@ -1,5 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { AdtErrorException } from "abap-adt-api"
+import { AppError } from "../src/errors.js"
 import {
   ADT_FAILURE_EVIDENCE_BYTE_LIMIT,
   AdtSapClient,
@@ -119,10 +121,10 @@ test("inactive source reads pass the inactive version to both ADT structure and 
         links: []
       }
     },
-    getObjectSource: async (...args: unknown[]) => {
-      calls.push({ method: "getObjectSource", args })
-      return "REPORT z_demo."
-    }
+    httpClient: { request: async (...args: unknown[]) => {
+      calls.push({ method: "request", args })
+      return { body: "REPORT z_demo.", status: 200, headers: {} }
+    } }
   }
   const client = clientWithAdt(fakeAdt)
   const result = await client.readSourceByUri(
@@ -137,13 +139,94 @@ test("inactive source reads pass the inactive version to both ADT structure and 
       args: ["/sap/bc/adt/programs/programs/z_demo", "inactive"]
     },
     {
-      method: "getObjectSource",
+      method: "request",
       args: [
         "/sap/bc/adt/programs/programs/z_demo/source/main",
-        { version: "inactive" }
+        { qs: { version: "inactive" } }
       ]
     }
   ])
+})
+
+test("explicit class include reads never redirect through object structure and still revalidate ETags", async () => {
+  for (const suffix of ["source/main", "includes/definitions", "includes/implementations", "includes/testclasses"]) {
+    const uri = `/sap/bc/adt/oo/classes/%2Fabc%2Fcl_demo/${suffix}`
+    const calls: Array<{ uri: string; options: any }> = []
+    const client = clientWithAdt({
+      objectStructure: async () => { throw new Error("Explicit source must not perform structure discovery") },
+      httpClient: { request: async (uri: string, options: any) => {
+        calls.push({ uri, options })
+        return calls.length === 1
+          ? { body: "CLASS lcl_demo DEFINITION. ENDCLASS.", status: 200, headers: { etag: '"v1"' } }
+          : { body: "", status: 304, headers: { etag: '"v1"' } }
+      } }
+    })
+    const first = await client.readSourceByUri(uri, "inactive")
+    const second = await client.readSourceByUri(uri, "inactive")
+    assert.deepEqual(second, first)
+    assert.equal(first.sourceUri, uri)
+    assert.equal(calls.length, 2)
+    assert.ok(calls.every(call => call.uri === uri && call.options.qs.version === "inactive"))
+    assert.equal(calls[1]!.options.headers["If-None-Match"], '"v1"')
+  }
+})
+
+test("explicit include failures propagate without falling back to main source", async () => {
+  for (const status of [401, 403, 404, 429, 500]) {
+    const error = AdtErrorException.create(status, {}, "", "Source unavailable")
+    let calls = 0
+    const client = clientWithAdt({
+      objectStructure: async () => { throw new Error("Unexpected structure discovery") },
+      httpClient: { request: async () => { calls++; throw error } }
+    })
+    await assert.rejects(client.readSourceByUri("/sap/bc/adt/oo/classes/zcl_demo/includes/definitions"), actual => actual === error)
+    assert.equal(calls, 1)
+  }
+})
+
+test("source mutation rechecks under lock without cache and clears cached source on failure", async () => {
+  const uri = "/sap/bc/adt/programs/programs/z_demo/source/main"
+  const readHeaders: unknown[] = []
+  let lockedReads = 0
+  let writes = 0
+  const client = clientWithAdt({
+    stateful: "stateless",
+    objectStructure: async () => { throw new Error("use source URI") },
+    httpClient: { request: async (_uri: string, options: { headers?: unknown }) => {
+      readHeaders.push(options.headers)
+      return { body: "REPORT original.", status: 200, headers: { etag: '"v1"' } }
+    } },
+    lock: async () => ({ LOCK_HANDLE: "LOCK" }),
+    getObjectSource: async () => { lockedReads += 1; return "REPORT another_user_edit." },
+    setObjectSource: async () => { writes += 1 },
+    unLock: async () => undefined
+  })
+  await client.readSourceByUri(uri)
+  await assert.rejects(client.replaceSource("Z_DEMO", uri.replace("/source/main", ""), uri,
+    "REPORT original.", "REPORT edited."), { code: "SOURCE_CHANGED" })
+  await client.readSourceByUri(uri)
+  assert.equal(lockedReads, 1)
+  assert.equal(writes, 0)
+  assert.deepEqual(readHeaders, [undefined, undefined])
+})
+
+test("activation invalidates both source versions", async () => {
+  const headers: unknown[] = []
+  const client = clientWithAdt({
+    objectStructure: async () => { throw new Error("use source URI") },
+    httpClient: { request: async (_uri: string, options: { headers?: unknown }) => {
+      headers.push(options.headers)
+      return { body: "REPORT demo.", status: 200, headers: { etag: '"v1"' } }
+    } },
+    activate: async () => activationResult
+  })
+  const uri = "/sap/bc/adt/programs/programs/z_demo/source/main"
+  await client.readSourceByUri(uri, "active")
+  await client.readSourceByUri(uri, "inactive")
+  await client.activateObject("Z_DEMO", uri)
+  await client.readSourceByUri(uri, "active")
+  await client.readSourceByUri(uri, "inactive")
+  assert.deepEqual(headers, [undefined, undefined, undefined, undefined])
 })
 
 test("delete uses stateful lock, rechecks the preview fingerprint, deletes, and unlocks", async () => {
@@ -1041,4 +1124,134 @@ test("a rejected batch activation releases the queue", async () => {
     [[secondInactiveObject], true]
   ])
   assert.strictEqual(result, activationResult)
+})
+
+test("source URI probing preserves terminal HTTP failures without extra requests", async () => {
+  const uri = "/sap/bc/adt/programs/programs/z_demo"
+  for (const status of [401, 403, 429, 500, 502, 503]) {
+    for (const stage of ["structure", "source"]) {
+      const error = AdtErrorException.create(status, {}, "", "SAP rejected request")
+      let requests = 0
+      const client = clientWithAdt({
+        objectStructure: async () => {
+          if (stage === "structure") throw error
+          throw Object.assign(new Error("No structure"), { status: 404 })
+        },
+        httpClient: { request: async () => { requests++; throw error } }
+      })
+      await assert.rejects(client.readSourceByUri(uri), actual => actual === error)
+      assert.equal(requests, stage === "structure" ? 0 : 1)
+    }
+  }
+})
+
+test("source URI probing keeps endpoint compatibility fallback but stops on transport errors", async () => {
+  const uri = "/sap/bc/adt/programs/programs/z_demo"
+  for (const status of [404, 405, 501]) {
+    const paths: string[] = []
+    const client = clientWithAdt({
+      objectStructure: async () => { throw Object.assign(new Error("Unsupported"), { response: { status } }) },
+      httpClient: { request: async (path: string) => {
+        paths.push(path)
+        if (path.endsWith("/source/main")) throw Object.assign(new Error("Unsupported"), { status })
+        return { status: 200, body: "REPORT z_demo.", headers: {} }
+      } }
+    })
+    assert.deepEqual(await client.readSourceByUri(uri), { source: "REPORT z_demo.", sourceUri: uri })
+    assert.deepEqual(paths, [`${uri}/source/main`, uri])
+  }
+  for (const stage of ["structure", "source"]) {
+    const failure = Object.assign(new Error("Connection reset"), { code: "ECONNRESET" })
+    let requests = 0
+    const client = clientWithAdt({
+      objectStructure: async () => {
+        if (stage === "structure") throw failure
+        throw new Error("Legacy structure parser")
+      },
+      httpClient: { request: async () => { requests++; throw failure } }
+    })
+    await assert.rejects(client.readSourceByUri(uri), error => error === failure)
+    assert.equal(requests, stage === "structure" ? 0 : 1)
+  }
+})
+
+test("non-success source responses stop probing instead of falling back to object metadata", async () => {
+  let requests = 0
+  const client = clientWithAdt({
+    objectStructure: async () => { throw new Error("Legacy structure parser") },
+    httpClient: { request: async () => { requests++; return { status: 403, body: "Forbidden", headers: {} } } }
+  })
+  await assert.rejects(client.readSourceByUri("/sap/bc/adt/programs/programs/z_demo"),
+    (error: any) => error.details?.httpStatus === 403)
+  assert.equal(requests, 1)
+})
+
+test("source consistency conflicts are terminal during URI probing", async () => {
+  const conflict = new AppError("SOURCE_CHANGED", "Source overlapped a local mutation")
+  let requests = 0
+  const client = clientWithAdt({
+    objectStructure: async () => { throw new Error("Legacy structure parser") },
+    httpClient: { request: async () => { requests++; throw conflict } }
+  })
+  await assert.rejects(client.readSourceByUri("/sap/bc/adt/programs/programs/z_demo"),
+    error => error === conflict)
+  assert.equal(requests, 1)
+})
+
+test("KTD reads use the active XML representation and preserve permission errors", async () => {
+  const calls: unknown[] = []
+  let status = 200
+  const client = clientWithAdt({ httpClient: { request: async (...args: unknown[]) => {
+    calls.push(args)
+    if (status === 403) throw AdtErrorException.create(403, {}, "", "Denied")
+    return { status, headers: {}, body: `<docu><text>${Buffer.from("Design").toString("base64")}</text></docu>` }
+  } } })
+  assert.deepEqual(await client.getKnowledgeTransferDocument("/NS/ZCL_DEMO"), {
+    uri: "/sap/bc/adt/documentation/ktd/documents/%2Fns%2Fzcl_demo", markdown: "Design"
+  })
+  assert.deepEqual(calls[0], ["/sap/bc/adt/documentation/ktd/documents/%2Fns%2Fzcl_demo", {
+    headers: { Accept: "application/vnd.sap.adt.sktdv2+xml" }, qs: { version: "active" }
+  }])
+  status = 404
+  assert.equal(await client.getKnowledgeTransferDocument("ZCL_DEMO"), null)
+  status = 403
+  await assert.rejects(client.getKnowledgeTransferDocument("ZCL_DEMO"), (error: any) => error.err === 403)
+})
+
+test("KTD pages revalidate cached XML and evict on denied or missing documents", async () => {
+  let phase: "initial" | "unchanged" | "edited" | "missing" | "denied" = "initial"
+  const headers: Array<Record<string, string>> = []
+  const client = clientWithAdt({
+    httpClient: { request: async (_uri: string, options: { headers: Record<string, string> }) => {
+      headers.push(options.headers)
+      assert.equal(options.headers.Accept, "application/vnd.sap.adt.sktdv2+xml")
+      if (phase === "unchanged") throw AdtErrorException.create(304, {}, "", "Not modified")
+      if (phase === "denied") throw AdtErrorException.create(403, {}, "", "Denied")
+      if (phase === "missing") return { status: 404, body: "Missing", headers: {} }
+      const text = phase === "edited" ? "Changed design" : "Original design"
+      return { status: 200, body: `<docu><text>${Buffer.from(text).toString("base64")}</text></docu>`,
+        headers: { etag: phase === "edited" ? '"v2"' : '"v1"' } }
+    } },
+    logout: async () => undefined
+  })
+  assert.equal((await client.getKnowledgeTransferDocument("ZCL_DEMO"))?.markdown, "Original design")
+  phase = "unchanged"
+  assert.equal((await client.getKnowledgeTransferDocument("ZCL_DEMO"))?.markdown, "Original design")
+  assert.equal(headers.at(-1)?.["If-None-Match"], '"v1"')
+  phase = "edited"
+  assert.equal((await client.getKnowledgeTransferDocument("ZCL_DEMO"))?.markdown, "Changed design")
+  phase = "missing"
+  assert.equal(await client.getKnowledgeTransferDocument("ZCL_DEMO"), null)
+  assert.equal(headers.at(-1)?.["If-None-Match"], '"v2"')
+  phase = "initial"
+  await client.getKnowledgeTransferDocument("ZCL_DEMO")
+  assert.equal(headers.at(-1)?.["If-None-Match"], undefined)
+  phase = "denied"
+  await assert.rejects(client.getKnowledgeTransferDocument("ZCL_DEMO"), (error: any) => error.err === 403)
+  phase = "initial"
+  await client.getKnowledgeTransferDocument("ZCL_DEMO")
+  assert.equal(headers.at(-1)?.["If-None-Match"], undefined)
+  await client.logout()
+  await client.getKnowledgeTransferDocument("ZCL_DEMO")
+  assert.equal(headers.at(-1)?.["If-None-Match"], undefined)
 })

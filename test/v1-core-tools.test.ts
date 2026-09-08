@@ -19,7 +19,7 @@ function method(
 ): (input: unknown) => Promise<Record<string, unknown>> {
   return async input => {
     calls.push({ method: name, input })
-    return { connectionId: "DEV100", method: name }
+    return { connectionId: "DEV100", method: name, ...(name === "getBatchLines" ? { results: [] } : {}) }
   }
 }
 
@@ -327,4 +327,99 @@ test("core adapters call the shared service once with normalized fixed operation
       }
     }
   ])
+})
+
+test("component navigation validates bounded paths and forwards filters", async () => {
+  const { service, calls } = createCoreService()
+  const harness = await connectedClient(service)
+  try {
+    const args = { systemId: "dev100", fileUri: "/sap/bc/adt/source" }
+    const result = await harness.client.callTool({
+      name: "sap.semantic.components",
+      arguments: { ...args, componentPath: [" /NS/IF_DEMO~RUN "], visibility: "public", startIndex: 1, limit: 2 }
+    })
+    assert.notEqual(result.isError, true)
+    assert.deepEqual(calls[0], { method: "inspectCode", input: {
+      action: "components", connectionId: "DEV100", fileUri: args.fileUri,
+      line: 1, column: 0, implementation: false, superTypes: false,
+      startIndex: 1, maxResults: 2, componentPath: ["/NS/IF_DEMO~RUN"], visibility: "public"
+    } })
+    for (const invalid of [
+      { componentPath: [" "] },
+      { componentPath: Array(9).fill("RUN") },
+      { componentPath: ["X".repeat(257)] },
+      { componentPath: "RUN" },
+      { visibility: "package" }
+    ]) {
+      const rejected = await harness.client.callTool({ name: "sap.semantic.components", arguments: { ...args, ...invalid } })
+      assert.equal(rejected.isError, true)
+    }
+    assert.equal(calls.length, 1)
+  } finally {
+    await harness.close()
+  }
+})
+
+test("repository inspection forwards bounded KTD page requests", async () => {
+  const { service, calls } = createCoreService()
+  const harness = await connectedClient(service)
+  try {
+    const args = { systemId: "dev100", objectName: "ZCL_DEMO" }
+    const result = await harness.client.callTool({ name: "sap.repository.inspect", arguments: { ...args, documentation: {} } })
+    assert.notEqual(result.isError, true)
+    assert.deepEqual((calls[0]!.input as any).documentation, { offset: 0, maxChars: 8000 })
+    for (const documentation of [{ offset: -1 }, { maxChars: 16001 }, { maxChars: 0 }, { unexpected: true }]) {
+      const invalid = await harness.client.callTool({ name: "sap.repository.inspect", arguments: { ...args, documentation } })
+      assert.equal(invalid.isError, true)
+    }
+    assert.equal(calls.length, 1)
+  } finally { await harness.close() }
+})
+
+test("public API view is forwarded through the existing semantic tool", async () => {
+  const { service, calls } = createCoreService()
+  const harness = await connectedClient(service)
+  try {
+    const result = await harness.client.callTool({ name: "sap.semantic.components", arguments: {
+      systemId: "DEV100", fileUri: "/sap/bc/adt/oo/classes/zcl_demo/source/main", publicApi: true, definitionName: "LCL_DEMO", includeRelated: true, documentation: {}, ifNoneMatch: "a".repeat(64), limit: 10
+    } })
+    assert.notEqual(result.isError, true)
+    assert.equal((calls[0]!.input as any).publicApi, true)
+    assert.equal((calls[0]!.input as any).definitionName, "LCL_DEMO")
+    assert.equal((calls[0]!.input as any).includeRelated, true)
+    assert.deepEqual((calls[0]!.input as any).documentation, { offset: 0, maxChars: 8000 })
+    assert.equal((calls[0]!.input as any).ifNoneMatch, "a".repeat(64))
+    assert.equal((calls[0]!.input as any).maxResults, 10)
+  } finally { await harness.close() }
+})
+
+
+test("v1 batch replies preserve one-based requests and distinguish partial results", async () => {
+  for (const outcome of ["complete", "truncated", "failed", "deferred"] as const) {
+    const { service } = createCoreService()
+    service.getBatchLines = async input => {
+      assert.equal(input.requests[0]!.startLine, 8)
+      return { connectionId: input.connectionId, count: 1, requestedLines: 2,
+        sourceByteLimit: 65536, returnedSourceBytes: (outcome === "failed" || outcome === "deferred") ? 0 : 4,
+        truncated: outcome === "truncated", results: [(outcome === "failed" || outcome === "deferred")
+          ? { request: input.requests[0], ok: false, error: "Not completed", ...(outcome === "deferred" ? { deferred: true } : {}) }
+          : { request: input.requests[0], ok: true, result: { object: { name: "ZCL_DEMO", type: "CLAS/OC" },
+            sourceUri: "/sap/bc/adt/oo/classes/zcl_demo/source/main", code: "code", startLine: 9,
+            endLine: 9, nextLine: 10, truncated: outcome === "truncated" } }]
+      } as any
+    }
+    const harness = await connectedClient(service)
+    try {
+      const result = await harness.client.callTool({ name: "sap.source.read_batch", arguments: {
+        systemId: "DEV100", requests: [{ objectName: "ZCL_DEMO", startLine: 9, lineCount: 2 }]
+      } }) as CallToolResult
+      assert.notEqual(result.isError, true)
+      assert.equal(result.structuredContent?.status, outcome === "complete" ? "succeeded" : "partial")
+      const data = result.structuredContent?.data as any
+      assert.equal(data.results[0].request.startLine, 9)
+      assert.equal(data.results[0].request.lineCount, 2)
+      if (outcome === "deferred") assert.equal(data.results[0].deferred, true)
+      if (outcome === "complete" || outcome === "truncated") assert.equal(data.results[0].result.nextLine, 10)
+    } finally { await harness.close() }
+  }
 })

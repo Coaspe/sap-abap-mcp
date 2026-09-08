@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { createHash } from "node:crypto"
 import { z } from "zod"
 import { ABAP_OBJECT_TYPES } from "../../abap-object-types.js"
 import { AppError } from "../../errors.js"
@@ -24,7 +25,11 @@ const sourceReadDataSchema = z.object({
   totalLines: z.number().int().nonnegative().optional(),
   truncated: z.boolean(),
   nextLine: z.number().int().positive().nullable(),
-  code: z.string()
+  code: z.string().optional(),
+  contentHash: z.string().regex(/^[0-9a-f]{64}$/),
+  notModified: z.boolean()
+}).refine(data => data.notModified ? data.code === undefined : data.code !== undefined, {
+  message: "code is present exactly when notModified is false"
 })
 
 const sourceReadOutputSchema = z.object({
@@ -39,11 +44,25 @@ const sourceReadInputSchema = z.object({
   objectType: z.enum(ABAP_OBJECT_TYPES).optional(),
   methodName: z.string().min(1).optional(),
   startLine: z.number().int().min(1).default(1),
-  lineCount: z.number().int().min(1).max(5000).default(50)
+  lineCount: z.number().int().min(1).max(5000).default(50),
+  ifNoneMatch: z.string().regex(/^[0-9a-f]{64}$/).optional().describe(
+    "Previous contentHash for this source range. Rechecks SAP and omits unchanged code."
+  )
 }).strict().refine(
   input => (input.objectName === undefined) !== (input.resourceUri === undefined),
   { message: "Provide exactly one of objectName or resourceUri" }
 )
+
+function conditionalSource<T extends { code: string }>(data: T, previousHash?: string) {
+  // Bind the body to its system Resource, range and paging metadata. This is a
+  // representation validator, not a fingerprint of the complete ABAP object.
+  const contentHash = createHash("sha256").update(JSON.stringify(data)).digest("hex")
+  if (previousHash === contentHash) {
+    const { code: _code, ...metadata } = data
+    return { ...metadata, contentHash, notModified: true }
+  }
+  return { ...data, contentHash, notModified: false }
+}
 
 export function registerV1SourceTools(
   server: McpServer,
@@ -77,7 +96,7 @@ export function registerV1SourceTools(
           startLine: input.startLine - 1,
           lineCount: input.lineCount
         })
-        const data = {
+        const data = conditionalSource({
           resourceUri: parsed.canonicalUri,
           startLine: result.startLine + 1,
           endLine: result.endLine,
@@ -85,7 +104,8 @@ export function registerV1SourceTools(
           truncated: result.truncated,
           nextLine: result.nextLine === null ? null : result.nextLine + 1,
           code: result.code
-        }
+        }, input.ifNoneMatch)
+        if (data.notModified) return v1Success(data, { systemId: normalizedSystemId })
         return v1Success(data, {
           systemId: normalizedSystemId,
           resourceLinks: [{
@@ -110,7 +130,7 @@ export function registerV1SourceTools(
         ...source
       } = result
       const resourceUri = toAdtResourceUri(normalizedSystemId, sourceUri)
-      return v1Success({
+      const data = conditionalSource({
         object: source.object,
         resourceUri,
         ...(source.methodName !== undefined
@@ -127,7 +147,9 @@ export function registerV1SourceTools(
         truncated: source.truncated,
         nextLine: source.nextLine,
         code: source.code
-      }, {
+      }, input.ifNoneMatch)
+      if (data.notModified) return v1Success(data, { systemId: normalizedSystemId })
+      return v1Success(data, {
         systemId: normalizedSystemId,
         resourceLinks: [{
           uri: resourceUri,

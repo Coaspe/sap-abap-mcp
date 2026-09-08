@@ -42,9 +42,38 @@ data. See the [accessible transcript and exact workflow](docs/demo-script.md).
 
 ## Quick start
 
+Detailed references: [profiles and authentication](docs/setup-and-profiles.md),
+[HTTP deployment](docs/http-deployment.md), and [CLI commands](docs/cli-reference.md).
+
 You need Node.js 20 or later, network or VPN access to SAP, and an SAP HTTPS URL, three-digit client number, username, and ADT Basic Auth permission.
 
-### 1. Configure SAP
+### Recommended: guided onboarding
+
+Run one command and follow the local browser wizard. It checks npm, Claude Code,
+Codex, existing `.claude` and `.codex` settings, and saved SAP profiles. It then
+verifies the SAP login before saving it and registers the MCP server through the
+installed client's official CLI. Existing steps are detected and skipped.
+
+Windows:
+
+```powershell
+npx.cmd -y @coaspe/sap-abap-mcp@latest onboard
+```
+
+macOS:
+
+```bash
+npx -y @coaspe/sap-abap-mcp@latest onboard
+```
+
+The wizard runs only on `127.0.0.1`; SAP credentials do not pass through a
+publisher-operated service. Passwords are protected with Windows DPAPI or macOS
+Keychain. Linux users should use the manual setup because the browser wizard
+does not store Linux credentials.
+
+### Manual setup
+
+#### 1. Configure SAP
 
 Windows:
 
@@ -60,23 +89,37 @@ npx @coaspe/sap-abap-mcp@latest setup
 
 The wizard calls the local connection alias `Server name` and the endpoint `SAP URL`. Windows and macOS validate SAP before saving and protect the password with DPAPI or Keychain. Linux saves only non-secret settings and prints the password environment-variable commands to run before starting the MCP client.
 
-### 2. Register the MCP server
+#### 2. Register the MCP server
 
-After setup, run the command for your client on Windows:
+After setup, run only the command for your client. On Windows, use `npx.cmd`.
+
+Codex CLI:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
-claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
+codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@latest serve
 ```
 
-On macOS or Linux, replace `npx.cmd` with `npx`:
+Claude Code:
+
+```powershell
+claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@latest serve
+```
+
+On macOS or Linux, use `npx`.
+
+Codex CLI:
 
 ```bash
-codex mcp add sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
-claude mcp add --transport stdio --scope user sap-abap -- npx --yes --prefer-online @coaspe/sap-abap-mcp@latest serve --profile DEV100
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@latest serve
 ```
 
-Replace `DEV100` with the Server name selected in the wizard. Restart the client, then use `codex mcp list`, `claude mcp get sap-abap`, or `/mcp` to confirm that the process starts. The completed wizard already performs live SAP verification; `/mcp` alone does not prove that SAP authentication succeeded.
+Claude Code:
+
+```bash
+claude mcp add --transport stdio --scope user sap-abap -- npx -y @coaspe/sap-abap-mcp@latest serve
+```
+
+This registration exposes all saved SAP profiles; every SAP-facing tool still requires an explicit `connectionId`. Restart the client, then use `codex mcp list`, `claude mcp get sap-abap`, or `/mcp` to confirm that the process starts. The completed wizard already performs live SAP verification; `/mcp` alone does not prove that SAP authentication succeeded.
 
 Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#claude-code-and-codex-plugin-marketplaces); the included setup skill guides the same local wizard without putting the SAP password in chat. See the detailed [Windows](#detailed-setup-on-windows), [macOS](#detailed-setup-on-macos), and [Linux](#linux-and-containers) sections for platform-specific behavior and server management.
 
@@ -88,24 +131,26 @@ Prefer a plugin install? Follow [Claude Code and Codex plugin marketplaces](#cla
 - Use [GitHub Discussions](https://github.com/Coaspe/sap-abap-mcp/discussions)
   for implementation questions, compatibility evidence, and RFCs.
 
-Need help evaluating it in a controlled SAP DEV/QAS environment? See the
-[professional services and five-day pilot](SERVICES.md). Do not include SAP
-credentials, source code, hosts, tokens, or other confidential information in
-a public issue or discussion.
+Need a transport-specific release decision and CI evidence from existing ATC
+and ABAP Unit checks? Review the fixed-scope [paid diagnostic and three-day
+pilot](SERVICES.md). If your current workflow already preserves the check
+results, release decision, and evidence together, the service is not a fit.
+Never include SAP credentials, source code, hosts, transport numbers, logs,
+tokens, or other confidential information in a public issue or discussion.
 
 ### Current v1 surface
 
-The unversioned `serve` command maps the 53 legacy capabilities to 120
-action-free v1 tools and seven Resources, split across bounded `core`, `write`,
-`analysis`, `debug`, `operations`, and `artifacts` toolsets. Omitting
-`--toolsets` selects all 120 tools. Use `--api-version v0` only for legacy
+The v1 catalog contains 120 action-specific tools and seven Resources.
+Unreleased local CLI builds default to the `minimal` preset: five discovery/invocation tools. Other capabilities are loaded on demand.
+Use `--toolsets all` to advertise the complete catalog directly. Use `--api-version v0` only for legacy
 client compatibility, or select toolsets explicitly when a host should
 advertise fewer schemas.
 Normal clients should omit both `--api-version` and `--toolsets`.
 
 | Invocation | Advertised surface |
 |---|---|
-| `serve --profile DEV100` | Current v1, all 120 tools and seven Resources |
+| `serve --profile DEV100` | Minimal v1: 5 gateways, all 120 capabilities reachable, seven Resources |
+| `serve --profile DEV100 --toolsets all` | Full direct v1: 120 tools and seven Resources |
 | `serve --profile DEV100 --preset compact` | Token-efficient v1, 12 everyday read/inspect tools |
 | `serve --profile DEV100 --toolsets core,analysis` | Selected v1 toolsets only |
 | `serve --profile DEV100 --api-version v0` | Legacy 53-tool compatibility surface |
@@ -113,6 +158,27 @@ Normal clients should omit both `--api-version` and `--toolsets`.
 See the
 [v1 migration guide](docs/v1-migration.md) for contracts, Resources, and the
 separate live-SAP verification boundary.
+
+### Built-in workflow prompts (unreleased)
+
+MCP hosts supporting `prompts/list` and `prompts/get` can select these workflows:
+
+| Prompt | Outcome |
+|---|---|
+| `sap-explain-object` | Explain current source and callers with source-line evidence |
+| `sap-change-object` | Guide a scoped edit through diagnostics, activation, ABAP Unit and ATC |
+| `sap-review-transport` | Assess readiness and incomplete evidence without releasing a transport |
+| `sap-plan-rap` | Discover backend schema, validate inputs and preview RAP generation |
+
+Each prompt accepts `systemId`, `target`, and optional `goal` in your preferred
+language. Prompts appear only when their required tools are enabled; viewer
+sessions never expose the source-change workflow. The legacy v0 API is unchanged.
+Fetching a prompt performs no SAP calls. These are agent instructions, not an
+automatic transaction or an additional authorization grant.
+
+For local usage and verification, see [workflow prompts](docs/workflow-prompts.md).
+The [September 2026 competitive assessment](docs/competitive-research-2026-09-07.md)
+separates implemented improvements from remaining live-SAP and release gaps.
 
 ## Live SAP evidence
 
@@ -383,7 +449,7 @@ npx @coaspe/sap-abap-mcp@latest profile add DEV100 \
   --environment development --allow-data-queries
 ```
 
-Production profiles cannot enable the capability. Read-only SQL validation still applies, and a second policy layer blocks credential, banking, identity, payroll, and tax tables. Business-document tables such as `VBAK`, `VBAP`, `BKPF`, `BSEG`, and `ACDOCA` require `acknowledgeRisk=true` on the individual `sap.data.query`, `sap.data.export`, or `execute_data_query` call. Dynamic table sources are refused because they cannot be inspected before execution. SQL text is redacted even when audit argument capture is enabled.
+Production profiles cannot enable the capability. As in published 1.6.0, an opted-in development or quality profile permits queries that pass read-only SQL validation and SAP authorization; there is no MCP table denylist or per-call risk acknowledgement. Row limits remain enforced and SQL text is redacted even when audit argument capture is enabled.
 
 This policy applies only to caller-supplied SQL sent to SAP. Processing caller-supplied structured data, reading a cached data view, and bounded internal metadata checks used by connection diagnostics do not require the opt-in.
 
@@ -834,10 +900,12 @@ only through profile-specific environment variables.
 ### Current limitation: token exchange
 
 Per-person SAP profiles give per-person attribution, and `bearer-passthrough`
-can forward an OIDC user's token when SAP accepts that same token. Exchanging a
-client token through Cloud Connector or the BTP `OAuth2UserTokenExchange` flow
-is not implemented. The HTTP listener also speaks plain HTTP; terminate TLS at
-a reverse proxy.
+can forward an OIDC user's token when SAP accepts that same token. This checkout
+also implements an experimental `btp-destination` profile using the SAP Cloud
+SDK for user-token exchange or principal propagation. Its integration is tested
+locally; live BTP exchange, Cloud Connector and SAP authorization are unverified.
+See [experimental setup and evidence](docs/btp-destination-integration.md).
+The HTTP listener speaks plain HTTP; terminate TLS at a reverse proxy.
 
 ## Embed in another Node.js application
 
@@ -867,7 +935,8 @@ lower-level composition, the same entry exports `createMcpServer`,
 
 The server is designed to keep model context usage bounded without removing useful data:
 
-- The default v1 surface keeps all 120 action-specific tools for compatibility. Token-constrained clients can register a curated preset instead of loading unrelated schemas.
+- The local CLI now defaults to 5 gateway tools with on-demand access to the complete 120-capability catalog. `--toolsets all` retains the full direct surface; `createMcpServer(service)` keeps its existing embedding default.
+- Adaptive discovery uses 26,821 minified schema bytes versus 168,227 for the full catalog in this checkout (84.1% less). This measures fixed schema bytes, not actual model tokens or total task cost. See [adaptive mode](docs/adaptive-mode.md).
 - The legacy v0 complete 53-tool schema remains below a 64 KiB automated guardrail.
 - `--preset compact` advertises 12 everyday read/inspect tools at about 22.4 KiB (about 5.6k tokens), below the compared package's measured compact surface.
 - `--preset development` advertises 34 read, edit, quality, Git, and transport tools at about 50.6 KiB (about 12.7k tokens).
@@ -886,7 +955,7 @@ The server is designed to keep model context usage bounded without removing usef
 - Compact JSON through 16 KiB is normally returned unchanged. Larger results return a bounded structural summary, an exact UTF-8 preview, and an in-memory `resultId` in a `compact-v1` envelope no larger than 12 KiB.
 - `search_abap_object_lines` switches to its bounded summary at 16 KiB and keeps the exact compact result behind the same `resultId`.
 
-The complete 53-tool, 150-variant review and fixture measurements are in [`docs/response-token-audit.md`](docs/response-token-audit.md). Re-run `npm run benchmark:surface` for a machine-readable schema-cost report; see [`docs/compatibility-matrix.md`](docs/compatibility-matrix.md) for the live-evidence boundary.
+The complete 53-tool, 150-variant review and fixture measurements are in [`docs/response-token-audit.md`](docs/response-token-audit.md). Re-run `npm run benchmark:surface` for a machine-readable schema-cost report and `npm run benchmark:workflow` for [complete synthetic workflow payload costs](docs/workflow-cost-benchmark.md); see [`docs/compatibility-matrix.md`](docs/compatibility-matrix.md) for the live-evidence boundary.
 
 Continue paged responses with fields such as `nextStartIndex`, `nextLine`, `nextRowStart`, and `nextContentOffset`.
 For a response with `format: "compact-v1"`, use `summary` first. Call `read_deferred_result` with its `resultId` and `nextOffset` only when omitted exact data is needed. A request may ask for up to 24 KiB, while the serialized chunk response remains within the 16 KiB inline budget; continue until `done` is true. Deferred results expire after ten minutes, are never written to disk, and reading them does not repeat the SAP request.
@@ -897,7 +966,7 @@ Hosts without automatic tool search can register only selected toolsets:
 sap-abap-mcp serve --profile DEV100 --preset compact
 ```
 
-Presets are `compact`, `development`, and `assurance`. For custom composition, use `--toolsets core,write,analysis`; available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, and `all`. `--preset` and `--toolsets` are mutually exclusive. The default remains all 120 v1 tools.
+Presets are `minimal`, `single`, `adaptive`, `compact`, `development`, and `assurance`. For custom composition, use `--toolsets core,write,analysis`; available toolsets are `core`, `write`, `analysis`, `debug`, `operations`, `artifacts`, and `all`. `--preset` and `--toolsets` are mutually exclusive. The local CLI default is `minimal`; use `--toolsets all` for direct compatibility.
 
 ## Real SAP acceptance testing
 
@@ -975,7 +1044,7 @@ assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
 
 doctor <id> [--include-components]
 serve [--profile <id>] [--api-version v0|v1]
-    [--preset compact|development|assurance]
+    [--preset minimal|single|adaptive|compact|development|assurance]
     [--toolsets core,write,analysis,debug,operations,artifacts|all]
     [--audit-log none|stderr|file] [--audit-log-file <path>]
     [--audit-include-arguments]
@@ -1027,8 +1096,9 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Current release version: `1.3.1`
-- Release channel: npm `latest` (resolved automatically when the MCP process starts)
+- Checkout manifest version: `1.7.0-beta.1` (local changes are unreleased)
+- npm `latest`: `1.6.0`; this unpublished beta reconciles its data-query contract and tool inventory with local improvements. See [reconciliation record](docs/reconciliation-1.7.0-beta.1.md).
+- Test channel: install the local `1.7.0-beta.1` archive and register its absolute entry-point path; `@latest` still runs public 1.6.0.
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP
 - SAP authentication: SAP Basic Auth by default; opt-in OAuth client credentials, browser Authorization Code with PKCE, or request-scoped OIDC bearer passthrough
@@ -1038,7 +1108,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 - ABAP FS compatibility baseline: 2.6.5, commit `3041418d35558e043993a4d7f9fa6b727fcf9cf1`
 
 The automated suite validates the MCP contract, ADT argument ordering, safety
-policies, stale-preview protection, output bounds, all 120 default v1 tools,
+policies, stale-preview protection, output bounds, all 120 v1 capabilities, the adaptive gateway,
 all seven v1 Resources, and the legacy 53-tool v0 surface with an in-memory SAP
 implementation. Live SAP acceptance testing is still required because endpoint
 availability and authorization vary by SAP release and system configuration.
