@@ -4,6 +4,10 @@ The default deployment is local MCP over `stdio`. Use Streamable HTTP only when
 a team intentionally operates a shared instance and can provide authentication,
 TLS termination, secret injection, monitoring, and network policy.
 
+Commands using `@latest` run the published npm release. For this checkout's
+minimal default and new context features, use the built local entry point;
+see [CLI reference](cli-reference.md) and [release source audit](release-source-audit-2026-09-07.md).
+
 ## Create API keys
 
 Generate a credential and write only its digest to the key file:
@@ -66,6 +70,15 @@ branch switching, RAP binding publication changes, and local transaction launch.
 Hidden tools are not advertised and cannot be called by name.
 
 ## OIDC/JWT authentication
+
+An OIDC MCP session is bound to its opening token as well as its principal.
+When the same user presents a refreshed token for an existing session, the server
+closes that session and its SAP connections and returns HTTP 404. Initialize a
+new MCP session with the refreshed token; the new SAP scope receives that token.
+This intentionally discards session-local plans and state instead of retaining
+the old SAP bearer credential. A different principal or authentication source
+receives 403 and cannot close the original user's session. Token fingerprints
+stay in memory and are not written to audit events.
 
 ```bash
 npx @coaspe/sap-abap-mcp@latest serve --http \
@@ -150,15 +163,21 @@ Environment variables are available for managed launchers, including
 
 ```bash
 docker build -t sap-abap-mcp .
-docker run --rm -p 3000:3000 \
-  -v /etc/sap-abap-mcp/api-keys.json:/run/secrets/api-keys.json:ro \
+docker run --rm -p 127.0.0.1:3000:3000 \
+  -v /etc/sap-abap-mcp/api-keys.json:/run/secrets/sap-abap-mcp-api-keys.json:ro \
+  -v /etc/sap-abap-mcp/profiles:/run/sap-profiles:ro \
+  -e SAP_ABAP_MCP_HOME=/run/sap-profiles \
   -e SAP_ABAP_MCP_PASSWORD_DEV100="$SAP_PASSWORD" \
   sap-abap-mcp
 ```
 
 The image runs as a non-root user and contains no SAP credential or API key.
 Mount key files read-only and inject Linux SAP secrets through profile-specific
-environment variables.
+environment variables. The mounted profile directory must contain the configured
+`profiles.json` and be readable by the container's non-root user. The key mount
+path above matches the Dockerfile's default command. Publishing the host port on
+loopback permits a local reverse proxy without exposing plain HTTP on every
+host interface.
 
 ## Production checklist
 
@@ -174,5 +193,8 @@ environment variables.
 
 ## Current limitation: token exchange
 
-The server can forward an OIDC user's token only when SAP accepts that same
-token. Cloud Connector or BTP `OAuth2UserTokenExchange` is not implemented.
+`bearer-passthrough` forwards the original token and requires SAP to accept it.
+This checkout also has an experimental `btp-destination` profile for SDK-backed
+`OAuth2UserTokenExchange` or Cloud Connector principal propagation. The profile,
+HTTP identity scope, resolver and transport are connected and tested locally;
+actual BTP operation remains unverified. See [setup and limitations](btp-destination-integration.md).

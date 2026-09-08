@@ -9,7 +9,7 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
 import { AppError } from "../../errors.js"
-import { ADAPTIVE_AUDIT_META_KEY } from "../audit-instrumentation.js"
+import { ADAPTIVE_AUDIT_META_KEY, RESOLVED_TOOL_RISK } from "../audit-instrumentation.js"
 import { ADMIN_ONLY_V1_TOOLS } from "../role-policy.js"
 import { runV1Tool, v1Success } from "./result.js"
 import { V1_READ_ONLY_ANNOTATIONS } from "./system-tools.js"
@@ -29,6 +29,26 @@ const CURSOR = z.string().regex(/^\d+$/)
 const TOOL_NAME = z.string().min(1)
 const SCHEMA_HASH = z.string().regex(/^[0-9a-f]{64}$/)
 const TOOL_ARGUMENTS = z.record(z.string(), z.unknown())
+const SEARCH_ARGUMENTS = z.object({
+  query: z.string().optional(),
+  name: TOOL_NAME.optional(),
+  category: z.string().min(1).optional(),
+  risk: z.enum(["read", "write", "destructive"]).optional(),
+  cursor: CURSOR.optional(),
+  limit: z.number().int().min(1).max(50).default(10)
+}).strict()
+const DESCRIBE_ARGUMENTS = z.object({
+  name: TOOL_NAME,
+  includeOutputSchema: z.boolean().default(false)
+}).strict()
+
+function parseDiscoveryArguments<T>(schema: z.ZodType<T>, input: unknown, operation: string): T {
+  const parsed = schema.safeParse(input)
+  if (parsed.success) return parsed.data
+  throw new AppError("CAPABILITY_ARGUMENTS_INVALID", `Correct the arguments for ${operation} using the returned inputSchema`, {
+    inputSchema: z.toJSONSchema(schema, { io: "input" })
+  })
+}
 
 const WRITE_ANNOTATIONS = {
   readOnlyHint: false,
@@ -46,6 +66,8 @@ const DESTRUCTIVE_ANNOTATIONS = {
 
 interface AdaptiveGatewayOptions {
   createInternalServer: () => McpServer
+  singleTool?: boolean
+  readOnly?: boolean
 }
 
 export interface AdaptiveGatewayHandle {
@@ -92,7 +114,22 @@ function normalizedTokens(value: string): string[] {
   return value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
 }
 
-function relevance(tool: Tool, query: string): number {
+// Index parameter names, declared choices and prose, not boilerplate or defaults.
+function schemaSearchText(value: unknown): string {
+  if (!value || typeof value !== "object") return ""
+  if (Array.isArray(value)) return value.map(schemaSearchText).join(" ")
+  return Object.entries(value).flatMap(([key, child]) => {
+    if ((key === "description" || key === "title") && typeof child === "string") return [child]
+    if (key === "enum" && Array.isArray(child)) return child.filter(item => typeof item === "string")
+    if (key === "const" && typeof child === "string") return [child]
+    if (key === "properties" && child && typeof child === "object") {
+      return Object.entries(child).flatMap(([name, schema]) => [name, schemaSearchText(schema)])
+    }
+    return typeof child === "object" ? [schemaSearchText(child)] : []
+  }).join(" ").toLowerCase()
+}
+
+function relevance(tool: Tool, query: string, termWeights: ReadonlyMap<string, number>): number {
   const normalized = query.trim().toLowerCase()
   if (normalized.length === 0) return 1
   if (tool.name.toLowerCase() === normalized) return 10_000
@@ -100,13 +137,19 @@ function relevance(tool: Tool, query: string): number {
   const name = tool.name.toLowerCase()
   const title = tool.title?.toLowerCase() ?? ""
   const description = tool.description?.toLowerCase() ?? ""
+  const parameters = schemaSearchText(tool.inputSchema)
   let score = name.includes(normalized) ? 100 : 0
   score += title.includes(normalized) ? 50 : 0
   score += description.includes(normalized) ? 20 : 0
+  score += parameters.includes(normalized) ? 8 : 0
   for (const token of normalizedTokens(normalized)) {
     score += name.includes(token) ? 10 : 0
     score += title.includes(token) ? 5 : 0
     score += description.includes(token) ? 2 : 0
+    score += parameters.includes(token) ? 1 : 0
+    if ([name, title, description, parameters].some(text => text.includes(token))) {
+      score += termWeights.get(token) ?? 0
+    }
   }
   return score
 }
@@ -132,7 +175,14 @@ class AdaptiveCapabilityGateway {
 
   constructor(private readonly options: AdaptiveGatewayOptions) {}
 
+  private assertOpen(): void {
+    if (this.closePromise) {
+      throw new AppError("CAPABILITY_GATEWAY_CLOSED", "Capability session has closed; reconnect before invoking tools")
+    }
+  }
+
   private async initialize(): Promise<void> {
+    this.assertOpen()
     if (this.catalog) return
     if (!this.initialization) {
       this.initialization = (async () => {
@@ -169,6 +219,7 @@ class AdaptiveCapabilityGateway {
 
   private async tool(name: string): Promise<Tool> {
     await this.initialize()
+    this.assertOpen()
     const tool = this.catalog?.get(name)
     if (!tool) {
       throw new AppError(
@@ -188,10 +239,19 @@ class AdaptiveCapabilityGateway {
     limit: number
   }): Promise<CallToolResult> {
     await this.initialize()
+    this.assertOpen()
     const query = input.query?.trim() ?? ""
     const category = input.category?.trim().toLowerCase()
-    const candidates = [...(this.catalog?.values() ?? [])]
-      .map(tool => ({ tool, score: relevance(tool, query) }))
+    const available = [...(this.catalog?.values() ?? [])]
+    const exact = available.find(tool => tool.name.toLowerCase() === query.toLowerCase())
+    // Specific terms should outweigh common words such as "check" or "read".
+    const searchTexts = available.map(tool =>
+      `${tool.name} ${tool.title ?? ""} ${tool.description ?? ""} ${schemaSearchText(tool.inputSchema)}`.toLowerCase())
+    const termWeights = new Map(normalizedTokens(query).map(token => [token,
+      Math.round(20 * Math.log((available.length + 1) / (searchTexts.filter(text => text.includes(token)).length + 1)))
+    ]))
+    const candidates = (exact ? [exact] : available)
+      .map(tool => ({ tool, score: relevance(tool, query, termWeights) }))
       .filter(({ tool, score }) =>
         (input.name === undefined || tool.name === input.name) &&
         (category === undefined || categoryOf(tool.name).toLowerCase() === category ||
@@ -245,6 +305,7 @@ class AdaptiveCapabilityGateway {
     includeOutputSchema: boolean
   ): Promise<CallToolResult> {
     const tool = await this.tool(name)
+    this.assertOpen()
     return v1Success({
       capability: {
         ...capabilitySummary(tool),
@@ -265,11 +326,12 @@ class AdaptiveCapabilityGateway {
     args: Record<string, unknown>
   ): Promise<CallToolResult> {
     const tool = await this.tool(name)
+    this.assertOpen()
     const actualRisk = riskOf(tool)
     if (actualRisk !== expectedRisk) {
       throw new AppError(
         "CAPABILITY_RISK_MISMATCH",
-        `Use sap.capability.invoke_${actualRisk} for ${name}`,
+        this.options.singleTool ? `Invoke ${name} with risk=${actualRisk}` : `Use sap.capability.invoke_${actualRisk} for ${name}`,
         { expectedRisk, actualRisk, name }
       )
     }
@@ -281,7 +343,9 @@ class AdaptiveCapabilityGateway {
         { name, actualSchemaHash }
       )
     }
-    return await this.client!.callTool({ name, arguments: args }) as CallToolResult
+    const result = await this.client!.callTool({ name, arguments: args }) as CallToolResult
+    Object.defineProperty(result, RESOLVED_TOOL_RISK, { value: actualRisk })
+    return result
   }
 
   close(): Promise<void> {
@@ -299,20 +363,43 @@ export function registerAdaptiveV1Tools(
   options: AdaptiveGatewayOptions
 ): AdaptiveGatewayHandle {
   const gateway = new AdaptiveCapabilityGateway(options)
+  if (options.singleTool) {
+    server.registerTool("sap", {
+      description: "SAP capabilities: name=search, arguments={query}; name=describe, arguments={name}. Invoke the described name with risk, schemaHash and arguments.",
+      inputSchema: z.object({
+        name: TOOL_NAME,
+        arguments: TOOL_ARGUMENTS.default({}),
+        risk: z.enum(["read", "write", "destructive"]).optional(),
+        schemaHash: SCHEMA_HASH.optional()
+      }).strict(),
+      annotations: options.readOnly ? V1_READ_ONLY_ANNOTATIONS : DESTRUCTIVE_ANNOTATIONS,
+      _meta: { [ADAPTIVE_AUDIT_META_KEY]: { nameArgument: "name", argumentsArgument: "arguments" } }
+    }, input => runV1Tool(async () => {
+      if (input.name === "search") {
+        const result = await gateway.search(parseDiscoveryArguments(SEARCH_ARGUMENTS, input.arguments, "search"))
+        Object.defineProperty(result, RESOLVED_TOOL_RISK, { value: "read" })
+        return result
+      }
+      if (input.name === "describe") {
+        const args = parseDiscoveryArguments(DESCRIBE_ARGUMENTS, input.arguments, "describe")
+        const result = await gateway.describe(args.name, args.includeOutputSchema)
+        Object.defineProperty(result, RESOLVED_TOOL_RISK, { value: "read" })
+        return result
+      }
+      if (!input.risk || !input.schemaHash) {
+        throw new AppError("CAPABILITY_ARGUMENTS_REQUIRED", "Describe the capability first; invoke with its risk and schemaHash")
+      }
+      return gateway.invoke(input.risk, input.name, input.schemaHash, input.arguments)
+    }))
+    return gateway
+  }
   server.registerTool(
     "sap.capability.search",
     {
       title: "Search SAP Capabilities",
       description:
         "Search or page through the complete SAP tool catalog. Use category browsing when keyword search misses.",
-      inputSchema: z.object({
-        query: z.string().optional(),
-        name: TOOL_NAME.optional(),
-        category: z.string().min(1).optional(),
-        risk: z.enum(["read", "write", "destructive"]).optional(),
-        cursor: CURSOR.optional(),
-        limit: z.number().int().min(1).max(50).default(10)
-      }).strict(),
+      inputSchema: SEARCH_ARGUMENTS,
       annotations: V1_READ_ONLY_ANNOTATIONS
     },
     input => runV1Tool(() => gateway.search(input))
@@ -323,10 +410,7 @@ export function registerAdaptiveV1Tools(
       title: "Describe SAP Capability",
       description:
         "Return the exact input schema and schema hash for one capability before invoking it.",
-      inputSchema: z.object({
-        name: TOOL_NAME,
-        includeOutputSchema: z.boolean().default(false)
-      }).strict(),
+      inputSchema: DESCRIBE_ARGUMENTS,
       annotations: V1_READ_ONLY_ANNOTATIONS
     },
     ({ name, includeOutputSchema }) => runV1Tool(

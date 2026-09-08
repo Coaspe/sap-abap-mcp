@@ -29,6 +29,13 @@ const V1_SUCCESS_SCHEMA = z.object({
 })
 
 const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
+  BATCH_LINE_LIMIT: "validation",
+  CAPABILITY_NOT_FOUND: "capability",
+  CAPABILITY_RISK_MISMATCH: "validation",
+  CAPABILITY_ARGUMENTS_REQUIRED: "validation",
+  CAPABILITY_ARGUMENTS_INVALID: "validation",
+  CAPABILITY_SCHEMA_CHANGED: "conflict",
+  CAPABILITY_GATEWAY_CLOSED: "transport",
   AUTH_REQUIRED: "authentication",
   OAUTH_CLIENT_CREDENTIALS_REQUIRED: "authentication",
   SAP_AUTHORIZATION_DENIED: "authorization",
@@ -42,9 +49,6 @@ const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
   CONNECTION_MISMATCH: "conflict",
   OBJECT_AMBIGUOUS: "conflict",
   SAP_CAPABILITY_UNAVAILABLE: "capability",
-  CAPABILITY_NOT_FOUND: "capability",
-  CAPABILITY_RISK_MISMATCH: "capability",
-  CAPABILITY_SCHEMA_CHANGED: "conflict",
   SAP_VALIDATION_FAILED: "validation",
   OBJECT_NOT_FOUND: "validation",
   METHOD_NOT_FOUND: "validation",

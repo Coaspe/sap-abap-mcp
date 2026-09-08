@@ -1,22 +1,24 @@
 # MCP v1 migration
 
-The unversioned `serve` is the complete current v1 surface. Existing MCPB,
-plugin, and `@coaspe/sap-abap-mcp@latest serve` launch commands therefore use
-all 120 v1 tools and seven Resources without adding startup flags.
-With no `--toolsets`, all six v1 toolsets are enabled.
+The unversioned `serve` uses the minimal v1 surface. Existing MCPB and plugin
+launch commands advertise 5 gateways and seven Resources. All 120 capabilities
+remain discoverable through the gateway.
+With no `--toolsets` or `--preset`, minimal mode is enabled.
+Use `--toolsets all` to advertise all 120 tools directly. These changes describe
+the local unreleased source; `@latest` behavior depends on the published version.
 All 53 v0 capabilities remain available through `--api-version v0`.
 
 Normal use needs neither `--api-version` nor `--toolsets`:
 
 ```bash
-# Current v1 surface: 120 tools and seven Resources.
+# Registry release; local unreleased builds instead default to 5 gateways.
 npx @coaspe/sap-abap-mcp@latest serve
 
 # Optional schema-budget control for hosts that should preload fewer tools.
 npx @coaspe/sap-abap-mcp@latest serve --preset compact
 
-# Lossless discovery gateway: 17 advertised tools, all 120 reachable on demand.
-npx @coaspe/sap-abap-mcp@latest serve --preset adaptive
+# Full direct-tool compatibility.
+npx @coaspe/sap-abap-mcp@latest serve --toolsets all
 
 # Custom schema-budget control.
 npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis
@@ -30,36 +32,16 @@ v1 tool has an action-free input contract, a declared output schema, the v1
 success/error envelope, and a thin adapter to the same `AbapToolService` used by
 v0. The combined v0 + v1 surface is internal to automated parity tests and is not accepted by the CLI.
 
-## Host recommendation
-
-| Host | Recommended launch |
-|---|---|
-| Codex direct registration | `serve --preset adaptive` |
-| Codex repository plugin | `serve` |
-| Cursor | `serve --preset adaptive` |
-| Current Claude Code with MCP Tool Search | `serve` |
-| Claude Code without Tool Search | `serve --preset adaptive` |
-| Claude Desktop / MCPB | `serve` |
-
-Adding or removing `--preset adaptive` does not change saved SAP profiles or
-credentials. Replace another `--preset` and remove `--toolsets` before enabling
-it because the selectors are mutually exclusive. Keep
-`sap.capability.invoke_write` and `sap.capability.invoke_destructive` subject to
-host approval; hidden capabilities share those gateway policy names.
-
 ## Toolsets
 
 For common workloads, prefer a curated preset: `compact` exposes 12 everyday
 read/inspect tools, `development` exposes 34 read/write/quality tools, and
-`assurance` exposes 15 read-only review tools. `adaptive` advertises those 12
-compact tools plus five fixed search, schema, and risk-separated invocation
-tools; every one of the 120 v1 capabilities remains reachable through the
-gateway. Presets and toolsets are mutually exclusive, and presets apply only to
-v1.
+`assurance` exposes 15 read-only review tools. Presets and toolsets are mutually
+exclusive, and presets apply only to v1.
 
-Toolsets are optional schema-budget controls, not feature levels. Omitting the
-flag enables `all`. Select one or more comma-separated toolsets only when a host
-should advertise a smaller surface.
+Toolsets are optional schema-budget controls, not feature levels. Select one or
+more comma-separated toolsets to replace adaptive discovery with direct tool
+registration. See [adaptive mode](adaptive-mode.md) for gateway usage.
 
 | Toolset | Tools | Scope |
 | --- | ---: | --- |

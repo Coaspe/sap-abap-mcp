@@ -1,6 +1,6 @@
 {
   "name": "@coaspe/sap-abap-mcp",
-  "version": "1.5.2",
+  "version": "1.7.0",
   "description": "Headless MCP server for SAP ABAP Development Tools",
   "keywords": [
     "mcp",
@@ -46,8 +46,14 @@
     "spec",
     "llms-install.md",
     "scripts/benchmark-mcp-surface.mjs",
+    "scripts/benchmark-mcp-workflow.mjs",
+    "scripts/benchmark-public-contracts.mjs",
+    "scripts/benchmark-batch-source.mjs",
+    "scripts/benchmark-capability-discovery.mjs",
     "scripts/check-profile-conformance.mjs",
     "scripts/live-evidence-tmp.mjs",
+    "scripts/live-read-context.mjs",
+    "scripts/public-contract-evidence.mjs",
     "scripts/smoke-v1-stdio.mjs",
     "assets"
   ],
@@ -61,11 +67,17 @@
     "build:mcpb": "bash scripts/build-mcpb.sh",
     "publish:smithery": "bash scripts/publish-smithery.sh",
     "benchmark:surface": "node scripts/benchmark-mcp-surface.mjs",
+    "benchmark:workflow": "node scripts/benchmark-mcp-workflow.mjs",
+    "benchmark:tokens": "node scripts/benchmark-public-contracts.mjs --tokens",
+    "benchmark:batch": "node scripts/benchmark-batch-source.mjs",
+    "benchmark:discovery": "node scripts/benchmark-capability-discovery.mjs",
+    "benchmark:contracts": "node scripts/benchmark-public-contracts.mjs",
     "smoke:v1": "npm run build && node scripts/smoke-v1-stdio.mjs",
     "contract:v0:update": "npm run build && node scripts/update-v0-contract.mjs",
     "sync:mcpb-tools": "npm run build && node scripts/sync-mcpb-tools.mjs --write",
     "sync:lobehub": "npm run build && node scripts/sync-lobehub-manifest.mjs --write",
     "render:demo": "node scripts/render-demo.mjs",
+    "evidence:read": "node scripts/live-read-context.mjs",
     "evidence:live": "npm run build && node scripts/live-evidence-tmp.mjs",
     "conformance:v1": "npm run build && node scripts/check-profile-conformance.mjs",
     "conformance:v1:json": "node scripts/check-profile-conformance.mjs",
@@ -77,17 +89,22 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@abaplint/core": "2.120.43",
     "@modelcontextprotocol/sdk": "1.30.0",
+    "@sap-cloud-sdk/connectivity": "4.9.1",
+    "@sap-cloud-sdk/http-client": "4.9.1",
     "abap-adt-api": "8.4.1",
     "diff": "9.0.0",
     "docx": "9.5.1",
     "dompurify": "3.4.13",
+    "fast-xml-parser": "5.10.1",
     "fflate": "0.8.3",
     "mermaid": "11.16.1",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
+    "js-tiktoken": "1.0.21",
     "typescript": "7.0.2"
   }
 }

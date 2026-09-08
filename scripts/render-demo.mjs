@@ -10,7 +10,7 @@ const stage = await mkdtemp(join(tmpdir(), "sap-abap-mcp-demo-"))
 
 const frames = [
   {
-    step: "SAP ABAP MCP 1.0",
+    step: "SAP ABAP MCP",
     accent: "HEADLESS · CLIENT-NEUTRAL · LOCAL",
     lines: [
       ["prompt", "$ npx @coaspe/sap-abap-mcp@latest setup"],

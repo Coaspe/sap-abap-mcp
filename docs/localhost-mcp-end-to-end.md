@@ -1,6 +1,6 @@
 # Windows localhost ABAP MCP 설치 및 사용 가이드
 
-> 처음 설치한다면 먼저 [README의 빠른 시작](../README.md#quick-start)과 [프로필 설정 가이드](setup-and-profiles.md)를 따라 하세요. 이 문서는 여러 SAP 시스템, 배포 구조, 운영 설정까지 필요한 사용자를 위한 상세 설명입니다.
+> 처음 설치한다면 먼저 [README의 Windows 빠른 시작](../README.md#quick-start-on-windows)을 따라 하세요. 이 문서는 여러 SAP 시스템, 배포 구조, 운영 설정까지 필요한 사용자를 위한 상세 설명입니다.
 
 작성 기준일: 2026-07-13
 대상: 회사 Windows 클라우드 PC/VM에서 Codex 또는 Claude Code를 사용하는 ABAP 개발자

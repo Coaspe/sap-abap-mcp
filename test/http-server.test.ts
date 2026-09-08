@@ -259,8 +259,9 @@ test("HTTP mode refuses to start without at least one API key", async () => {
   )
 })
 
-test("OIDC sessions receive the verified request token for explicit SAP passthrough", async () => {
+test("OIDC token rotation closes the old SAP scope and reinitialization forwards the new token", async () => {
   let forwarded = ""
+  let disposed = 0
   const running = await startHttpMcpServer({
     apiKeys: [],
     oidc: {
@@ -275,7 +276,7 @@ test("OIDC sessions receive the verified request token for explicit SAP passthro
       const instance = service()
       return {
         server: createMcpServer(instance, { apiVersion: "v1", role: "viewer" }),
-        dispose: () => instance.dispose()
+        dispose: () => { disposed++; return instance.dispose() }
       }
     }
   })
@@ -286,6 +287,30 @@ test("OIDC sessions receive the verified request token for explicit SAP passthro
     })
     await client.connect(transport as unknown as Parameters<Client["connect"]>[0])
     assert.equal(forwarded, "signed.jwt.token")
+    await client.listTools()
+    assert.equal(disposed, 0)
+    const rotated = await fetch(running.url, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer renewed.jwt.token",
+        "content-type": "application/json", accept: "application/json, text/event-stream",
+        "mcp-session-id": transport.sessionId!, "mcp-protocol-version": "2025-03-26"
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/list", params: {} })
+    })
+    assert.equal(rotated.status, 404)
+    assert.match(await rotated.text(), /initialize a new MCP session/)
+    assert.equal(disposed, 1)
+    const fresh = new Client({ name: "oidc-renewed", version: "1.0.0" })
+    try {
+      await fresh.connect(new StreamableHTTPClientTransport(new URL(running.url), {
+        requestInit: { headers: { authorization: "Bearer renewed.jwt.token" } }
+      }) as unknown as Parameters<Client["connect"]>[0])
+      assert.equal(forwarded, "renewed.jwt.token")
+      await fresh.listTools()
+    } finally {
+      await fresh.close()
+    }
   } finally {
     await client.close().catch(() => undefined)
     await running.close()

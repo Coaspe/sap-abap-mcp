@@ -20,6 +20,7 @@ export interface ServeToolSelection {
   enabledV1Tools?: ReadonlySet<string>
   enabledV1Resources?: ReadonlySet<V1ResourceName>
   adaptive?: boolean
+  singleTool?: boolean
 }
 
 export function resolveServeToolSelection(
@@ -40,7 +41,8 @@ export function resolveServeToolSelection(
     return {
       enabledV1Tools: new Set(V1_MCP_PRESETS[preset]),
       enabledV1Resources: new Set(V1_PRESET_RESOURCE_NAMES[preset]),
-      ...(preset === "adaptive" ? { adaptive: true } : {})
+      ...((preset === "adaptive" || preset === "minimal" || preset === "single") ? { adaptive: true } : {}),
+      ...(preset === "single" ? { singleTool: true } : {})
     }
   }
   if (toolsets === undefined) {

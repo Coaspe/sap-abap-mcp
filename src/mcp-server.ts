@@ -37,6 +37,7 @@ import type {
 } from "./tool-service.js"
 import type { McpApiVersion } from "./mcp/api-version.js"
 import { registerV1Tools } from "./mcp/v1/register.js"
+import { registerV1WorkflowPrompts } from "./mcp/v1/workflow-prompts.js"
 import { registerAdaptiveV1Tools } from "./mcp/v1/adaptive-tools.js"
 import { V1EvidenceStore } from "./mcp/v1/evidence-store.js"
 import { V1_MCP_PRESETS } from "./mcp/v1/presets.js"
@@ -87,8 +88,9 @@ export interface McpServerOptions {
   auditRecorder?: AuditRecorder
   /** Restrict the advertised surface to what this role may call. */
   role?: HttpRole
-  /** Expose compact direct tools plus the lossless adaptive capability gateway. */
+  /** Keep common tools direct and discover other capabilities on demand. */
   adaptive?: boolean
+  singleTool?: boolean
 }
 
 interface ToolResultPolicy {
@@ -106,11 +108,7 @@ export function createMcpServer(
   tools: AbapToolService,
   options: McpServerOptions = {}
 ): McpServer {
-  return createMcpServerInternal(
-    tools,
-    options,
-    options.adaptive ? new V1EvidenceStore() : undefined
-  )
+  return createMcpServerInternal(tools, options, options.adaptive ? new V1EvidenceStore() : undefined)
 }
 
 function createMcpServerInternal(
@@ -136,8 +134,10 @@ function createMcpServerInternal(
     },
     {
       instructions: apiVersion === "v1"
-        ? options.adaptive
-          ? "Use the directly advertised tools first. For every other SAP operation, call sap.capability.search, then sap.capability.describe, then the matching invoke_read, invoke_write, or invoke_destructive tool. Search without a query or browse by category when keyword search misses."
+        ? options.singleTool
+          ? "Use sap with name=search and arguments={query} to find capabilities, or name=describe and arguments={name} for a known capability. Invoke its actual name with the described risk, schemaHash and arguments. Describe again on CAPABILITY_SCHEMA_CHANGED."
+          : options.adaptive
+          ? "Use advertised tools directly. For a known capability name, skip search: call sap.capability.describe, then the matching invoke_read, invoke_write or invoke_destructive with its schemaHash and arguments. Otherwise use sap.capability.search; browse categories if needed. Reuse schemas until CAPABILITY_SCHEMA_CHANGED. If systemId is unknown, describe sap.system.list."
           : "Call sap.system.list when systemId is unknown, then use sap.system.inspect for normalized SAP system metadata. Delete one exact repository object only by calling sap.repository.delete.preview first, then pass its unchanged planId and confirmation to sap.repository.delete.execute."
         : "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
@@ -1900,9 +1900,7 @@ function createMcpServerInternal(
 
   if (apiVersion === "v1" || apiVersion === "all") {
     const defaultV1Tools = apiVersion === "v1"
-      ? options.adaptive
-        ? new Set(V1_MCP_PRESETS.compact)
-        : v1ToolsForToolsets(["all"])
+      ? options.adaptive ? new Set(V1_MCP_PRESETS.compact) : v1ToolsForToolsets(["all"])
       : undefined
     const defaultV1Resources = apiVersion === "v1"
       ? v1ResourcesForToolsets(["all"])
@@ -1914,8 +1912,10 @@ function createMcpServerInternal(
       ...(enabledResources ? { enabledResources } : {}),
       ...(evidenceStore ? { evidenceStore } : {})
     })
+    registerV1WorkflowPrompts(server, enabledTools, options.role, options.adaptive, options.singleTool)
     if (options.adaptive && apiVersion === "v1") {
       const gateway = registerAdaptiveV1Tools(server, {
+        ...(options.singleTool ? { singleTool: true, readOnly: options.role === "viewer" } : {}),
         createInternalServer: () => createMcpServerInternal(tools, {
           apiVersion: "v1",
           enabledV1Resources: new Set<V1ResourceName>(),

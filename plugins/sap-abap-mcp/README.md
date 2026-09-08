@@ -53,20 +53,9 @@ codex plugin marketplace add Coaspe/sap-abap-mcp
 
 Install **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace in the Codex app, then start a new task.
 
-The repository plugin launches the full 120-tool surface through the shared
-`.mcp.json` manifest accepted by Codex and Claude Code. For a smaller initial
-surface, register the npm package directly with `serve --preset adaptive`; 17
-tools are then advertised initially and all 120 capabilities remain reachable.
-Keep `sap.capability.invoke_write` and `sap.capability.invoke_destructive` in
-prompt/approval mode when using that preset.
-
 Every SAP-facing tool requires an explicit `connectionId`. Live SAP behavior depends on the selected SAP release, configuration, and authorizations.
 
-Current Claude Code releases can defer the full plugin surface with native Tool
-Search. For manual launches,
-`serve --preset compact` exposes 12 everyday read/inspect tools,
-`--preset development` exposes 34 development tools, and `--preset assurance`
-exposes 15 read-only review tools. See [`docs/advanced-workflows.md`](../../docs/advanced-workflows.md) and [`docs/classic-bridge.md`](../../docs/classic-bridge.md) for the composed and optional workflows.
+The default v1 server advertises all 120 tools. For lower prompt/schema token use, launch with `serve --preset compact` (12 everyday read/inspect tools), `--preset development` (34 development tools), or `--preset assurance` (15 read-only review tools). The current surface adds typed DDIC workflows, enhancement inspection, bounded runtime feeds, confirmed executable-program profiling, and an opt-in same-origin Screen/GUI Status bridge while keeping the compact preset unchanged. See [`docs/advanced-workflows.md`](../../docs/advanced-workflows.md) and [`docs/classic-bridge.md`](../../docs/classic-bridge.md) for the composed and optional workflows.
 
 Node.js applications can also import `createEmbeddedMcpServer` from the package root, provide their own SAP connection provider, and attach the MCP transport managed by the host application. Importing the library entry does not start the CLI.
 

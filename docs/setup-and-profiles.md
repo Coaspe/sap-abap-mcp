@@ -4,6 +4,12 @@ This guide covers local SAP connection profiles used by the npm package,
 repository plugins, and local MCP registry installs. Profiles are independent
 of a particular MCP client and remain on the user's machine.
 
+The `npx ...@latest` examples run the published npm version (1.6.0 at the
+2026-09-08 audit). To exercise this checkout's changes, first build and replace
+that command prefix with `node /absolute/path/to/sap-abap-mcp/dist/src/index.js`.
+See [source reconciliation](reconciliation-1.7.0-beta.1.md) before
+treating published behavior as local behavior.
+
 Interactive `setup` creates and edits Basic Auth profiles. OAuth and bearer
 passthrough profiles use the explicit `profile add` commands below.
 
@@ -44,7 +50,7 @@ The wizard collects and reviews these settings:
 | Username | SAP user for Basic Auth; omitted for authentication types that do not use it |
 | Environment | `development`, `quality`, or `production`; production is always read-only |
 | Writable packages | Optional comma-separated allowlist for writes |
-| Data queries | Optional development/quality opt-in for caller-supplied read-only SAP SQL |
+| Data queries | Terminal setup offers explicit opt-in, matching published 1.6.0; production remains disabled |
 
 Windows and macOS prompt for the secret without echoing it, verify the SAP
 connection, and save only after verification succeeds. Linux saves non-secret
@@ -73,6 +79,23 @@ preserved and redirected to the explicit CLI instead of being converted
 silently. `setup remove` shows the selected profile and asks for confirmation;
 the default is No. Confirmed removal deletes the profile,
 stored SAP secret, browser OAuth credential, and its saved abapGit credentials.
+
+In this checkout, both `setup edit` and browser onboarding preserve the existing
+Basic profile's data-query preference and classic bridge path when editing other
+fields. The terminal review shows both values. Switching to `production` disables
+data queries before validation, as production opt-in is forbidden. Onboarding
+restores the writable-package field when editing a saved profile; a network
+verification failure leaves it saved and does not force password replacement.
+
+After successful SAP verification, protected-store setup writes the credential
+before publishing the profile. A credential-write error leaves the profile
+unchanged. If the profile write fails, setup attempts to restore the prior
+credential (or remove a newly created one). `PROFILE_CREDENTIAL_RECOVERY_REQUIRED`
+means that restoration also failed; re-enter the credential for the saved
+profile before using it. This compensates for reported write failures, not an
+atomic transaction across the filesystem and OS credential store; process crashes
+or concurrent edits by another process still require checking saved state.
+Linux environment-based authentication does not write credentials.
 
 For non-interactive profile removal, use `profile remove <id>` only when the
 calling automation already controls the target identity.
@@ -185,10 +208,12 @@ npx @coaspe/sap-abap-mcp@latest profile add DEV100 \
   --allow-data-queries
 ```
 
-The flag enables every caller-supplied query that passes the read-only SQL
-validator, including queries over sensitive business or personal data.
-Production profiles cannot enable it. Write SQL remains blocked, result bounds
-remain enforced, and SQL text is redacted from audit arguments.
+This beta preserves published 1.6.0 behavior: the flag enables caller-supplied
+queries passing the read-only SQL validator and SAP authorization. There is no
+MCP table denylist or per-call risk acknowledgement. Production profiles cannot
+enable data queries; write SQL remains blocked, result bounds remain enforced,
+and SQL text is redacted from audit arguments. `setup edit` can explicitly
+change the opt-in; browser editing preserves it and disables it for production.
 
 ## Multiple SAP systems
 
@@ -199,10 +224,41 @@ Create one profile per system/client, for example `DEV100`, `QAS200`, and
 codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@latest serve
 ```
 
-All SAP-facing tools require a `connectionId`. A production profile remains
+V1 SAP-facing tools identify profiles with `systemId`; the legacy API uses
+`connectionId`. A production profile remains
 read-only even when another profile in the same process is writable.
 
 ## MCP client configuration
+
+This checkout's browser onboarding registers the running Node executable and
+this installation's absolute `dist/src/index.js` path, with `serve --profile`
+set to the selected saved profile. It also records the profile directory as
+`SAP_ABAP_MCP_HOME` using the clients' `--env` option ([Claude documentation](https://code.claude.com/docs/en/mcp)).
+Starting from another working directory therefore uses the same saved profiles.
+Registration no longer silently switches a local build to npm `latest`.
+The browser offers minimal (five tools, default), adaptive (17 tools), and single
+(one tool) for new registrations. It writes the selection as `serve --preset`;
+all three modes retain the same role-filtered capability catalog. Smaller fixed
+schemas may require more discovery calls; the single developer/admin gateway
+may trigger host approvals even for reads. Existing registrations are skipped
+rather than replaced, and selecting another mode does not modify them.
+Keep the Node executable and installation directory
+available; moving/removing them or clearing an npx cache containing this install
+requires updating the client registration. Use a persistent checkout or installed
+package directory for a lasting setup.
+
+Onboarding distinguishes a saved MCP registration from a reported MCP connection.
+Only an explicit connected status on the server's listing row is shown as
+connected; a Codex listing that merely says enabled remains registered with
+connection unverified. Explicit connection failures and authentication-required
+states show a recheck action and prevent the UI's completion button from enabling
+unless another usable registration exists. Warnings that merely mention the
+server name are not treated as registrations. This does not test SAP access:
+the user should query the selected SAP system from the AI client after setup.
+
+Local browser verification covered failure → recheck → connected → completion
+using an isolated profile and simulated CLI/SAP responses. No real account,
+credential store or client configuration was changed during that verification.
 
 If a client UI accepts a command and argument list instead of a registration
 command, configure:
@@ -242,3 +298,30 @@ npx @coaspe/sap-abap-mcp@latest abapgit auth logout DEV100 \
 
 Browser SSO-only, MFA-only, certificate-only, Kerberos-only, and unsupported
 OAuth grants cannot be converted into Basic Auth by this package.
+
+### Recovering unreadable AI-client settings
+
+The local onboarding page distinguishes an unreadable `mcp list` result from
+an absent registration. It displays the CLI error and offers **다시 확인**.
+Registration stops with `CLIENT_CONFIG_UNREADABLE` until the settings can be
+read, preventing a blind duplicate registration. After recovery, the same
+connection action resumes; an existing registration is still skipped.
+
+Browser onboarding registers the currently running installation by absolute
+path. Installing the beta archive and launching its onboarding therefore tests
+the beta without switching to the public npm package.
+
+### Concurrent OAuth renewal
+
+For cached OAuth connections, calls arriving during token renewal now share the
+same replacement promise. The old session is logged out once before the new
+client is created. Previously, the cache entry was removed before awaiting
+logout, allowing another call to create a competing client that could then be
+overwritten and left outside manager cleanup.
+
+A deterministic regression test holds logout open while eight calls request the
+connection. It verifies one replacement, the same client for every caller, and
+shared failure followed by recovery when a replacement login fails. The full
+local suite passes 502 tests. This is lifecycle validation with fake SAP clients,
+not verification of a live BTP token exchange. No new tools, schemas or settings
+are introduced.

@@ -4,6 +4,8 @@ Run `npx @coaspe/sap-abap-mcp@latest help` for the command surface installed by
 the current npm release. On Windows, use `npx.cmd`.
 
 ```text
+onboard
+
 setup
 setup edit [<server-name>]
 setup remove [<server-name>]
@@ -13,7 +15,8 @@ profile add <id> --url <url> --client <nnn> [--language EN]
     [--username <user>] [--packages ZPKG1,ZPKG2]
     [--allow-data-queries]
     [--classic-bridge-path /sap/<path>]
-    [--auth-type basic|oauth-client-credentials|oauth-authorization-code|bearer-passthrough]
+    [--auth-type basic|oauth-client-credentials|oauth-authorization-code|bearer-passthrough|btp-destination]
+    [--destination-name <name> --destination-auth OAuth2UserTokenExchange|PrincipalPropagation]
     [--authorization-url <url>]
     [--token-url <url> --client-id <id> [--scope <scope>]]
     [--login [--password-stdin]]
@@ -42,7 +45,7 @@ assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
     [--fail-on incomplete|failed]
 
 serve [--profile <id>] [--api-version v0|v1]
-    [--preset compact|development|assurance|adaptive]
+    [--preset compact|development|assurance|adaptive|minimal|single]
     [--toolsets core,write,analysis,debug,operations,artifacts|all]
     [--audit-log none|stderr|file] [--audit-log-file <path>]
     [--audit-include-arguments]
@@ -57,14 +60,16 @@ serve [--profile <id>] [--api-version v0|v1]
      [--max-sessions <n>] [--session-timeout <seconds>]]
 ```
 
-`serve` defaults to the current v1 API, every v1 toolset, every Resource, no
-audit sink, and local `stdio`. HTTP mode requires API keys, OIDC, or both.
-The `adaptive` preset advertises the 12 compact tools plus five fixed discovery
+In this checkout, `serve` defaults to v1 minimal mode, every Resource, no
+audit sink, and local `stdio`. Use `--toolsets all` to advertise every v1 tool
+directly. HTTP mode requires API keys, OIDC, or both.
+The default has five gateways and retains all 120 capabilities. The optional
+`adaptive` preset advertises the 12 compact tools plus five fixed discovery
 and invocation tools while keeping every v1 capability reachable on demand.
-Use it for direct Codex and Cursor registrations. The Codex repository plugin
-keeps the shared full configuration for plugin-host compatibility. Current
-Claude Code users should normally keep the full surface because Claude Code
-defers MCP schemas with native Tool Search.
+That optional preset has 17 tools while 120 capabilities remain reachable. Select
+full mode explicitly when the host's discovery or per-tool policy needs original
+tool names. Published npm 1.6.0 and this checkout have different startup defaults;
+`npx ...@latest` examples use the registry release, not uncommitted local changes.
 
 ## Local-build registration
 

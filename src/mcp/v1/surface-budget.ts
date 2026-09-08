@@ -23,6 +23,8 @@ export const V1_PRESET_SURFACE_BUDGETS: Record<V1PresetName, SurfaceBudget> = {
   compact: { maxTools: 12, maxSchemaBytes: 24 * 1024 },
   development: { maxTools: 34, maxSchemaBytes: 56 * 1024 },
   assurance: { maxTools: 15, maxSchemaBytes: 28 * 1024 },
+  minimal: { maxTools: 5, maxSchemaBytes: 4 * 1024 },
+  single: { maxTools: 1, maxSchemaBytes: 2 * 1024 },
   adaptive: { maxTools: 17, maxSchemaBytes: 32 * 1024 }
 }
 
