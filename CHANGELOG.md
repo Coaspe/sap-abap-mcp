@@ -2,12 +2,13 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
-## 1.7.0-beta.1 — unpublished test build
+## 1.7.0 - 2026-09-08
 
-Compatibility: this beta reconciles the integrity-verified npm 1.6.0 runtime
+Compatibility: this release reconciles the integrity-verified npm 1.6.0 runtime
 with the local improvements. It preserves profile-level SQL opt-in, production
 blocking and the 53-tool v0 catalog; minimal is the intentional new CLI default.
-No npm publication or live company SAP acceptance is implied. See
+Company acceptance of the beta was reported with TLS validation enabled; see
+[validation scope](docs/release-1.7.0.md). See
 [reconciliation record](docs/reconciliation-1.7.0-beta.1.md).
 
 ### Added
