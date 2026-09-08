@@ -1096,9 +1096,9 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Checkout manifest version: `1.7.0-beta.1` (local changes are unreleased)
-- npm `latest`: `1.6.0`; this unpublished beta reconciles its data-query contract and tool inventory with local improvements. See [reconciliation record](docs/reconciliation-1.7.0-beta.1.md).
-- Test channel: install the local `1.7.0-beta.1` archive and register its absolute entry-point path; `@latest` still runs public 1.6.0.
+- Checkout manifest version: `1.7.0`
+- Install: `npx @coaspe/sap-abap-mcp@1.7.0`
+- Source lineage and company acceptance scope: [release record](docs/release-1.7.0.md). Default CLI startup exposes five gateways; all 120 capabilities remain discoverable.
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP
 - SAP authentication: SAP Basic Auth by default; opt-in OAuth client credentials, browser Authorization Code with PKCE, or request-scoped OIDC bearer passthrough

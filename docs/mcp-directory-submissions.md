@@ -6,7 +6,7 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Current source release: `1.7.0-beta.1` (unpublished)
+- Current source release: `1.7.0`
 - npm published version: `1.6.0` (`latest`, verified 2026-09-07)
 - Source and npm release history differ; see [release source audit](release-source-audit-2026-09-07.md) before submitting an update.
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`

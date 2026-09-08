@@ -69,7 +69,7 @@ also states the applicable tax and payment-evidence treatment.
 
 ## Public evidence and its limit
 
-- The current public release is `1.6.0`, exposing 120 v1 tools and seven
+- The current release is `1.7.0`, exposing 120 v1 tools and seven
   Resources by default.
 - The TypeScript build and all 399 automated tests pass as of August 20, 2026.
 - The sanitized live-SAP record contains 200 checks across ECC and S/4HANA
