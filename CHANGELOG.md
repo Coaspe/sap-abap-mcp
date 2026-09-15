@@ -6,6 +6,8 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ### Fixed
 
+- Updated the locked transitive Hono dependency from 4.13.0 to 4.13.7 to clear the required production dependency audit.
+
 - Interactive secret entry now displays masked characters and submission/cancellation guidance across SAP login, setup, OAuth client secrets, and abapGit credentials. Authentication, storage, and doctor commands report progress; terminal input handles Unicode, editing, cancellation, and end-of-input.
 
 - Service binding creation now honors `bindingCategory` (`0` Web API, `1` UI) and accepts an independent `bindingVersion` (`V2` or `V4`, default `V2`) in both API versions. The SAP validation query uses the selected version, and creation bypasses abap-adt-api 8.4.1's hardcoded V2/Web API XML. Local request-contract tests cover all four combinations; live SAP acceptance is not yet verified.

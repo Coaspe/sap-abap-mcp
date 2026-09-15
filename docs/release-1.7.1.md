@@ -18,6 +18,8 @@ For an OData V4 UI binding, include these fields under `additionalOptions`:
 
 Category 1 alone selects UI, not V4. Existing calls without a version retain V2.
 
+The locked transitive Hono dependency is updated to 4.13.7 to resolve the production dependency audit findings.
+
 ## Validation scope
 
 Local regression tests cover masked input, editing, cancellation, both MCP schemas, the validation query, and all four version/category combinations in outgoing XML. No live SAP objects were created or deleted. SAP-side V4 creation, activation, and publication remain unverified.
