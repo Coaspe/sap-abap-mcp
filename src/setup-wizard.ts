@@ -306,6 +306,7 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
     const password = linuxPassword ?? await requiredSecret(prompter)
     prompter.write("\nTesting SAP connection...")
     await validateCredentials(profile, password)
+    prompter.write("SAP connection verified. Saving settings and credentials...")
     if (platform === "linux") await profiles.upsert(input)
     else await saveProfileCredential(profiles, secrets, input, password)
     prompter.write([

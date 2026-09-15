@@ -670,6 +670,7 @@
         "additionalOptions": {
           "properties": {
             "bindingCategory": {
+              "description": "Service purpose: 0 = Web API, 1 = UI; does not select OData version",
               "enum": [
                 "0",
                 "1"
@@ -678,6 +679,14 @@
             },
             "bindingType": {
               "const": "ODATA",
+              "type": "string"
+            },
+            "bindingVersion": {
+              "description": "OData protocol version for SRVB/SVB; defaults to V2. Set V4 explicitly for OData V4",
+              "enum": [
+                "V2",
+                "V4"
+              ],
               "type": "string"
             },
             "packageType": {

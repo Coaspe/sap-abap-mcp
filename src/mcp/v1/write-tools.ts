@@ -547,7 +547,8 @@ export function registerV1WriteTools(
       additionalOptions: z.object({
         serviceDefinition: NON_EMPTY.optional(),
         bindingType: z.literal("ODATA").optional(),
-        bindingCategory: z.enum(["0", "1"]).optional(),
+        bindingCategory: z.enum(["0", "1"]).optional().describe("Service purpose: 0 = Web API, 1 = UI; does not select OData version"),
+        bindingVersion: z.enum(["V2", "V4"]).optional().describe("OData protocol version for SRVB/SVB; defaults to V2. Set V4 explicitly for OData V4"),
         softwareComponent: NON_EMPTY.optional(),
         packageType: z.enum(["development", "structure", "main"]).optional(),
         transportLayer: z.string().optional(),
@@ -577,6 +578,9 @@ export function registerV1WriteTools(
             : {}),
           ...(input.additionalOptions.bindingCategory
             ? { bindingCategory: input.additionalOptions.bindingCategory }
+            : {}),
+          ...(input.additionalOptions.bindingVersion
+            ? { bindingVersion: input.additionalOptions.bindingVersion }
             : {}),
           ...(input.additionalOptions.softwareComponent
             ? { softwareComponent: input.additionalOptions.softwareComponent }

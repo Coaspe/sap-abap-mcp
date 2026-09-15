@@ -3,6 +3,7 @@
 import { stdin, stderr, stdout } from "node:process"
 import { realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
+import { promptSecret } from "./secret-prompt.js"
 import { AppError, errorPayload } from "./errors.js"
 import {
   AuditRecorder,
@@ -183,53 +184,6 @@ async function readAllStdin(): Promise<string> {
   return trimTrailingLineBreaks(value)
 }
 
-async function promptSecret(prompt: string): Promise<string> {
-  if (!stdin.isTTY || typeof stdin.setRawMode !== "function") {
-    throw new AppError(
-      "PASSWORD_INPUT_REQUIRED",
-      "Interactive password input needs a TTY. Pipe the password and add --password-stdin."
-    )
-  }
-
-  return new Promise((resolve, reject) => {
-    let password = ""
-    const previousRawMode = stdin.isRaw
-
-    const cleanup = () => {
-      stdin.off("data", onData)
-      stdin.setRawMode(previousRawMode)
-      stdin.pause()
-    }
-
-    const onData = (chunk: Buffer | string) => {
-      for (const character of String(chunk)) {
-        if (character === "\u0003") {
-          cleanup()
-          stderr.write("\n")
-          reject(new AppError("CANCELLED", "Login was cancelled"))
-          return
-        }
-        if (character === "\r" || character === "\n") {
-          cleanup()
-          stderr.write("\n")
-          resolve(password)
-          return
-        }
-        if (character === "\u007f" || character === "\u0008") {
-          password = password.slice(0, -1)
-          continue
-        }
-        if (character >= " ") password += character
-      }
-    }
-
-    stderr.write(prompt)
-    stdin.setRawMode(true)
-    stdin.resume()
-    stdin.on("data", onData)
-  })
-}
-
 function withUsername(profile: SapProfile, username: string): SapProfile & { username: string } {
   return { ...profile, username: username.trim() }
 }
@@ -381,6 +335,9 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
         "Browser OAuth login requires macOS Keychain or Windows DPAPI; Linux credentials are environment-only"
       )
     }
+    if (candidate.authType === "oauth_authorization_code") {
+      stderr.write("Waiting for OAuth sign-in in your browser...\n")
+    }
     const password = candidate.authType === "oauth_authorization_code"
       ? await browserOAuthLogin({
           authorizationUrl: candidate.authorizationUrl,
@@ -396,7 +353,11 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     const manager = new ConnectionManager(profiles, secrets)
     writeJson(await addProfile(input, profiles, secrets, {
       password,
-      validateCredentials: (profile, value) => manager.validateCredentials(profile, value)
+      validateCredentials: async (profile, value) => {
+        stderr.write("Testing SAP connection...\n")
+        await manager.validateCredentials(profile, value)
+        stderr.write("SAP connection verified. Saving credentials...\n")
+      }
     }))
     return
   }
@@ -463,6 +424,9 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
     }
 
     const profile = username ? withUsername(storedProfile, username) : storedProfile
+    if (profile.authType === "oauth_authorization_code") {
+      stderr.write("Waiting for OAuth sign-in in your browser...\n")
+    }
     const password = profile.authType === "oauth_authorization_code"
       ? await browserOAuthLogin({
           authorizationUrl: profile.authorizationUrl,
@@ -485,7 +449,9 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
     }
 
     const manager = new ConnectionManager(profiles, secrets)
+    stderr.write("Testing SAP connection...\n")
     await manager.validateCredentials(profile, password)
+    stderr.write("SAP connection verified. Saving credentials...\n")
     await profiles.upsert(profile)
     await secrets.set(profile.id, password)
     writeJson({
@@ -545,6 +511,7 @@ async function abapGitCommand(
     }
     const next = credentials.filter(item => item.repositoryUrl !== repositoryUrl)
     next.push({ repositoryUrl, username, password })
+    stderr.write("Saving abapGit credentials (repository access is not verified)...\n")
     await secrets.set(key, encodeAbapGitCredentials(next))
     writeJson({ profileId: profile.id, repositoryUrl, username, credentialStored: true })
     return
@@ -563,6 +530,7 @@ async function doctorCommand(parsed: ParsedArguments, profiles: ProfileStore, se
   }
   const manager = new ConnectionManager(profiles, secrets, undefined, id)
   try {
+    stderr.write("Checking SAP connection and system information...\n")
     const client = await manager.getClient(id)
     const system = await client.getSystemInfo(parsed.options.has("include-components"))
     writeJson({ ok: true, system })
