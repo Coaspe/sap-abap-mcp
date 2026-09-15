@@ -486,7 +486,7 @@ npx.cmd @coaspe/sap-abap-mcp@latest setup
 
 The first run may ask whether npm may download the package; enter `y` to continue. The setup wizard collects the SAP URL, client, username, environment, and optional writable-package restriction. `Server name` is the local name used later as `connectionId`, for example `DEV100`. Keep production servers classified as `production`; they are read-only even if the package restriction is empty.
 
-When `SAP password:` appears, enter the password and press Enter; the input remains hidden. The server configuration and password are stored only after the MCP validates the credentials against SAP. Windows protects the password with DPAPI and never writes it to the profile file.
+When `SAP password:` appears, enter the password and press Enter; each character is shown as `*`, never as the password itself. Press Ctrl+C to cancel. The server configuration and password are stored only after the MCP validates the credentials against SAP. Windows protects the password with DPAPI and never writes it to the profile file.
 
 The setup command is one line in both PowerShell and Command Prompt. For advanced multiline commands, PowerShell continues a line with a backtick (`` ` ``), while Command Prompt (`cmd.exe`) uses a caret (`^`); do not mix them.
 
@@ -1096,8 +1096,9 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Checkout manifest version: `1.7.0`
-- Install: `npx @coaspe/sap-abap-mcp@1.7.0`
+- Checkout manifest version: `1.7.1`
+- Install: `npx @coaspe/sap-abap-mcp@1.7.1`
+- Patch fixes: [1.7.1 release record](docs/release-1.7.1.md).
 - Source lineage and company acceptance scope: [release record](docs/release-1.7.0.md). Default CLI startup exposes five gateways; all 120 capabilities remain discoverable.
 - Runtime: Node.js 20 or later
 - Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP

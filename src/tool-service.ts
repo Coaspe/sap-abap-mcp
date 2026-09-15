@@ -18,7 +18,6 @@ import {
   objectPath,
   parentTypeId,
   servicePreviewUrl,
-  type NewBindingOptions,
   type NewObjectOptions,
   type NewPackageOptions,
   type NodeParents,
@@ -36,7 +35,6 @@ import {
   type TextElementCategory,
   type TransportObject,
   type TransportRequest,
-  type ValidateOptions,
   type ValidationResult,
   type UsageReference
 } from "abap-adt-api"
@@ -84,6 +82,9 @@ import type {
   SapClient,
   SapDdicKind,
   SapNewObjectOptions,
+  SapNewBindingOptions,
+  SapValidateOptions,
+  SapBindingVersion,
   SapObjectReference,
   SapRuntimeFeedKind
 } from "./sap-client.js"
@@ -263,6 +264,7 @@ export interface CreateObjectInput {
     serviceDefinition?: string
     bindingType?: "ODATA"
     bindingCategory?: BindingCategory
+    bindingVersion?: SapBindingVersion
     softwareComponent?: string
     packageType?: PackageTypes
     transportLayer?: string
@@ -2748,7 +2750,7 @@ export class AbapToolService {
     )
     const additional = input.additionalOptions
 
-    let validateOptions: ValidateOptions
+    let validateOptions: SapValidateOptions
     if (isGroupType(objectType)) {
       validateOptions = {
         objtype: objectType,
@@ -2776,11 +2778,12 @@ export class AbapToolService {
       if (
         !additional?.serviceDefinition ||
         additional.bindingType !== "ODATA" ||
-        !additional.bindingCategory
+        !["0", "1"].includes(additional.bindingCategory ?? "") ||
+        !["V2", "V4"].includes(additional.bindingVersion ?? "V2")
       ) {
         throw new AppError(
           "SERVICE_BINDING_OPTIONS_REQUIRED",
-          "Service binding creation requires serviceDefinition, bindingType=ODATA, and bindingCategory"
+          "Service binding creation requires serviceDefinition, bindingType=ODATA, bindingCategory=0 (Web API) or 1 (UI), and bindingVersion=V2 or V4 (default V2)"
         )
       }
       validateOptions = {
@@ -2788,7 +2791,7 @@ export class AbapToolService {
         objname: name,
         description: input.description,
         package: packageName,
-        serviceBindingVersion: "ODATA\\V2",
+        serviceBindingVersion: `ODATA\\${additional.bindingVersion ?? "V2"}`,
         serviceDefinition: additional.serviceDefinition.toUpperCase()
       }
     } else {
@@ -2879,8 +2882,9 @@ export class AbapToolService {
         objtype: objectType,
         service: additional?.serviceDefinition?.toUpperCase() as string,
         bindingtype: "ODATA",
-        category: additional?.bindingCategory as BindingCategory
-      } satisfies NewBindingOptions
+        category: additional?.bindingCategory as BindingCategory,
+        bindingVersion: additional?.bindingVersion ?? "V2"
+      } satisfies SapNewBindingOptions
     } else {
       createOptions = baseOptions
     }
