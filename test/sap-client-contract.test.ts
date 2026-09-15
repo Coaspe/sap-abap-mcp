@@ -1,6 +1,11 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { AdtErrorException } from "abap-adt-api"
+import {
+  createObject as upstreamCreateObject,
+  validateNewObject as upstreamValidateNewObject
+} from "abap-adt-api/build/api/objectcreator.js"
+import { XMLParser } from "fast-xml-parser"
 import { AppError } from "../src/errors.js"
 import {
   ADT_FAILURE_EVIDENCE_BYTE_LIMIT,
@@ -19,6 +24,80 @@ const profile: SapProfile = {
   username: "DEVELOPER",
   allowedPackages: ["Z_DEMO"]
 }
+
+for (const version of ["V2", "V4"] as const) {
+  for (const category of ["0", "1"] as const) {
+    test(`binding creation sends ${version} category ${category} in the actual XML`, async () => {
+      const requests: Array<{ url: string; config: any }> = []
+      const httpClient = {
+        username: "DEVELOPER",
+        async request(url: string, config: any) {
+          requests.push({ url, config })
+          return { body: "", status: 201, statusText: "Created", headers: {} }
+        }
+      }
+      const client = clientWithAdt({
+        httpClient,
+        // Exercise the real dependency if the wrapper accidentally delegates again.
+        createObject: (options: any) => upstreamCreateObject(httpClient as any, options)
+      })
+      await client.createObject({
+        objtype: "SRVB/SVB", name: "ZUI_TEST", parentName: "Z_DEMO",
+        parentPath: "/sap/bc/adt/packages/z_demo", description: 'UI & API "test" <safe>',
+        service: "Z_TEST", bindingtype: "ODATA", category, bindingVersion: version,
+        transport: "DEVK900123", language: "EN"
+      })
+      assert.equal(requests.length, 1)
+      const { url, config } = requests[0]!
+      assert.equal(url, "/sap/bc/adt/businessservices/bindings")
+      assert.equal(config.method, "POST")
+      assert.deepEqual(config.qs, { corrNr: "DEVK900123" })
+      const root = new XMLParser({ ignoreAttributes: false }).parse(config.body)["srvb:serviceBinding"]
+      assert.equal(root["@_adtcore:description"], 'UI & API "test" <safe>')
+      assert.equal(root["@_adtcore:responsible"], "DEVELOPER")
+      assert.equal(root["adtcore:packageRef"]["@_adtcore:name"], "Z_DEMO")
+      assert.equal(root["srvb:services"]["srvb:content"]["srvb:serviceDefinition"]["@_adtcore:name"], "Z_TEST")
+      assert.equal(root["srvb:binding"]["@_srvb:type"], "ODATA")
+      assert.equal(root["srvb:binding"]["@_srvb:category"], category)
+      assert.equal(root["srvb:binding"]["@_srvb:version"], version)
+    })
+  }
+}
+
+test("binding creation defaults to V2 and propagates rejection without retrying or falling back", async () => {
+  let calls = 0
+  const client = clientWithAdt({ httpClient: { async request(_url: string, config: any) {
+    calls += 1
+    assert.match(config.body, /srvb:version="V2"/)
+    assert.match(config.body, /srvb:category="1"/)
+    assert.deepEqual(config.qs, {})
+    throw new Error("SAP rejected binding")
+  } } })
+  await assert.rejects(client.createObject({
+    objtype: "SRVB/SVB", name: "Z_TEST", parentName: "$TMP", parentPath: "/package",
+    description: "Test", service: "Z_TEST", bindingtype: "ODATA", category: "1"
+  }), /SAP rejected binding/)
+  assert.equal(calls, 1)
+})
+
+test("V4 validation reaches the dependency HTTP query without being rewritten to V2", async () => {
+  const requests: Array<{ url: string; config: any }> = []
+  const http = { async request(url: string, config: any) {
+    requests.push({ url, config })
+    return { body: '<asx:abap xmlns:asx="http://www.sap.com/abapxml"><asx:values><DATA><SEVERITY>S</SEVERITY><CHECK_RESULT>X</CHECK_RESULT></DATA></asx:values></asx:abap>' }
+  } }
+  const client = clientWithAdt({
+    validateNewObject: (options: any) => upstreamValidateNewObject(http as any, options)
+  })
+  const result = await client.validateNewObject({
+    objtype: "SRVB/SVB", objname: "ZUI_TEST", description: "Test", package: "$TMP",
+    serviceDefinition: "Z_TEST", serviceBindingVersion: "ODATA\\V4"
+  })
+  assert.equal(result.success, true)
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0]!.url, "/sap/bc/adt/businessservices/bindings/validation")
+  assert.equal(requests[0]!.config.qs.serviceBindingVersion, "ODATA\\V4")
+})
 
 function clientWithAdt(
   fakeAdt: Record<string, unknown>,

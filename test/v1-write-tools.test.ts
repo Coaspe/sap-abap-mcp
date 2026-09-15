@@ -369,3 +369,25 @@ test("write adapters inject fixed service actions and preserve safety inputs", a
   assert.equal((calls[6]?.input as { authorName?: string }).authorName, undefined)
   assert.equal((calls[6]?.input as { committerName?: string }).committerName, undefined)
 })
+
+for (const apiVersion of ["v0", "v1"] as const) {
+  test(`${apiVersion} forwards separate binding category and OData version`, async t => {
+    const { service, calls } = createWriteService()
+    const server = createMcpServer(service, { apiVersion })
+    const client = new Client({ name: "binding-test", version: "1" })
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    await server.connect(serverTransport)
+    await client.connect(clientTransport)
+    t.after(async () => { await client.close(); await server.close() })
+    const additionalOptions = { serviceDefinition: "Z_TEST", bindingType: "ODATA", bindingCategory: "1", bindingVersion: "V4" }
+    const result = await client.callTool({
+      name: apiVersion === "v1" ? "sap.repository.create" : "create_object_programmatically",
+      arguments: {
+        [apiVersion === "v1" ? "systemId" : "connectionId"]: "DEV100",
+        objectType: "SRVB/SVB", name: "ZUI_TEST", description: "Test binding", additionalOptions
+      }
+    })
+    assert.notEqual(result.isError, true)
+    assert.deepEqual((calls[0]!.input as any).additionalOptions, additionalOptions)
+  })
+}

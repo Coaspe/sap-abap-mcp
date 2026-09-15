@@ -192,7 +192,15 @@ export interface SapClassicBridgeResult {
   message: string
 }
 
-export type SapNewObjectOptions = NewObjectOptions | NewPackageOptions | NewBindingOptions
+export type SapBindingVersion = "V2" | "V4"
+export interface SapNewBindingOptions extends NewBindingOptions {
+  bindingVersion?: SapBindingVersion
+}
+export type SapNewObjectOptions = NewObjectOptions | NewPackageOptions | SapNewBindingOptions
+export type SapValidateOptions = Exclude<ValidateOptions, { objtype: "SRVB/SVB" }> |
+  (Omit<Extract<ValidateOptions, { objtype: "SRVB/SVB" }>, "serviceBindingVersion"> & {
+    serviceBindingVersion: `ODATA\\${SapBindingVersion}`
+  })
 
 export interface SapDebugStatus {
   active: boolean
@@ -300,7 +308,7 @@ export interface SapClient {
     mainProgram?: string
   ): Promise<ActivationResult>
   activateObjects(objects: InactiveObject[]): Promise<ActivationResult>
-  validateNewObject(options: ValidateOptions): Promise<ValidationResult>
+  validateNewObject(options: SapValidateOptions): Promise<ValidationResult>
   createObject(options: SapNewObjectOptions): Promise<void>
   createTransport(
     objectUri: string,
@@ -1029,12 +1037,46 @@ export class AdtSapClient implements SapClient {
     return this.serializeMutation(() => this.client.activate(objects, true))
   }
 
-  async validateNewObject(options: ValidateOptions): Promise<ValidationResult> {
-    return this.client.validateNewObject(options)
+  async validateNewObject(options: SapValidateOptions): Promise<ValidationResult> {
+    // The dependency forwards this query unchanged, but its type only declares V2.
+    return this.client.validateNewObject(options as ValidateOptions)
   }
 
   async createObject(options: SapNewObjectOptions): Promise<void> {
-    await this.serializeMutation(() => this.client.createObject(options))
+    if (options.objtype !== "SRVB/SVB") {
+      await this.serializeMutation(() => this.client.createObject(options))
+      return
+    }
+    if (!("service" in options) || !options.service || options.bindingtype !== "ODATA" ||
+        !["0", "1"].includes(options.category) ||
+        !["V2", "V4"].includes(options.bindingVersion ?? "V2")) {
+      throw new AppError("SERVICE_BINDING_OPTIONS_REQUIRED", "Service bindings require a service definition, ODATA, category 0 (Web API) or 1 (UI), and version V2 or V4")
+    }
+    // abap-adt-api 8.4.1 ignores category and hardcodes V2 in its creation XML.
+    const xml = escapeXmlAttribute
+    const language = options.language || this.profile.language
+    const body = `<?xml version="1.0" encoding="UTF-8"?>
+<srvb:serviceBinding xmlns:srvb="http://www.sap.com/adt/ddic/ServiceBindings"
+  xmlns:adtcore="http://www.sap.com/adt/core" adtcore:type="SRVB/SVB"
+  adtcore:name="${xml(options.name)}" adtcore:description="${xml(options.description)}"
+  adtcore:language="${xml(language)}" adtcore:masterLanguage="${xml(options.masterLanguage || language)}"
+  ${options.masterSystem ? `adtcore:masterSystem="${xml(options.masterSystem)}"` : ""}
+  adtcore:responsible="${xml((options.responsible || this.profile.username || "").toUpperCase())}">
+  <adtcore:packageRef adtcore:name="${xml(options.parentName)}"/>
+  <srvb:services srvb:name="${xml(options.name)}">
+    <srvb:content srvb:version="0001">
+      <srvb:serviceDefinition adtcore:name="${xml(options.service)}"/>
+    </srvb:content>
+  </srvb:services>
+  <srvb:binding srvb:category="${xml(options.category)}" srvb:type="ODATA" srvb:version="${xml(options.bindingVersion ?? "V2")}">
+    <srvb:implementation adtcore:name=""/>
+  </srvb:binding>
+</srvb:serviceBinding>`
+    await this.serializeMutation(() => this.client.httpClient.request(
+      "/sap/bc/adt/businessservices/bindings",
+      { method: "POST", headers: { "Content-Type": "application/*" }, body,
+        qs: options.transport ? { corrNr: options.transport } : {} }
+    ))
   }
 
   async createTransport(
