@@ -106,6 +106,7 @@ class FakeSapClient implements SapClient {
   currentSource = source
   createdObject: unknown
   createObjectCalls = 0
+  validatedObjectOptions: unknown
   validateNewObjectCalls = 0
   createTransportCalls = 0
   readSourceCalls: string[] = []
@@ -482,7 +483,8 @@ class FakeSapClient implements SapClient {
     return this.batchActivationResult
   }
 
-  async validateNewObject(): Promise<any> {
+  async validateNewObject(options?: unknown): Promise<any> {
+    this.validatedObjectOptions = options
     this.validateNewObjectCalls += 1
     this.objectCreationOperations.push("validate")
     if (this.validationError) throw this.validationError
@@ -6226,4 +6228,40 @@ test("ancestry deduplicates the same local contract but preserves names shared b
   assert.ok(distinct.relatedContracts.every((item: any) => item.status === "included"))
   assert.match(distinct.relatedContracts[2].code, /shared_method/)
   assert.match(distinct.relatedContracts[3].code, /different_method/)
+})
+
+for (const version of ["V2", "V4", undefined] as const) {
+  test(`service binding validation and creation agree on ${version ?? "default V2"}`, async () => {
+    const { fake, service } = createBdefHarness()
+    await service.createObjectProgrammatically({
+      connectionId: "DEV100", objectType: "SRVB/SVB", name: "ZUI_TEST",
+      description: "Test binding", packageName: "Z_DEMO",
+      additionalOptions: {
+        serviceDefinition: "z_test", bindingType: "ODATA", bindingCategory: "1",
+        ...(version ? { bindingVersion: version } : {}),
+        transportRequest: { type: "existing", number: "DEVK900123" }
+      }
+    })
+    assert.deepEqual(fake.validatedObjectOptions, {
+      objtype: "SRVB/SVB", objname: "ZUI_TEST", description: "Test binding",
+      package: "Z_DEMO", serviceBindingVersion: `ODATA\\${version ?? "V2"}`, serviceDefinition: "Z_TEST"
+    })
+    assert.equal((fake.createdObject as any).bindingVersion, version ?? "V2")
+    assert.equal((fake.createdObject as any).category, "1")
+    assert.deepEqual(fake.objectCreationOperations, ["validate", "create"])
+  })
+}
+
+test("invalid binding version fails before validation, transport allocation or creation", async () => {
+  const { fake, service } = createBdefHarness()
+  await assert.rejects(service.createObjectProgrammatically({
+    connectionId: "DEV100", objectType: "SRVB/SVB", name: "ZUI_TEST",
+    description: "Test binding", packageName: "Z_DEMO",
+    additionalOptions: {
+      serviceDefinition: "Z_TEST", bindingType: "ODATA", bindingCategory: "1",
+      bindingVersion: "V9" as any,
+      transportRequest: { type: "new", description: "Must not be created" }
+    }
+  }), { code: "SERVICE_BINDING_OPTIONS_REQUIRED" })
+  assert.deepEqual(fake.objectCreationOperations, [])
 })
