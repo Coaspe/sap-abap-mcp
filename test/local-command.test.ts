@@ -28,9 +28,10 @@ test("Windows npm-style command shims preserve arguments without executing opera
     const entry = join(dir, "echo-args.js")
     const captured = join(dir, "arguments.json")
     await writeFile(entry, "#!/usr/bin/env node\nrequire('node:fs').writeFileSync(process.argv[2], JSON.stringify(process.argv.slice(3)))")
-    const command = join(dir, "echo-args.cmd")
+    const shimBase = join(dir, "echo-args")
+    const command = `${shimBase}.cmd`
     const cmdShim = createRequire(import.meta.url)("cmd-shim") as (source: string, target: string) => Promise<void>
-    await cmdShim(entry, command)
+    await cmdShim(entry, shimBase)
     const args = ["가 나", 'quote"value', "%PATH%", "a&b|c", "(value)", "trailing\\"]
     const result = await runLocalCommand(command, [captured, ...args])
     assert.equal(result.ok, true, result.stderr)
