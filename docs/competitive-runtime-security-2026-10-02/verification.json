@@ -1,0 +1,4307 @@
+{
+  "date": "2026-10-02",
+  "stage": "crypto-reachability-and-maintained-runtime-acceptance",
+  "sourceFiles": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "6e59cb1d375658ff180f56ce405bb56285b659bf7f2da7e4c585cc6b1c51e486"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "1ddcf8e581e2c857fd60df7c36f9ac6f0a3ba79007973c8ffe5b2151b921da79"
+    },
+    {
+      "path": "README.md",
+      "sha256": "55a587a9611733c59c91722e8ec15064fea88bd7295ac9e6883f1bfd3c6fb530"
+    },
+    {
+      "path": "ROADMAP.md",
+      "sha256": "3a5a413fe6ff8a70dd0a419701d89997b9772a312ee29d8107e19bf44b9d1c69"
+    },
+    {
+      "path": "docs/abap-task-comparison.md",
+      "sha256": "388449f4b4f0d7a2cfbcff8ad2f8921706aa7d1ba412cc31271b9aa38b6681aa"
+    },
+    {
+      "path": "docs/batch-source-reads.md",
+      "sha256": "152cfe9be2230699ba5e51d419f2cea2f8e737aa981990a3acb9d6ba0a982d57"
+    },
+    {
+      "path": "docs/btp-destination-integration.md",
+      "sha256": "416b74aa87ce62d57efbafd64d2ee179d55d370b030a38de64fcc17c908d2b44"
+    },
+    {
+      "path": "docs/cli-reference.md",
+      "sha256": "189c90b35a92b23c24da82ca62c4ea270a974729aa309945dd147fb8a445a9ed"
+    },
+    {
+      "path": "docs/competitive-research-2026-10-01.ko.md",
+      "sha256": "79b14e38a09af97e7d5729aba9da47a0d324a561ff3032c26014273fc0018074"
+    },
+    {
+      "path": "docs/competitive-runtime-security-2026-10-02/crypto-path.mjs",
+      "sha256": "f28e7e0461e11c6b920f7a653e163aba4f3f53270f196205efaccc4f86601c29"
+    },
+    {
+      "path": "docs/conditional-source-reads.md",
+      "sha256": "3a61f30a6f248708e1ca2212b140df0a37f51bb541a490e31d77314b425b7702"
+    },
+    {
+      "path": "docs/desktop-bundle-setup.md",
+      "sha256": "a0a7ffa51e5e433ce54648029ea1b49f8893b82fabfae5ced4de6ff901d003c6"
+    },
+    {
+      "path": "docs/discovery-benchmark.md",
+      "sha256": "9d1ece9193ac92e79328c10d04efbab4497f38e253ad4b442efd0146a80a4166"
+    },
+    {
+      "path": "docs/http-deployment.md",
+      "sha256": "7173e822dc1bee9d45569428020a87afc846b6cb7928785ae1ffdd2679b0ab19"
+    },
+    {
+      "path": "docs/setup-and-profiles.md",
+      "sha256": "e595b1783e36a361e5d212c466de30e282d4fd99a5ed0f1e315d592981474774"
+    },
+    {
+      "path": "lhm.plugin.json",
+      "sha256": "3d1f3f247e7f77cb7305deae041a73dcec586a12aba40da1c7d30a2106f014e5"
+    },
+    {
+      "path": "llms-install.md",
+      "sha256": "8567ccf728ab74967d1ccedb47077b028e30c98471e64954b642cfff9f41bfd8"
+    },
+    {
+      "path": "mcpb/manifest.json",
+      "sha256": "18d3c188a6f79f962660370ba328413d6d82ad1763f0b8f7b9e029513c9e5b28"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "94090b013a2c87fc36d504b0372878f1f60364700e4098fe4d619f80aea916a5"
+    },
+    {
+      "path": "package.json",
+      "sha256": "02b28cc9f5d193e991473e1a84b7fa253180988435e8a008cf7f5dfdd635b182"
+    },
+    {
+      "path": "scripts/benchmark-capability-discovery.mjs",
+      "sha256": "9d90cb795807323714dc59d22fac6302fcdf9109db913757a752fc75f317d881"
+    },
+    {
+      "path": "scripts/benchmark-conditional-batch.mjs",
+      "sha256": "f1a3405ddf0d2e4c720223bae2ff9754b3b7563fc0b380c700331c73c85b48d8"
+    },
+    {
+      "path": "scripts/benchmark-mcp-workflow.mjs",
+      "sha256": "5d4fe9a49120a8491056e14b808ad268db5915ef170c223a7d8403a989836136"
+    },
+    {
+      "path": "scripts/build-mcpb.sh",
+      "sha256": "131cdef8b1e7deae9a8b4c5bcf721f782e3301f203a0f957d7c2041ec59eba4e"
+    },
+    {
+      "path": "scripts/check-mcpb-runtime.mjs",
+      "sha256": "0864985e98188b74e2200a07bbdb6a8d0b39f2ffa092ee34748e70e7a0666c4f"
+    },
+    {
+      "path": "src/audit-log.ts",
+      "sha256": "37ba93896f4cf64f6d34377b0c49e0b5bbe70d3f5f789af6414e82c56229be70"
+    },
+    {
+      "path": "src/connection-manager.ts",
+      "sha256": "f914d140ecbc972238711d4499c6a2d316c18ae58ad0cd95243a7f960600621b"
+    },
+    {
+      "path": "src/errors.ts",
+      "sha256": "713dab28edcff924fd7400833b2956e70337e281577c3f9fd17ed2dc37238cc0"
+    },
+    {
+      "path": "src/http/oidc.ts",
+      "sha256": "49ad1513105b99b99a495970e6d6bacb62512e59148ba2af3295c83af719a31f"
+    },
+    {
+      "path": "src/http/request-scoped-connections.ts",
+      "sha256": "fd74571bcb62149dfc423d9c28a98de2fa013a93c0afc6021b3eba198bf398ba"
+    },
+    {
+      "path": "src/http/server.ts",
+      "sha256": "100c84b7c87e2fd1a8d5915c0c71d893f891320fc74d75139601899acb5395dd"
+    },
+    {
+      "path": "src/index.ts",
+      "sha256": "9a2a5814eefba3d966def5fe33554fa5f78519e29d8cfe8b1f0fdc7c277d85e2"
+    },
+    {
+      "path": "src/mcp-server.ts",
+      "sha256": "d647167b4c93ece4d3375b366b5c97ca7512da4cccd64df16a1274fcc6945ec1"
+    },
+    {
+      "path": "src/mcp/progress-instrumentation.ts",
+      "sha256": "47771adb49066b64261530cf8f0cad223f3534ad7216fcfe00b2da21f38f6efc"
+    },
+    {
+      "path": "src/mcp/v1/adaptive-tools.ts",
+      "sha256": "db211c1936de74e7ad8da4f4da262584ba2fb2ed3ed7babc8199ef45e15e1d0e"
+    },
+    {
+      "path": "src/mcp/v1/analysis-tools.ts",
+      "sha256": "25bfd62ffe59368f982a4d255e40e03e17fc3816e5fdb700985fd668a2305551"
+    },
+    {
+      "path": "src/mcp/v1/contracts.ts",
+      "sha256": "14bc0eafad05fa5aac0c1275503c4bd9d6eae1074a747a1c7bb734f63d9b82b7"
+    },
+    {
+      "path": "src/mcp/v1/core-tools.ts",
+      "sha256": "2bbbb6038b0d5ec3778a17c017f4034b40c6bb421954aa1db96d51ca590983d7"
+    },
+    {
+      "path": "src/mcp/v1/result.ts",
+      "sha256": "66aee7d46cb51d89ce64aad5b1721a505b9790eaced99d7e2b9a9ff4a0bf733c"
+    },
+    {
+      "path": "src/mcp/v1/system-tools.ts",
+      "sha256": "157dc09fa13ea5a8c0916e169da5fcd57d4bf3948cafc50d11c0fd72cb922fc2"
+    },
+    {
+      "path": "src/oauth-authorization-code.ts",
+      "sha256": "f7fa1bd1745cef931b8e466d983df89eb6aa30a354504e072cb034fb05fe3d9e"
+    },
+    {
+      "path": "src/oauth-client-credentials.ts",
+      "sha256": "cb47bc7589cb7f75554ef175a6d4f3232baa1acf377244e92a874d2bcbeec0d4"
+    },
+    {
+      "path": "src/onboard-english.ts",
+      "sha256": "97c2bbfed9e3a4a3bcbe7b616b96e1d922c2bac2f716b93c320b16e1f8966ea5"
+    },
+    {
+      "path": "src/onboard-page.ts",
+      "sha256": "fcf8fc178a45525d591299177071d18f058a3f83fb63ea4b6f9ab8fa6ecde981"
+    },
+    {
+      "path": "src/onboard.ts",
+      "sha256": "35f6935ef01848603fab6cb3e9b23a10844159985288fc7e26d1b24a0c1319d7"
+    },
+    {
+      "path": "src/profile-store.ts",
+      "sha256": "58b9f5945d7e8b8b0928329282697e11d1c47c0c40e9bf5448ad2ead5abbd6eb"
+    },
+    {
+      "path": "src/save-profile-credential.ts",
+      "sha256": "bca4101c9a3f16ea4490ba84d3c877fe37d70844f339fd0973ea65dac9b89762"
+    },
+    {
+      "path": "src/setup-wizard.ts",
+      "sha256": "912e4a70f4dd9db54bccf7c6cad219e8e1153717cbff92946f8e46d07bfbaef6"
+    },
+    {
+      "path": "src/tool-service.ts",
+      "sha256": "ed7ff3e305fac7e069db666a60d974a92220ded80052dc5f4184b929cbac4ba3"
+    },
+    {
+      "path": "src/user-destination.ts",
+      "sha256": "0d28bd5821ce054247797fb110a86c2faf37a3e838fff15da0a888d97d7c5535"
+    },
+    {
+      "path": "test/cli-profile.test.ts",
+      "sha256": "a318b85a8c19cc0070244f079ef99dfeddca55cc239f81e6da8999744820b247"
+    },
+    {
+      "path": "test/connection-manager-oauth.test.ts",
+      "sha256": "aeae418efc0da5a98199d8997eb0b3e8393bedbb62d892e5726fdd8cb3ae141b"
+    },
+    {
+      "path": "test/destination-profile.test.ts",
+      "sha256": "bb3a7c911ca1fcc0e51b481bb196b9bb9447413ef35ec0cbd927c31a2218d7eb"
+    },
+    {
+      "path": "test/http-oauth-discovery.test.ts",
+      "sha256": "7d98137ab6ab3e98563e795b8f6c2fcf30c2de117aed357e07768e97e3b153f5"
+    },
+    {
+      "path": "test/http-oidc.test.ts",
+      "sha256": "b42305bcaa09a2b5bfc4ae49bc936bfb1b5e21200a4aa52b3ceef16845b4cf42"
+    },
+    {
+      "path": "test/integration.test.ts",
+      "sha256": "273667a1e0f7245dec305250c53973262a38e549bc6b7403b05f6223de4620b0"
+    },
+    {
+      "path": "test/oauth-authorization-code.test.ts",
+      "sha256": "828b20f09d6e3b61358d54d9d7ea98575a25afccbb513d355d55dafc9b3b7533"
+    },
+    {
+      "path": "test/oauth-client-credentials.test.ts",
+      "sha256": "da09d72a98e133182c0d0688d8dedb3aaebb23d7d1162baaa3a25e52071390ba"
+    },
+    {
+      "path": "test/onboard.test.ts",
+      "sha256": "643d87f9a5e8fb7b03b7493375f610cbc8e84bf90e86e3a7758c8e34af9abf17"
+    },
+    {
+      "path": "test/profile-store.test.ts",
+      "sha256": "6b40cad9844b676a011b6217a90bd38a95f1413749204cdb374a2b50eb497332"
+    },
+    {
+      "path": "test/progress-instrumentation.test.ts",
+      "sha256": "bb419afbfbdb1da7063b268adb6ececd56ff07c9fa456594af138ad9dca9aadf"
+    },
+    {
+      "path": "test/registry-metadata.test.ts",
+      "sha256": "ae1063b3e313406d62c4ecf9dda2e92f70888ffee0c3a90fda7ec01795e65117"
+    },
+    {
+      "path": "test/request-scoped-lifecycle.test.ts",
+      "sha256": "ec66a4db3685b41366973715d1e94dbc43eec34b228003135d49720f41fc015e"
+    },
+    {
+      "path": "test/save-profile-credential.test.ts",
+      "sha256": "0569c90a2d3a79fe18590f462461d2be3e96a48d21ed9f5c76c227ab5708da64"
+    },
+    {
+      "path": "test/setup-wizard.test.ts",
+      "sha256": "a97855be8a2415cda92ea373a83dde7d50d68b8cd8b80416222878d86ff229cc"
+    },
+    {
+      "path": "test/user-destination.test.ts",
+      "sha256": "b5c5b50b83fb0dfaf3a4f4cd7f83c5eef543e84db49d35afbbf699aaf03cef32"
+    },
+    {
+      "path": "test/v1-adaptive.test.ts",
+      "sha256": "8ca53280e880f802301e310a681deeef137d236480ad0fe284672a30406f3e34"
+    },
+    {
+      "path": "test/v1-batch-conditional.test.ts",
+      "sha256": "570096a970d42d1105a3e5c2c9f863d036109863c72a84c9fb3bdeb5bd489ee3"
+    },
+    {
+      "path": "test/v1-documentation.test.ts",
+      "sha256": "fc5b07785799f068c2e13e8dcf7530393b06cdf5348458dcdb2d473b93529764"
+    },
+    {
+      "path": "test/v1-result.test.ts",
+      "sha256": "bf85ba740c75c6228fe0155f3113d079557fc54f41f91a02113d2b78da72f444"
+    },
+    {
+      "path": "test/v1-system-tools.test.ts",
+      "sha256": "6f628f25191db57c8f5843fcdbc34ab9a52a36afb1f455b17bc409ef6127d651"
+    }
+  ],
+  "sourceFilesMatched": true,
+  "sourceInventoryExcludesThisVerificationFile": true,
+  "runtimeFiles": [
+    {
+      "path": "dist/src/abap-object-types.d.ts",
+      "sha256": "169014c090f5748b4987e3485aac1612ca02cf25043ae5184d2719822dd1b25c"
+    },
+    {
+      "path": "dist/src/abap-object-types.js",
+      "sha256": "fae8fa3a5920b26915f901bc63e530d99467a853bbfa76beb1e2b700f2f93aec"
+    },
+    {
+      "path": "dist/src/abap-object-types.js.map",
+      "sha256": "b47d0a01fc4c355a9f01f79b2a180f4332ea0ad5299e584b149b4eed0b2a035d"
+    },
+    {
+      "path": "dist/src/abapgit-credentials.d.ts",
+      "sha256": "c56ff32615910b5dc424df9871242e90b91571c233fb0ae1aec320afee311346"
+    },
+    {
+      "path": "dist/src/abapgit-credentials.js",
+      "sha256": "b9679c65bccba3e355537e5a67b61e98b2fbcf13a48098495e987a7687756f7e"
+    },
+    {
+      "path": "dist/src/abapgit-credentials.js.map",
+      "sha256": "d8ea49fd6fd3659e000105a8be1c47a9b16cbf37aea9521a39086ec578219a00"
+    },
+    {
+      "path": "dist/src/audit-log.d.ts",
+      "sha256": "488b274065e53764263aac6f73b287955d545c5b308c056d780f06d82137c894"
+    },
+    {
+      "path": "dist/src/audit-log.js",
+      "sha256": "d5b8132bb3279a2ff0ae1d944b880d6f4780c83006df6714b88a555c6c163cf4"
+    },
+    {
+      "path": "dist/src/audit-log.js.map",
+      "sha256": "3fe4bab4cb0a3fcf340df49e9ea2aa3ea06540413bd2e189da3d2a2e1424ec6b"
+    },
+    {
+      "path": "dist/src/bdef-creator.d.ts",
+      "sha256": "674bde72750112ed9e13cd9cd9b582181137cd5dd4fc342309854ac12e522177"
+    },
+    {
+      "path": "dist/src/bdef-creator.js",
+      "sha256": "6a317c02e3756ab450db3e3a55fe3df67961b9ece81738124dd2360dcb9f9c6a"
+    },
+    {
+      "path": "dist/src/bdef-creator.js.map",
+      "sha256": "46b675d3d3ff797b1d624291f594c51b472a375859e32303e59d1e96a0df01c3"
+    },
+    {
+      "path": "dist/src/btp-diagnostics.d.ts",
+      "sha256": "ddf3ec068fb0242fa0676efb606e4c80c30a00e224a503852bc9a78308e1482b"
+    },
+    {
+      "path": "dist/src/btp-diagnostics.js",
+      "sha256": "4a02d33c69ed91cb8cb270c6e69e7ca2f9a4e23b243b7211f4986dbdc40fb5c2"
+    },
+    {
+      "path": "dist/src/btp-diagnostics.js.map",
+      "sha256": "eac7680e6e00dd162efa30223c7c6afa9bb67347f2cbfcd67b1a426f90dbdeec"
+    },
+    {
+      "path": "dist/src/btp-service-key.d.ts",
+      "sha256": "408136b17e28e344b80988ee467136da718d22f030b7fca91ffcecc6c2c071d8"
+    },
+    {
+      "path": "dist/src/btp-service-key.js",
+      "sha256": "9d70bf42053cf2b9a71a9230f138a10dccedea63980d4805b4bbb6d5ed718c4b"
+    },
+    {
+      "path": "dist/src/btp-service-key.js.map",
+      "sha256": "6dddcf64e0da2423e55b110f23e7ed4c57e48520cc770a53105ec4dbf91d7474"
+    },
+    {
+      "path": "dist/src/change-assurance.d.ts",
+      "sha256": "096f55a758004ebb28e34b0dafe7113b44bc246e346fcc21dc772c03f7a31ca4"
+    },
+    {
+      "path": "dist/src/change-assurance.js",
+      "sha256": "133413c64bb1bfad1f2cc0d4637ec21b5bba7f99f0af031894243e25da585c5a"
+    },
+    {
+      "path": "dist/src/change-assurance.js.map",
+      "sha256": "f280a566dbc686a678cbfbbaa5fc294efef985794eb15bc4d582c621675c614b"
+    },
+    {
+      "path": "dist/src/compat/abap-fs-documentation.d.ts",
+      "sha256": "2ff3d93670bdbc32c418f0f6d7fea71d420cd7e952a8e65562403fe9530c1ca3"
+    },
+    {
+      "path": "dist/src/compat/abap-fs-documentation.js",
+      "sha256": "b6d92602a9f3a4030f5309da22aaf4c2cc60223a44bc4286de27626d246f0865"
+    },
+    {
+      "path": "dist/src/compat/abap-fs-documentation.js.map",
+      "sha256": "eccc9b002b15cd917b7194bae584be679d25b023ca2969d0dace05d5c11208e7"
+    },
+    {
+      "path": "dist/src/compat/abap-fs-tools.d.ts",
+      "sha256": "b9d40a847e6f0365fc24a4859c252595ddfdff1dd3059aafab4197937edb3838"
+    },
+    {
+      "path": "dist/src/compat/abap-fs-tools.js",
+      "sha256": "70822c86a80bed19165c8210c210a6f2db47726a8c37a8a012a12443354143f3"
+    },
+    {
+      "path": "dist/src/compat/abap-fs-tools.js.map",
+      "sha256": "bb823856eef10fc2821058b59510bdd216970d303c3479f95c11bbcecc75783c"
+    },
+    {
+      "path": "dist/src/connection-manager.d.ts",
+      "sha256": "5208be7be70819ec6b680fcc2fd0853d7d6406249acc0d53d5f6552668466ada"
+    },
+    {
+      "path": "dist/src/connection-manager.js",
+      "sha256": "dc97d6104473dbc01d3c4087cbe49999e0e2b229c4e65bc3d56fd4e49a597916"
+    },
+    {
+      "path": "dist/src/connection-manager.js.map",
+      "sha256": "0184479b22695dddb8a12490b645a11ba7037a4c27d994e88d030bee1b17de91"
+    },
+    {
+      "path": "dist/src/data-access-policy.d.ts",
+      "sha256": "09a4f5073317f6d181f78ed7d8ddac4799876c524b3710021e3e35efbe8973cb"
+    },
+    {
+      "path": "dist/src/data-access-policy.js",
+      "sha256": "7de303603674e66cb2e5a08f374a0a4baef4847beb37e0d1934aaf7f71d516b0"
+    },
+    {
+      "path": "dist/src/data-access-policy.js.map",
+      "sha256": "1b98dabfd50f6aefe0e2ed074e036c411dbe1b0134e09cd4ff73ad6c2ba474a9"
+    },
+    {
+      "path": "dist/src/deferred-results.d.ts",
+      "sha256": "e09aec777624c7acf95d837b7dd3253fdac9d0f9bb54d3f2e6df84dddc3ee12c"
+    },
+    {
+      "path": "dist/src/deferred-results.js",
+      "sha256": "f390b01bf0c33a1b548eba1cba9cef53bc0202d2657efcec271071ba5da4a065"
+    },
+    {
+      "path": "dist/src/deferred-results.js.map",
+      "sha256": "5deead1ed3c0f9e4d2b8ce273d305c48928b3ce26fb7af57094a4ae9ee4254c4"
+    },
+    {
+      "path": "dist/src/destination-transport.d.ts",
+      "sha256": "ae2d9ecc0f5a4172fbe9c1be247ce287f20e895309a9734051e4270bc6cbffa6"
+    },
+    {
+      "path": "dist/src/destination-transport.js",
+      "sha256": "299167cf1ffcb7a43e80d3aab7c5f5997e1cc63614c96d33230e4e7a581d81dc"
+    },
+    {
+      "path": "dist/src/destination-transport.js.map",
+      "sha256": "105ce69ca85f731f89da020b0f54fb11cd2f49eeb3179bb119f71af0236dec07"
+    },
+    {
+      "path": "dist/src/errors.d.ts",
+      "sha256": "b93eaedd31d247de6538186998a6f28761777ae43a92ca9b3b209239a70cd3f4"
+    },
+    {
+      "path": "dist/src/errors.js",
+      "sha256": "18c051e3240f321b11bca6c234fe71c178d80bfc53c138c6ff3debfc6baa1b05"
+    },
+    {
+      "path": "dist/src/errors.js.map",
+      "sha256": "69da63d27c9d04117514e97fbc99687ed3360ab6aa800f8fd44d43f1c634a5b2"
+    },
+    {
+      "path": "dist/src/http/auth.d.ts",
+      "sha256": "d531b656761825d93249e623d87cceddb86f19a42c53b8d0cb69dd193467f97b"
+    },
+    {
+      "path": "dist/src/http/auth.js",
+      "sha256": "1c79e0bfc744c14430e67184a19b6257b34362a224a76f8f97a36f704399a187"
+    },
+    {
+      "path": "dist/src/http/auth.js.map",
+      "sha256": "b5c3d08bb25353027223a33b568761ec59b9f64d7a333f3f83e58d91aea2b791"
+    },
+    {
+      "path": "dist/src/http/oidc.d.ts",
+      "sha256": "daf536dd03cbdaa10bc741f2448add2c77c1eeb4d036021f524da8037746079f"
+    },
+    {
+      "path": "dist/src/http/oidc.js",
+      "sha256": "a5bff5f011431ef1f97ddaf9066e83272b95b59a5449b303853ffc5d86e7ca1e"
+    },
+    {
+      "path": "dist/src/http/oidc.js.map",
+      "sha256": "a5a87a36ed15478aefe85de47ca68e23fb54f9772c047dd6a2fa2ce41418543d"
+    },
+    {
+      "path": "dist/src/http/rate-limit.d.ts",
+      "sha256": "b776f73fad97bf989af22225689d49068dc341a4903c84947c22296b3dde64c7"
+    },
+    {
+      "path": "dist/src/http/rate-limit.js",
+      "sha256": "a3b49a3db35382328edfd8539bf27a214290553156f8f6fc545604548e0e55fd"
+    },
+    {
+      "path": "dist/src/http/rate-limit.js.map",
+      "sha256": "994c1692978a3bf5c753fe7e800fb5f5bd8f92fe84786301fd340e81e3d768c2"
+    },
+    {
+      "path": "dist/src/http/request-scoped-connections.d.ts",
+      "sha256": "8b78c468456c1fa11f4d7f533cb4fcf306312db3105e5bb94de3e732a13bf09d"
+    },
+    {
+      "path": "dist/src/http/request-scoped-connections.js",
+      "sha256": "1699e9ef4155bac8d02eca01ccb4ca08224ef92ce9b696f79962c69880f9b424"
+    },
+    {
+      "path": "dist/src/http/request-scoped-connections.js.map",
+      "sha256": "2904a50692dbe99022f2f8844e5221163a0c3e6daee2c8ba8d0b1a055b453af7"
+    },
+    {
+      "path": "dist/src/http/scoped-connections.d.ts",
+      "sha256": "d37118179cea27f73f7889f6c6dc3ea4111f26fe4a09722afa0471289df957d2"
+    },
+    {
+      "path": "dist/src/http/scoped-connections.js",
+      "sha256": "1a87b0dc5c7efe95d25538e9410a091a31143ed976ba633cdbba9e296836d101"
+    },
+    {
+      "path": "dist/src/http/scoped-connections.js.map",
+      "sha256": "d699f977e14d737a6887812a507f93bd7f92e420370281f8d4ae414402ed5362"
+    },
+    {
+      "path": "dist/src/http/server.d.ts",
+      "sha256": "2e88236a2b863ec66a5c45949697a0157791d2cbcc05fe9dd7fa8ba402817d60"
+    },
+    {
+      "path": "dist/src/http/server.js",
+      "sha256": "6a04aaebc35299b2fae70f7d77330ede3c917a401e39171f55de025a28e6f862"
+    },
+    {
+      "path": "dist/src/http/server.js.map",
+      "sha256": "83dd92178d47fa9dedb724e0ef50b91fc03a0c31d5a41eb077ed6fe1a1e7800f"
+    },
+    {
+      "path": "dist/src/index.d.ts",
+      "sha256": "246530014fa94f6126904990096b8ce5cc486d0622b1a74e9c070674688d166e"
+    },
+    {
+      "path": "dist/src/index.js",
+      "sha256": "646eba41e6e66fadcee676b170f2f54ed45ffb7eadfb73cb8cab300736deacc2"
+    },
+    {
+      "path": "dist/src/index.js.map",
+      "sha256": "70f132a7cf0b867dc99b387796f61a5b1e429849b7ff3bc1f558d6ad9d4043aa"
+    },
+    {
+      "path": "dist/src/knowledge-transfer.d.ts",
+      "sha256": "bdc5758a396161cc0f0d166375507fd39d13d78f578439fef3c50a5a8b10ef6a"
+    },
+    {
+      "path": "dist/src/knowledge-transfer.js",
+      "sha256": "eddf7f549983e05d331357c5cb60c5974a71ee99d1921cc3fd999693c98c2f1c"
+    },
+    {
+      "path": "dist/src/knowledge-transfer.js.map",
+      "sha256": "baa2816f67c193a45a16e19606ab8e0cc3511d77ebb3226ea48dca86d26eb482"
+    },
+    {
+      "path": "dist/src/library.d.ts",
+      "sha256": "8dd31760f6e308a02e0c53c9bea2f8161bbdfde9ae5c9737021c749244b8fd91"
+    },
+    {
+      "path": "dist/src/library.js",
+      "sha256": "ecf491767cf577d738acb765d3a8a0aa8fcceff2f2e84363fa9b16d78d2d4353"
+    },
+    {
+      "path": "dist/src/library.js.map",
+      "sha256": "5a3c7a95ac46df9c65ebec74e3bdb3a3bebac73949322604cb8c89e124001611"
+    },
+    {
+      "path": "dist/src/mcp/api-version.d.ts",
+      "sha256": "064568742e269f3935124da914b5b4370747d8eaf102949c0a0ebfd411e4be3e"
+    },
+    {
+      "path": "dist/src/mcp/api-version.js",
+      "sha256": "97c2a8289a1f7035bd3c1901562dd81ff73135f873273af36545a62b55b13bb3"
+    },
+    {
+      "path": "dist/src/mcp/api-version.js.map",
+      "sha256": "bd0771514235a29996135c3344303802e24228f0a2552ef36e6bfda9767cddea"
+    },
+    {
+      "path": "dist/src/mcp/audit-instrumentation.d.ts",
+      "sha256": "5ee95ea7e4fe650de0dd40cb31c0f1d58e07a7fdbcbd2b03b128f6d904534735"
+    },
+    {
+      "path": "dist/src/mcp/audit-instrumentation.js",
+      "sha256": "db69fef445572ef5dc961c52b8f2875c6f469ab97a6766d30ab2bd1429140186"
+    },
+    {
+      "path": "dist/src/mcp/audit-instrumentation.js.map",
+      "sha256": "e5216c40ba0ac501f97353eec3f1aa1cc735d96b53184b532bf767a20b0784f9"
+    },
+    {
+      "path": "dist/src/mcp/progress-instrumentation.d.ts",
+      "sha256": "d4eb2626fdf89708054871e19dc76a8c8a85910f5dc988126a8b89f8ea67dee5"
+    },
+    {
+      "path": "dist/src/mcp/progress-instrumentation.js",
+      "sha256": "e491bad280d2cc1e9a9a951fa0ea720bcb11ce74f3018c434b4cf794497b4b5f"
+    },
+    {
+      "path": "dist/src/mcp/progress-instrumentation.js.map",
+      "sha256": "6a618d2d7aa7151b625c3487a03317f9f949976dba96f7feda8767438faf038a"
+    },
+    {
+      "path": "dist/src/mcp/role-policy.d.ts",
+      "sha256": "7770fb8c671a4354a07bdf9ca34fd16811e19c71ca60fe0b2b048f0c2a881321"
+    },
+    {
+      "path": "dist/src/mcp/role-policy.js",
+      "sha256": "6e86327ba1f715eab710a6db1714308ff9980820dc7eaffe8f148d8d4d3393dc"
+    },
+    {
+      "path": "dist/src/mcp/role-policy.js.map",
+      "sha256": "1483a2191b5009f06b11ad2e7f54e0da5f1ce70d91ee5109652b2e42e802205d"
+    },
+    {
+      "path": "dist/src/mcp/tool-selection.d.ts",
+      "sha256": "644caccd44426e212864ba3d925b9bd5f92aa296adf1d2e7553c0e3d2ff3e7e4"
+    },
+    {
+      "path": "dist/src/mcp/tool-selection.js",
+      "sha256": "8802434df26655aa2a71619838c8c6651e524163bbe359c0d3d70f9fa2fbfc5c"
+    },
+    {
+      "path": "dist/src/mcp/tool-selection.js.map",
+      "sha256": "6d7166b3aed5ca99f5f57191b7e49666d381526b52042807b7a9bb30ac6ea677"
+    },
+    {
+      "path": "dist/src/mcp/v1/adaptive-tools.d.ts",
+      "sha256": "861310b410efa1f9a9c942d62425e7762cf2998ca19c95319a88a7b1e52dd0b5"
+    },
+    {
+      "path": "dist/src/mcp/v1/adaptive-tools.js",
+      "sha256": "0a08d8f9d526aa5ed0dfb6c000c993d4125302df1bb5cac111bae64f528743db"
+    },
+    {
+      "path": "dist/src/mcp/v1/adaptive-tools.js.map",
+      "sha256": "acb34df8e0e068323672bab45b85e81255124ecf6d7fecb9d555bf0e6b5b46de"
+    },
+    {
+      "path": "dist/src/mcp/v1/analysis-tools.d.ts",
+      "sha256": "eef2b2f884254ec75c9a191f1b57500a12914771dba3e5077c4d1b9aa9a007c2"
+    },
+    {
+      "path": "dist/src/mcp/v1/analysis-tools.js",
+      "sha256": "6cbe4b59ab6b5eca9bd8469d6bc5eca098f30025bd27f7a2b0c88221e984a927"
+    },
+    {
+      "path": "dist/src/mcp/v1/analysis-tools.js.map",
+      "sha256": "3afeb80d6f8825c42bde32d8c6a0aaf621258980ee2b11a828d4ed15c918cabc"
+    },
+    {
+      "path": "dist/src/mcp/v1/artifact-tools.d.ts",
+      "sha256": "a66f86f4a4fa7d419327a4c9e77b91fb6a8602dd7467277f2b80bc84bb2926cf"
+    },
+    {
+      "path": "dist/src/mcp/v1/artifact-tools.js",
+      "sha256": "2b658b9624dd47eee538f09f80c186c54baba26551985005a297aac2205d8196"
+    },
+    {
+      "path": "dist/src/mcp/v1/artifact-tools.js.map",
+      "sha256": "c1f23adbc2851470eefc2ccf40904d5112bc33e83fab922621712b2e0107bac0"
+    },
+    {
+      "path": "dist/src/mcp/v1/completion-router.d.ts",
+      "sha256": "816a71f8a7823155a9d84ad625e346c0c3dc5ba60c1f1182aa5a1befc7739eec"
+    },
+    {
+      "path": "dist/src/mcp/v1/completion-router.js",
+      "sha256": "0421ae7f60e0ecaa18150aefb12161dfb3c38525c5deb30f49eba1f0b64c5ffc"
+    },
+    {
+      "path": "dist/src/mcp/v1/completion-router.js.map",
+      "sha256": "11fc51580b909de2271c74a95d8fce5affa7138920adb54f556c97e7b241f3a6"
+    },
+    {
+      "path": "dist/src/mcp/v1/contracts.d.ts",
+      "sha256": "7cae7fef7ba1db3d7ae3030dbf2b5f95f986f5e6f0073ed673eed328f397803c"
+    },
+    {
+      "path": "dist/src/mcp/v1/contracts.js",
+      "sha256": "649aae1060bab0f3309bb49dc4413f53bf5d6c0ab22cb4553ed8db69bea754b5"
+    },
+    {
+      "path": "dist/src/mcp/v1/contracts.js.map",
+      "sha256": "43ce193c9e4972bff34ccf405bb781595ce8a31a32579f69ae20dc0befd54a83"
+    },
+    {
+      "path": "dist/src/mcp/v1/core-tools.d.ts",
+      "sha256": "e11b32005d358048c99c25433d4d348e36f5b1bea39bc95fa9bfaa69123e3d91"
+    },
+    {
+      "path": "dist/src/mcp/v1/core-tools.js",
+      "sha256": "89fbf633662b2753328fc14b9b966c544f0a86200613e3660370fb85d2916f84"
+    },
+    {
+      "path": "dist/src/mcp/v1/core-tools.js.map",
+      "sha256": "98d4874cab2277def4fa776cc147136d2493e732c938b1dbe69ef45b27863873"
+    },
+    {
+      "path": "dist/src/mcp/v1/ddic-schemas.d.ts",
+      "sha256": "f8cfb73c5f9eaf0a8277a78311fc09315a68f29f9bbee324e91f2b86fc20e51e"
+    },
+    {
+      "path": "dist/src/mcp/v1/ddic-schemas.js",
+      "sha256": "d25a3917a3bd2f06bc66b7ecc37674506a14b9b6f11c3a7cfebc260ccebcd9a2"
+    },
+    {
+      "path": "dist/src/mcp/v1/ddic-schemas.js.map",
+      "sha256": "e127c212f8eb793f814785fdc329428898578a9a756f1351f9225619baa7b430"
+    },
+    {
+      "path": "dist/src/mcp/v1/debug-tools.d.ts",
+      "sha256": "e9eb74a72c169a55fcdf667714a5f0f6244f637258a74f683d5372b00f5ad7bf"
+    },
+    {
+      "path": "dist/src/mcp/v1/debug-tools.js",
+      "sha256": "1d78b57388b110169457cb1900183495a1bbcc41346f7358f1e51b218cee054d"
+    },
+    {
+      "path": "dist/src/mcp/v1/debug-tools.js.map",
+      "sha256": "55fb8349f7a00c2abc3a7cc52ed528782e337eb29140db29202b05c29af095f4"
+    },
+    {
+      "path": "dist/src/mcp/v1/evidence-store.d.ts",
+      "sha256": "da3e20c26e1cbea4fbb9265abfd89ddd8a5db19e72a96576c47f89c71fb7f918"
+    },
+    {
+      "path": "dist/src/mcp/v1/evidence-store.js",
+      "sha256": "a516a160606983171566daee89b1f62e71a3da79a0023d7a7a3b30edb79582a7"
+    },
+    {
+      "path": "dist/src/mcp/v1/evidence-store.js.map",
+      "sha256": "3be24c457a5d1520dd8867534e3b506c3e28ec8bfa9312a0428b20d5246b678a"
+    },
+    {
+      "path": "dist/src/mcp/v1/migration-catalog.d.ts",
+      "sha256": "823239021093155f5534064c793b9e71528a6550738bcb65b9f2807430350857"
+    },
+    {
+      "path": "dist/src/mcp/v1/migration-catalog.js",
+      "sha256": "8e1aef50fa03433c7a97bd3a85caca9763844ee08c4fb6cdc1c5c836f6f378f1"
+    },
+    {
+      "path": "dist/src/mcp/v1/migration-catalog.js.map",
+      "sha256": "fde735dc2b7f7531069fabb94023f8c1a2c78b39f72cf9c589789bcce2c369c3"
+    },
+    {
+      "path": "dist/src/mcp/v1/object-input.d.ts",
+      "sha256": "06212b264ed948e08cdbda653b63090f947e6d66fd9d5f2a57e090620ce947b1"
+    },
+    {
+      "path": "dist/src/mcp/v1/object-input.js",
+      "sha256": "e3fbbd20fbd33b21dd015de8ab99dc9ff8e4bbfe65c8f442f44af6b4c9108ae8"
+    },
+    {
+      "path": "dist/src/mcp/v1/object-input.js.map",
+      "sha256": "4e3eaf1eca2afca59880652e7313f1033039dbc3dd850f2d9bb4edbd943feca0"
+    },
+    {
+      "path": "dist/src/mcp/v1/operations-tools.d.ts",
+      "sha256": "7ac27b86d6ba7b80450325de6999d473c5e6acf4e4c623929762b5b0ba4d6bc6"
+    },
+    {
+      "path": "dist/src/mcp/v1/operations-tools.js",
+      "sha256": "98c72b183bd96ba8e78a21ffbdb3f485244f3990c3d0ed2f288a9de48e8dc0f5"
+    },
+    {
+      "path": "dist/src/mcp/v1/operations-tools.js.map",
+      "sha256": "562317f0569d0ee5b3426f3671690474431e38cf6931832c860df3b085c9d430"
+    },
+    {
+      "path": "dist/src/mcp/v1/presets.d.ts",
+      "sha256": "12e1bce4efbfe2f93dd6c0be0220d4de1d520698bcd51387b07aeeecfe2072e8"
+    },
+    {
+      "path": "dist/src/mcp/v1/presets.js",
+      "sha256": "6ba8ebf82013d5db86926bdd44b7a63d03945a3dd6db2e138368e19e8d163c17"
+    },
+    {
+      "path": "dist/src/mcp/v1/presets.js.map",
+      "sha256": "850e7a04fbbe0f14d3112c5fad359348695e52300dac4bbc0c807c6bc8130ea5"
+    },
+    {
+      "path": "dist/src/mcp/v1/register.d.ts",
+      "sha256": "e08a464e8dcd2ff77e7abc2e406958ee492ec9a2a2c61d62fcb38bf460f09724"
+    },
+    {
+      "path": "dist/src/mcp/v1/register.js",
+      "sha256": "ff6b0b20f449ec5d743e62b8a45dbb17f8101229272a02d4c6dfa246cba976c9"
+    },
+    {
+      "path": "dist/src/mcp/v1/register.js.map",
+      "sha256": "3bf5c85c94bf6e506088a932380cc8d2bb65acb1056467c254e5fc83bbf99759"
+    },
+    {
+      "path": "dist/src/mcp/v1/repository-tools.d.ts",
+      "sha256": "7b917fc7ff5b270a9a3d2f04fc07976e04f00d29f139d8f637bab8e99b6608a9"
+    },
+    {
+      "path": "dist/src/mcp/v1/repository-tools.js",
+      "sha256": "89b9ede81155379377808195263b8ad6dd83b81c57afc2c1c9f368442a19c09a"
+    },
+    {
+      "path": "dist/src/mcp/v1/repository-tools.js.map",
+      "sha256": "e8e071e32e604cbab0a01a09a40bfb32980a962ddaa172cfa18970e94b4fa766"
+    },
+    {
+      "path": "dist/src/mcp/v1/resource-registry.d.ts",
+      "sha256": "2171d6c8c714673b4ab950b5ce91ac5e3d3a99b03d185b34bcbc4c4226257736"
+    },
+    {
+      "path": "dist/src/mcp/v1/resource-registry.js",
+      "sha256": "50285a99ebee667fb5fef3893d8d7d4fedb13505dc01fc1d83b3136df4dd6b1d"
+    },
+    {
+      "path": "dist/src/mcp/v1/resource-registry.js.map",
+      "sha256": "bb1fd5262c426390ead9d5edacc458e718574a6386f7e2ad3261f21dc6085e9e"
+    },
+    {
+      "path": "dist/src/mcp/v1/resource-uri.d.ts",
+      "sha256": "080636568affb84b868f6a714c8306de02c236e00a9dcc6868b88254c6fb566e"
+    },
+    {
+      "path": "dist/src/mcp/v1/resource-uri.js",
+      "sha256": "ac6f7d1ae5ce6b9b10cb30556c7783e61381bc0623fb15432712bb624a4fff4d"
+    },
+    {
+      "path": "dist/src/mcp/v1/resource-uri.js.map",
+      "sha256": "4195cb72becac51dfe81e33b5e3c9bb8f0ef8a3e2a64ea05e5efe5a6adec0b4b"
+    },
+    {
+      "path": "dist/src/mcp/v1/resources.d.ts",
+      "sha256": "692c3488ac020495b27f55a89ef306d5d2b740ebf60bda39e6fb1421f5515493"
+    },
+    {
+      "path": "dist/src/mcp/v1/resources.js",
+      "sha256": "2682b11d10752e9395312a63e7a84cafd490dbdc383190089eb36cc3e4758599"
+    },
+    {
+      "path": "dist/src/mcp/v1/resources.js.map",
+      "sha256": "c8610f610882b423cbd52f3deb539af1aa1e566a57553055b56efb837b705727"
+    },
+    {
+      "path": "dist/src/mcp/v1/result.d.ts",
+      "sha256": "74d014efde8ba09b5420be3265e6a6d1ef8f324172ff0a671c704e5555ee1b34"
+    },
+    {
+      "path": "dist/src/mcp/v1/result.js",
+      "sha256": "fb08d602a0ca34914aea8580a6e7a8789e8d7471855ec421bc54efb14b1873f5"
+    },
+    {
+      "path": "dist/src/mcp/v1/result.js.map",
+      "sha256": "ec44ae079d781cc0e07c9ac41cd851513ef269d3c6f5e1916118f3003ffdab21"
+    },
+    {
+      "path": "dist/src/mcp/v1/service.d.ts",
+      "sha256": "b3fb9ae579818d9169bb41e2ed7679463e750627092d12ce30f477aa9a2251f9"
+    },
+    {
+      "path": "dist/src/mcp/v1/service.js",
+      "sha256": "75241c1d781c78ff197cb5253beb2ff263d6da7bb71402aa2cbb8f0dbbd2adad"
+    },
+    {
+      "path": "dist/src/mcp/v1/service.js.map",
+      "sha256": "7ce0681cd8b7129d6715f57085811e090a6ef0e5e7209c7e93b70da7bf5414c5"
+    },
+    {
+      "path": "dist/src/mcp/v1/source-tools.d.ts",
+      "sha256": "35cb2e08994fbde25be8f6fe001c4cf01e51b2a241799f47a7439d3935a8f1c3"
+    },
+    {
+      "path": "dist/src/mcp/v1/source-tools.js",
+      "sha256": "b09986277af93ff77b22a314475d57dbae7fa30ce9e598cf79a16ab96e3aa8b2"
+    },
+    {
+      "path": "dist/src/mcp/v1/source-tools.js.map",
+      "sha256": "619d34b0b63b911e95fe147e3b135008c3d30df3f605338d7c945cf6c592ea17"
+    },
+    {
+      "path": "dist/src/mcp/v1/surface-budget.d.ts",
+      "sha256": "01a051803aca259c3939e69a2efb27bae24348727eb5c17fd3a2b59081014d66"
+    },
+    {
+      "path": "dist/src/mcp/v1/surface-budget.js",
+      "sha256": "579a067373bd942912fbd993c8008d3f8ff546e8d593c45107ba4331f03b7c91"
+    },
+    {
+      "path": "dist/src/mcp/v1/surface-budget.js.map",
+      "sha256": "29a80adf1e25cf3c0fb2c091a024cbb605c2e171e48948ccb6378c582b9b2d5f"
+    },
+    {
+      "path": "dist/src/mcp/v1/system-tools.d.ts",
+      "sha256": "0723d6b022b30007dc4a6a167e27c56b937c827230bdf54acd793120aaa70f4c"
+    },
+    {
+      "path": "dist/src/mcp/v1/system-tools.js",
+      "sha256": "2737915128b6876e6ffb57b5a669c2d19db3ed94fbed03989d2a5a52ed0d113b"
+    },
+    {
+      "path": "dist/src/mcp/v1/system-tools.js.map",
+      "sha256": "ce41bcf7034386f65e317216ed0097f48d207c91dac3ad24c6480695f3962f39"
+    },
+    {
+      "path": "dist/src/mcp/v1/toolsets.d.ts",
+      "sha256": "411afc10a96e1727ebd8799f33619a55be37bbc7ca0ca529509db107aa6fd92a"
+    },
+    {
+      "path": "dist/src/mcp/v1/toolsets.js",
+      "sha256": "c2a75b47da1118c40e8551b7ac5f1f019e7a4a7c2b25e777ba84ade311d063a1"
+    },
+    {
+      "path": "dist/src/mcp/v1/toolsets.js.map",
+      "sha256": "b3e8c0ebd854b1957a48d72ba2fa999c5b7686a274e9edf1cdf18b9fe6e0d375"
+    },
+    {
+      "path": "dist/src/mcp/v1/workflow-prompts.d.ts",
+      "sha256": "3bfe3565bec376af76888d0ec2a7e1ec3f2a61a5db76266915b09972de1d2feb"
+    },
+    {
+      "path": "dist/src/mcp/v1/workflow-prompts.js",
+      "sha256": "182791987556e002be08ceb80c294512944638116903e603e8473b014ddfff3c"
+    },
+    {
+      "path": "dist/src/mcp/v1/workflow-prompts.js.map",
+      "sha256": "0c4a97cfee7ad042158f3cac526c3f0af80560691ed429f787e60b117f7baa24"
+    },
+    {
+      "path": "dist/src/mcp/v1/write-tools.d.ts",
+      "sha256": "481e601d384634055e363951bf0bdd4622a695c82fc43c9ab16550c46dddd8f0"
+    },
+    {
+      "path": "dist/src/mcp/v1/write-tools.js",
+      "sha256": "739ba06780e90a8b7e4e621c8cce3f941915d2d832c38d301481f0c7f9b1d1ec"
+    },
+    {
+      "path": "dist/src/mcp/v1/write-tools.js.map",
+      "sha256": "f9a1672ca9b1882eb6d3cf03e9a80398c1c6e3f2b36fa58c9fd302be24bb2170"
+    },
+    {
+      "path": "dist/src/mcp-server.d.ts",
+      "sha256": "0f9eacc50bf92b7a2f1aaadb1f32e2f42ffedb2b92fdc49247f0730b9a3cc493"
+    },
+    {
+      "path": "dist/src/mcp-server.js",
+      "sha256": "9cd708a92a9085f253b6083378e97c6c456bbc0c730def65945e43ca9854fd07"
+    },
+    {
+      "path": "dist/src/mcp-server.js.map",
+      "sha256": "d4de0d5c4ae65f00e21bbdf4a19e30cc0df7c813b24f455404de8ee472904ed2"
+    },
+    {
+      "path": "dist/src/mermaid-tools.d.ts",
+      "sha256": "073591a931d1cdea0d01963dc61f691147685c62d1acc60aa00818b31567edde"
+    },
+    {
+      "path": "dist/src/mermaid-tools.js",
+      "sha256": "29856f9c102483c9f158dcf40e389303fc996adaf94d9ba2c0dcffa0b87ad434"
+    },
+    {
+      "path": "dist/src/mermaid-tools.js.map",
+      "sha256": "1e138957759f445d3eba210f0d600438b3b2d5d1d58c8c0e9720d86c969a9ebc"
+    },
+    {
+      "path": "dist/src/oauth-authorization-code.d.ts",
+      "sha256": "50d0634d3c1bf35401126d3f05709158a57979c8518e8c740b0510b1545af217"
+    },
+    {
+      "path": "dist/src/oauth-authorization-code.js",
+      "sha256": "4778e78dafd7b32919e86700212617dc230f63bc252db21d655cf739c94ce9d9"
+    },
+    {
+      "path": "dist/src/oauth-authorization-code.js.map",
+      "sha256": "7de61d517f896b30c7e4495f39b901a3909a9aec1d87299af00dfd83d7d64046"
+    },
+    {
+      "path": "dist/src/oauth-client-credentials.d.ts",
+      "sha256": "48bdd05933ee9be737963af3977fd7deb45ceebefb5b8c51dcdf4324a3ed1b6c"
+    },
+    {
+      "path": "dist/src/oauth-client-credentials.js",
+      "sha256": "bd292b4ef3a4a5255224db5b426fcbaaf10ee2ba4d7f79313938158546d6ab45"
+    },
+    {
+      "path": "dist/src/oauth-client-credentials.js.map",
+      "sha256": "dc9de7d4b587033fde54c8bd99932e24f6c3dd07ab018e24749faec68aee238f"
+    },
+    {
+      "path": "dist/src/onboard-english.d.ts",
+      "sha256": "52a5d73f36a4a14e0d1300f396efa4bd2d739f21b6d3c769a7aece539d7fbf84"
+    },
+    {
+      "path": "dist/src/onboard-english.js",
+      "sha256": "8d44388a1cebb92c9a2b017edaf5284b7c4057ed3e9fec5917035910c8858549"
+    },
+    {
+      "path": "dist/src/onboard-english.js.map",
+      "sha256": "811a579050d3a2deabde351bf92d3ce405dca915b5686f1dec54a8341cf70904"
+    },
+    {
+      "path": "dist/src/onboard-page.d.ts",
+      "sha256": "e69162347ca5052e94d6cc752f46087eafc8aac619384a8630384e054b58078c"
+    },
+    {
+      "path": "dist/src/onboard-page.js",
+      "sha256": "0dcca3ef452940f644cc3f003c7f3ed5f125e76a8b8bf96830da62f984e3cfe1"
+    },
+    {
+      "path": "dist/src/onboard-page.js.map",
+      "sha256": "fca5cb30a3fb169f054eec3881ee5cf976bbf816b96fcd6eb965deb4f23d844b"
+    },
+    {
+      "path": "dist/src/onboard.d.ts",
+      "sha256": "73305ccd647dcfa75cc779eb48a1e185721c97b2748b42c668239f7aa4513a41"
+    },
+    {
+      "path": "dist/src/onboard.js",
+      "sha256": "c8f4af5b230d7b5175061251cd97712a9d688b75b5bf770d7c7898c4b49539fd"
+    },
+    {
+      "path": "dist/src/onboard.js.map",
+      "sha256": "a0a0d00a478b841a4c119ba329a1357bbdcaf91a3e0abf54f7a3a05dbc473ba4"
+    },
+    {
+      "path": "dist/src/profile-conformance.d.ts",
+      "sha256": "329ccd3f939a38b353c7b38c33497cf49f4b91ad42e81b9d3bccd13d53e86e18"
+    },
+    {
+      "path": "dist/src/profile-conformance.js",
+      "sha256": "562bf661dcf2ede7bd5e90f5db71dfc2cbfa67573888f6c0814f3e0d90be2167"
+    },
+    {
+      "path": "dist/src/profile-conformance.js.map",
+      "sha256": "51f4bb1886b45309d2bc1453800138000d3a241e2c2666341b90c00a40edc5ba"
+    },
+    {
+      "path": "dist/src/profile-store.d.ts",
+      "sha256": "19d3d6ed49e8b0900c9d04ca804ad1c716ecba03d59163c61364df73add2c16c"
+    },
+    {
+      "path": "dist/src/profile-store.js",
+      "sha256": "9e66852389663ee8896862e4a2acbb8e8c11a75387c7a6e1fe06f7ec5febd8e0"
+    },
+    {
+      "path": "dist/src/profile-store.js.map",
+      "sha256": "99473d245b900ad41aa974a89ed1b280d48e082ee662eac13241a6dcf9a4417f"
+    },
+    {
+      "path": "dist/src/public-api-cache.d.ts",
+      "sha256": "05477a31bf72ce3fc7c81278b505a9d0a0da2476fbdba3e1d8ea0dbfab17daad"
+    },
+    {
+      "path": "dist/src/public-api-cache.js",
+      "sha256": "896782cd500585add725b29e04d39f25f8260155483cf001dda7b83b3d56ee60"
+    },
+    {
+      "path": "dist/src/public-api-cache.js.map",
+      "sha256": "8a37bf6e72f2df6441fb9cea18f13e23b9db4f277c500bbe316ff2c02adb25ca"
+    },
+    {
+      "path": "dist/src/public-api.d.ts",
+      "sha256": "5198720a24fa75620b993534147308c623654fca516ad1c0833a20f7b4cff3ef"
+    },
+    {
+      "path": "dist/src/public-api.js",
+      "sha256": "e8af7b4ebfe851813ce642ebc853330b9522aedbc9ee4cc17a191340cce175a7"
+    },
+    {
+      "path": "dist/src/public-api.js.map",
+      "sha256": "e2452cfd5acdec878964f7b99ac784891cdfcec799ef2bd38768879608f34aa0"
+    },
+    {
+      "path": "dist/src/repl-client.d.ts",
+      "sha256": "adda3589be11297c14170ccaa1b5fb8394aae0b05ee052ed0678b4e78429dab4"
+    },
+    {
+      "path": "dist/src/repl-client.js",
+      "sha256": "d6c412f1ac71c9f2f1f9779337ee331b0788a820260a31ccac30919b980c643e"
+    },
+    {
+      "path": "dist/src/repl-client.js.map",
+      "sha256": "e936b5eeb3911166a1cdb82a5c84e25d0e9cbcac6f8327357b11680e69271da6"
+    },
+    {
+      "path": "dist/src/result-summaries.d.ts",
+      "sha256": "fb80520fa52ffeb9e6f39117bf43da874a40a1d407c4a2e6d43315f2f8ebf321"
+    },
+    {
+      "path": "dist/src/result-summaries.js",
+      "sha256": "fb80f6283eb985fa3b6b429d3c1b573c77d17b7431eeea85cbe0c7104cf06888"
+    },
+    {
+      "path": "dist/src/result-summaries.js.map",
+      "sha256": "d75606e7b9d3ec9f7596fbadba5bdf156e2a27eee362a65ef081d5a7b0c47249"
+    },
+    {
+      "path": "dist/src/sap-capabilities.d.ts",
+      "sha256": "f4ccd2925d5c17d058aa3395e99b197c4b62ccf63a11098e56991d8f004cb99b"
+    },
+    {
+      "path": "dist/src/sap-capabilities.js",
+      "sha256": "dd07fb57b4cde053191bbb60d6c66dfe77711124436f0cba42c943c9fd58f94b"
+    },
+    {
+      "path": "dist/src/sap-capabilities.js.map",
+      "sha256": "73e79434879ecb9eb5b6b77cf3d1b681f31cae8c9bc7820b2c50ad0d0bb4a14b"
+    },
+    {
+      "path": "dist/src/sap-client.d.ts",
+      "sha256": "5bf0b709e4323bd1982a1b891fe48848a94accbf6a5e153dac74a352ba065dfb"
+    },
+    {
+      "path": "dist/src/sap-client.js",
+      "sha256": "bee6d06b8f4cc2a09a6cfface7f7a8852863d9cd45b10132f8ad8d65a3f0cc2b"
+    },
+    {
+      "path": "dist/src/sap-client.js.map",
+      "sha256": "9a926fd73cc0a259d6c76bb3497313403b9692618bd93d926f44504ff80776f8"
+    },
+    {
+      "path": "dist/src/save-profile-credential.d.ts",
+      "sha256": "fd37d1b53ca743d1574ee9b06c7ce2262c79b236b9502dc7162ef46f7de445be"
+    },
+    {
+      "path": "dist/src/save-profile-credential.js",
+      "sha256": "e14c10fc8abf9cfe8c2e3019dd17fc2e360a99ed55a2f4bbc3639d0ac989423d"
+    },
+    {
+      "path": "dist/src/save-profile-credential.js.map",
+      "sha256": "4f790d725affe3dfacc5f24fe2c268099e17a927b14d440b83b12479999b639a"
+    },
+    {
+      "path": "dist/src/secret-prompt.d.ts",
+      "sha256": "79cc9999c3e0ff8a0c6c64ed00761d793b194880b2ac32c4852840e1e0fd3f82"
+    },
+    {
+      "path": "dist/src/secret-prompt.js",
+      "sha256": "7fc0232f1609d1975b8bf396c7fafabf2caf637c326720362cc00e836f1d01af"
+    },
+    {
+      "path": "dist/src/secret-prompt.js.map",
+      "sha256": "279e8492a26b496ff5c446fbe9839ffb539b840c6f991e2d6e57e24fb090422d"
+    },
+    {
+      "path": "dist/src/secret-store.d.ts",
+      "sha256": "562ae51deee8c89761983c92c48b2edac81c398a553a0130d56ac86e1b8cc7f0"
+    },
+    {
+      "path": "dist/src/secret-store.js",
+      "sha256": "b87194a76fa9246438d15c56ccfa085459d09717bb8160ee74a279436d80b0b2"
+    },
+    {
+      "path": "dist/src/secret-store.js.map",
+      "sha256": "f99614b1ecd59cb277afded08485bdfa5977ce09c2640b818bd43c5603f3e4d0"
+    },
+    {
+      "path": "dist/src/setup-wizard.d.ts",
+      "sha256": "031bedeed92c439ea64234263344d4afc4efb2d73225d910b6b2293131065629"
+    },
+    {
+      "path": "dist/src/setup-wizard.js",
+      "sha256": "b7cfd424948d83872a5eb01c91641eef09ebaa7c635aa868d8455bf61c06d5c9"
+    },
+    {
+      "path": "dist/src/setup-wizard.js.map",
+      "sha256": "9c76b7b9616c997c492394ecc524bfbafc0778af95c49916f9a256ab6eed5264"
+    },
+    {
+      "path": "dist/src/source-cache.d.ts",
+      "sha256": "7ab92cd3778663c310df32517d2b019191d0ccefdad6a492deea856d89b4a4ca"
+    },
+    {
+      "path": "dist/src/source-cache.js",
+      "sha256": "0f730e54033cb5cdd7a17d576c63a45cdf274f152a46191a26b81da5036407f0"
+    },
+    {
+      "path": "dist/src/source-cache.js.map",
+      "sha256": "59863a52ab40cb837220b87fe3f793e61ce0736f9ddce886e233b080175f5c94"
+    },
+    {
+      "path": "dist/src/test-documentation.d.ts",
+      "sha256": "35bad5e1df27390c0d77d35d8bfff6d9020d22429283986b5b2c869dc1271104"
+    },
+    {
+      "path": "dist/src/test-documentation.js",
+      "sha256": "bde475bdf68b70dec323b4c08ceac4444d510d6e193ca58d6548c55cec872282"
+    },
+    {
+      "path": "dist/src/test-documentation.js.map",
+      "sha256": "7dc261b53588701631ab90de48c23656493ab4c3c4c0c79b7e0d0530fd3654d8"
+    },
+    {
+      "path": "dist/src/text.d.ts",
+      "sha256": "15b2e97cc39ac3b052aaec908d7fe6061286302ad08c86e1b62d6ffd08b1c26c"
+    },
+    {
+      "path": "dist/src/text.js",
+      "sha256": "2fc0053dd8ee5f50713cbb84bbad0250dbfc4fb1e5b326656ba9ae3cec46a275"
+    },
+    {
+      "path": "dist/src/text.js.map",
+      "sha256": "bff02538a853dae1fb89839c063d68133f8cc3cba322d9bebc527ccfb002e59c"
+    },
+    {
+      "path": "dist/src/tool-service.d.ts",
+      "sha256": "cca07721b5e023e1c72386b4005c392df3a8b38eab667edab9caa49d1688adca"
+    },
+    {
+      "path": "dist/src/tool-service.js",
+      "sha256": "e0815fcd8d7f5e2d04ff2bae7e95e097a500f3d354472ae681dc7380134a00d1"
+    },
+    {
+      "path": "dist/src/tool-service.js.map",
+      "sha256": "ec71f4269b89c2322ed92e85d0be4b8e32e0c8a25a111be1e8c9318de79c9bbd"
+    },
+    {
+      "path": "dist/src/transport-adt-client.d.ts",
+      "sha256": "1bc6550b57ed19438860dde8d22628fdfc8a7aeee904adaa210a2cd4ae3b3781"
+    },
+    {
+      "path": "dist/src/transport-adt-client.js",
+      "sha256": "1848872628a8968f7e6a8252f34416d76a1f1c4f82be2ca97971be908247aa77"
+    },
+    {
+      "path": "dist/src/transport-adt-client.js.map",
+      "sha256": "e9a9f39a45cc5808b8d60ddd5fd8ecaa638565a00ce2c5815f1db29f139e2aeb"
+    },
+    {
+      "path": "dist/src/user-destination.d.ts",
+      "sha256": "d0f1535bb7e13def12cfc286965634d177ca356b819f223c1f6eccccbf2c7c5d"
+    },
+    {
+      "path": "dist/src/user-destination.js",
+      "sha256": "96810b2895e9217b20f6fd5b5e9bedd677e65a8d8996a164c24d6614ec12e10b"
+    },
+    {
+      "path": "dist/src/user-destination.js.map",
+      "sha256": "fb56a6644cf0599a86a52239fc94d3e9b14a26601993e97cce91da635e4935c4"
+    },
+    {
+      "path": "dist/src/xlsx-export.d.ts",
+      "sha256": "671a611b986432a2962be5e4f9073f335f274d69b8f947d625a9e4bb80bcc6e5"
+    },
+    {
+      "path": "dist/src/xlsx-export.js",
+      "sha256": "7e01f7cc359a2fe0e9c69707801a953622c08f12cd9f97ccae5ed92e33b75f5d"
+    },
+    {
+      "path": "dist/src/xlsx-export.js.map",
+      "sha256": "179cb67613e3d62001da844a97b1088da29086ec1811530309e725cac69817d5"
+    }
+  ],
+  "runtimeFilesMatched": true,
+  "originalWorkspaceDirectFullTestRun": false,
+  "validationEnvironment": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b",
+  "lockedDependencyEvidence": [
+    {
+      "path": "node_modules/@sap-cloud-sdk/connectivity/dist/http-agent/http-agent.js",
+      "sha256": "2337378de4076971e51407a8c2306dfd98de9953ba1a8ae664d22e59917f6ec8"
+    },
+    {
+      "path": "node_modules/jks-js/lib/keystore/PKCS12Parser.js",
+      "sha256": "8204736ef67bd43aaddc4f32b9018cff89df7aaeba94beaed0c5e457ae6befe9"
+    },
+    {
+      "path": "node_modules/node-forge/lib/pkcs12.js",
+      "sha256": "d0f9693ff8b6e755031566139f0e23a762c9a7af6a1b08a27d522810019906d3"
+    },
+    {
+      "path": "node_modules/node-forge/lib/rsa.js",
+      "sha256": "fd4740238145ec26470eb3f06a627c72039538ce1307dbdce40521f94dfd0a50"
+    },
+    {
+      "path": "node_modules/node-forge/lib/x509.js",
+      "sha256": "cce5b00838c8c08486964c1f62cb8ae3491365509b26a27cfe1917f73dee3be9"
+    }
+  ],
+  "runtimes": [
+    {
+      "major": 24,
+      "version": "24.21.0",
+      "archiveSha256": "6239d4cf92d864487ec8cd3615038f7b67e7f58b77b21cd2f09ea9fbd68065fe",
+      "vendorUrl": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-arm64.tar.xz",
+      "checksumUrl": "https://nodejs.org/dist/v24.21.0/SHASUMS256.txt",
+      "passed": true,
+      "compatibilityOnly": false,
+      "tests": {
+        "tests": 656,
+        "pass": 656,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "smoke": [
+        "default minimal stdio smoke passed: 5 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "adaptive stdio smoke passed: 17 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "full stdio smoke passed: 120 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "minimal stdio smoke passed: 5 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "single stdio smoke passed: 1 v1 tools, 7 Resources, 4 prompts, 0 systems"
+      ],
+      "conformance": {
+        "generatedAt": "2026-10-02T03:47:40.341Z",
+        "discoveryOnly": true,
+        "profile": {
+          "id": "io.github.Coaspe/sap-abap-mcp/profile/v1",
+          "version": "1.0.0",
+          "status": "proposal"
+        },
+        "server": {
+          "name": "sap-abap-mcp",
+          "title": "SAP ABAP MCP",
+          "icons": [
+            {
+              "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+              "mimeType": "image/png",
+              "sizes": [
+                "400x400"
+              ]
+            }
+          ],
+          "version": "1.7.1",
+          "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+          "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+        },
+        "requiredTools": {
+          "expected": 10,
+          "found": 10,
+          "missing": []
+        },
+        "requiredResources": {
+          "expected": 3,
+          "found": 3,
+          "missing": []
+        },
+        "failures": [],
+        "passed": true
+      },
+      "cryptoPath": {
+        "passed": true,
+        "node": "v24.21.0",
+        "platform": "darwin",
+        "sdk": "4.9.1",
+        "forge": "1.4.0",
+        "rows": [
+          {
+            "name": "RSA instrumentation positive control",
+            "rsaVerify": 1,
+            "passed": true
+          },
+          {
+            "name": "SDK agent OAuth2UserTokenExchange",
+            "rsaVerify": 0,
+            "pkcs12Parse": 0,
+            "jksConvert": 0,
+            "transportCalls": 0,
+            "passed": true
+          },
+          {
+            "name": "SDK agent PrincipalPropagation",
+            "rsaVerify": 0,
+            "pkcs12Parse": 0,
+            "jksConvert": 0,
+            "transportCalls": 0,
+            "passed": true
+          },
+          {
+            "name": "SDK agent ClientCertificateAuthentication",
+            "rsaVerify": 0,
+            "pkcs12Parse": 1,
+            "jksConvert": 1,
+            "transportCalls": 0,
+            "passed": true
+          },
+          {
+            "name": "Product policy refuses certificate destination",
+            "rsaVerify": 0,
+            "pkcs12Parse": 0,
+            "jksConvert": 0,
+            "passed": true
+          },
+          {
+            "name": "Native certificate verification accepts valid signature and refuses changed signature",
+            "rsaVerify": 0,
+            "passed": true
+          }
+        ],
+        "liveSapCalls": 0,
+        "liveIdpCalls": 0,
+        "networkCalls": 0,
+        "credentialsPersisted": 0,
+        "limits": [
+          "Synthetic certificates and agent construction, no live TLS handshake",
+          "Not an exploit reproduction or proof of all SDK binding authentication paths",
+          "Affected package warning remains open"
+        ]
+      },
+      "finalArchiveRuntime": {
+        "passed": true,
+        "node": "v24.21.0",
+        "platform": "darwin",
+        "environment": "Absolute host Node executable, empty PATH, standalone bundled files",
+        "claudeDesktopApplicationTested": false,
+        "liveSapCalls": 0,
+        "modelCalls": 0,
+        "runs": [
+          {
+            "profiles": "empty",
+            "tools": 5,
+            "serverVersion": "1.7.1",
+            "setupRequested": false,
+            "setupServerStarted": true,
+            "conditionalBatchSchemaAvailable": true,
+            "noSapCalls": true,
+            "noUserConfigurationChanges": true
+          },
+          {
+            "profiles": "existing",
+            "tools": 5,
+            "serverVersion": "1.7.1",
+            "setupRequested": false,
+            "setupServerStarted": false,
+            "conditionalBatchSchemaAvailable": true,
+            "noSapCalls": true,
+            "noUserConfigurationChanges": true
+          },
+          {
+            "profiles": "existing",
+            "tools": 5,
+            "serverVersion": "1.7.1",
+            "setupRequested": true,
+            "setupServerStarted": true,
+            "conditionalBatchSchemaAvailable": true,
+            "noSapCalls": true,
+            "noUserConfigurationChanges": true
+          }
+        ]
+      },
+      "wholeWorkflowJsonMatchesPriorSecurityStage": true
+    },
+    {
+      "major": 22,
+      "version": "22.23.3",
+      "archiveSha256": "72d5d8832b41c9d9646197af614ffd751406ea4d215060eb91b98864e1919a3e",
+      "vendorUrl": "https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-arm64.tar.xz",
+      "checksumUrl": "https://nodejs.org/dist/v22.23.3/SHASUMS256.txt",
+      "passed": true,
+      "compatibilityOnly": false,
+      "tests": {
+        "tests": 656,
+        "pass": 656,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "smoke": [
+        "default minimal stdio smoke passed: 5 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "adaptive stdio smoke passed: 17 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "full stdio smoke passed: 120 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "minimal stdio smoke passed: 5 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "single stdio smoke passed: 1 v1 tools, 7 Resources, 4 prompts, 0 systems"
+      ],
+      "conformance": {
+        "generatedAt": "2026-10-02T03:48:01.333Z",
+        "discoveryOnly": true,
+        "profile": {
+          "id": "io.github.Coaspe/sap-abap-mcp/profile/v1",
+          "version": "1.0.0",
+          "status": "proposal"
+        },
+        "server": {
+          "name": "sap-abap-mcp",
+          "title": "SAP ABAP MCP",
+          "icons": [
+            {
+              "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+              "mimeType": "image/png",
+              "sizes": [
+                "400x400"
+              ]
+            }
+          ],
+          "version": "1.7.1",
+          "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+          "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+        },
+        "requiredTools": {
+          "expected": 10,
+          "found": 10,
+          "missing": []
+        },
+        "requiredResources": {
+          "expected": 3,
+          "found": 3,
+          "missing": []
+        },
+        "failures": [],
+        "passed": true
+      },
+      "cryptoPath": {
+        "passed": true,
+        "node": "v22.23.3",
+        "platform": "darwin",
+        "sdk": "4.9.1",
+        "forge": "1.4.0",
+        "rows": [
+          {
+            "name": "RSA instrumentation positive control",
+            "rsaVerify": 1,
+            "passed": true
+          },
+          {
+            "name": "SDK agent OAuth2UserTokenExchange",
+            "rsaVerify": 0,
+            "pkcs12Parse": 0,
+            "jksConvert": 0,
+            "transportCalls": 0,
+            "passed": true
+          },
+          {
+            "name": "SDK agent PrincipalPropagation",
+            "rsaVerify": 0,
+            "pkcs12Parse": 0,
+            "jksConvert": 0,
+            "transportCalls": 0,
+            "passed": true
+          },
+          {
+            "name": "SDK agent ClientCertificateAuthentication",
+            "rsaVerify": 0,
+            "pkcs12Parse": 1,
+            "jksConvert": 1,
+            "transportCalls": 0,
+            "passed": true
+          },
+          {
+            "name": "Product policy refuses certificate destination",
+            "rsaVerify": 0,
+            "pkcs12Parse": 0,
+            "jksConvert": 0,
+            "passed": true
+          },
+          {
+            "name": "Native certificate verification accepts valid signature and refuses changed signature",
+            "rsaVerify": 0,
+            "passed": true
+          }
+        ],
+        "liveSapCalls": 0,
+        "liveIdpCalls": 0,
+        "networkCalls": 0,
+        "credentialsPersisted": 0,
+        "limits": [
+          "Synthetic certificates and agent construction, no live TLS handshake",
+          "Not an exploit reproduction or proof of all SDK binding authentication paths",
+          "Affected package warning remains open"
+        ]
+      },
+      "finalArchiveRuntime": {
+        "passed": true,
+        "node": "v22.23.3",
+        "platform": "darwin",
+        "environment": "Absolute host Node executable, empty PATH, standalone bundled files",
+        "claudeDesktopApplicationTested": false,
+        "liveSapCalls": 0,
+        "modelCalls": 0,
+        "runs": [
+          {
+            "profiles": "empty",
+            "tools": 5,
+            "serverVersion": "1.7.1",
+            "setupRequested": false,
+            "setupServerStarted": true,
+            "conditionalBatchSchemaAvailable": true,
+            "noSapCalls": true,
+            "noUserConfigurationChanges": true
+          },
+          {
+            "profiles": "existing",
+            "tools": 5,
+            "serverVersion": "1.7.1",
+            "setupRequested": false,
+            "setupServerStarted": false,
+            "conditionalBatchSchemaAvailable": true,
+            "noSapCalls": true,
+            "noUserConfigurationChanges": true
+          },
+          {
+            "profiles": "existing",
+            "tools": 5,
+            "serverVersion": "1.7.1",
+            "setupRequested": true,
+            "setupServerStarted": true,
+            "conditionalBatchSchemaAvailable": true,
+            "noSapCalls": true,
+            "noUserConfigurationChanges": true
+          }
+        ]
+      },
+      "wholeWorkflowJsonMatchesPriorSecurityStage": true
+    },
+    {
+      "major": 20,
+      "version": "20.20.2",
+      "archiveSha256": "6375a1d4421bc04ab284ba89459df788a78c49c89e83c463d0eede47e2efc07b",
+      "vendorUrl": "https://nodejs.org/dist/v20.20.2/node-v20.20.2-darwin-arm64.tar.xz",
+      "checksumUrl": "https://nodejs.org/dist/v20.20.2/SHASUMS256.txt",
+      "passed": true,
+      "compatibilityOnly": true,
+      "tests": {
+        "tests": 656,
+        "pass": 656,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "smoke": [
+        "default minimal stdio smoke passed: 5 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "adaptive stdio smoke passed: 17 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "full stdio smoke passed: 120 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "minimal stdio smoke passed: 5 v1 tools, 7 Resources, 4 prompts, 0 systems",
+        "single stdio smoke passed: 1 v1 tools, 7 Resources, 4 prompts, 0 systems"
+      ],
+      "conformance": {
+        "generatedAt": "2026-10-02T03:48:25.037Z",
+        "discoveryOnly": true,
+        "profile": {
+          "id": "io.github.Coaspe/sap-abap-mcp/profile/v1",
+          "version": "1.0.0",
+          "status": "proposal"
+        },
+        "server": {
+          "name": "sap-abap-mcp",
+          "title": "SAP ABAP MCP",
+          "icons": [
+            {
+              "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+              "mimeType": "image/png",
+              "sizes": [
+                "400x400"
+              ]
+            }
+          ],
+          "version": "1.7.1",
+          "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+          "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+        },
+        "requiredTools": {
+          "expected": 10,
+          "found": 10,
+          "missing": []
+        },
+        "requiredResources": {
+          "expected": 3,
+          "found": 3,
+          "missing": []
+        },
+        "failures": [],
+        "passed": true
+      },
+      "cryptoPath": {
+        "passed": true,
+        "node": "v20.20.2",
+        "platform": "darwin",
+        "sdk": "4.9.1",
+        "forge": "1.4.0",
+        "rows": [
+          {
+            "name": "RSA instrumentation positive control",
+            "rsaVerify": 1,
+            "passed": true
+          },
+          {
+            "name": "SDK agent OAuth2UserTokenExchange",
+            "rsaVerify": 0,
+            "pkcs12Parse": 0,
+            "jksConvert": 0,
+            "transportCalls": 0,
+            "passed": true
+          },
+          {
+            "name": "SDK agent PrincipalPropagation",
+            "rsaVerify": 0,
+            "pkcs12Parse": 0,
+            "jksConvert": 0,
+            "transportCalls": 0,
+            "passed": true
+          },
+          {
+            "name": "SDK agent ClientCertificateAuthentication",
+            "rsaVerify": 0,
+            "pkcs12Parse": 1,
+            "jksConvert": 1,
+            "transportCalls": 0,
+            "passed": true
+          },
+          {
+            "name": "Product policy refuses certificate destination",
+            "rsaVerify": 0,
+            "pkcs12Parse": 0,
+            "jksConvert": 0,
+            "passed": true
+          },
+          {
+            "name": "Native certificate verification accepts valid signature and refuses changed signature",
+            "rsaVerify": 0,
+            "passed": true
+          }
+        ],
+        "liveSapCalls": 0,
+        "liveIdpCalls": 0,
+        "networkCalls": 0,
+        "credentialsPersisted": 0,
+        "limits": [
+          "Synthetic certificates and agent construction, no live TLS handshake",
+          "Not an exploit reproduction or proof of all SDK binding authentication paths",
+          "Affected package warning remains open"
+        ]
+      },
+      "finalArchiveRuntime": {
+        "passed": true,
+        "node": "v20.20.2",
+        "platform": "darwin",
+        "environment": "Absolute host Node executable, empty PATH, standalone bundled files",
+        "claudeDesktopApplicationTested": false,
+        "liveSapCalls": 0,
+        "modelCalls": 0,
+        "runs": [
+          {
+            "profiles": "empty",
+            "tools": 5,
+            "serverVersion": "1.7.1",
+            "setupRequested": false,
+            "setupServerStarted": true,
+            "conditionalBatchSchemaAvailable": true,
+            "noSapCalls": true,
+            "noUserConfigurationChanges": true
+          },
+          {
+            "profiles": "existing",
+            "tools": 5,
+            "serverVersion": "1.7.1",
+            "setupRequested": false,
+            "setupServerStarted": false,
+            "conditionalBatchSchemaAvailable": true,
+            "noSapCalls": true,
+            "noUserConfigurationChanges": true
+          },
+          {
+            "profiles": "existing",
+            "tools": 5,
+            "serverVersion": "1.7.1",
+            "setupRequested": true,
+            "setupServerStarted": true,
+            "conditionalBatchSchemaAvailable": true,
+            "noSapCalls": true,
+            "noUserConfigurationChanges": true
+          }
+        ]
+      },
+      "wholeWorkflowJsonMatchesPriorSecurityStage": true
+    }
+  ],
+  "workflowComparison": {
+    "scenarios": 16,
+    "tokenizer": "o200k_base",
+    "wholeJsonIdenticalAcrossThreeRuntimesAndPriorSecurityStage": true,
+    "runs": [
+      {
+        "mode": "full",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 120,
+        "schemaBytes": 177195,
+        "requestBytes": 555,
+        "responseBytes": 65841,
+        "totalBytes": 243591,
+        "initializationInstructions": {
+          "bytes": 299,
+          "tokens": 53
+        },
+        "totalWithInstructionsBytes": 243890,
+        "schemaTokens": 44153,
+        "totalTokens": 62567,
+        "totalWithInstructionsTokens": 62620,
+        "clientToolCalls": 5,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "components",
+            "requestBytes": 135,
+            "responseBytes": 628,
+            "requestTokens": 37,
+            "responseTokens": 181
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 100,
+            "responseBytes": 21587,
+            "requestTokens": 28,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 120,
+            "responseBytes": 480,
+            "requestTokens": 35,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "full",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 120,
+        "schemaBytes": 177195,
+        "requestBytes": 717,
+        "responseBytes": 45242,
+        "totalBytes": 223154,
+        "initializationInstructions": {
+          "bytes": 299,
+          "tokens": 53
+        },
+        "totalWithInstructionsBytes": 223453,
+        "schemaTokens": 44153,
+        "totalTokens": 56986,
+        "totalWithInstructionsTokens": 57039,
+        "clientToolCalls": 5,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "components",
+            "requestBytes": 135,
+            "responseBytes": 628,
+            "requestTokens": 37,
+            "responseTokens": 181
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 181,
+            "responseBytes": 21587,
+            "requestTokens": 67,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 120,
+            "responseBytes": 480,
+            "requestTokens": 35,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "full",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 120,
+        "schemaBytes": 177195,
+        "requestBytes": 2455,
+        "responseBytes": 475728,
+        "totalBytes": 655378,
+        "initializationInstructions": {
+          "bytes": 299,
+          "tokens": 53
+        },
+        "totalWithInstructionsBytes": 655677,
+        "schemaTokens": 44153,
+        "totalTokens": 176643,
+        "totalWithInstructionsTokens": 176696,
+        "clientToolCalls": 24,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "components",
+            "requestBytes": 135,
+            "responseBytes": 628,
+            "requestTokens": 37,
+            "responseTokens": 181
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 100,
+            "responseBytes": 21587,
+            "requestTokens": 28,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 120,
+            "responseBytes": 480,
+            "requestTokens": 35,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "full",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 120,
+        "schemaBytes": 177195,
+        "requestBytes": 4156,
+        "responseBytes": 63748,
+        "totalBytes": 245099,
+        "initializationInstructions": {
+          "bytes": 299,
+          "tokens": 53
+        },
+        "totalWithInstructionsBytes": 245398,
+        "schemaTokens": 44153,
+        "totalTokens": 64282,
+        "totalWithInstructionsTokens": 64335,
+        "clientToolCalls": 24,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "components",
+            "requestBytes": 135,
+            "responseBytes": 628,
+            "requestTokens": 37,
+            "responseTokens": 181
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 181,
+            "responseBytes": 21587,
+            "requestTokens": 67,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 120,
+            "responseBytes": 480,
+            "requestTokens": 35,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "adaptive",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 17,
+        "schemaBytes": 26728,
+        "requestBytes": 855,
+        "responseBytes": 72033,
+        "totalBytes": 99616,
+        "initializationInstructions": {
+          "bytes": 416,
+          "tokens": 81
+        },
+        "totalWithInstructionsBytes": 100032,
+        "schemaTokens": 6585,
+        "totalTokens": 26557,
+        "totalWithInstructionsTokens": 26638,
+        "clientToolCalls": 7,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 89,
+            "responseBytes": 972,
+            "requestTokens": 20,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 81,
+            "responseBytes": 5220,
+            "requestTokens": 16,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 265,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 100,
+            "responseBytes": 21587,
+            "requestTokens": 28,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 120,
+            "responseBytes": 480,
+            "requestTokens": 35,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "adaptive",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 17,
+        "schemaBytes": 26728,
+        "requestBytes": 1017,
+        "responseBytes": 51434,
+        "totalBytes": 79179,
+        "initializationInstructions": {
+          "bytes": 416,
+          "tokens": 81
+        },
+        "totalWithInstructionsBytes": 79595,
+        "schemaTokens": 6585,
+        "totalTokens": 20976,
+        "totalWithInstructionsTokens": 21057,
+        "clientToolCalls": 7,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 89,
+            "responseBytes": 972,
+            "requestTokens": 20,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 81,
+            "responseBytes": 5220,
+            "requestTokens": 16,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 265,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 181,
+            "responseBytes": 21587,
+            "requestTokens": 67,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 120,
+            "responseBytes": 480,
+            "requestTokens": 35,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "adaptive",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 17,
+        "schemaBytes": 26728,
+        "requestBytes": 2755,
+        "responseBytes": 481920,
+        "totalBytes": 511403,
+        "initializationInstructions": {
+          "bytes": 416,
+          "tokens": 81
+        },
+        "totalWithInstructionsBytes": 511819,
+        "schemaTokens": 6585,
+        "totalTokens": 140633,
+        "totalWithInstructionsTokens": 140714,
+        "clientToolCalls": 26,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 89,
+            "responseBytes": 972,
+            "requestTokens": 20,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 81,
+            "responseBytes": 5220,
+            "requestTokens": 16,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 265,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 100,
+            "responseBytes": 21587,
+            "requestTokens": 28,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 120,
+            "responseBytes": 480,
+            "requestTokens": 35,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "adaptive",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 17,
+        "schemaBytes": 26728,
+        "requestBytes": 4456,
+        "responseBytes": 69940,
+        "totalBytes": 101124,
+        "initializationInstructions": {
+          "bytes": 416,
+          "tokens": 81
+        },
+        "totalWithInstructionsBytes": 101540,
+        "schemaTokens": 6585,
+        "totalTokens": 28272,
+        "totalWithInstructionsTokens": 28353,
+        "clientToolCalls": 26,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 89,
+            "responseBytes": 972,
+            "requestTokens": 20,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 81,
+            "responseBytes": 5220,
+            "requestTokens": 16,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 265,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 100,
+            "responseBytes": 21573,
+            "requestTokens": 28,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 181,
+            "responseBytes": 974,
+            "requestTokens": 67,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 181,
+            "responseBytes": 21587,
+            "requestTokens": 67,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 120,
+            "responseBytes": 480,
+            "requestTokens": 35,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "minimal",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 5,
+        "schemaBytes": 3667,
+        "requestBytes": 1691,
+        "responseBytes": 79067,
+        "totalBytes": 84425,
+        "initializationInstructions": {
+          "bytes": 416,
+          "tokens": 81
+        },
+        "totalWithInstructionsBytes": 84841,
+        "schemaTokens": 880,
+        "totalTokens": 23102,
+        "totalWithInstructionsTokens": 23183,
+        "clientToolCalls": 11,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 89,
+            "responseBytes": 972,
+            "requestTokens": 20,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 81,
+            "responseBytes": 5220,
+            "requestTokens": 16,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 265,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "discover-sap.source.read",
+            "requestBytes": 81,
+            "responseBytes": 854,
+            "requestTokens": 20,
+            "responseTokens": 224
+          },
+          {
+            "stage": "describe-sap.source.read",
+            "requestBytes": 73,
+            "responseBytes": 3326,
+            "requestTokens": 16,
+            "responseTokens": 969
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 230,
+            "responseBytes": 21587,
+            "requestTokens": 80,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "discover-sap.source.diagnose",
+            "requestBytes": 85,
+            "responseBytes": 794,
+            "requestTokens": 22,
+            "responseTokens": 210
+          },
+          {
+            "stage": "describe-sap.source.diagnose",
+            "requestBytes": 77,
+            "responseBytes": 2060,
+            "requestTokens": 18,
+            "responseTokens": 563
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 250,
+            "responseBytes": 480,
+            "requestTokens": 87,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "minimal",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 5,
+        "schemaBytes": 3667,
+        "requestBytes": 1853,
+        "responseBytes": 58468,
+        "totalBytes": 63988,
+        "initializationInstructions": {
+          "bytes": 416,
+          "tokens": 81
+        },
+        "totalWithInstructionsBytes": 64404,
+        "schemaTokens": 880,
+        "totalTokens": 17523,
+        "totalWithInstructionsTokens": 17604,
+        "clientToolCalls": 11,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 89,
+            "responseBytes": 972,
+            "requestTokens": 20,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 81,
+            "responseBytes": 5220,
+            "requestTokens": 16,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 265,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "discover-sap.source.read",
+            "requestBytes": 81,
+            "responseBytes": 854,
+            "requestTokens": 20,
+            "responseTokens": 224
+          },
+          {
+            "stage": "describe-sap.source.read",
+            "requestBytes": 73,
+            "responseBytes": 3326,
+            "requestTokens": 16,
+            "responseTokens": 969
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 311,
+            "responseBytes": 21587,
+            "requestTokens": 120,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "discover-sap.source.diagnose",
+            "requestBytes": 85,
+            "responseBytes": 794,
+            "requestTokens": 22,
+            "responseTokens": 210
+          },
+          {
+            "stage": "describe-sap.source.diagnose",
+            "requestBytes": 77,
+            "responseBytes": 2060,
+            "requestTokens": 18,
+            "responseTokens": 563
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 250,
+            "responseBytes": 480,
+            "requestTokens": 87,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "minimal",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 5,
+        "schemaBytes": 3667,
+        "requestBytes": 6061,
+        "responseBytes": 488954,
+        "totalBytes": 498682,
+        "initializationInstructions": {
+          "bytes": 416,
+          "tokens": 81
+        },
+        "totalWithInstructionsBytes": 499098,
+        "schemaTokens": 880,
+        "totalTokens": 138166,
+        "totalWithInstructionsTokens": 138247,
+        "clientToolCalls": 30,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 89,
+            "responseBytes": 972,
+            "requestTokens": 20,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 81,
+            "responseBytes": 5220,
+            "requestTokens": 16,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 265,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "discover-sap.source.read",
+            "requestBytes": 81,
+            "responseBytes": 854,
+            "requestTokens": 20,
+            "responseTokens": 224
+          },
+          {
+            "stage": "describe-sap.source.read",
+            "requestBytes": 73,
+            "responseBytes": 3326,
+            "requestTokens": 16,
+            "responseTokens": 969
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 230,
+            "responseBytes": 21587,
+            "requestTokens": 80,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "discover-sap.source.diagnose",
+            "requestBytes": 85,
+            "responseBytes": 794,
+            "requestTokens": 22,
+            "responseTokens": 210
+          },
+          {
+            "stage": "describe-sap.source.diagnose",
+            "requestBytes": 77,
+            "responseBytes": 2060,
+            "requestTokens": 18,
+            "responseTokens": 563
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 250,
+            "responseBytes": 480,
+            "requestTokens": 87,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "minimal",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 5,
+        "schemaBytes": 3667,
+        "requestBytes": 7762,
+        "responseBytes": 76974,
+        "totalBytes": 88403,
+        "initializationInstructions": {
+          "bytes": 416,
+          "tokens": 81
+        },
+        "totalWithInstructionsBytes": 88819,
+        "schemaTokens": 880,
+        "totalTokens": 25826,
+        "totalWithInstructionsTokens": 25907,
+        "clientToolCalls": 30,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 89,
+            "responseBytes": 972,
+            "requestTokens": 20,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 81,
+            "responseBytes": 5220,
+            "requestTokens": 16,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 265,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "discover-sap.source.read",
+            "requestBytes": 81,
+            "responseBytes": 854,
+            "requestTokens": 20,
+            "responseTokens": 224
+          },
+          {
+            "stage": "describe-sap.source.read",
+            "requestBytes": 73,
+            "responseBytes": 3326,
+            "requestTokens": 16,
+            "responseTokens": 969
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 230,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 311,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 311,
+            "responseBytes": 21587,
+            "requestTokens": 120,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "discover-sap.source.diagnose",
+            "requestBytes": 85,
+            "responseBytes": 794,
+            "requestTokens": 22,
+            "responseTokens": 210
+          },
+          {
+            "stage": "describe-sap.source.diagnose",
+            "requestBytes": 77,
+            "responseBytes": 2060,
+            "requestTokens": 18,
+            "responseTokens": 563
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 250,
+            "responseBytes": 480,
+            "requestTokens": 87,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "single",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 1,
+        "schemaBytes": 863,
+        "requestBytes": 1718,
+        "responseBytes": 79067,
+        "totalBytes": 81648,
+        "initializationInstructions": {
+          "bytes": 285,
+          "tokens": 60
+        },
+        "totalWithInstructionsBytes": 81933,
+        "schemaTokens": 215,
+        "totalTokens": 22461,
+        "totalWithInstructionsTokens": 22521,
+        "clientToolCalls": 11,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 101,
+            "responseBytes": 972,
+            "requestTokens": 24,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 93,
+            "responseBytes": 5220,
+            "requestTokens": 20,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 256,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "discover-sap.source.read",
+            "requestBytes": 93,
+            "responseBytes": 854,
+            "requestTokens": 24,
+            "responseTokens": 224
+          },
+          {
+            "stage": "describe-sap.source.read",
+            "requestBytes": 85,
+            "responseBytes": 3326,
+            "requestTokens": 20,
+            "responseTokens": 969
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 221,
+            "responseBytes": 21587,
+            "requestTokens": 80,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "discover-sap.source.diagnose",
+            "requestBytes": 97,
+            "responseBytes": 794,
+            "requestTokens": 26,
+            "responseTokens": 210
+          },
+          {
+            "stage": "describe-sap.source.diagnose",
+            "requestBytes": 89,
+            "responseBytes": 2060,
+            "requestTokens": 22,
+            "responseTokens": 563
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 241,
+            "responseBytes": 480,
+            "requestTokens": 87,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "single",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 1,
+        "schemaBytes": 863,
+        "requestBytes": 1880,
+        "responseBytes": 58468,
+        "totalBytes": 61211,
+        "initializationInstructions": {
+          "bytes": 285,
+          "tokens": 60
+        },
+        "totalWithInstructionsBytes": 61496,
+        "schemaTokens": 215,
+        "totalTokens": 16882,
+        "totalWithInstructionsTokens": 16942,
+        "clientToolCalls": 11,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 101,
+            "responseBytes": 972,
+            "requestTokens": 24,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 93,
+            "responseBytes": 5220,
+            "requestTokens": 20,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 256,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "discover-sap.source.read",
+            "requestBytes": 93,
+            "responseBytes": 854,
+            "requestTokens": 24,
+            "responseTokens": 224
+          },
+          {
+            "stage": "describe-sap.source.read",
+            "requestBytes": 85,
+            "responseBytes": 3326,
+            "requestTokens": 20,
+            "responseTokens": 969
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 302,
+            "responseBytes": 21587,
+            "requestTokens": 120,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "discover-sap.source.diagnose",
+            "requestBytes": 97,
+            "responseBytes": 794,
+            "requestTokens": 26,
+            "responseTokens": 210
+          },
+          {
+            "stage": "describe-sap.source.diagnose",
+            "requestBytes": 89,
+            "responseBytes": 2060,
+            "requestTokens": 22,
+            "responseTokens": 563
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 241,
+            "responseBytes": 480,
+            "requestTokens": 87,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "single",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 1,
+        "schemaBytes": 863,
+        "requestBytes": 5917,
+        "responseBytes": 488954,
+        "totalBytes": 495734,
+        "initializationInstructions": {
+          "bytes": 285,
+          "tokens": 60
+        },
+        "totalWithInstructionsBytes": 496019,
+        "schemaTokens": 215,
+        "totalTokens": 137525,
+        "totalWithInstructionsTokens": 137585,
+        "clientToolCalls": 30,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 101,
+            "responseBytes": 972,
+            "requestTokens": 24,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 93,
+            "responseBytes": 5220,
+            "requestTokens": 20,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 256,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "discover-sap.source.read",
+            "requestBytes": 93,
+            "responseBytes": 854,
+            "requestTokens": 24,
+            "responseTokens": 224
+          },
+          {
+            "stage": "describe-sap.source.read",
+            "requestBytes": 85,
+            "responseBytes": 3326,
+            "requestTokens": 20,
+            "responseTokens": 969
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 221,
+            "responseBytes": 21587,
+            "requestTokens": 80,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "discover-sap.source.diagnose",
+            "requestBytes": 97,
+            "responseBytes": 794,
+            "requestTokens": 26,
+            "responseTokens": 210
+          },
+          {
+            "stage": "describe-sap.source.diagnose",
+            "requestBytes": 89,
+            "responseBytes": 2060,
+            "requestTokens": 22,
+            "responseTokens": 563
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 241,
+            "responseBytes": 480,
+            "requestTokens": 87,
+            "responseTokens": 141
+          }
+        ]
+      },
+      {
+        "mode": "single",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 1,
+        "schemaBytes": 863,
+        "requestBytes": 7618,
+        "responseBytes": 76974,
+        "totalBytes": 85455,
+        "initializationInstructions": {
+          "bytes": 285,
+          "tokens": 60
+        },
+        "totalWithInstructionsBytes": 85740,
+        "schemaTokens": 215,
+        "totalTokens": 25185,
+        "totalWithInstructionsTokens": 25245,
+        "clientToolCalls": 30,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        },
+        "stages": [
+          {
+            "stage": "discover-sap.semantic.components",
+            "requestBytes": 101,
+            "responseBytes": 972,
+            "requestTokens": 24,
+            "responseTokens": 242
+          },
+          {
+            "stage": "describe-sap.semantic.components",
+            "requestBytes": 93,
+            "responseBytes": 5220,
+            "requestTokens": 20,
+            "responseTokens": 1227
+          },
+          {
+            "stage": "components",
+            "requestBytes": 256,
+            "responseBytes": 628,
+            "requestTokens": 90,
+            "responseTokens": 181
+          },
+          {
+            "stage": "discover-sap.source.read",
+            "requestBytes": 93,
+            "responseBytes": 854,
+            "requestTokens": 24,
+            "responseTokens": 224
+          },
+          {
+            "stage": "describe-sap.source.read",
+            "requestBytes": 85,
+            "responseBytes": 3326,
+            "requestTokens": 20,
+            "responseTokens": 969
+          },
+          {
+            "stage": "source-first",
+            "requestBytes": 221,
+            "responseBytes": 21573,
+            "requestTokens": 80,
+            "responseTokens": 5976
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-unchanged",
+            "requestBytes": 302,
+            "responseBytes": 974,
+            "requestTokens": 120,
+            "responseTokens": 317
+          },
+          {
+            "stage": "source-changed",
+            "requestBytes": 302,
+            "responseBytes": 21587,
+            "requestTokens": 120,
+            "responseTokens": 5984
+          },
+          {
+            "stage": "discover-sap.source.diagnose",
+            "requestBytes": 97,
+            "responseBytes": 794,
+            "requestTokens": 26,
+            "responseTokens": 210
+          },
+          {
+            "stage": "describe-sap.source.diagnose",
+            "requestBytes": 89,
+            "responseBytes": 2060,
+            "requestTokens": 22,
+            "responseTokens": 563
+          },
+          {
+            "stage": "diagnose",
+            "requestBytes": 241,
+            "responseBytes": 480,
+            "requestTokens": 87,
+            "responseTokens": 141
+          }
+        ]
+      }
+    ],
+    "exclusions": [
+      "JSON-RPC framing and other initialization fields",
+      "host-native tool search and schema caching",
+      "model billing and cumulative conversation replay",
+      "SAP network traffic and latency",
+      "write approval interactions",
+      "prompt/resource lists and prompt bodies (not requested in this workflow)"
+    ]
+  },
+  "reproduceCryptoPath": "node docs/competitive-runtime-security-2026-10-02/crypto-path.mjs /absolute/path/to/checkout",
+  "security": {
+    "remainingAffectedPackageNodes": 4,
+    "severity": "high",
+    "sameRootAdvisory": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+    "upstreamPatchAvailableAtCheck": false,
+    "warningsSuppressed": false,
+    "securityCiGateWeakened": false,
+    "globalExploitabilityRuledOut": false,
+    "liveExploitReproduction": false,
+    "allServiceBindingAuthenticationPathsReviewed": false
+  },
+  "publishedNpmInspection": {
+    "version": "1.7.1",
+    "integrityMatched": true,
+    "integrity": "sha512-H6rd4sRHI+JP8yTOIOVDXlgdYXlh4KSqhCFBe1k1UzrCw8dfqu1r4Z1EoeOgA7LMgdT8HB4PBRr5gtgRrAybWQ==",
+    "tarball": "https://registry.npmjs.org/@coaspe/sap-abap-mcp/-/sap-abap-mcp-1.7.1.tgz",
+    "defaultBranchFromPublishedCode": "minimal",
+    "publishedHelpText": "all tools",
+    "livePublishedSapFunctionalityTested": false
+  },
+  "ci": {
+    "nodeMatrix": [
+      "20",
+      "22",
+      "24"
+    ],
+    "node20CompatibilityOnly": true,
+    "remoteLinuxExecutionPerformed": false
+  },
+  "profileAvailability": {
+    "defaultProductionProfileStoreFileExists": false,
+    "currentShellSapEnvironmentKeyNames": [],
+    "codexSapServerConfigured": true,
+    "configuredProfileArgument": null,
+    "configuredEnvironmentKeyNames": [],
+    "otherHostsAndUnconfiguredDirectoriesChecked": false
+  },
+  "primarySources": [
+    "https://github.com/SAP/cloud-sdk-js/blob/v4.9.1/packages/connectivity/src/http-agent/http-agent.ts",
+    "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+    "https://nodejs.org/en/about/previous-releases",
+    "https://nodejs.org/docs/latest-v24.x/api/crypto.html#x509verifypublickey"
+  ],
+  "artifact": {
+    "path": "artifacts/sap-abap-mcp-1.7.1-runtime-security-preview.mcpb",
+    "bytes": 2583180,
+    "sha256": "7750da61f1642b478584ca087227ac7447273f44e0a447d938ad281ec864fff0",
+    "files": [
+      "LICENSE",
+      "PRIVACY.md",
+      "README.md",
+      "TERMS.md",
+      "desktop-setup.md",
+      "dist/src/index.js",
+      "icon.png",
+      "llms-install.md",
+      "manifest.json",
+      "package.json"
+    ],
+    "archiveIntegrityPassed": true,
+    "maintainedRuntimeGuidanceIncluded": true,
+    "obsoleteDirectOidcPrerequisiteRemoved": true,
+    "signed": false,
+    "published": false
+  },
+  "packageDryRun": {
+    "entryCount": 454,
+    "includesVerificationAndReproducer": true,
+    "previewArtifactsExcluded": true,
+    "published": false
+  },
+  "liveSapCalls": 0,
+  "liveIdpCalls": 0,
+  "modelCalls": 0,
+  "nativeCredentialWrites": 0,
+  "userHostConfigurationChanges": 0,
+  "globallyInstalledRuntimesChanged": false,
+  "remainingGates": [
+    "Actual SAP/IdP and native-host first-query acceptance",
+    "Full service-binding authentication reachability and upstream node-forge remediation",
+    "Windows/Linux and remote CI",
+    "Competitor identical-task success and provider billing",
+    "Independent implementations, adopters and governance"
+  ],
+  "typescriptBuild": {
+    "node24": "Latest-LTS build-mcpb completed with Node 24.21.0",
+    "node22": {
+      "version": "22.23.3",
+      "passed": true
+    },
+    "node20": {
+      "version": "20.20.2",
+      "passed": true
+    }
+  }
+}

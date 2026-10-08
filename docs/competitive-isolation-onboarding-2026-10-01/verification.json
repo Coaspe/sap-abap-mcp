@@ -1,0 +1,222 @@
+{
+  "date": "2026-10-01",
+  "stage": "concurrent-identity-isolation-and-bilingual-onboarding",
+  "baselineTests": 605,
+  "finalTests": 609,
+  "targetedTests": 58,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "sourceSnapshotMatchesVerifiedMirror": true,
+  "sourceFiles": [
+    {
+      "path": "src/connection-manager.ts",
+      "sha256": "1f5cdab1289cc5e663d436f4c8ad64c6a9edba9811ac5f88ace27fc9cac83b8d"
+    },
+    {
+      "path": "src/index.ts",
+      "sha256": "ab043d6a9f747aa4dafb86d1a13e0ebd615b1c3cf6cb6a3d8ca2f8d51c9cc79e"
+    },
+    {
+      "path": "src/mcp-server.ts",
+      "sha256": "d647167b4c93ece4d3375b366b5c97ca7512da4cccd64df16a1274fcc6945ec1"
+    },
+    {
+      "path": "src/mcp/v1/adaptive-tools.ts",
+      "sha256": "cccc7700058fceb3f9a3f26a1702c86ba5901b98340c52f4bd83c3e2342eeffd"
+    },
+    {
+      "path": "src/mcp/v1/contracts.ts",
+      "sha256": "14bc0eafad05fa5aac0c1275503c4bd9d6eae1074a747a1c7bb734f63d9b82b7"
+    },
+    {
+      "path": "src/mcp/v1/result.ts",
+      "sha256": "9c27ab8ae3b97200a6cf0a22e34ec991edd1f5ead50342309be3e8438708707d"
+    },
+    {
+      "path": "src/oauth-authorization-code.ts",
+      "sha256": "6139279892bc5d08ac26d5070951f82a3913ac27193e0b045323afc670ac775b"
+    },
+    {
+      "path": "src/onboard.ts",
+      "sha256": "df1010da9c73d2a2b9225637d3cad99e377bfaa69993bfe060ed60d93d232342"
+    },
+    {
+      "path": "src/onboard-page.ts",
+      "sha256": "8ad7c635f52c18e21733557be02ab7b2e59cfcd8eb16b39ea82b1b46b7c0d994"
+    },
+    {
+      "path": "src/mcp/progress-instrumentation.ts",
+      "sha256": "47771adb49066b64261530cf8f0cad223f3534ad7216fcfe00b2da21f38f6efc"
+    },
+    {
+      "path": "test/connection-manager-oauth.test.ts",
+      "sha256": "69817a82c3f5b4e898deb1f369f078c43242b6307a83ab3748d424808aa85d60"
+    },
+    {
+      "path": "test/oauth-authorization-code.test.ts",
+      "sha256": "e4abed54a76162d4c215e80fc0aa20631ae4fae1bd050347fbaf71d917d59300"
+    },
+    {
+      "path": "test/onboard.test.ts",
+      "sha256": "e904b25a02a0e709ed611d756733c5e08aa4de0dc2913dedd9002cc8f326ea69"
+    },
+    {
+      "path": "test/v1-adaptive.test.ts",
+      "sha256": "e9bdfcbc6e61ce53e548da2ab15550b058b000d3a03965f4fe344699724f76aa"
+    },
+    {
+      "path": "test/v1-result.test.ts",
+      "sha256": "7b40f986a44559c0ca2f988047c2ef475f70390954ac4d00c5e7528ebc6807e3"
+    },
+    {
+      "path": "test/progress-instrumentation.test.ts",
+      "sha256": "bb419afbfbdb1da7063b268adb6ececd56ff07c9fa456594af138ad9dca9aadf"
+    },
+    {
+      "path": "scripts/benchmark-mcp-workflow.mjs",
+      "sha256": "5d4fe9a49120a8491056e14b808ad268db5915ef170c223a7d8403a989836136"
+    },
+    {
+      "path": "mcpb/manifest.json",
+      "sha256": "c3684e50df0f8f4c3230f1b324e8175cba75f8de090fbf055ecd629a592ff840"
+    },
+    {
+      "path": "src/http/request-scoped-connections.ts",
+      "sha256": "78d3079f06cf490f41db7d1ab7a119716adc28edbc8d2cf133c1c556fb9051fa"
+    },
+    {
+      "path": "src/http/oidc.ts",
+      "sha256": "781311177068020d0dc750c1ee92be7d12866e522d9ba73257c42add1d8db335"
+    },
+    {
+      "path": "test/http-oidc.test.ts",
+      "sha256": "92050b4660b6d8886b1f5d6c3197a79df58174496216aca1edb123658d4d3d14"
+    },
+    {
+      "path": "test/destination-profile.test.ts",
+      "sha256": "2782df79f8fb345d927d02139c851a4102d09d641d90b68c3df746022475fd16"
+    },
+    {
+      "path": "package.json",
+      "sha256": "aed46cc7125cf88cbef8b41570b602582c77b971f68dfd3a31f72b7e3bd948a2"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "0cbc67719f461d0c5fe9bc3d627822ba9ebb1817c91d33d165c304a639147442"
+    },
+    {
+      "path": "src/onboard-english.ts",
+      "sha256": "2268ca7e6ac829e12b13b200cc6a1859e36ed8f45bc5b96152ea8527e5bcdeae"
+    },
+    {
+      "path": "test/user-destination.test.ts",
+      "sha256": "d65790add57a87e4756d1312de834f20d28ebdddde0b232e4f8515aa12152801"
+    },
+    {
+      "path": "README.md",
+      "sha256": "6a38d53ccd46078c2e2cf7754b2d11f55df8a337e48244dc8590263db27265d6"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "c743bc3dc036da7ff3975c8873e5e8816526338e4c6ca7f5c02977a104f08627"
+    },
+    {
+      "path": "docs/setup-and-profiles.md",
+      "sha256": "3965f4de693ecfef09cd5e7a589fbba174acd4649f90053fe534a0339b004422"
+    },
+    {
+      "path": "docs/btp-destination-integration.md",
+      "sha256": "4a5e0d6e7ba608874a2d3b6feae1a6eb04966087347684825192d6bb4665da75"
+    },
+    {
+      "path": "docs/competitive-research-2026-10-01.ko.md",
+      "sha256": "c14ee48af1499a6eff55ae0d1c13d7f6774b18ceef0935cc7f4dd0c7ed6d350c"
+    }
+  ],
+  "validationEnvironment": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-mcp-quality-check-fbfummtf",
+  "originalWorkspaceDirectFullTestRun": false,
+  "installedVerifiedBuildFiles": 465,
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "newMcpTools": 0,
+  "tokenComparison": {
+    "unchanged": true,
+    "runsCompared": 16,
+    "tokenizer": "o200k_base",
+    "conditionalKnownCapabilityShortWorkflow": [
+      {
+        "mode": "full",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 5,
+        "totalWithInstructionsTokens": 56995
+      },
+      {
+        "mode": "adaptive",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 17,
+        "schemaTokens": 6580,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 20796
+      },
+      {
+        "mode": "minimal",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 5,
+        "schemaTokens": 880,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 16650
+      },
+      {
+        "mode": "single",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 1,
+        "schemaTokens": 215,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 15968
+      }
+    ]
+  },
+  "uiVerification": {
+    "provider": "real local onboarding server with synthetic environment detection; SAP verification disabled",
+    "languages": [
+      "en",
+      "ko"
+    ],
+    "languageSwitchVerified": true,
+    "narrowViewportWidth": 390,
+    "narrowScrollWidth": 390,
+    "translatedMessages": 135,
+    "nativeDeviceTest": false
+  },
+  "localRuntimeProfiles": 0,
+  "unverified": [
+    "Live BTP subscriber trust and SAP user permissions",
+    "Live user token exchange and Cloud Connector principal propagation",
+    "Full real ADT login/CSRF/cookies through both live BTP modes",
+    "Cross-competitor identical-task success and model billing"
+  ],
+  "published": false,
+  "packDryRun": {
+    "fileCount": 354,
+    "verifiedRequiredFiles": [
+      "dist/src/onboard-english.js",
+      "dist/src/onboard-page.js",
+      "docs/competitive-isolation-onboarding-2026-10-01/verification.json",
+      "docs/competitive-isolation-onboarding-2026-10-01/02-english-oauth.jpg"
+    ]
+  },
+  "stdioModes": [
+    "default-minimal",
+    "adaptive",
+    "full",
+    "minimal",
+    "single"
+  ],
+  "profileDiscoveryConformancePassed": true
+}

@@ -638,3 +638,41 @@ test("the session limit is enforced and audited", async () => {
     await harness.server.close()
   }
 })
+
+test("oversized HTTP JSON-RPC batches are rejected before any SAP-facing tool executes", async t => {
+  const key = generateApiKey()
+  let reads = 0
+  const server = await startHttpMcpServer({
+    apiKeys: [keyRecord("fixture", "viewer", key)], port: 0, log: () => undefined,
+    createMcpServerForSession: () => {
+      const instance = new AbapToolService({
+        async listConnections() { reads++; return [] },
+        async getClient() { throw new Error("No live SAP in this regression") }
+      })
+      return { server: createMcpServer(instance, { apiVersion: "v1", role: "viewer" }), dispose: () => instance.dispose() }
+    }
+  })
+  t.after(() => server.close())
+  const client = new Client({ name: "batch-limit-regression", version: "1" })
+  const transport = new StreamableHTTPClientTransport(new URL(server.url), {
+    requestInit: { headers: { authorization: `Bearer ${key}` } }
+  })
+  t.after(() => client.close())
+  await client.connect(transport as unknown as Parameters<Client["connect"]>[0])
+  assert.ok(transport.sessionId)
+  const response = await fetch(server.url, {
+    method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json",
+      accept: "application/json, text/event-stream", "mcp-session-id": transport.sessionId },
+    body: JSON.stringify(Array.from({ length: 101 }, (_, i) => ({
+      jsonrpc: "2.0", id: 1000 + i, method: "tools/call", params: { name: "sap.system.list", arguments: {} }
+    })))
+  })
+  const body = await response.text()
+  t.diagnostic(JSON.stringify({ httpStatus: response.status, batchMessages: 101, toolServiceReads: reads }))
+  assert.equal(response.status, 400, "One HTTP request must not fan out an oversized tool batch")
+  assert.match(body, /Batch must not exceed 100 messages/)
+  assert.equal(reads, 0)
+  const normal = await client.callTool({ name: "sap.system.list", arguments: {} })
+  assert.notEqual(normal.isError, true)
+  assert.equal(reads, 1, "The session remains usable after a rejected batch")
+})

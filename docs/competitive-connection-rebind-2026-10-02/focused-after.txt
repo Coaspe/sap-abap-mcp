@@ -1,0 +1,45 @@
+✔ MCP request tokens never create direct SAP bearer clients or report usable passthrough credentials (17.516ms)
+✔ changing a Destination profile to passthrough during lookup cannot forward the MCP token (2.214791ms)
+✔ browser OAuth renewal keeps the newest credential after a delayed network operation (3.396458ms)
+✔ browser OAuth renewal keeps the newest credential after a delayed storage operation (1.854417ms)
+✔ browser OAuth renewal keeps the newest credential after a delayed saved-login operation (1.618959ms)
+✔ credential renewal disconnects only the saved profile and reopens with current credentials (2.400208ms)
+✔ ConnectionManager recreates an OAuth ADT client before its bearer token expires (1.540125ms)
+✔ legacy bearer-passthrough profiles remain readable but cannot forward a request token (0.872167ms)
+✔ request-scoped provider closes only Destination clients (2.693042ms)
+✔ concurrent OAuth refreshes share one replacement while the old session logs out (1.157875ms)
+✔ credential validation keeps refreshed OAuth credentials in memory when SAP accepts the candidate (1.010166ms)
+✔ credential validation keeps refreshed OAuth credentials in memory when SAP rejects the candidate (0.616625ms)
+✔ credential validation cleans up an ADT client after failed login (0.768667ms)
+✔ direct connection reopens after changing SAP URL (17.926125ms)
+✔ direct connection reopens after changing SAP client (3.021667ms)
+✔ direct connection reopens after changing language (2.504875ms)
+✔ direct connection reopens after changing username (2.42625ms)
+✔ direct connection reopens after changing classic bridge (2.566709ms)
+✔ direct connection reopens after changing authentication type (2.16575ms)
+✔ direct connection reopens after changing token URL (2.192958ms)
+✔ direct connection reopens after changing OAuth client (2.015042ms)
+✔ direct connection reopens after changing scope (2.638042ms)
+✔ direct connection reopens after changing authorization URL (2.944583ms)
+✔ HTTP Destination connection reopens after changing SAP URL (3.262542ms)
+✔ HTTP Destination connection reopens after changing SAP client (3.383708ms)
+✔ HTTP Destination connection reopens after changing language (1.746334ms)
+✔ HTTP Destination connection reopens after changing classic bridge (1.726167ms)
+✔ HTTP Destination connection reopens after changing Destination name (1.741334ms)
+✔ HTTP Destination connection reopens after changing Destination authentication (1.782083ms)
+✔ profile CLI refuses new token-passthrough configuration and preserves existing saved profiles (1337.014333ms)
+✔ BTP profile CLI stores explicit destination policy and rejects local login (1387.726042ms)
+✔ BTP connections belong to the authenticated scope and cannot enter the shared pool (2.638792ms)
+✔ BTP discovery reports the authenticated HTTP credential without reading local passwords (1.202ms)
+✔ a failed request-scoped SAP login is logged out before a clean retry (1.096334ms)
+✔ saved access policy changes reach cached direct and HTTP clients without another login (3.370042ms)
+✔ closing during profile lookup prevents creation of a late user connection (0.565167ms)
+✔ closing waits for pending login, logs out once, and never returns the closed client (0.149917ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2895.109833

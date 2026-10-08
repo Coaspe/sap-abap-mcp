@@ -1,0 +1,7 @@
+{
+  "sourceUrl": "https://raw.githubusercontent.com/SchemaStore/schemastore/64cc4a9ee27111df7a6a68eb64451690234a12ba/src/schemas/json/github-issue-forms.json",
+  "schemaStoreCommit": "64cc4a9ee27111df7a6a68eb64451690234a12ba",
+  "schemaSha256": "c2722dbf00334ce4fdeffa960b8c9047caf4f1cbb8f3809663f4d604b1d3ae76",
+  "cachePath": "/tmp/sap-first-user-issue-form.schema.json",
+  "schemaIsExternalValidationAid": "Not GitHub server acceptance or a rendered UI test; schema not redistributed in npm."
+}

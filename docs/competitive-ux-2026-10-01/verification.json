@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-01",
+  "baselineTests": 566,
+  "finalTests": 572,
+  "failed": 0,
+  "skipped": 0,
+  "smoke": {
+    "minimal": 5,
+    "adaptive": 17,
+    "full": 120,
+    "single": 1,
+    "resources": 7,
+    "prompts": 4
+  },
+  "conformancePassed": true,
+  "sapLiveCalls": false,
+  "published": false,
+  "verifiedSource": [
+    {
+      "path": "src/onboard.ts",
+      "sha256": "8343dee552a78d49de3df7cd9cd3e6ca0b08f6f5da64822bfa46a1dcbd6db1cc"
+    },
+    {
+      "path": "src/onboard-page.ts",
+      "sha256": "dddc8ce05e8c41e5ef8d27e8062cf0125c094f1f49344cd98ed93c448786c086"
+    },
+    {
+      "path": "src/mcp-server.ts",
+      "sha256": "00254a2e0beac6ff0cd9fdc7d47a7b8dc77055f2968961caee47d5d02f96373f"
+    },
+    {
+      "path": "src/mcp/v1/result.ts",
+      "sha256": "9c27ab8ae3b97200a6cf0a22e34ec991edd1f5ead50342309be3e8438708707d"
+    },
+    {
+      "path": "src/mcp/v1/contracts.ts",
+      "sha256": "14bc0eafad05fa5aac0c1275503c4bd9d6eae1074a747a1c7bb734f63d9b82b7"
+    },
+    {
+      "path": "src/mcp/progress-instrumentation.ts",
+      "sha256": "47771adb49066b64261530cf8f0cad223f3534ad7216fcfe00b2da21f38f6efc"
+    },
+    {
+      "path": "test/onboard.test.ts",
+      "sha256": "98399ca936bd41439c3f1a39b7b84aa013576b1036a31a2c117d66a33e47241f"
+    },
+    {
+      "path": "test/v1-result.test.ts",
+      "sha256": "7b40f986a44559c0ca2f988047c2ef475f70390954ac4d00c5e7528ebc6807e3"
+    },
+    {
+      "path": "test/progress-instrumentation.test.ts",
+      "sha256": "bb419afbfbdb1da7063b268adb6ececd56ff07c9fa456594af138ad9dca9aadf"
+    }
+  ],
+  "packDryRun": {
+    "fileCount": 330,
+    "size": 1280990,
+    "unpackedSize": 3655429
+  },
+  "workspaceGeneratedRuntimeMatchesVerifiedBuild": true
+}

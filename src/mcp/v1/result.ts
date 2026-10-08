@@ -37,10 +37,13 @@ const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
   CAPABILITY_SCHEMA_CHANGED: "conflict",
   CAPABILITY_GATEWAY_CLOSED: "transport",
   AUTH_REQUIRED: "authentication",
+  PROFILE_NOT_FOUND: "validation",
   OAUTH_CLIENT_CREDENTIALS_REQUIRED: "authentication",
   SAP_AUTHORIZATION_DENIED: "authorization",
   DATA_QUERY_NOT_ALLOWED: "policy",
   PROFILE_NOT_ALLOWED: "policy",
+  TOKEN_PASSTHROUGH_REFUSED: "policy",
+  PROFILE_READ_ONLY: "policy",
   PRODUCTION_DATA_BLOCKED: "policy",
   PRODUCTION_WRITE_BLOCKED: "policy",
   PACKAGE_NOT_ALLOWED: "policy",
@@ -59,6 +62,44 @@ const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
 }
 
 const RETRYABLE_SAP_STATUSES = new Set([429, 502, 503, 504])
+
+function recoveryFor(code: string): z.infer<typeof V1_ERROR_SCHEMA>["recovery"] {
+  switch (code) {
+    case "TOKEN_PASSTHROUGH_REFUSED":
+      return { action: "review_policy", message: "Ask the operator to configure BTP Destination exchange/propagation or independent SAP credentials. Do not forward the MCP token, weaken audience checks or retry login to bypass this refusal.", nextTools: [] }
+    case "AUTH_REQUIRED":
+    case "OAUTH_CLIENT_CREDENTIALS_REQUIRED":
+      return { action: "authenticate", message: "Authenticate locally using the setup wizard (Desktop: enable Open SAP setup on startup and restart the extension), auth login, or the configured HTTP identity flow. Do not send credentials in chat or repeat failed logins.", nextTools: ["sap.system.list"] }
+    case "SAP_AUTHORIZATION_DENIED":
+      return { action: "check_authorization", message: "Ask the SAP administrator to check this user's ADT authorization for the operation. Re-authentication does not grant missing permissions.", nextTools: ["sap.system.capabilities"] }
+    case "SOURCE_CHANGED":
+    case "OBJECT_CHANGED":
+    case "OBJECT_AMBIGUOUS":
+      return { action: "refresh_source", message: "Read the current object and source again, then rebuild the exact change or preview. Do not reuse a stale write plan.", nextTools: ["sap.repository.inspect", "sap.source.read"] }
+    case "CAPABILITY_SCHEMA_CHANGED":
+    case "CAPABILITY_RISK_MISMATCH":
+    case "CAPABILITY_ARGUMENTS_REQUIRED":
+    case "CAPABILITY_ARGUMENTS_INVALID":
+      return { action: "describe_capability", message: "Describe the capability again and use its current input schema, risk and schemaHash. Discovery availability depends on the selected tool mode.", nextTools: ["sap.capability.describe"] }
+    case "SAP_CAPABILITY_UNAVAILABLE":
+      return { action: "check_capability", message: "Inspect capability evidence for this system. A missing SAP endpoint or prerequisite cannot be fixed by repeating the same call.", nextTools: ["sap.system.capabilities"] }
+    case "PROFILE_NOT_FOUND":
+    case "CONNECTION_MISMATCH":
+      return { action: "select_system", message: "List the configured systems and select the intended systemId before rebuilding the request.", nextTools: ["sap.system.list"] }
+    case "PROFILE_READ_ONLY":
+    case "PRODUCTION_WRITE_BLOCKED":
+    case "PRODUCTION_DATA_BLOCKED":
+    case "PACKAGE_NOT_ALLOWED":
+    case "DATA_QUERY_NOT_ALLOWED":
+    case "PROFILE_NOT_ALLOWED":
+      return { action: "review_policy", message: "Stop this operation and review the configured scope with the owner. Do not weaken policy or switch identities to bypass the refusal.", nextTools: [] }
+    case "SAP_OPERATION_FAILED":
+    case "SOURCE_READ_FAILED":
+      return { action: "inspect_state", message: "Check SAP availability and the operation's current state. Before retrying a write, read back the target: an interrupted response does not prove that SAP made no change.", nextTools: [] }
+    default:
+      return undefined
+  }
+}
 
 export interface V1SuccessOptions {
   requestId?: string
@@ -461,6 +502,7 @@ export function v1Failure(error: unknown, requestId?: string): CallToolResult {
   const retryable = normalizedError instanceof AppError &&
     normalizedError.code === "SAP_OPERATION_FAILED" &&
     RETRYABLE_SAP_STATUSES.has(normalizedError.details?.httpStatus as number)
+  const recovery = recoveryFor(code)
   const envelope = V1_ERROR_SCHEMA.parse({
     schemaVersion: V1_SCHEMA_VERSION,
     requestId: typeof requestId === "string" && requestId.length > 0
@@ -470,6 +512,7 @@ export function v1Failure(error: unknown, requestId?: string): CallToolResult {
     category,
     message,
     retryable,
+    ...(recovery ? { recovery } : {}),
     ...(payload.details ? { details: boundedDetails(payload.details) } : {})
   })
 

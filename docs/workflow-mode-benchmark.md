@@ -1,8 +1,9 @@
 # Default mode and workflow token costs
 
 The unreleased local CLI and new browser registrations default to `minimal`:
-five gateways and 883 fixed tool-schema tokens with `o200k_base`. Explicit
-`--preset adaptive` keeps 12 common direct tools plus those gateways (6,583
+five gateways and 880 fixed tool-schema tokens with `o200k_base` in the
+2026-10-01 checkout. The earlier 2026-09-08 measurements below used 883. Explicit
+`--preset adaptive` keeps 12 common direct tools plus those gateways (6,580
 tokens). Both expose the same role-filtered capabilities, prompts and resources.
 Library embedding retains its full direct default. Existing registrations with
 an explicit preset keep it; an unversioned local `serve` command uses the new
@@ -81,3 +82,49 @@ larger than 1 KiB, so catalog-sized startup guidance cannot grow unnoticed.
 
 Omit `--tokens` to run the correctness/byte checks using runtime dependencies
 only; the published benchmark does not require the tokenizer at runtime.
+
+## Batched descriptions — 2026-10-01 local checkout
+
+Known capability names can now be described together without adding a tool:
+
+```json
+{"name":"sap.capability.describe","arguments":{"names":["sap.semantic.components","sap.source.read","sap.source.diagnose"]}}
+```
+
+The response has `data.capabilities` in request order. Each entry retains the
+exact input schema, hash, annotations and risk. The existing single `name` input
+still returns `data.capability`. Use one of `name` or `names`, at most ten names,
+and reuse the hashes until the server reports a schema change. Describe does
+not invoke a capability or grant permissions. Batch entries remain role-filtered;
+a batch containing an unavailable capability fails rather than exposing it.
+Output schemas are still opt-in.
+
+Reproduce with the same source/diagnostic assertions as individual descriptions:
+
+```sh
+node scripts/benchmark-mcp-workflow.mjs --tokens --known-capabilities --batch-describe --output /tmp/sap-workflow-batch.json
+```
+
+Short fixture, one unchanged read, conditional source reads enabled. Totals
+include tool definitions, initialization instructions, requests and complete
+results. All modes return the same source/diagnostics and make the same number
+of synthetic service calls.
+
+| Mode | Fixed schema tokens | Individual calls / total tokens | Batched calls / total tokens |
+|---|---:|---:|---:|
+| full | 44,109 | 5 / 56,995 | 5 / 56,995 |
+| adaptive | 6,580 | 6 / 20,790 | 6 / 20,796 |
+| minimal | 880 | 8 / 16,866 | 6 / 16,650 |
+| single | 215 | 8 / 16,192 | 6 / 15,968 |
+
+Minimal removes two MCP calls and 216 tokens relative to individual descriptions
+in the same build. Compared with the prior build, its fixed schema fell by three
+tokens, and the batched workflow reduced the total by 213 tokens
+(16,863 to 16,650). Adaptive has only one deferred capability here, so batching
+saves no calls and adds six tokens. Batch multiple deferred schemas when their
+names are already known; use a single description for one capability.
+
+Measured results are in [token summary](competitive-auth-tokens-2026-10-01/token-summary.json).
+This remains a synthetic server benchmark with zero model/SAP calls, not billing
+or proof that models choose the cheapest sequence. Per-turn host replay,
+cache discounts and actual user success still need live measurements.

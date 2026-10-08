@@ -1,0 +1,34 @@
+{
+  "package": "@anthropic-ai/mcpb",
+  "version": "2.1.2",
+  "cases": [
+    {
+      "openSetup": false,
+      "config": {
+        "command": "node",
+        "args": [
+          "/tmp/sap bundle fixture/dist/src/index.js",
+          "serve",
+          "--onboard-if-empty"
+        ],
+        "env": {
+          "SAP_ABAP_MCP_OPEN_SETUP": "false"
+        }
+      }
+    },
+    {
+      "openSetup": true,
+      "config": {
+        "command": "node",
+        "args": [
+          "/tmp/sap bundle fixture/dist/src/index.js",
+          "serve",
+          "--onboard-if-empty"
+        ],
+        "env": {
+          "SAP_ABAP_MCP_OPEN_SETUP": "true"
+        }
+      }
+    }
+  ]
+}

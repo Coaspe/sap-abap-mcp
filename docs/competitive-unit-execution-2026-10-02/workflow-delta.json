@@ -1,0 +1,157 @@
+{
+  "baselineStage": "competitive-sdk-http-boundary-2026-10-02",
+  "tokenizer": "o200k_base",
+  "scenarios": [
+    {
+      "mode": "full",
+      "conditional": false,
+      "unchangedReads": 1,
+      "changes": {
+        "schemaBytes": {
+          "before": 177195,
+          "after": 177199
+        },
+        "totalBytes": {
+          "before": 243591,
+          "after": 243595
+        },
+        "totalWithInstructionsBytes": {
+          "before": 243890,
+          "after": 243894
+        }
+      }
+    },
+    {
+      "mode": "full",
+      "conditional": true,
+      "unchangedReads": 1,
+      "changes": {
+        "schemaBytes": {
+          "before": 177195,
+          "after": 177199
+        },
+        "totalBytes": {
+          "before": 223154,
+          "after": 223158
+        },
+        "totalWithInstructionsBytes": {
+          "before": 223453,
+          "after": 223457
+        }
+      }
+    },
+    {
+      "mode": "full",
+      "conditional": false,
+      "unchangedReads": 20,
+      "changes": {
+        "schemaBytes": {
+          "before": 177195,
+          "after": 177199
+        },
+        "totalBytes": {
+          "before": 655378,
+          "after": 655382
+        },
+        "totalWithInstructionsBytes": {
+          "before": 655677,
+          "after": 655681
+        }
+      }
+    },
+    {
+      "mode": "full",
+      "conditional": true,
+      "unchangedReads": 20,
+      "changes": {
+        "schemaBytes": {
+          "before": 177195,
+          "after": 177199
+        },
+        "totalBytes": {
+          "before": 245099,
+          "after": 245103
+        },
+        "totalWithInstructionsBytes": {
+          "before": 245398,
+          "after": 245402
+        }
+      }
+    },
+    {
+      "mode": "adaptive",
+      "conditional": false,
+      "unchangedReads": 1,
+      "changes": {}
+    },
+    {
+      "mode": "adaptive",
+      "conditional": true,
+      "unchangedReads": 1,
+      "changes": {}
+    },
+    {
+      "mode": "adaptive",
+      "conditional": false,
+      "unchangedReads": 20,
+      "changes": {}
+    },
+    {
+      "mode": "adaptive",
+      "conditional": true,
+      "unchangedReads": 20,
+      "changes": {}
+    },
+    {
+      "mode": "minimal",
+      "conditional": false,
+      "unchangedReads": 1,
+      "changes": {}
+    },
+    {
+      "mode": "minimal",
+      "conditional": true,
+      "unchangedReads": 1,
+      "changes": {}
+    },
+    {
+      "mode": "minimal",
+      "conditional": false,
+      "unchangedReads": 20,
+      "changes": {}
+    },
+    {
+      "mode": "minimal",
+      "conditional": true,
+      "unchangedReads": 20,
+      "changes": {}
+    },
+    {
+      "mode": "single",
+      "conditional": false,
+      "unchangedReads": 1,
+      "changes": {}
+    },
+    {
+      "mode": "single",
+      "conditional": true,
+      "unchangedReads": 1,
+      "changes": {}
+    },
+    {
+      "mode": "single",
+      "conditional": false,
+      "unchangedReads": 20,
+      "changes": {}
+    },
+    {
+      "mode": "single",
+      "conditional": true,
+      "unchangedReads": 20,
+      "changes": {}
+    }
+  ],
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "realBillingMeasured": false
+}

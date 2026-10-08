@@ -1,0 +1,116 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@sap-cloud-sdk/connectivity": {
+      "name": "@sap-cloud-sdk/connectivity",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "jks-js"
+      ],
+      "effects": [
+        "@sap-cloud-sdk/http-client"
+      ],
+      "range": "4.1.3-20250919013909.0 - 4.1.3-20251201125815.0 || >=4.2.1-20251128014424.0",
+      "nodes": [
+        "node_modules/@sap-cloud-sdk/connectivity"
+      ],
+      "fixAvailable": {
+        "name": "@sap-cloud-sdk/connectivity",
+        "version": "4.2.0",
+        "isSemVerMajor": true
+      }
+    },
+    "@sap-cloud-sdk/http-client": {
+      "name": "@sap-cloud-sdk/http-client",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "@sap-cloud-sdk/connectivity"
+      ],
+      "effects": [],
+      "range": ">=4.2.1-20251128014424.0",
+      "nodes": [
+        "node_modules/@sap-cloud-sdk/http-client"
+      ],
+      "fixAvailable": {
+        "name": "@sap-cloud-sdk/http-client",
+        "version": "4.2.0",
+        "isSemVerMajor": true
+      }
+    },
+    "jks-js": {
+      "name": "jks-js",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "node-forge"
+      ],
+      "effects": [
+        "@sap-cloud-sdk/connectivity"
+      ],
+      "range": ">=1.0.0",
+      "nodes": [
+        "node_modules/jks-js"
+      ],
+      "fixAvailable": {
+        "name": "@sap-cloud-sdk/connectivity",
+        "version": "4.2.0",
+        "isSemVerMajor": true
+      }
+    },
+    "node-forge": {
+      "name": "node-forge",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1240912,
+          "name": "node-forge",
+          "dependency": "node-forge",
+          "title": "node-forge RSA PKCS#1 v1.5 signature verification accepts extra nested DigestAlgorithm elements",
+          "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+          "severity": "high",
+          "cwe": [
+            "CWE-347"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<=1.4.0"
+        }
+      ],
+      "effects": [
+        "jks-js"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/node-forge"
+      ],
+      "fixAvailable": {
+        "name": "@sap-cloud-sdk/connectivity",
+        "version": "4.2.0",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 4,
+      "critical": 0,
+      "total": 4
+    },
+    "dependencies": {
+      "prod": 310,
+      "dev": 23,
+      "optional": 21,
+      "peer": 7,
+      "peerOptional": 0,
+      "total": 340
+    }
+  }
+}

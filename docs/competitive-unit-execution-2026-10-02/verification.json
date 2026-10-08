@@ -1,0 +1,208 @@
+{
+  "generatedDate": "2026-10-02",
+  "stage": "ABAP Unit execution role and gateway boundary",
+  "assumptions": [
+    "ABAP Unit is execution; reuse the existing writable-profile and role policy rather than declaring it read-only.",
+    "Assessment can execute Unit tests and create local reports; one capability retains a conservative write classification for every checks selection.",
+    "Existing legacy v0 policy is already correct and is not changed."
+  ],
+  "regression": {
+    "unitBefore": {
+      "cases": 8,
+      "failed": 8,
+      "stage": "before any annotation correction"
+    },
+    "transportBefore": {
+      "cases": 8,
+      "failed": 8,
+      "stage": "after direct Unit correction, before assessment correction"
+    },
+    "legacyBefore": {
+      "cases": 2,
+      "passed": 2
+    },
+    "after": {
+      "executionPolicyCases": 18,
+      "passed": 18,
+      "viewerCallbackExecutions": 0,
+      "readGatewayCallbackExecutions": 0,
+      "developerWritePathPreserved": true
+    },
+    "syntheticServices": true,
+    "liveSapCalls": 0
+  },
+  "verification": {
+    "fullTests": {
+      "node": "24.11.1",
+      "passed": 691,
+      "failed": 0,
+      "skipped": 0
+    },
+    "focusedTests": 51,
+    "node22Final": {
+      "version": "22.23.3",
+      "tests": 34,
+      "passed": 34,
+      "includes": "execution policy and workflow prompts"
+    },
+    "discovery": {
+      "modes": 3,
+      "roles": 3,
+      "queries": 162,
+      "passed": true
+    },
+    "stdioModes": 5,
+    "actualApplicationOrLiveSapTested": false
+  },
+  "cost": {
+    "newTools": 0,
+    "changedInputSchemas": 0,
+    "addedSettings": 0,
+    "normalReadWorkflowScenarios": 16,
+    "unchangedCompleteRuns": 12,
+    "fullModeSchemaBytesDelta": 4,
+    "allSchemaAndWorkflowEstimatedTokenCountsUnchanged": true,
+    "allReadWorkflowCallCountsUnchanged": true,
+    "tokenizer": "o200k_base",
+    "realBillingMeasured": false,
+    "details": "workflow-delta.json"
+  },
+  "unitClientDefaults": {
+    "library": "abap-adt-api 8.4.1",
+    "source": "node_modules/abap-adt-api/build/api/unittest.js",
+    "harmless": true,
+    "dangerous": false,
+    "critical": false,
+    "short": true,
+    "medium": false,
+    "long": false,
+    "expandedByThisChange": false,
+    "liveSafetyProven": false
+  },
+  "profile": {
+    "unchangedPublishedProposal": true,
+    "unchangedNamesOnlyValidator": true,
+    "namesOnlyPassed": true,
+    "requiredReadOnlyAnnotationAuditPassed": false,
+    "violations": [
+      "sap.quality.unit_test",
+      "sap.transport.assess"
+    ],
+    "candidateRequiredCoreTools": 8,
+    "candidateStatus": "local-review-draft",
+    "discussionPosted": false,
+    "independentAdoptionProven": false,
+    "review": "contract-review.json"
+  },
+  "archive": {
+    "archive": "artifacts/sap-abap-mcp-1.7.1-unit-execution-preview.mcpb",
+    "bytes": 2584347,
+    "sha256": "70debbce26d16b4ff7706210332dbb0da2b53d2962da967610c5ad4974a65dc7",
+    "zipEntries": 10,
+    "readmeByteEqual": true,
+    "unsigned": true,
+    "published": false,
+    "extractedStartupCases": 9,
+    "nodeVersions": [
+      "24.21.0",
+      "22.23.3",
+      "20.20.2"
+    ],
+    "applicationTested": false,
+    "liveSapCalls": 0,
+    "bundleAnnotationAuditMatched": true
+  },
+  "sourceFiles": [
+    {
+      "path": "src/mcp/v1/analysis-tools.ts",
+      "beforeSha256": "25bfd62ffe59368f982a4d255e40e03e17fc3816e5fdb700985fd668a2305551",
+      "afterSha256": "2b57020d56a30d013ee371c2e4c4178a54e5c092bac75765115714aee8bc905e"
+    },
+    {
+      "path": "src/mcp/v1/workflow-prompts.ts",
+      "beforeSha256": "28ec05c04e0fdb3b676df01653ed8aa25d871f95e7c7f0e35a63fb0d81f3ca18",
+      "afterSha256": "ca9aea3dbf33d12d81af5fbb05f6288acb5516a6ed907fd6532c1eb71fc5f305"
+    },
+    {
+      "path": "test/unit-execution-policy.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "51aaa40fd5a5183b39085075a2535cd1eccd5c7d72b8ffa58eeccad55a054dff"
+    },
+    {
+      "path": "test/v1-adaptive.test.ts",
+      "beforeSha256": "8ca53280e880f802301e310a681deeef137d236480ad0fe284672a30406f3e34",
+      "afterSha256": "f64d1b2110cd227a4e27bbd22bc39fec750af1845478c821e862252c47189a11"
+    },
+    {
+      "path": "test/v1-workflow-prompts.test.ts",
+      "beforeSha256": "59fb3c774b77b89077184e708dd5358ee01b6912b1744a724207b16895328beb",
+      "afterSha256": "5e256dad0607548045345606a87ef8cad51022e960587ec66e46be26ebec0cc5"
+    },
+    {
+      "path": "scripts/benchmark-capability-discovery.mjs",
+      "beforeSha256": "9d90cb795807323714dc59d22fac6302fcdf9109db913757a752fc75f317d881",
+      "afterSha256": "ff536931591e89a23afdc5ec5b38ea056d1c67bfb2b421106cd6d72debab3f94"
+    },
+    {
+      "path": "README.md",
+      "beforeSha256": "5d842ecc702b516bc53661d5cc271bc31c63090b13ae518d85737b53ef68185b",
+      "afterSha256": "c8f9d110ca52cbfe3cd17edc22216888a2287914bfb572367182c24505319ca7"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "beforeSha256": "14cba5c85cfa57d5a7d6f1f2c0c6460537f783f161b1d383b4656459d91a3424",
+      "afterSha256": "3d2cc7987ba7c50f0454780e739d885ca4f86e602e80a2c9fe4ad6bc6fa44192"
+    },
+    {
+      "path": "spec/README.md",
+      "beforeSha256": "9b44ca70fa372efc5b27c67ed3dc270fb0e8b1b4afb5943f2e19ff5a1770a1cb",
+      "afterSha256": "186be977a2b68f8182711d23a530d55c4994340b9d0a13a3e9263dbcb2176e7a"
+    },
+    {
+      "path": "docs/v1-migration.md",
+      "beforeSha256": "75863dc07f90fdab32835ccef019ba26fbd517722f3902f06be183d22b11801a",
+      "afterSha256": "6fe2b10dc86fb93797eab1f84f426b330d47c6cd4af560bfe1a40647be5c1302"
+    },
+    {
+      "path": "plugins/sap-abap-mcp/README.md",
+      "beforeSha256": "c14bd95edf72623d18550f8fdd51a4b6b8cc50d92b999b3a9e5a725d56bcb9b9",
+      "afterSha256": "a0dc79dc192384219936d8a1181f27ed407fdef14de7b060285b7595bc2cecb0"
+    },
+    {
+      "path": "plugins/sap-abap-mcp/skills/sap-abap-change-assurance/SKILL.md",
+      "beforeSha256": "7f2a66552fcca9b54bb179b02e03c07e8c6de982f5d08c07cdd5f44c88c07bee",
+      "afterSha256": "3dbdbeb5e0d293b6376be1580f49b137757e2b5900173931f4ba7c5d3d14e199"
+    },
+    {
+      "path": "docs/competitive-research-2026-10-01.ko.md",
+      "beforeSha256": "5c4ac95860e8a210f47f3a0a22b710e8ae47ef1f01d061277ea66597645f060b",
+      "afterSha256": "af43bef786ea66f06340ce223d132961335c40db320406593d1eac5500b04aca"
+    }
+  ],
+  "runtimeFileCount": 240,
+  "runtimeFilesChanged": [
+    "dist/src/mcp/v1/workflow-prompts.d.ts",
+    "dist/src/mcp/v1/workflow-prompts.js.map",
+    "dist/src/mcp/v1/workflow-prompts.js",
+    "dist/src/mcp/v1/analysis-tools.js",
+    "dist/src/mcp/v1/analysis-tools.js.map"
+  ],
+  "originalSourceAndRuntimeByteEqual": true,
+  "retainedBackup": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-unit-execution-backup-axbym714",
+  "remainingLimitations": [
+    "Tests ran in the isolated verification mirror; the original source and compiled runtime are checked byte-for-byte after copying.",
+    "No live SAP credentials, identity-provider acceptance, app-native installation, competitive task-success ranking, or independent standard adoption is established.",
+    "The prior production audit still has four high affected-package entries for one inherited node-forge advisory. No dependencies changed in this stage."
+  ],
+  "primarySources": [
+    "https://modelcontextprotocol.io/specification/2025-11-25/schema#toolannotations",
+    "https://help.sap.com/saphelp_em700_ehp01/helpdata/en/49/25667929ac16b7e10000000a42189d/content.htm"
+  ],
+  "npmPackDryRun": {
+    "fileCount": 500,
+    "verificationIncluded": true,
+    "auditReproducerIncluded": true,
+    "artifactsExcluded": true,
+    "published": false
+  }
+}

@@ -116,9 +116,10 @@ Use one SAP profile per person when SAP-side change documents and SAP
 authorization objects must apply to that identity. Omitting `systemIds` keeps
 all profiles reachable by that principal.
 
-For request-scoped OIDC bearer forwarding to SAP, create an explicit
-`bearer-passthrough` profile as documented in
-[Setup and profile management](setup-and-profiles.md#request-scoped-bearer-passthrough).
+For caller-specific BTP identity, use the experimental
+[Destination exchange/propagation profile](btp-destination-integration.md).
+The unreleased checkout refuses direct MCP-token forwarding before SAP login;
+see [legacy profile migration](setup-and-profiles.md#request-scoped-bearer-passthrough).
 
 ## Transport and session controls
 
@@ -193,8 +194,8 @@ host interface.
 
 ## Current limitation: token exchange
 
-`bearer-passthrough` forwards the original token and requires SAP to accept it.
-This checkout also has an experimental `btp-destination` profile for SDK-backed
+Direct `bearer-passthrough` is refused in this unreleased checkout. SAP Basic/OAuth
+profiles use independent credentials. The experimental `btp-destination` profile supports SDK-backed
 `OAuth2UserTokenExchange` or Cloud Connector principal propagation. The profile,
 HTTP identity scope, resolver and transport are connected and tested locally;
 actual BTP operation remains unverified. See [setup and limitations](btp-destination-integration.md).

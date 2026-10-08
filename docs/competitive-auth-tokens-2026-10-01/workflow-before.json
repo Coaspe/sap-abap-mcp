@@ -1,0 +1,2256 @@
+{
+  "schemaVersion": "2.1",
+  "fixture": "components-200-line-source-rechecks-and-diagnostics",
+  "measurement": "minified UTF-8 tool schemas plus tool request parameters and complete tool results",
+  "discovery": "known-name-describe",
+  "instructionsMeasurement": "Separate minified initialization instructions field, included only in totalWithInstructions fields",
+  "tokenizer": "o200k_base",
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "exclusions": [
+    "JSON-RPC framing and other initialization fields",
+    "host-native tool search and schema caching",
+    "model billing and cumulative conversation replay",
+    "SAP network traffic and latency",
+    "write approval interactions",
+    "prompt/resource lists and prompt bodies (not requested in this workflow)"
+  ],
+  "runs": [
+    {
+      "mode": "full",
+      "conditional": false,
+      "unchangedReads": 1,
+      "toolCount": 120,
+      "schemaBytes": 177006,
+      "requestBytes": 555,
+      "responseBytes": 65841,
+      "totalBytes": 243402,
+      "initializationInstructions": {
+        "bytes": 299,
+        "tokens": 53
+      },
+      "totalWithInstructionsBytes": 243701,
+      "schemaTokens": 44109,
+      "totalTokens": 62523,
+      "totalWithInstructionsTokens": 62576,
+      "clientToolCalls": 5,
+      "serviceCalls": {
+        "source": 3,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "components",
+          "requestBytes": 135,
+          "responseBytes": 628,
+          "requestTokens": 37,
+          "responseTokens": 181
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 100,
+          "responseBytes": 21587,
+          "requestTokens": 28,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 120,
+          "responseBytes": 480,
+          "requestTokens": 35,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "full",
+      "conditional": true,
+      "unchangedReads": 1,
+      "toolCount": 120,
+      "schemaBytes": 177006,
+      "requestBytes": 717,
+      "responseBytes": 45242,
+      "totalBytes": 222965,
+      "initializationInstructions": {
+        "bytes": 299,
+        "tokens": 53
+      },
+      "totalWithInstructionsBytes": 223264,
+      "schemaTokens": 44109,
+      "totalTokens": 56942,
+      "totalWithInstructionsTokens": 56995,
+      "clientToolCalls": 5,
+      "serviceCalls": {
+        "source": 3,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "components",
+          "requestBytes": 135,
+          "responseBytes": 628,
+          "requestTokens": 37,
+          "responseTokens": 181
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 181,
+          "responseBytes": 21587,
+          "requestTokens": 67,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 120,
+          "responseBytes": 480,
+          "requestTokens": 35,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "full",
+      "conditional": false,
+      "unchangedReads": 20,
+      "toolCount": 120,
+      "schemaBytes": 177006,
+      "requestBytes": 2455,
+      "responseBytes": 475728,
+      "totalBytes": 655189,
+      "initializationInstructions": {
+        "bytes": 299,
+        "tokens": 53
+      },
+      "totalWithInstructionsBytes": 655488,
+      "schemaTokens": 44109,
+      "totalTokens": 176599,
+      "totalWithInstructionsTokens": 176652,
+      "clientToolCalls": 24,
+      "serviceCalls": {
+        "source": 22,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "components",
+          "requestBytes": 135,
+          "responseBytes": 628,
+          "requestTokens": 37,
+          "responseTokens": 181
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 100,
+          "responseBytes": 21587,
+          "requestTokens": 28,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 120,
+          "responseBytes": 480,
+          "requestTokens": 35,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "full",
+      "conditional": true,
+      "unchangedReads": 20,
+      "toolCount": 120,
+      "schemaBytes": 177006,
+      "requestBytes": 4156,
+      "responseBytes": 63748,
+      "totalBytes": 244910,
+      "initializationInstructions": {
+        "bytes": 299,
+        "tokens": 53
+      },
+      "totalWithInstructionsBytes": 245209,
+      "schemaTokens": 44109,
+      "totalTokens": 64238,
+      "totalWithInstructionsTokens": 64291,
+      "clientToolCalls": 24,
+      "serviceCalls": {
+        "source": 22,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "components",
+          "requestBytes": 135,
+          "responseBytes": 628,
+          "requestTokens": 37,
+          "responseTokens": 181
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 181,
+          "responseBytes": 21587,
+          "requestTokens": 67,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 120,
+          "responseBytes": 480,
+          "requestTokens": 35,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "adaptive",
+      "conditional": false,
+      "unchangedReads": 1,
+      "toolCount": 17,
+      "schemaBytes": 26821,
+      "requestBytes": 766,
+      "responseBytes": 71061,
+      "totalBytes": 98648,
+      "initializationInstructions": {
+        "bytes": 385,
+        "tokens": 75
+      },
+      "totalWithInstructionsBytes": 99033,
+      "schemaTokens": 6583,
+      "totalTokens": 26293,
+      "totalWithInstructionsTokens": 26368,
+      "clientToolCalls": 6,
+      "serviceCalls": {
+        "source": 3,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 81,
+          "responseBytes": 5220,
+          "requestTokens": 16,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 265,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 100,
+          "responseBytes": 21587,
+          "requestTokens": 28,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 120,
+          "responseBytes": 480,
+          "requestTokens": 35,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "adaptive",
+      "conditional": true,
+      "unchangedReads": 1,
+      "toolCount": 17,
+      "schemaBytes": 26821,
+      "requestBytes": 928,
+      "responseBytes": 50462,
+      "totalBytes": 78211,
+      "initializationInstructions": {
+        "bytes": 385,
+        "tokens": 75
+      },
+      "totalWithInstructionsBytes": 78596,
+      "schemaTokens": 6583,
+      "totalTokens": 20712,
+      "totalWithInstructionsTokens": 20787,
+      "clientToolCalls": 6,
+      "serviceCalls": {
+        "source": 3,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 81,
+          "responseBytes": 5220,
+          "requestTokens": 16,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 265,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 181,
+          "responseBytes": 21587,
+          "requestTokens": 67,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 120,
+          "responseBytes": 480,
+          "requestTokens": 35,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "adaptive",
+      "conditional": false,
+      "unchangedReads": 20,
+      "toolCount": 17,
+      "schemaBytes": 26821,
+      "requestBytes": 2666,
+      "responseBytes": 480948,
+      "totalBytes": 510435,
+      "initializationInstructions": {
+        "bytes": 385,
+        "tokens": 75
+      },
+      "totalWithInstructionsBytes": 510820,
+      "schemaTokens": 6583,
+      "totalTokens": 140369,
+      "totalWithInstructionsTokens": 140444,
+      "clientToolCalls": 25,
+      "serviceCalls": {
+        "source": 22,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 81,
+          "responseBytes": 5220,
+          "requestTokens": 16,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 265,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 100,
+          "responseBytes": 21587,
+          "requestTokens": 28,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 120,
+          "responseBytes": 480,
+          "requestTokens": 35,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "adaptive",
+      "conditional": true,
+      "unchangedReads": 20,
+      "toolCount": 17,
+      "schemaBytes": 26821,
+      "requestBytes": 4367,
+      "responseBytes": 68968,
+      "totalBytes": 100156,
+      "initializationInstructions": {
+        "bytes": 385,
+        "tokens": 75
+      },
+      "totalWithInstructionsBytes": 100541,
+      "schemaTokens": 6583,
+      "totalTokens": 28008,
+      "totalWithInstructionsTokens": 28083,
+      "clientToolCalls": 25,
+      "serviceCalls": {
+        "source": 22,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 81,
+          "responseBytes": 5220,
+          "requestTokens": 16,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 265,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 100,
+          "responseBytes": 21573,
+          "requestTokens": 28,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 181,
+          "responseBytes": 974,
+          "requestTokens": 67,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 181,
+          "responseBytes": 21587,
+          "requestTokens": 67,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 120,
+          "responseBytes": 480,
+          "requestTokens": 35,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "minimal",
+      "conditional": false,
+      "unchangedReads": 1,
+      "toolCount": 5,
+      "schemaBytes": 3782,
+      "requestBytes": 1436,
+      "responseBytes": 76447,
+      "totalBytes": 81665,
+      "initializationInstructions": {
+        "bytes": 385,
+        "tokens": 75
+      },
+      "totalWithInstructionsBytes": 82050,
+      "schemaTokens": 883,
+      "totalTokens": 22367,
+      "totalWithInstructionsTokens": 22442,
+      "clientToolCalls": 8,
+      "serviceCalls": {
+        "source": 3,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 81,
+          "responseBytes": 5220,
+          "requestTokens": 16,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 265,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "describe-sap.source.read",
+          "requestBytes": 73,
+          "responseBytes": 3326,
+          "requestTokens": 16,
+          "responseTokens": 969
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 230,
+          "responseBytes": 21587,
+          "requestTokens": 80,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "describe-sap.source.diagnose",
+          "requestBytes": 77,
+          "responseBytes": 2060,
+          "requestTokens": 18,
+          "responseTokens": 563
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 250,
+          "responseBytes": 480,
+          "requestTokens": 87,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "minimal",
+      "conditional": true,
+      "unchangedReads": 1,
+      "toolCount": 5,
+      "schemaBytes": 3782,
+      "requestBytes": 1598,
+      "responseBytes": 55848,
+      "totalBytes": 61228,
+      "initializationInstructions": {
+        "bytes": 385,
+        "tokens": 75
+      },
+      "totalWithInstructionsBytes": 61613,
+      "schemaTokens": 883,
+      "totalTokens": 16788,
+      "totalWithInstructionsTokens": 16863,
+      "clientToolCalls": 8,
+      "serviceCalls": {
+        "source": 3,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 81,
+          "responseBytes": 5220,
+          "requestTokens": 16,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 265,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "describe-sap.source.read",
+          "requestBytes": 73,
+          "responseBytes": 3326,
+          "requestTokens": 16,
+          "responseTokens": 969
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 311,
+          "responseBytes": 21587,
+          "requestTokens": 120,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "describe-sap.source.diagnose",
+          "requestBytes": 77,
+          "responseBytes": 2060,
+          "requestTokens": 18,
+          "responseTokens": 563
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 250,
+          "responseBytes": 480,
+          "requestTokens": 87,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "minimal",
+      "conditional": false,
+      "unchangedReads": 20,
+      "toolCount": 5,
+      "schemaBytes": 3782,
+      "requestBytes": 5806,
+      "responseBytes": 486334,
+      "totalBytes": 495922,
+      "initializationInstructions": {
+        "bytes": 385,
+        "tokens": 75
+      },
+      "totalWithInstructionsBytes": 496307,
+      "schemaTokens": 883,
+      "totalTokens": 137431,
+      "totalWithInstructionsTokens": 137506,
+      "clientToolCalls": 27,
+      "serviceCalls": {
+        "source": 22,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 81,
+          "responseBytes": 5220,
+          "requestTokens": 16,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 265,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "describe-sap.source.read",
+          "requestBytes": 73,
+          "responseBytes": 3326,
+          "requestTokens": 16,
+          "responseTokens": 969
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 230,
+          "responseBytes": 21587,
+          "requestTokens": 80,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "describe-sap.source.diagnose",
+          "requestBytes": 77,
+          "responseBytes": 2060,
+          "requestTokens": 18,
+          "responseTokens": 563
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 250,
+          "responseBytes": 480,
+          "requestTokens": 87,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "minimal",
+      "conditional": true,
+      "unchangedReads": 20,
+      "toolCount": 5,
+      "schemaBytes": 3782,
+      "requestBytes": 7507,
+      "responseBytes": 74354,
+      "totalBytes": 85643,
+      "initializationInstructions": {
+        "bytes": 385,
+        "tokens": 75
+      },
+      "totalWithInstructionsBytes": 86028,
+      "schemaTokens": 883,
+      "totalTokens": 25091,
+      "totalWithInstructionsTokens": 25166,
+      "clientToolCalls": 27,
+      "serviceCalls": {
+        "source": 22,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 81,
+          "responseBytes": 5220,
+          "requestTokens": 16,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 265,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "describe-sap.source.read",
+          "requestBytes": 73,
+          "responseBytes": 3326,
+          "requestTokens": 16,
+          "responseTokens": 969
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 230,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 311,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 311,
+          "responseBytes": 21587,
+          "requestTokens": 120,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "describe-sap.source.diagnose",
+          "requestBytes": 77,
+          "responseBytes": 2060,
+          "requestTokens": 18,
+          "responseTokens": 563
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 250,
+          "responseBytes": 480,
+          "requestTokens": 87,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "single",
+      "conditional": false,
+      "unchangedReads": 1,
+      "toolCount": 1,
+      "schemaBytes": 846,
+      "requestBytes": 1427,
+      "responseBytes": 76447,
+      "totalBytes": 78720,
+      "initializationInstructions": {
+        "bytes": 268,
+        "tokens": 55
+      },
+      "totalWithInstructionsBytes": 78988,
+      "schemaTokens": 209,
+      "totalTokens": 21705,
+      "totalWithInstructionsTokens": 21760,
+      "clientToolCalls": 8,
+      "serviceCalls": {
+        "source": 3,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 93,
+          "responseBytes": 5220,
+          "requestTokens": 20,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 256,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "describe-sap.source.read",
+          "requestBytes": 85,
+          "responseBytes": 3326,
+          "requestTokens": 20,
+          "responseTokens": 969
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 221,
+          "responseBytes": 21587,
+          "requestTokens": 80,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "describe-sap.source.diagnose",
+          "requestBytes": 89,
+          "responseBytes": 2060,
+          "requestTokens": 22,
+          "responseTokens": 563
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 241,
+          "responseBytes": 480,
+          "requestTokens": 87,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "single",
+      "conditional": true,
+      "unchangedReads": 1,
+      "toolCount": 1,
+      "schemaBytes": 846,
+      "requestBytes": 1589,
+      "responseBytes": 55848,
+      "totalBytes": 58283,
+      "initializationInstructions": {
+        "bytes": 268,
+        "tokens": 55
+      },
+      "totalWithInstructionsBytes": 58551,
+      "schemaTokens": 209,
+      "totalTokens": 16126,
+      "totalWithInstructionsTokens": 16181,
+      "clientToolCalls": 8,
+      "serviceCalls": {
+        "source": 3,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 93,
+          "responseBytes": 5220,
+          "requestTokens": 20,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 256,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "describe-sap.source.read",
+          "requestBytes": 85,
+          "responseBytes": 3326,
+          "requestTokens": 20,
+          "responseTokens": 969
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 302,
+          "responseBytes": 21587,
+          "requestTokens": 120,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "describe-sap.source.diagnose",
+          "requestBytes": 89,
+          "responseBytes": 2060,
+          "requestTokens": 22,
+          "responseTokens": 563
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 241,
+          "responseBytes": 480,
+          "requestTokens": 87,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "single",
+      "conditional": false,
+      "unchangedReads": 20,
+      "toolCount": 1,
+      "schemaBytes": 846,
+      "requestBytes": 5626,
+      "responseBytes": 486334,
+      "totalBytes": 492806,
+      "initializationInstructions": {
+        "bytes": 268,
+        "tokens": 55
+      },
+      "totalWithInstructionsBytes": 493074,
+      "schemaTokens": 209,
+      "totalTokens": 136769,
+      "totalWithInstructionsTokens": 136824,
+      "clientToolCalls": 27,
+      "serviceCalls": {
+        "source": 22,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 93,
+          "responseBytes": 5220,
+          "requestTokens": 20,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 256,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "describe-sap.source.read",
+          "requestBytes": 85,
+          "responseBytes": 3326,
+          "requestTokens": 20,
+          "responseTokens": 969
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 221,
+          "responseBytes": 21587,
+          "requestTokens": 80,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "describe-sap.source.diagnose",
+          "requestBytes": 89,
+          "responseBytes": 2060,
+          "requestTokens": 22,
+          "responseTokens": 563
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 241,
+          "responseBytes": 480,
+          "requestTokens": 87,
+          "responseTokens": 141
+        }
+      ]
+    },
+    {
+      "mode": "single",
+      "conditional": true,
+      "unchangedReads": 20,
+      "toolCount": 1,
+      "schemaBytes": 846,
+      "requestBytes": 7327,
+      "responseBytes": 74354,
+      "totalBytes": 82527,
+      "initializationInstructions": {
+        "bytes": 268,
+        "tokens": 55
+      },
+      "totalWithInstructionsBytes": 82795,
+      "schemaTokens": 209,
+      "totalTokens": 24429,
+      "totalWithInstructionsTokens": 24484,
+      "clientToolCalls": 27,
+      "serviceCalls": {
+        "source": 22,
+        "components": 1,
+        "diagnostics": 1
+      },
+      "stages": [
+        {
+          "stage": "describe-sap.semantic.components",
+          "requestBytes": 93,
+          "responseBytes": 5220,
+          "requestTokens": 20,
+          "responseTokens": 1227
+        },
+        {
+          "stage": "components",
+          "requestBytes": 256,
+          "responseBytes": 628,
+          "requestTokens": 90,
+          "responseTokens": 181
+        },
+        {
+          "stage": "describe-sap.source.read",
+          "requestBytes": 85,
+          "responseBytes": 3326,
+          "requestTokens": 20,
+          "responseTokens": 969
+        },
+        {
+          "stage": "source-first",
+          "requestBytes": 221,
+          "responseBytes": 21573,
+          "requestTokens": 80,
+          "responseTokens": 5976
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-unchanged",
+          "requestBytes": 302,
+          "responseBytes": 974,
+          "requestTokens": 120,
+          "responseTokens": 317
+        },
+        {
+          "stage": "source-changed",
+          "requestBytes": 302,
+          "responseBytes": 21587,
+          "requestTokens": 120,
+          "responseTokens": 5984
+        },
+        {
+          "stage": "describe-sap.source.diagnose",
+          "requestBytes": 89,
+          "responseBytes": 2060,
+          "requestTokens": 22,
+          "responseTokens": 563
+        },
+        {
+          "stage": "diagnose",
+          "requestBytes": 241,
+          "responseBytes": 480,
+          "requestTokens": 87,
+          "responseTokens": 141
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+✖ oversized HTTP JSON-RPC batches are rejected before any SAP-facing tool executes (67.53475ms)
+ℹ {"httpStatus":200,"batchMessages":101,"toolServiceReads":101}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 620.111041
+
+✖ failing tests:
+
+test at dist/test/http-server.test.js:547:1
+✖ oversized HTTP JSON-RPC batches are rejected before any SAP-facing tool executes (67.53475ms)
+  AssertionError [ERR_ASSERTION]: One HTTP request must not fan out an oversized tool batch
+  
+  200 !== 400
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/http-server.test.js:577:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

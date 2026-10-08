@@ -1,0 +1,4 @@
+{
+  "code": "ONBOARD_STDIO_REQUIRED",
+  "message": "--onboard-if-empty is available only for app-managed local stdio servers"
+}

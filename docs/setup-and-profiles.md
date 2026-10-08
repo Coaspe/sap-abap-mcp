@@ -4,18 +4,139 @@ This guide covers local SAP connection profiles used by the npm package,
 repository plugins, and local MCP registry installs. Profiles are independent
 of a particular MCP client and remain on the user's machine.
 
-The `npx ...@latest` examples run the published npm version (1.6.0 at the
-2026-09-08 audit). To exercise this checkout's changes, first build and replace
+The `npx ...@latest` examples run the published npm version (1.7.1 at the
+2026-10-01 audit). To exercise this checkout's unreleased changes, first build and replace
 that command prefix with `node /absolute/path/to/sap-abap-mcp/dist/src/index.js`.
 See [source reconciliation](reconciliation-1.7.0-beta.1.md) before
 treating published behavior as local behavior.
 
-Interactive `setup` creates and edits Basic Auth profiles. OAuth and bearer
-passthrough profiles use the explicit `profile add` commands below.
+Interactive `setup` creates and edits Basic Auth profiles. OAuth profiles use
+the explicit commands below; Destination profiles use the BTP guide.
+
+The unreleased browser `onboard` flow supports Basic Auth, BTP ABAP service-key
+import, OAuth client credentials and browser OAuth Authorization Code with PKCE.
+The screen supports English and Korean. The browser's first preferred language
+selects Korean for `ko` and English for other language tags; clients without a
+language preference retain Korean. Use the header language link before entering
+credentials, or append `&lang=en` / `&lang=ko` to the printed URL. Switching reloads
+the page; saved profiles remain available, while unsaved form input is discarded.
+Screen language does not change the profile's SAP language.
+
+Choose the authentication mode before entering credentials. Service-key import
+derives the SAP URL, client 100 and OAuth settings. Browser OAuth requires a
+registered native client accepting a random-port loopback callback; it does not
+guarantee compatibility with every corporate SAML/Kerberos SSO configuration.
+Certificate-only service keys remain unsupported. BTP Destination profiles use
+the authenticated HTTP setup rather than local secrets. Legacy direct bearer
+passthrough is refused in this checkout; see the migration section below.
+
+The flow validates authentication and an ADT system read before protected storage.
+It preserves the stored package/data-query/bridge policy when renewing the same
+authentication type; a different auth type requires a new connection name.
+Cancel interrupts browser login and prevents persistence while SAP validation is
+still pending; it does not roll back a save that has already started. A failed
+login leaves the original profile and credential intact. Stored OAuth profiles
+can be edited and renewed in the wizard without revealing their protected secrets.
+Only macOS Keychain and Windows DPAPI support browser credential persistence.
+
+In this checkout, returning from connection review immediately shows the profile
+you just saved. Use **Verify connection** to reuse its saved credential, or
+**Edit settings and authentication** to change it. Step changes move keyboard
+focus to the new heading; the next Tab reaches that step's controls. This does
+not add a second registration or automatically weaken the connection's scope.
+
+It offers recovery guidance after setup failures and a copyable first
+system-query prompt after registration. The query verifies SAP access from the
+MCP host; it does not edit source or read business data. A configured client and
+an authenticated SAP session are separate checks. Company SSO-only users should
+use the supported advanced authentication flow rather than guess a password.
+
+## Access scope in this checkout
+
+The unreleased browser wizard starts new profiles with **read-only** access.
+No development package is required for the first system or source query. The
+Access scope selector can instead enable changes in selected packages (a
+non-empty allowlist is required) or explicitly in all packages. Production
+profiles always remain read-only. Renewing credentials preserves the saved
+policy unless the user explicitly chooses a different scope.
+
+Read-only access blocks SAP object/transport changes, debugger controls, ABAP
+applications and ABAP Unit execution. Source inspection, repository queries and
+static diagnostics/ATC remain subject to SAP permissions. Direct table SQL has
+its separate `allowDataQueries` opt-in; read-only scope does not enable it.
+Package restrictions apply to existing package-aware write paths; they are not
+an execution sandbox for an entire ABAP program or transport.
+
+Use the **built checkout's** CLI for the new flags:
+
+```bash
+node /absolute/path/to/sap-abap-mcp/dist/src/index.js profile add DEV100 \
+  --url https://sap.example.com --client 100 --username DEVELOPER --read-only
+```
+
+To explicitly enable the existing guarded write paths, repeat the same profile
+command with `--allow-writes --packages ZMCP`. Using both access flags is an
+error. Without either flag, an existing explicit read-only/write policy and its
+package list are preserved. A newly created manual CLI or terminal profile
+retains the legacy behavior; only new browser profiles default to read-only.
+Terminal `setup edit` also preserves an existing explicit policy.
+
+Profiles with an explicit `readOnly` value use file **format 2**, including
+explicit write-enabled profiles. Older runtimes reject this file with
+`PROFILE_FILE_INVALID`; do not change its version field to bypass the check.
+Before using such a profile, build/start the current checkout (or the release
+containing this change). A fresh wizard registration uses the Node executable
+and server file running the wizard. Existing registrations are preserved and
+may still point at an older runtime: inspect their command and update it through
+the client's normal configuration flow before the first query.
+
+`sap.system.list` includes `readOnly: true` for restricted systems. Cached
+connections receive policy changes on their next acquisition without another
+SAP login. An operation already admitted is not cancelled or rolled back by
+changing the profile; finish it before narrowing scope.
+
+## Existing registration checks
+
+In this unreleased checkout, Step 3 compares the selected profile against an
+existing `sap-abap` registration. Codex uses `mcp get --json`; Claude uses the
+displayed fields from `mcp get`. The comparison checks the Node/server paths,
+v1/stdio mode, selected profile (or an unfiltered current server), explicit
+`SAP_ABAP_MCP_HOME`, and enabled status. It preserves the existing tool preset
+and other startup/permission settings instead of rewriting them.
+
+Different settings show **Review registration** and the required runtime,
+profile and directory values. Review only the relevant fields through the
+client's normal MCP configuration flow, retain other arguments and permissions,
+then select **Check again**. The wizard does not remove a registration, add a
+duplicate server or overwrite custom settings. An unreadable/unsupported detail
+format, a missing explicit profile directory or an unresolved environment
+placeholder is **unknown**, not verified. Update/check the client's configuration
+until its details can be compared. Matching at least one usable client enables
+Finish; SAP authorization still requires the first real system query.
+
+This compares configuration fields, not the contents of another package, the
+identity of an already-running worker or a real SAP session. A registration using
+`npx`, a wrapper or another runtime can be valid but is not identified as this
+installation. Claude's human-readable output is less precise than Codex's JSON;
+unusual quoting/custom commands need manual review. Restart the client after
+changing its settings.
+
+The Claude registration command puts `sap-abap` before `--env` because that option
+accepts multiple values. This was reproduced with the real CLI; see
+[Claude's official stdio guide](https://code.claude.com/docs/en/mcp#option-3-add-a-local-stdio-server)
+and [Codex's official MCP guide](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+
+## Desktop bundle first setup
+
+The unpublished MCPB preview can start the browser wizard through Claude
+Desktop's built-in Node runtime when no profiles exist. That app manages the
+registration; the wizard does not require npm, Claude Code or Codex CLI and
+does not add another MCP server. See [desktop bundle setup](desktop-bundle-setup.md).
+The prerequisites below apply to the npm/CLI path.
 
 ## Prerequisites
 
-- Node.js 20 or later.
+- A maintained Node.js LTS release (currently 22 or 24; minimum compatible version: 20).
 - Network or VPN access to the SAP HTTPS endpoint.
 - A three-digit SAP client number.
 - ADT services enabled at `/sap/bc/adt`.
@@ -86,6 +207,15 @@ fields. The terminal review shows both values. Switching to `production` disable
 data queries before validation, as production opt-in is forbidden. Onboarding
 restores the writable-package field when editing a saved profile; a network
 verification failure leaves it saved and does not force password replacement.
+
+In this unreleased checkout, the next acquisition of a cached direct or HTTP
+Destination connection detects saved SAP URL/client, language, classic bridge
+and authentication-setting changes and opens the updated connection after
+logging out the old one. Access-policy-only edits reuse the existing session.
+Replacing a stored secret alone still requires credential renewal or an explicit
+disconnect; the app-managed credential-save flow already disconnects that
+profile. Other profiles stay connected. This behavior has local fixture evidence,
+not live SAP acceptance.
 
 After successful SAP verification, protected-store setup writes the credential
 before publishing the profile. A credential-write error leaves the profile
@@ -183,18 +313,19 @@ keys are rejected with `SERVICE_KEY_CERTIFICATE_UNSUPPORTED`.
 
 ## Request-scoped bearer passthrough
 
-For a governed HTTP deployment whose OIDC token is already accepted by SAP:
+Unreleased compatibility change: direct forwarding of an MCP client's token as
+SAP authorization is refused with `TOKEN_PASSTHROUGH_REFUSED`. Existing
+`bearer_passthrough` profile files remain readable but cannot connect; `auth
+status` reports `credentialAvailable: false` and `unsupported_passthrough`.
+Creating this mode with `profile add` or logging in with `auth login` is refused.
+No saved profile is deleted or automatically converted.
 
-```bash
-npx @coaspe/sap-abap-mcp@latest profile add DEV100_SSO \
-  --url https://sap.example.com --client 100 \
-  --auth-type bearer-passthrough
-```
-
-Only OIDC-authenticated HTTP sessions may use this profile. Static API keys do
-not receive bearer passthrough. The token stays request-scoped and is never put
-in the shared SAP connection cache. The server does not perform BTP user-token
-exchange.
+Configure Basic or OAuth SAP credentials independently of the MCP HTTP token,
+or ask the administrator to configure a
+[BTP Destination exchange/propagation profile](btp-destination-integration.md).
+The latter requires actual BTP trust, bindings and SAP permission verification;
+changing the profile's authentication type alone does not establish them.
+This is local checkout behavior; the npm release has not been updated.
 
 ## Data-query permission
 
@@ -288,7 +419,7 @@ npx @coaspe/sap-abap-mcp@latest abapgit auth logout DEV100 \
 
 | Problem | Check |
 |---|---|
-| `node` is not found | Install Node.js 20 or later and reopen the terminal. |
+| `node` is not found | Install the latest maintained Node.js LTS release and reopen the terminal. |
 | npm cannot download the package | Check internet access, proxy configuration, and npm registry policy. |
 | `PROFILE_NOT_FOUND` | Run `profile list` and verify the exact Server name. |
 | SAP login fails | Verify URL, client, credentials, VPN, ADT activation, and SAP authorization; then run `doctor`. |
@@ -325,3 +456,45 @@ shared failure followed by recovery when a replacement login fails. The full
 local suite passes 502 tests. This is lifecycle validation with fake SAP clients,
 not verification of a live BTP token exchange. No new tools, schemas or settings
 are introduced.
+
+
+## Voluntary first-setup check
+
+The unreleased checkout includes a bounded GitHub issue form at
+[`.github/ISSUE_TEMPLATE/compatibility-report.yml`](../.github/ISSUE_TEMPLATE/compatibility-report.yml).
+It is not available in the public issue chooser until a reviewed change is
+published. Submission is voluntary and public under the contributor's GitHub
+account; the form requests no SAP credentials, URLs, object names, code, logs or
+attachments. No background telemetry is added.
+
+Use a 30-minute session only with an approved development connection and the
+participant's consent. Keep the product build and success definitions fixed:
+
+1. Spend the first 5 minutes following the selected build's setup guidance without
+   maintainer help; keep the connection read-only. Record whether this is a first
+   MCP setup, a fresh SAP profile or an existing-profile repair.
+2. Allow up to 10 additional minutes for setup help if needed. Start the setup
+   timer at the first install/setup action, including client restart, and stop
+   when the client can see the intended MCP server. Record helped completion
+   separately and keep failed attempts.
+3. Spend up to 5 minutes running the existing `doctor` for the selected profile
+   locally. Classify failure broadly; do not copy its raw output into a public
+   report. An authorization denial is not proof of a product defect.
+4. Spend up to 5 minutes using the setup page's first-query prompt or a
+   participant-selected, non-sensitive development read. Record its outcome
+   separately from registration; do not invoke ABAP Unit, transport assessment,
+   writes or transport release as part of this setup check.
+5. Spend up to 5 minutes recording the bounded form fields, if the participant
+   permits public reporting. A later 30-day follow-up records actual repeat use
+   as yes/no/unobserved, not intended use; contact requires separate opt-in.
+
+Maintain the [local aggregate scorecard](competitive-first-user-evidence-2026-10-02/scorecard.json)
+manually after review. It starts with zero recorded participant outcomes and no
+median time. Separate each build, client and starting state when interpreting
+results. A contributor report does not automatically become a `live-sap`
+compatibility record or a public adopter entry; those require the existing
+live-evidence rules and separate exact-name/quote permission. Anonymous
+aggregation does not anonymize the original public GitHub issue.
+
+This prepares evidence collection. It does not establish novice setup success,
+a ready production deployment, measured token billing or independent adoption.

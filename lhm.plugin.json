@@ -166,7 +166,7 @@
     {
       "name": "sap.capability.describe",
       "title": "Describe SAP Capability",
-      "description": "Return the exact input schema and schema hash for one capability before invoking it.",
+      "description": "Get exact input schemas and hashes: name or names (up to 10).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -174,14 +174,20 @@
             "type": "string",
             "minLength": 1
           },
+          "names": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "includeOutputSchema": {
             "default": false,
             "type": "boolean"
           }
         },
-        "required": [
-          "name"
-        ],
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false
       },
@@ -198,7 +204,7 @@
     {
       "name": "sap.capability.invoke_destructive",
       "title": "Invoke Destructive SAP Capability",
-      "description": "Invoke a destructive capability after sap.capability.describe. The original tool validation and result are preserved.",
+      "description": "Invoke a destructive capability with its described schemaHash and arguments.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -245,7 +251,7 @@
     {
       "name": "sap.capability.invoke_read",
       "title": "Invoke Read SAP Capability",
-      "description": "Invoke a read capability after sap.capability.describe. The original tool validation and result are preserved.",
+      "description": "Invoke a read capability with its described schemaHash and arguments.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -292,7 +298,7 @@
     {
       "name": "sap.capability.invoke_write",
       "title": "Invoke Write SAP Capability",
-      "description": "Invoke a write capability after sap.capability.describe. The original tool validation and result are preserved.",
+      "description": "Invoke a write capability with its described schemaHash and arguments.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -339,7 +345,7 @@
     {
       "name": "sap.capability.search",
       "title": "Search SAP Capabilities",
-      "description": "Search or page through the complete SAP tool catalog. Use category browsing when keyword search misses.",
+      "description": "Find capabilities; browse categories if keyword search misses.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -387,5 +393,5 @@
       }
     }
   ],
-  "version": "1.7.1"
+  "version": "2.0.0"
 }

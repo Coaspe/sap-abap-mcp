@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ["20", "24"]
+        node: ["20", "22", "24"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -24,11 +24,25 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm run check
-      - name: Verify Node 20 protocol and discovery
+      - name: Verify minimum compatible Node 20 protocol and discovery
         if: matrix.node == '20'
         run: |
           node scripts/smoke-v1-stdio.mjs
           node scripts/benchmark-capability-discovery.mjs --tokens
+          npm run build:mcpb
+
+  windows-runtime:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm run build
+      - run: node --test dist/test/local-command.test.js dist/test/security-backports.test.js dist/test/token-efficiency.test.js
+      - run: node scripts/smoke-v1-stdio.mjs
 
   package:
     runs-on: ubuntu-latest
@@ -40,15 +54,18 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm run smoke:v1
-      - run: npm run conformance:v1
+      - run: npm run conformance:release
       - run: npm run benchmark:workflow -- --tokens
       - run: npm run benchmark:workflow -- --tokens --known-capabilities
       - run: npm run benchmark:contracts
       - run: npm run benchmark:tokens
       - run: npm run benchmark:batch
+      - run: npm run benchmark:conditional-batch -- --tokens
       - run: npm run benchmark:discovery -- --tokens
       - run: node scripts/sync-mcpb-tools.mjs --check
       - run: node scripts/sync-lobehub-manifest.mjs --check
+      - name: Verify standalone desktop bundle and first-run setup
+        run: npm run build:mcpb
       - name: Verify installed runtime package
         run: |
           package_dir="$(mktemp -d)"
@@ -58,9 +75,13 @@ jobs:
           npm install --prefix "$package_dir" --omit=dev --ignore-scripts --no-audit --no-fund "$package_dir/$package_file"
           cd "$package_dir/node_modules/@coaspe/sap-abap-mcp"
           node scripts/smoke-v1-stdio.mjs
-          node scripts/check-profile-conformance.mjs
+          node scripts/verify-security-backports.mjs
+          node scripts/check-profile-conformance.mjs --profile spec/sap-abap-mcp-release-profile-draft.json
           node scripts/benchmark-mcp-workflow.mjs
           node scripts/benchmark-capability-discovery.mjs
           node scripts/benchmark-public-contracts.mjs
+          node scripts/benchmark-conditional-batch.mjs
+      - run: npm run verify:backports
+      - run: npm run audit:backports
       - run: npm audit --omit=dev
       - run: npm audit signatures

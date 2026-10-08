@@ -1,0 +1,179 @@
+✔ sap.quality.unit_test full viewer enforces execution risk before the service callback (70.019292ms)
+ℹ {"mode":"full","role":"viewer","executions":0,"advertised":false}
+✔ sap.quality.unit_test full developer enforces execution risk before the service callback (56.375ms)
+✔ sap.quality.unit_test minimal viewer enforces execution risk before the service callback (64.795959ms)
+ℹ {"mode":"minimal","role":"viewer","executions":0}
+✔ sap.quality.unit_test minimal developer enforces execution risk before the service callback (60.38625ms)
+ℹ {"mode":"minimal","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.quality.unit_test adaptive viewer enforces execution risk before the service callback (56.302625ms)
+ℹ {"mode":"adaptive","role":"viewer","executions":0}
+✔ sap.quality.unit_test adaptive developer enforces execution risk before the service callback (65.469916ms)
+ℹ {"mode":"adaptive","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.quality.unit_test single viewer enforces execution risk before the service callback (42.754ms)
+ℹ {"mode":"single","role":"viewer","executions":0}
+✔ sap.quality.unit_test single developer enforces execution risk before the service callback (50.170791ms)
+ℹ {"mode":"single","role":"developer","executions":0,"advertisedRisk":"write"}
+✖ sap.transport.assess full viewer enforces execution risk before the service callback (34.392417ms)
+ℹ {"mode":"full","role":"viewer","executions":1,"advertised":true}
+✖ sap.transport.assess full developer enforces execution risk before the service callback (39.91825ms)
+✖ sap.transport.assess minimal viewer enforces execution risk before the service callback (44.710584ms)
+ℹ {"mode":"minimal","role":"viewer","executions":1,"advertisedRisk":"read"}
+✖ sap.transport.assess minimal developer enforces execution risk before the service callback (52.445083ms)
+ℹ {"mode":"minimal","role":"developer","executions":1,"advertisedRisk":"read"}
+✖ sap.transport.assess adaptive viewer enforces execution risk before the service callback (55.207167ms)
+ℹ {"mode":"adaptive","role":"viewer","executions":1,"advertisedRisk":"read"}
+✖ sap.transport.assess adaptive developer enforces execution risk before the service callback (65.849833ms)
+ℹ {"mode":"adaptive","role":"developer","executions":1,"advertisedRisk":"read"}
+✖ sap.transport.assess single viewer enforces execution risk before the service callback (40.760208ms)
+ℹ {"mode":"single","role":"viewer","executions":1,"advertisedRisk":"read"}
+✖ sap.transport.assess single developer enforces execution risk before the service callback (50.428334ms)
+ℹ {"mode":"single","role":"developer","executions":1,"advertisedRisk":"read"}
+✔ legacy run_unit_tests viewer enforces execution risk before the service callback (6.205416ms)
+ℹ {"role":"viewer","executions":0,"advertised":false}
+✔ legacy run_unit_tests developer enforces execution risk before the service callback (6.746583ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 10
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1575.291875
+
+✖ failing tests:
+
+test at dist/test/unit-execution-policy.test.js:14:13
+✖ sap.transport.assess full viewer enforces execution risk before the service callback (34.392417ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:33:32)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:14:13
+✖ sap.transport.assess full developer enforces execution risk before the service callback (39.91825ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:37:32)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:14:13
+✖ sap.transport.assess minimal viewer enforces execution risk before the service callback (44.710584ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:54:24)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:14:13
+✖ sap.transport.assess minimal developer enforces execution risk before the service callback (52.445083ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:54:24)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:14:13
+✖ sap.transport.assess adaptive viewer enforces execution risk before the service callback (55.207167ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:54:24)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:14:13
+✖ sap.transport.assess adaptive developer enforces execution risk before the service callback (65.849833ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:54:24)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:14:13
+✖ sap.transport.assess single viewer enforces execution risk before the service callback (40.760208ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:54:24)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:14:13
+✖ sap.transport.assess single developer enforces execution risk before the service callback (50.428334ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:54:24)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

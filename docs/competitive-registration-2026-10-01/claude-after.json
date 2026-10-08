@@ -1,0 +1,65 @@
+{
+  "passed": true,
+  "client": {
+    "id": "claude",
+    "label": "Claude Code",
+    "installed": true,
+    "configured": true,
+    "mcpConnectionStatus": "connected",
+    "registration": {
+      "state": "matches",
+      "differences": [],
+      "expected": {
+        "command": "/Users/coaspe/.nvm/versions/node/v24.11.1/bin/node",
+        "serverFile": "/private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-mcp-quality-check-fbfummtf/dist/src/index.js",
+        "profileId": "DEV100",
+        "profileHome": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-claude-cli-DtVRVW/profiles"
+      }
+    },
+    "installUrl": "https://code.claude.com/docs/en/setup",
+    "version": "2.1.286 (Claude Code)"
+  },
+  "commands": [
+    [
+      "--version"
+    ],
+    [
+      "mcp",
+      "list"
+    ],
+    [
+      "mcp",
+      "add",
+      "--transport",
+      "stdio",
+      "--scope",
+      "user",
+      "sap-abap",
+      "--env",
+      "SAP_ABAP_MCP_HOME=/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-claude-cli-DtVRVW/profiles",
+      "--",
+      "/Users/coaspe/.nvm/versions/node/v24.11.1/bin/node",
+      "/private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-mcp-quality-check-fbfummtf/dist/src/index.js",
+      "serve",
+      "--profile",
+      "DEV100",
+      "--preset",
+      "minimal"
+    ],
+    [
+      "--version"
+    ],
+    [
+      "mcp",
+      "list"
+    ],
+    [
+      "mcp",
+      "get",
+      "sap-abap"
+    ]
+  ],
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "userConfigurationChanged": false
+}

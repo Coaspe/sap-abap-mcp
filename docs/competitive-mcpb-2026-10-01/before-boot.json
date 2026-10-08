@@ -1,0 +1,8 @@
+{
+  "expectedStartupFailure": true,
+  "message": "MCP error -32000: Connection closed",
+  "stderr": "node:fs:440\n    return binding.readFileUtf8(path, stringToFlags(options.flag));\n                   ^\n\nError: ENOENT: no such file or directory, open '/private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/package.json'\n    at readFileSync (node:fs:440:20)\n    at file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-mcpb-clean-mh3mstzz/server/index.mjs:5702:32936\n    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:671:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {\n  errno: -2,\n  code: 'ENOENT',\n  syscall: 'open',\n  path: '/private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/package.json'\n}\n\nNode.js v24.11.1\n",
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "archive": "/tmp/sap-mcpb-before-2026-10-01.mcpb"
+}

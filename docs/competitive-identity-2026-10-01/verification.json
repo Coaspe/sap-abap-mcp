@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-01",
+  "stage": "oidc-signatures-and-request-scoped-connection-recovery",
+  "baselineTests": 590,
+  "finalTests": 605,
+  "failedTests": 0,
+  "targetedTests": 37,
+  "sourceSnapshotMatchesVerifiedMirror": true,
+  "sourceFiles": [
+    {
+      "path": "src/connection-manager.ts",
+      "sha256": "1f5cdab1289cc5e663d436f4c8ad64c6a9edba9811ac5f88ace27fc9cac83b8d"
+    },
+    {
+      "path": "src/index.ts",
+      "sha256": "ab043d6a9f747aa4dafb86d1a13e0ebd615b1c3cf6cb6a3d8ca2f8d51c9cc79e"
+    },
+    {
+      "path": "src/mcp-server.ts",
+      "sha256": "d647167b4c93ece4d3375b366b5c97ca7512da4cccd64df16a1274fcc6945ec1"
+    },
+    {
+      "path": "src/mcp/v1/adaptive-tools.ts",
+      "sha256": "cccc7700058fceb3f9a3f26a1702c86ba5901b98340c52f4bd83c3e2342eeffd"
+    },
+    {
+      "path": "src/mcp/v1/contracts.ts",
+      "sha256": "14bc0eafad05fa5aac0c1275503c4bd9d6eae1074a747a1c7bb734f63d9b82b7"
+    },
+    {
+      "path": "src/mcp/v1/result.ts",
+      "sha256": "9c27ab8ae3b97200a6cf0a22e34ec991edd1f5ead50342309be3e8438708707d"
+    },
+    {
+      "path": "src/oauth-authorization-code.ts",
+      "sha256": "6139279892bc5d08ac26d5070951f82a3913ac27193e0b045323afc670ac775b"
+    },
+    {
+      "path": "src/onboard.ts",
+      "sha256": "80d49be3acfcb98f49fa0700a8d73848d477f80a7647a57d90943c28b0b05859"
+    },
+    {
+      "path": "src/onboard-page.ts",
+      "sha256": "52e4204e39988e8e196b013fb5c4e2f695c5bce41bfb1a65ff4d0d2d87dd2073"
+    },
+    {
+      "path": "src/mcp/progress-instrumentation.ts",
+      "sha256": "47771adb49066b64261530cf8f0cad223f3534ad7216fcfe00b2da21f38f6efc"
+    },
+    {
+      "path": "test/connection-manager-oauth.test.ts",
+      "sha256": "69817a82c3f5b4e898deb1f369f078c43242b6307a83ab3748d424808aa85d60"
+    },
+    {
+      "path": "test/oauth-authorization-code.test.ts",
+      "sha256": "e4abed54a76162d4c215e80fc0aa20631ae4fae1bd050347fbaf71d917d59300"
+    },
+    {
+      "path": "test/onboard.test.ts",
+      "sha256": "7ceff3ba47116828522332557113b0c5c70c3dcc56c4473c2765d9f754a40a19"
+    },
+    {
+      "path": "test/v1-adaptive.test.ts",
+      "sha256": "e9bdfcbc6e61ce53e548da2ab15550b058b000d3a03965f4fe344699724f76aa"
+    },
+    {
+      "path": "test/v1-result.test.ts",
+      "sha256": "7b40f986a44559c0ca2f988047c2ef475f70390954ac4d00c5e7528ebc6807e3"
+    },
+    {
+      "path": "test/progress-instrumentation.test.ts",
+      "sha256": "bb419afbfbdb1da7063b268adb6ececd56ff07c9fa456594af138ad9dca9aadf"
+    },
+    {
+      "path": "scripts/benchmark-mcp-workflow.mjs",
+      "sha256": "5d4fe9a49120a8491056e14b808ad268db5915ef170c223a7d8403a989836136"
+    },
+    {
+      "path": "mcpb/manifest.json",
+      "sha256": "c3684e50df0f8f4c3230f1b324e8175cba75f8de090fbf055ecd629a592ff840"
+    },
+    {
+      "path": "src/http/request-scoped-connections.ts",
+      "sha256": "78d3079f06cf490f41db7d1ab7a119716adc28edbc8d2cf133c1c556fb9051fa"
+    },
+    {
+      "path": "src/http/oidc.ts",
+      "sha256": "781311177068020d0dc750c1ee92be7d12866e522d9ba73257c42add1d8db335"
+    },
+    {
+      "path": "test/http-oidc.test.ts",
+      "sha256": "4a77ec4f58e3930ae114fbaa0bd806156850444a7efdca580a40e5126c6ab384"
+    },
+    {
+      "path": "test/destination-profile.test.ts",
+      "sha256": "2782df79f8fb345d927d02139c851a4102d09d641d90b68c3df746022475fd16"
+    },
+    {
+      "path": "package.json",
+      "sha256": "aed46cc7125cf88cbef8b41570b602582c77b971f68dfd3a31f72b7e3bd948a2"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "0cbc67719f461d0c5fe9bc3d627822ba9ebb1817c91d33d165c304a639147442"
+    }
+  ],
+  "installedVerifiedBuildFiles": 462,
+  "validationEnvironment": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-mcp-quality-check-fbfummtf",
+  "originalWorkspaceDirectFullTestRun": false,
+  "liveSapCalls": 0,
+  "published": false,
+  "changes": [
+    "Native JOSE EC and RSA-PSS signature verification with matching key type, curve and signing-key restrictions",
+    "Request-scoped bearer/Destination discovery no longer reads local passwords; availability reflects the calling scope",
+    "Failed request-scoped SAP login logs out its client before a later explicit retry"
+  ],
+  "unverified": [
+    "Concurrent full HTTP-to-SAP identity/cache isolation",
+    "BTP Destination/Cloud Connector in a live tenant",
+    "Real enterprise SSO",
+    "Cross-competitor identical-task outcomes"
+  ],
+  "newMcpTools": 0
+}

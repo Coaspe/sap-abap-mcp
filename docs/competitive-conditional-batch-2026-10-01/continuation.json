@@ -1,0 +1,167 @@
+{
+  "schemaVersion": "1.0",
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "measurement": "minified UTF-8 MCP payloads, adaptive server, synthetic SAP source; all continuation calls included",
+  "exclusions": [
+    "model tokenization and replay",
+    "JSON-RPC framing",
+    "SAP HTTP requests and latency"
+  ],
+  "runs": [
+    {
+      "scenario": "fits-one-batch",
+      "batched": false,
+      "schemaBytes": 26728,
+      "toolCalls": 5,
+      "sourceAdapterReads": 5,
+      "requestBytes": 555,
+      "responseBytes": 37385,
+      "payloadBytes": 37940,
+      "peakResponseBytes": 7477,
+      "stages": [
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 7477,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 7477,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 7477,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 7477,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 7477,
+          "status": "succeeded"
+        }
+      ]
+    },
+    {
+      "scenario": "fits-one-batch",
+      "batched": true,
+      "schemaBytes": 26728,
+      "toolCalls": 2,
+      "sourceAdapterReads": 5,
+      "requestBytes": 553,
+      "responseBytes": 39163,
+      "payloadBytes": 39716,
+      "peakResponseBytes": 36009,
+      "stages": [
+        {
+          "tool": "sap.capability.describe",
+          "requestBytes": 79,
+          "responseBytes": 3154,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.capability.invoke_read",
+          "requestBytes": 474,
+          "responseBytes": 36009,
+          "status": "succeeded"
+        }
+      ]
+    },
+    {
+      "scenario": "requires-continuation",
+      "batched": false,
+      "schemaBytes": 26728,
+      "toolCalls": 5,
+      "sourceAdapterReads": 5,
+      "requestBytes": 555,
+      "responseBytes": 417385,
+      "payloadBytes": 417940,
+      "peakResponseBytes": 83477,
+      "stages": [
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 83477,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 83477,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 83477,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 83477,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.source.read",
+          "requestBytes": 111,
+          "responseBytes": 83477,
+          "status": "succeeded"
+        }
+      ]
+    },
+    {
+      "scenario": "requires-continuation",
+      "batched": true,
+      "schemaBytes": 26728,
+      "toolCalls": 5,
+      "sourceAdapterReads": 11,
+      "requestBytes": 1551,
+      "responseBytes": 426570,
+      "payloadBytes": 428121,
+      "peakResponseBytes": 136040,
+      "stages": [
+        {
+          "tool": "sap.capability.describe",
+          "requestBytes": 79,
+          "responseBytes": 3154,
+          "status": "succeeded"
+        },
+        {
+          "tool": "sap.capability.invoke_read",
+          "requestBytes": 474,
+          "responseBytes": 136040,
+          "status": "partial"
+        },
+        {
+          "tool": "sap.capability.invoke_read",
+          "requestBytes": 421,
+          "responseBytes": 135591,
+          "status": "partial"
+        },
+        {
+          "tool": "sap.capability.invoke_read",
+          "requestBytes": 315,
+          "responseBytes": 133930,
+          "status": "partial"
+        },
+        {
+          "tool": "sap.capability.invoke_read",
+          "requestBytes": 262,
+          "responseBytes": 17855,
+          "status": "succeeded"
+        }
+      ]
+    }
+  ]
+}

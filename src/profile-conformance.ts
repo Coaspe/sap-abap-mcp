@@ -8,6 +8,11 @@ export interface McpProfile {
     capability: string
     readOnly: true
   }>
+  requiredExecutionTools?: Array<{
+    name: string
+    capability: string
+    readOnly: false
+  }>
   requiredResources: Array<{
     name: string
     purpose: string
@@ -24,7 +29,10 @@ export interface ProfileDiscovery {
     name: string
     version: string
   }
-  tools: Array<{ name: string }>
+  tools: Array<{
+    name: string
+    annotations?: { readOnlyHint?: boolean }
+  }>
   resources: Array<{ name: string }>
 }
 
@@ -46,7 +54,7 @@ export interface ProfileConformanceResult {
     missing: string[]
   }
   failures: Array<{
-    kind: "missing-tool" | "missing-resource"
+    kind: "missing-tool" | "missing-resource" | "read-only-tool-unverified" | "execution-tool-risk-unverified"
     name: string
   }>
   passed: boolean
@@ -70,7 +78,8 @@ export function evaluateProfile(
   profile: McpProfile,
   discovery: ProfileDiscovery
 ): ProfileConformanceResult {
-  const requiredTools = requirementNames(profile.requiredTools, "requiredTools")
+  const executionTools = profile.requiredExecutionTools ?? []
+  const requiredTools = requirementNames([...profile.requiredTools, ...executionTools], "requiredTools")
   const requiredResources = requirementNames(
     profile.requiredResources,
     "requiredResources"
@@ -83,9 +92,21 @@ export function evaluateProfile(
   const missingResources = requiredResources.filter(
     name => !discoveredResources.has(name)
   )
+  const unverifiedReadOnlyTools = profile.requiredTools.filter(requirement => {
+    const tool = discovery.tools.find(tool => tool.name === requirement.name)
+    return tool !== undefined && tool.annotations?.readOnlyHint !== true
+  })
   const failures: ProfileConformanceResult["failures"] = [
     ...missingTools.map(name => ({ kind: "missing-tool" as const, name })),
-    ...missingResources.map(name => ({ kind: "missing-resource" as const, name }))
+    ...missingResources.map(name => ({ kind: "missing-resource" as const, name })),
+    ...unverifiedReadOnlyTools.map(({ name }) => ({
+      kind: "read-only-tool-unverified" as const,
+      name
+    })),
+    ...executionTools.filter(requirement => {
+      const tool = discovery.tools.find(tool => tool.name === requirement.name)
+      return tool !== undefined && tool.annotations?.readOnlyHint !== false
+    }).map(({ name }) => ({ kind: "execution-tool-risk-unverified" as const, name }))
   ]
 
   return {

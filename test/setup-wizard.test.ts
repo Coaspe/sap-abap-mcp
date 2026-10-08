@@ -129,6 +129,20 @@ test("setup wizard creates and verifies a server using beginner-facing labels", 
   assert.match(prompter.output.join("\n"), /SAP data queries: Enabled \(all read-only SQL\)/)
 })
 
+test("setup edit preserves read-only policy while renewing credentials", async t => {
+  const { profiles, secrets } = await setupStores(t)
+  await profiles.upsert({ id: "DEV100", url: "https://sap.example.test", client: "100", username: "USER",
+    readOnly: true, allowedPackages: ["Z_LOCKED"] })
+  const prompter = new ScriptedPrompter(["", "", "", "", "development", "disabled", "", true, "new-secret"])
+  await runSetupWizard({ profiles, secrets, prompter, mode: "edit", serverName: "DEV100", platform: "darwin",
+    async validateCredentials(profile) { assert.equal(profile.readOnly, true) } })
+  assert.equal((await profiles.get("DEV100")).readOnly, true)
+  assert.deepEqual((await profiles.get("DEV100")).allowedPackages, ["Z_LOCKED"])
+  assert.equal(await secrets.get("DEV100"), "new-secret")
+  assert.match(prompter.output.join("\n"), /Access scope: Read only/)
+  assert.doesNotMatch(prompter.output.join("\n"), /Writable packages:/)
+})
+
 test("setup edit targets one server and keeps its name fixed", async t => {
   const { profiles, secrets } = await setupStores(t)
   await profiles.upsert({

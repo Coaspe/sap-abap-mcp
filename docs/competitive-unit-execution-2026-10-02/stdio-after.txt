@@ -1,0 +1,5 @@
+default minimal stdio smoke passed: 5 v1 tools, 7 Resources, 4 prompts, 0 systems
+adaptive stdio smoke passed: 17 v1 tools, 7 Resources, 4 prompts, 0 systems
+full stdio smoke passed: 120 v1 tools, 7 Resources, 4 prompts, 0 systems
+minimal stdio smoke passed: 5 v1 tools, 7 Resources, 4 prompts, 0 systems
+single stdio smoke passed: 1 v1 tools, 7 Resources, 4 prompts, 0 systems

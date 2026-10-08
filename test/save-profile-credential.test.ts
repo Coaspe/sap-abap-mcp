@@ -52,3 +52,32 @@ test("failed compensation explicitly requires recovery without exposing credenti
     return true
   })
 })
+
+test("failed profile update rolls back before the next login without blocking another profile", async t => {
+  const { profiles, secrets } = await stores(t)
+  await profiles.upsert(input)
+  await secrets.set("DEV100", "old")
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  t.after(release)
+  let started!: () => void
+  const waiting = new Promise<void>(resolve => { started = resolve })
+  const upsert = profiles.upsert.bind(profiles)
+  profiles.upsert = async value => {
+    if (value.username === "FAILED") {
+      started(); await gate
+      throw new Error("Profile write failed")
+    }
+    return upsert(value)
+  }
+  const failed = assert.rejects(saveProfileCredential(profiles, secrets, { ...input, username: "FAILED" }, "failed"), /Profile write failed/)
+  await waiting
+  const saved = saveProfileCredential(profiles, secrets, { ...input, id: " DEV100 ", username: "CURRENT" }, "current")
+  await saveProfileCredential(profiles, secrets, { ...input, id: "OTHER100", username: "OTHER" }, "other")
+  assert.equal(await secrets.get("OTHER100"), "other")
+  assert.equal(await secrets.get("DEV100"), "failed", "The next login must wait for rollback")
+  release()
+  await Promise.all([failed, saved])
+  assert.equal(await secrets.get("DEV100"), "current")
+  assert.equal((await profiles.get("DEV100")).username, "CURRENT")
+})

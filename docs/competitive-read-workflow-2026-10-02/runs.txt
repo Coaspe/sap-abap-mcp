@@ -1,0 +1,42 @@
+Run 1
+@coaspe/sap-abap-mcp full: passed; 4 MCP operations; 53636 estimated tokens
+@coaspe/sap-abap-mcp minimal: passed; 6 MCP operations; 11832 estimated tokens
+@coaspe/sap-abap-mcp single: passed; 6 MCP operations; 11153 estimated tokens
+@coaspe/sap-abap-mcp adaptive: passed; 6 MCP operations; 17537 estimated tokens
+@coaspe/sap-abap-mcp resource-minimal: passed; 5 MCP operations; 7539 estimated tokens
+@coaspe/sap-abap-mcp resource-single: passed; 5 MCP operations; 6853 estimated tokens
+@coaspe/sap-abap-mcp known-minimal: passed; 5 MCP operations; 11588 estimated tokens
+@coaspe/sap-abap-mcp known-single: passed; 5 MCP operations; 10905 estimated tokens
+arc-1 standard: passed; 4 MCP operations; 17946 estimated tokens
+arc-1 hyperfocused: passed; 4 MCP operations; 6894 estimated tokens
+abap-adt-mcp focused: passed; 4 MCP operations; 33045 estimated tokens
+@mcp-abap-adt/core default-onprem: passed; 4 MCP operations; 51477 estimated tokens
+
+Run 2
+@coaspe/sap-abap-mcp full: passed; 4 MCP operations; 53636 estimated tokens
+@coaspe/sap-abap-mcp minimal: passed; 6 MCP operations; 11832 estimated tokens
+@coaspe/sap-abap-mcp single: passed; 6 MCP operations; 11153 estimated tokens
+@coaspe/sap-abap-mcp adaptive: passed; 6 MCP operations; 17537 estimated tokens
+@coaspe/sap-abap-mcp resource-minimal: passed; 5 MCP operations; 7539 estimated tokens
+@coaspe/sap-abap-mcp resource-single: passed; 5 MCP operations; 6853 estimated tokens
+@coaspe/sap-abap-mcp known-minimal: passed; 5 MCP operations; 11588 estimated tokens
+@coaspe/sap-abap-mcp known-single: passed; 5 MCP operations; 10905 estimated tokens
+arc-1 standard: passed; 4 MCP operations; 17946 estimated tokens
+arc-1 hyperfocused: passed; 4 MCP operations; 6894 estimated tokens
+abap-adt-mcp focused: passed; 4 MCP operations; 33045 estimated tokens
+@mcp-abap-adt/core default-onprem: passed; 4 MCP operations; 51477 estimated tokens
+
+Run 3
+@coaspe/sap-abap-mcp full: passed; 4 MCP operations; 53636 estimated tokens
+@coaspe/sap-abap-mcp minimal: passed; 6 MCP operations; 11832 estimated tokens
+@coaspe/sap-abap-mcp single: passed; 6 MCP operations; 11153 estimated tokens
+@coaspe/sap-abap-mcp adaptive: passed; 6 MCP operations; 17537 estimated tokens
+@coaspe/sap-abap-mcp resource-minimal: passed; 5 MCP operations; 7539 estimated tokens
+@coaspe/sap-abap-mcp resource-single: passed; 5 MCP operations; 6853 estimated tokens
+@coaspe/sap-abap-mcp known-minimal: passed; 5 MCP operations; 11588 estimated tokens
+@coaspe/sap-abap-mcp known-single: passed; 5 MCP operations; 10905 estimated tokens
+arc-1 standard: passed; 4 MCP operations; 17946 estimated tokens
+arc-1 hyperfocused: passed; 4 MCP operations; 6894 estimated tokens
+abap-adt-mcp focused: passed; 4 MCP operations; 33045 estimated tokens
+@mcp-abap-adt/core default-onprem: passed; 4 MCP operations; 51477 estimated tokens
+

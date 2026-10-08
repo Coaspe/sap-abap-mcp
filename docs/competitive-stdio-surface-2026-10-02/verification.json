@@ -1,0 +1,175 @@
+{
+  "generatedDate": "2026-10-02",
+  "stage": "actual-competitor-stdio-startup-context-measurement",
+  "passed": true,
+  "node": "v24.21.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "scenarios": 11,
+  "runsPerScenario": 2,
+  "schemaAndInstructionMeasurementsRepeatExactly": true,
+  "tokenizer": "o200k_base",
+  "packages": [
+    {
+      "name": "arc-1",
+      "version": "1.4.0",
+      "integrity": "sha512-d5TweC5ObG+2nZOOLlL3jvwUEjVVJKDDC/0zUljeJuvnV/NH0Aj0y8SENks3/kFSkXDItt4671gOgiyrkxmsZw==",
+      "registry": "https://registry.npmjs.org/arc-1/1.4.0",
+      "package": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-competitor-startup-zjav33sf/arc-1/package",
+      "sha256": "0fafdf1aa1f7fdb22256b566ef30dc254c20a7ba720b7c062a116309caa26d13",
+      "gitHead": "1a6b21cf8524249276b4749766584560cd17f783",
+      "entry": "bin/arc1.js",
+      "entrySha256": "178bff488b40a31be382133efe32b2d14a9e25153b883695b718744dce119500",
+      "manifestSha256": "d41e1c951f6e2e3476d1044e93858d825d4e7af39af62a26bcffebb4b8460cd5",
+      "dependencyLockSha256": "1aeceacf2df9fd3fea6210d959102c04e173d2b622d4245e1a161d50ad47df61",
+      "resolvedDirectDependencies": {
+        "@abaplint/core": "2.120.63",
+        "@arc-mcp/xsuaa-auth": "1.1.0",
+        "@modelcontextprotocol/sdk": "1.31.0",
+        "@sap-cloud-sdk/connectivity": "4.9.1",
+        "@sap/xsenv": "6.2.2",
+        "@sap/xssec": "4.15.0",
+        "ajv": "8.20.0",
+        "better-sqlite3": "13.0.3",
+        "commander": "15.0.0",
+        "cors": "2.8.6",
+        "diff": "9.0.0",
+        "dotenv": "18.0.5",
+        "express": "5.2.1",
+        "express-rate-limit": "8.7.0",
+        "fast-xml-parser": "5.11.2",
+        "helmet": "8.3.0",
+        "jose": "6.2.12",
+        "rate-limiter-flexible": "11.2.1",
+        "undici": "8.11.2",
+        "zod": "4.6.5"
+      },
+      "install": "npm install --omit=dev --ignore-scripts --no-audit --no-fund; isolated package directory"
+    },
+    {
+      "name": "abap-adt-mcp",
+      "version": "2.7.0",
+      "integrity": "sha512-806VCxhU6+xLgexcp3bmrAZRomLYBz6+Z8slR5S+SfhLBMjyLl2bGlxMWaYH7KmepoConttePWc9Wppu195TKQ==",
+      "registry": "https://registry.npmjs.org/abap-adt-mcp/2.7.0",
+      "package": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-competitor-startup-zjav33sf/abap-adt-mcp/package",
+      "sha256": "9b596ddbba86b59692b49b6fa3976a55938fb7d413773efdc097bc49538e07d8",
+      "gitHead": "5139867a8c9af30f311a295e7b175d92e1937ebc",
+      "entry": "dist/index.js",
+      "entrySha256": "a403d6098d65eafaca9c1a6c593234f851af69f619f82540c0ed5cbfd7e84094",
+      "manifestSha256": "e31846bbd36f7ea5dee081df2c9542b87ac271420d7e0a51c11c0e6ba3bcea83",
+      "dependencyLockSha256": "4faef2407f2769b06d9467f5d18df83f55bd1a1e01ac0f9bd81a1482f062a8d8",
+      "resolvedDirectDependencies": {
+        "@modelcontextprotocol/sdk": "1.31.0",
+        "abap-adt-api": "8.4.3",
+        "axios": "1.20.0",
+        "diff": "9.0.0",
+        "dotenv": "17.4.2",
+        "puppeteer-core": "25.12.0"
+      },
+      "install": "npm install --omit=dev --ignore-scripts --no-audit --no-fund; isolated package directory"
+    },
+    {
+      "name": "@mcp-abap-adt/core",
+      "version": "15.0.0",
+      "integrity": "sha512-EHhFR5mQgZz4ZlUCR/8oY/wHAxdoU9opRvUML2CY6I39LEjyp+Fayb49VpamZsUbsbSUX9PHvgUsbRChy3zIpg==",
+      "registry": "https://registry.npmjs.org/@mcp-abap-adt/core/15.0.0",
+      "package": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-competitor-startup-zjav33sf/mcp-abap-adt-core/package",
+      "sha256": "4e8091919d1d87bd9cc35eb2c752f228d1fe47e665f2b4b9fa2a1560ab9f8a11",
+      "gitHead": "ec208a87dc7080c58bd10dfad6d836061360a7fe",
+      "entry": "bin/mcp-abap-adt.js",
+      "entrySha256": "981a56d49bb73cbbc47e78af8127f20c3ecbda69aab7fcea99a9d948b9e587e5",
+      "manifestSha256": "fc85bb68955f8a0fea14c6f894d83a2c29a2a90ffaff26ea59c296373472a0c3",
+      "dependencyLockSha256": "4d80f34d65819bdc717f44c52b2931ecc20f5c23f4d49f6ef41da47e9451fcb2",
+      "resolvedDirectDependencies": {
+        "@mcp-abap-adt/auth-broker": "3.1.0",
+        "@mcp-abap-adt/interfaces-utils": "1.1.0",
+        "@mcp-abap-adt/lib": "15.0.0",
+        "@mcp-abap-adt/logger": "0.4.1",
+        "@modelcontextprotocol/sdk": "1.31.0",
+        "dotenv": "18.0.5",
+        "express": "5.2.1"
+      },
+      "install": "npm install --omit=dev --ignore-scripts --no-audit --no-fund; isolated package directory"
+    }
+  ],
+  "method": "Actual published CLI processes, SDK initialize and paginated tools/list; minified tool array plus separate initialization instructions field",
+  "exclusions": [
+    "Identical SAP capabilities, authorization and successful task outcomes",
+    "Model billing and host-native schema caching/search",
+    "Other initialization fields and JSON-RPC framing",
+    "Warm backend discovery and caller-specific filtering",
+    "Startup timing ranking; timings are single diagnostic observations",
+    "General outbound-network monitoring"
+  ],
+  "fixture": "Isolated working/config directories; synthetic local 401 endpoint for configured competitors; core inspection-only; ours empty profile store",
+  "localFixtureStartupRequestsPerRun": 2,
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "toolTaskCalls": 0,
+  "registrationCommandsExecuted": 0,
+  "changes": {
+    "productionRuntimeChanged": false,
+    "productionRuntimeFilesVerifiedUnchanged": 240,
+    "newMcpTools": 0,
+    "newSettings": 0,
+    "defaultChanged": false,
+    "existingSingleAndAdaptiveDocumentedInQuickStart": true
+  },
+  "priorFullSuite": {
+    "proof": "../competitive-connection-rebind-2026-10-02/verification.json",
+    "passed": 672,
+    "notRerunForDocumentationAndMeasurementOnlyChanges": true
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "b65bd8a2aab977e762e9114b0b18f6fbc9a894797fb07829efd68b83372ec0c1"
+    },
+    {
+      "path": "docs/adaptive-mode.md",
+      "sha256": "ca8f015bc51251cd2d1640c2f8d86247e6b6b82a90652dfe9a83f154ebe80d59"
+    },
+    {
+      "path": "docs/competitive-research-2026-10-01.ko.md",
+      "sha256": "c49058b8d40c846957cc849f9e5a2c9044083c11068bfd3061b3149c153cf50d"
+    },
+    {
+      "path": "docs/competitive-stdio-surface-2026-10-02/measure.mjs",
+      "sha256": "ff37bb4d05008d6b8abef9f4a78d15d1e79a91373c655c383c1973f68de89929"
+    },
+    {
+      "path": "docs/competitive-stdio-surface-2026-10-02/surface.json",
+      "sha256": "c75816eaa42124efb45fd7f78ec39df1097d0f755ade722d756f11a4e123f686"
+    },
+    {
+      "path": "docs/competitive-stdio-surface-2026-10-02/surface-first.json",
+      "sha256": "0c045a149226f67ea22d9c92d02e7374abe5f144a119f72cd3f948eb1f806a41"
+    },
+    {
+      "path": "docs/competitive-stdio-surface-2026-10-02/runs.txt",
+      "sha256": "eedf828b0e7c8cdd95da73e1e292d764089a7be91fe2163b5bd5cc5935705f1a"
+    }
+  ],
+  "published": false,
+  "competitiveTaskSuccessProven": false,
+  "standardAdoptionProven": false,
+  "remaining": [
+    "Live SAP/IdP and native host acceptance",
+    "Matched host/model/SAP task comparison and billed usage",
+    "Four affected-package security audit nodes and upstream patch",
+    "Independent adoption and governance"
+  ],
+  "dependencyLockArchive": {
+    "path": "artifacts/competitive-stdio-surface-2026-10-02/dependency-locks.zip",
+    "bytes": 158838,
+    "sha256": "389fc9040e4f4232270ad9d6336da814a1fc19ef6a19eee705ede26d79bdf272",
+    "includes": "Three exact package manifests, resolved lockfiles and registry snapshots; no dependency source code",
+    "published": false
+  },
+  "npmPackDryRun": {
+    "files": 468,
+    "measurementAndEvidenceIncluded": true,
+    "artifactsExcluded": true,
+    "published": false
+  }
+}

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict"
-import { generateKeyPairSync, sign, type KeyObject } from "node:crypto"
+import { constants, generateKeyPairSync, sign, type KeyObject } from "node:crypto"
 import test from "node:test"
+import { mkdtemp, rm } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { AuditRecorder, type AuditEvent, type AuditSink } from "../src/audit-log.js"
@@ -21,12 +24,21 @@ import {
   parseOidcRoleMap,
   resolveTokenRole,
   verifyJwt,
-  type OidcConfiguration
+  type OidcConfiguration,
+  type SupportedJwtAlgorithm
 } from "../src/http/oidc.js"
 import { ScopedConnectionProvider } from "../src/http/scoped-connections.js"
 import { startHttpMcpServer } from "../src/http/server.js"
 import { createMcpServer } from "../src/mcp-server.js"
 import { AbapToolService } from "../src/tool-service.js"
+import { ConnectionManager } from "../src/connection-manager.js"
+import { RequestScopedConnectionProvider } from "../src/http/request-scoped-connections.js"
+import { ProfileStore } from "../src/profile-store.js"
+import { SourceCache } from "../src/source-cache.js"
+import { AppError } from "../src/errors.js"
+import type { SapClient } from "../src/sap-client.js"
+import { resolveServeToolSelection } from "../src/mcp/tool-selection.js"
+import { toAdtResourceUri } from "../src/mcp/v1/resource-uri.js"
 
 const ISSUER = "https://idp.example.com"
 const AUDIENCE = "sap-abap-mcp"
@@ -57,7 +69,7 @@ interface Signer {
   keyId: string
   jwk: Record<string, unknown>
   privateKey: KeyObject
-  algorithm: "RS256" | "ES256" | "PS256"
+  algorithm: SupportedJwtAlgorithm
   signingName: string
   usePss?: boolean
   isEcdsa?: boolean
@@ -108,7 +120,9 @@ function issueToken(
   const input = Buffer.from(`${header}.${payload}`, "utf8")
   const signature = signer.isEcdsa
     ? sign(signer.signingName, input, { key: signer.privateKey, dsaEncoding: "ieee-p1363" })
-    : sign(signer.signingName, input, signer.privateKey)
+    : signer.usePss
+      ? sign(signer.signingName, input, { key: signer.privateKey, padding: constants.RSA_PKCS1_PSS_PADDING, saltLength: constants.RSA_PSS_SALTLEN_DIGEST })
+      : sign(signer.signingName, input, signer.privateKey)
   return `${header}.${payload}.${base64Url(signature)}`
 }
 
@@ -132,6 +146,49 @@ const configuration: OidcConfiguration = {
   audience: AUDIENCE,
   jwksUri: `${ISSUER}/.well-known/jwks.json`,
   roleMap: { "sap.developer": "developer", "sap.admin": "admin" }
+}
+
+for (const mode of ["minimal", "single"] as const) {
+  test(`authenticated ${mode} HTTP calls refuse direct token forwarding before SAP login`, async t => {
+    const directory = await mkdtemp(join(tmpdir(), "sap-http-token-boundary-"))
+    t.after(() => rm(directory, { recursive: true, force: true }))
+    const profiles = new ProfileStore(directory)
+    await profiles.upsert({ id: "RAW100", url: "https://sap.example.test", client: "100", authType: "bearer_passthrough", readOnly: true })
+    let created = 0
+    const manager = new ConnectionManager(profiles, { async get() { throw new Error("No local credential lookup") }, async set() {}, async delete() {} },
+      () => { created++; throw new Error("MCP token reached SAP") })
+    const signer = rsaSigner()
+    const token = issueToken(signer, { scope: "sap.developer" })
+    const running = await startHttpMcpServer({ apiKeys: [], port: 0, log: () => undefined,
+      oidc: createOidcAuthenticator(configuration, keyStoreFor(signer), now),
+      createMcpServerForSession: ({ principal, sapBearerToken }) => {
+        assert.ok(sapBearerToken)
+        const scoped = new RequestScopedConnectionProvider(manager, sapBearerToken, principal.systemIds)
+        const service = new AbapToolService(scoped)
+        return { server: createMcpServer(service, { ...resolveServeToolSelection("v1", undefined, mode), role: principal.role }),
+          dispose: async () => { service.dispose(); await scoped.close() } }
+      } })
+    t.after(() => running.close())
+    const client = new Client({ name: "token-boundary", version: "1" })
+    const transport = new StreamableHTTPClientTransport(new URL(running.url), { requestInit: { headers: { authorization: "Bearer " + token } } })
+    await client.connect(transport as unknown as Parameters<Client["connect"]>[0])
+    t.after(() => client.close())
+    const described = await client.callTool({ name: mode === "single" ? "sap" : "sap.capability.describe",
+      arguments: mode === "single" ? { name: "describe", arguments: { name: "sap.system.inspect" } } : { name: "sap.system.inspect" } })
+    const { data } = described.structuredContent as { data: { capability: { schemaHash: string } } }
+    const result = await client.callTool({ name: mode === "single" ? "sap" : "sap.capability.invoke_read",
+      arguments: { name: "sap.system.inspect", schemaHash: data.capability.schemaHash, arguments: { systemId: "RAW100" }, ...(mode === "single" ? { risk: "read" } : {}) } })
+    assert.equal(result.isError, true)
+    const content = result.content as Array<{ type: string, text?: string }>
+    const errorText = content.find(item => item.type === "text")
+    assert.ok(errorText?.text)
+    const failure = (result.structuredContent ?? JSON.parse(errorText.text)) as { code: string, category: string, retryable: boolean }
+    assert.equal(failure.code, "TOKEN_PASSTHROUGH_REFUSED")
+    assert.equal(failure.category, "policy")
+    assert.equal(failure.retryable, false)
+    assert.equal(JSON.stringify(result).includes(token), false)
+    assert.equal(created, 0)
+  })
 }
 
 test("an RSA-signed token from the configured issuer verifies", async () => {
@@ -559,4 +616,177 @@ test("an API key file carries a per-person SAP profile assignment", () => {
     })),
     /at least one SAP profile id/
   )
+})
+
+
+for (const algorithm of ["RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512"] as const) {
+  test(`OIDC accepts an RFC 7518 ${algorithm} signature`, async () => {
+    const ecdsa = algorithm.startsWith("ES")
+    const curves = { ES256: "prime256v1", ES384: "secp384r1", ES512: "secp521r1" }
+    const { privateKey, publicKey } = ecdsa
+      ? generateKeyPairSync("ec", { namedCurve: curves[algorithm as keyof typeof curves] })
+      : generateKeyPairSync("rsa", { modulusLength: 2048 })
+    const signer: Signer = { keyId: algorithm, privateKey, algorithm, isEcdsa: ecdsa,
+      usePss: algorithm.startsWith("PS"), signingName: `SHA${algorithm.slice(2)}`,
+      jwk: { ...publicKey.export({ format: "jwk" }), kid: algorithm, alg: algorithm, use: "sig" } }
+    const verified = await verifyJwt(issueToken(signer, { scope: "sap.developer" }), configuration, keyStoreFor(signer), now)
+    assert.equal(verified.role, "developer")
+    assert.equal(verified.subject, "alice@example.com")
+  })
+}
+
+test("OIDC rejects RSA-PSS signatures with a salt length outside JOSE", async () => {
+  const signer = rsaSigner()
+  signer.algorithm = "PS256"
+  signer.jwk.alg = "PS256"
+  const original = issueToken(signer, {})
+  const [header, payload] = original.split(".")
+  for (const saltLength of [0, 20, constants.RSA_PSS_SALTLEN_MAX_SIGN]) {
+    const signature = sign("SHA256", Buffer.from(`${header}.${payload}`), {
+      key: signer.privateKey, padding: constants.RSA_PKCS1_PSS_PADDING, saltLength
+    })
+    await assert.rejects(verifyJwt(`${header}.${payload}.${signature.toString("base64url")}`, configuration, keyStoreFor(signer), now),
+      hasCode("JWT_SIGNATURE_INVALID"))
+  }
+})
+
+test("OIDC rejects signatures whose key type or EC curve does not match alg", async () => {
+  const ec = ecSigner()
+  ec.jwk.alg = "RS256"
+  ec.algorithm = "RS256"
+  ec.isEcdsa = false // A DER EC signature must not authenticate as an RSA algorithm.
+  await assert.rejects(verifyJwt(issueToken(ec, {}), configuration, keyStoreFor(ec), now), hasCode("JWT_KEY_MISMATCH"))
+  const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "secp384r1" })
+  const wrongCurve: Signer = { keyId: "wrong-curve", privateKey, algorithm: "ES256", signingName: "SHA256", isEcdsa: true,
+    jwk: { ...publicKey.export({ format: "jwk" }), kid: "wrong-curve", alg: "ES256" } }
+  await assert.rejects(verifyJwt(issueToken(wrongCurve, {}), configuration, keyStoreFor(wrongCurve), now), hasCode("JWT_KEY_MISMATCH"))
+})
+
+test("OIDC respects signing-key alg and key_ops restrictions", async () => {
+  const signer = rsaSigner()
+  signer.jwk.alg = "RS512"
+  await assert.rejects(verifyJwt(issueToken(signer, {}), configuration, keyStoreFor(signer), now), hasCode("JWT_KEY_UNKNOWN"))
+  signer.jwk.alg = "RS256"
+  signer.jwk.key_ops = ["encrypt"]
+  await assert.rejects(verifyJwt(issueToken(signer, {}), configuration, keyStoreFor(signer), now), hasCode("JWT_KEY_UNKNOWN"))
+})
+
+test("OIDC rejects inherited object properties as JWT algorithms", async () => {
+  const signer = rsaSigner()
+  for (const alg of ["constructor", "toString", "__proto__"]) {
+    await assert.rejects(verifyJwt(issueToken(signer, {}, { alg }), configuration, keyStoreFor(signer), now), hasCode("JWT_ALGORITHM_UNSUPPORTED"))
+  }
+})
+
+test("concurrent OIDC HTTP scopes isolate source validators, authorization, logout and audit", { timeout: 15000 }, async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-oidc-isolation-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const profiles = new ProfileStore(directory)
+  await profiles.upsert({ id: "BTP100", url: "https://sap.example.test", client: "100", authType: "btp_destination",
+    destinationName: "ABAP_DEV", destinationAuthentication: "OAuth2UserTokenExchange" })
+  const signer = rsaSigner()
+  const aliceToken = issueToken(signer, { sub: "alice", scope: "sap.developer" })
+  const bobToken = issueToken(signer, { sub: "bob", scope: "sap.developer" })
+  const identities = new Map([[aliceToken, "alice"], [bobToken, "bob"]])
+  const sink = memorySink()
+  const seen: Array<{ user: string; validator: string | undefined }> = []
+  const loggedOut: string[] = []
+  let denyBob = false
+  let releaseReads!: () => void
+  const concurrentReads = new Promise<void>(resolve => { releaseReads = resolve })
+  t.after(releaseReads)
+  const manager = new ConnectionManager(profiles, {
+    async get() { throw new Error("HTTP scopes must not read local passwords") }, async set() {}, async delete() {}
+  }, (_profile, credential, transportFactory) => {
+    assert.ok(transportFactory)
+    assert.equal(credential.type, "bearer")
+    let user = ""
+    const cache = new SourceCache(async (_uri, options) => {
+      const validator = options.headers?.["If-None-Match"] as string | undefined
+      seen.push({ user, validator })
+      if (seen.length === 2) releaseReads()
+      await concurrentReads
+      if (user === "bob" && denyBob) throw new AppError("SAP_AUTHORIZATION_DENIED", "SAP permission revoked")
+      return { body: validator ? "" : `REPORT z_demo.\nWRITE '${user}-private'.`,
+        status: validator ? 304 : 200, statusText: "fixture", headers: { ETag: '"same-validator"' } }
+    })
+    return {
+      profile: _profile,
+      async login() {
+        if (credential.type === "bearer") user = identities.get(await credential.fetchToken()) ?? ""
+        assert.ok(user)
+      },
+      async readSourceByUri(uri: string) { return { source: await cache.read(uri), sourceUri: uri } },
+      async logout() { cache.clear(); loggedOut.push(user) }
+    } as unknown as SapClient
+  })
+  const server = await startHttpMcpServer({ apiKeys: [], port: 0, log: () => undefined,
+    oidc: createOidcAuthenticator(configuration, keyStoreFor(signer), now),
+    auditRecorder: new AuditRecorder({ sink, apiVersion: "v1" }),
+    createMcpServerForSession: ({ principal, sapBearerToken, auditRecorder }) => {
+      assert.ok(sapBearerToken)
+      const connections = new RequestScopedConnectionProvider(manager, sapBearerToken, principal.systemIds)
+      const service = new AbapToolService(connections)
+      return { server: createMcpServer(service, { apiVersion: "v1", role: principal.role,
+        ...resolveServeToolSelection("v1", undefined, "minimal"), ...(auditRecorder ? { auditRecorder } : {}) }),
+        dispose: async () => { service.dispose(); await connections.close() } }
+    }
+  })
+  t.after(() => server.close())
+  const connect = async (token: string) => {
+    const client = new Client({ name: "isolation-test", version: "1.0.0" })
+    const transport = new StreamableHTTPClientTransport(new URL(server.url), {
+      requestInit: { headers: { authorization: `Bearer ${token}` } }
+    })
+    await client.connect(transport as unknown as Parameters<Client["connect"]>[0])
+    t.after(() => client.close())
+    assert.equal((await client.listTools()).tools.length, 5)
+    const described = await client.callTool({ name: "sap.capability.describe", arguments: {
+      names: ["sap.system.list", "sap.source.read"]
+    } })
+    const capabilities = (described.structuredContent as any).data.capabilities as Array<{ name: string; schemaHash: string }>
+    const invoke = async (name: string, args: Record<string, unknown>) => {
+      const result = await client.callTool({ name: "sap.capability.invoke_read", arguments: {
+        name, schemaHash: capabilities.find(capability => capability.name === name)!.schemaHash, arguments: args
+      } })
+      const text = result.content as Array<{ type: string; text?: string }>
+      return result.structuredContent ?? JSON.parse(text.find(item => item.type === "text")!.text!)
+    }
+    const systems = await invoke("sap.system.list", {})
+    assert.equal(systems.data.systems[0].credentialAvailable, true)
+    return { transport, invoke }
+  }
+  const [alice, bob] = await Promise.all([connect(aliceToken), connect(bobToken)])
+  const args = { systemId: "BTP100", resourceUri: toAdtResourceUri("BTP100", "/sap/bc/adt/programs/programs/z_demo/source/main") }
+  const [a, b] = await Promise.all([alice.invoke("sap.source.read", args), bob.invoke("sap.source.read", args)])
+  assert.match(a.data.code, /alice-private/)
+  assert.match(b.data.code, /bob-private/)
+  assert.notEqual(a.data.contentHash, b.data.contentHash)
+  const unchanged = await alice.invoke("sap.source.read", { ...args, ifNoneMatch: a.data.contentHash })
+  assert.equal(unchanged.data.notModified, true)
+  assert.equal(unchanged.data.code, undefined)
+  assert.deepEqual(seen.find(call => call.user === "alice" && call.validator)?.validator, '"same-validator"')
+  const replay = await fetch(server.url, { method: "GET", headers: {
+    authorization: `Bearer ${bobToken}`, "mcp-session-id": alice.transport.sessionId!, accept: "text/event-stream"
+  } })
+  assert.equal(replay.status, 403)
+  denyBob = true
+  const denied = await bob.invoke("sap.source.read", { ...args, ifNoneMatch: b.data.contentHash })
+  assert.equal(denied.code, "SAP_AUTHORIZATION_DENIED")
+  assert.equal(denied.category, "authorization")
+  assert.equal(denied.data, undefined)
+  denyBob = false
+  const recovered = await bob.invoke("sap.source.read", args)
+  assert.match(recovered.data.code, /bob-private/)
+  assert.equal(seen.filter(call => call.user === "bob").at(-1)?.validator, undefined)
+  await alice.transport.terminateSession()
+  assert.deepEqual(loggedOut, ["alice"])
+  assert.match((await bob.invoke("sap.source.read", args)).data.code, /bob-private/)
+  await bob.transport.terminateSession()
+  assert.deepEqual(loggedOut, ["alice", "bob"])
+  const reads = sink.events.filter(event => event.name === "sap.source.read")
+  assert.ok(reads.some(event => event.principal.id === "alice" && event.outcome === "succeeded"))
+  assert.ok(reads.some(event => event.principal.id === "bob" && event.outcome === "denied"))
+  assert.doesNotMatch(JSON.stringify(sink.events), /alice-private|bob-private/)
+  assert.ok(!JSON.stringify(sink.events).includes(aliceToken) && !JSON.stringify(sink.events).includes(bobToken))
 })

@@ -1,0 +1,11 @@
+@coaspe/sap-abap-mcp default: measured
+@coaspe/sap-abap-mcp minimal: measured
+@coaspe/sap-abap-mcp single: measured
+@coaspe/sap-abap-mcp adaptive: measured
+@coaspe/sap-abap-mcp full: measured
+arc-1 standard: measured
+arc-1 hyperfocused: measured
+abap-adt-mcp default: measured
+abap-adt-mcp focused: measured
+@mcp-abap-adt/core default: measured
+@mcp-abap-adt/core readonly: measured

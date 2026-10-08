@@ -4,7 +4,7 @@ import { stdin, stderr, stdout } from "node:process"
 import { realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { promptSecret } from "./secret-prompt.js"
-import { AppError, errorPayload } from "./errors.js"
+import { AppError, errorPayload, tokenPassthroughRefused } from "./errors.js"
 import {
   AuditRecorder,
   createAuditSink,
@@ -65,7 +65,7 @@ import {
   runSetupRemoval,
   runSetupWizard
 } from "./setup-wizard.js"
-import { runOnboard } from "./onboard.js"
+import { defaultOpenBrowser, runOnboard, startOnboardServer, type RunningOnboardServer } from "./onboard.js"
 
 const HELP = `sap-abap-mcp
 
@@ -77,14 +77,14 @@ Commands:
   setup remove [<server-name>]
   profile add <id> --url <url> --client <nnn> [--language EN]
       [--environment development|quality|production] [--username <user>]
-      [--auth-type basic|oauth-client-credentials|oauth-authorization-code|bearer-passthrough|btp-destination]
+      [--auth-type basic|oauth-client-credentials|oauth-authorization-code|btp-destination]
       [--destination-name <name> --destination-auth OAuth2UserTokenExchange|PrincipalPropagation]
       [--authorization-url <url>] [--token-url <url> --client-id <id> [--scope <scope>]]
       [--classic-bridge-path /sap/bc/rest/zmcp_rfc]
-      [--packages ZPKG1,ZPKG2] [--allow-data-queries] [--login [--password-stdin]]
+      [--packages ZPKG1,ZPKG2] [--read-only | --allow-writes] [--allow-data-queries] [--login [--password-stdin]]
   profile add <id> --service-key <path> [--language EN]
       [--environment development|quality|production] [--scope <scope>]
-      [--packages ZPKG1,ZPKG2] [--allow-data-queries]
+      [--packages ZPKG1,ZPKG2] [--read-only | --allow-writes] [--allow-data-queries]
       Imports an SAP BTP ABAP environment service key, verifies it live, and
       stores the client secret in the protected credential store.
   profile list
@@ -105,6 +105,7 @@ Commands:
       Read-only transport change assurance for CI. Exit 0 passed, 1 failed,
       2 incomplete. Never releases or modifies the transport.
   serve [--profile <id>] [--api-version v0|v1]
+      [--onboard-if-empty]
       [--preset adaptive|minimal|single|compact|development|assurance]
       [--toolsets core,write,analysis,debug,operations,artifacts|all]
       [--audit-log none|stderr|file] [--audit-log-file <path>] [--audit-include-arguments]
@@ -112,13 +113,16 @@ Commands:
        [--oidc-issuer <url> --oidc-audience <aud> [--oidc-jwks-uri <url>]
         [--oidc-role-claim <claim>] [--oidc-role-map <value>=<role>,...]
         [--oidc-default-role viewer|developer|admin]]
+       [--oauth-resource-url <public-https-mcp-url>]
        [--api-key-pepper-file <path>]
        [--host <host>] [--port <n>]
        [--allowed-origin <origin>] [--allowed-host <host>]
        [--rate-limit <requests-per-minute>] [--max-concurrent <n>]
        [--max-sessions <n>] [--session-timeout <seconds>]]
        Requires --api-keys-file, --oidc-issuer, or both.
-      Defaults: api-version v1, all tools, audit-log none, stdio transport
+      --onboard-if-empty opens local SAP setup when an app-managed stdio server has no profiles.
+      With that flag, SAP_ABAP_MCP_OPEN_SETUP=true reopens setup for existing profiles.
+      Defaults: api-version v1, minimal (5 tools), audit-log none, stdio transport
 `
 
 interface ParsedArguments {
@@ -190,7 +194,7 @@ function withUsername(profile: SapProfile, username: string): SapProfile & { use
 
 export interface ProfileLoginOptions {
   password: string
-  validateCredentials: (profile: SapProfile, password: string) => Promise<void>
+  validateCredentials: (profile: SapProfile, password: string) => Promise<void | string>
 }
 
 export async function addProfile(
@@ -200,6 +204,7 @@ export async function addProfile(
   login?: ProfileLoginOptions
 ): Promise<{ profile: SapProfile; credentialStored?: true }> {
   const profile = normalizeProfile(input)
+  if (profile.authType === "bearer_passthrough") throw tokenPassthroughRefused()
   if (!login) {
     await profiles.upsert(input)
     return { profile }
@@ -208,7 +213,7 @@ export async function addProfile(
     throw new AppError("USERNAME_REQUIRED", "Provide --username when using --login")
   }
   if (!login.password) {
-    if (profile.authType === "bearer_passthrough" || profile.authType === "btp_destination") {
+    if (profile.authType === "btp_destination") {
       throw new AppError(
         "AUTH_PASSTHROUGH_REQUIRED",
         "Request-scoped profiles receive credentials from OIDC-authenticated HTTP sessions"
@@ -221,9 +226,9 @@ export async function addProfile(
         : "OAuth credential cannot be empty"
     )
   }
-  await login.validateCredentials(profile, login.password)
+  const verifiedCredential = await login.validateCredentials(profile, login.password) ?? login.password
   await profiles.upsert(input)
-  await secrets.set(profile.id, login.password)
+  await secrets.set(profile.id, verifiedCredential)
   return { profile, credentialStored: true }
 }
 
@@ -244,6 +249,14 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     const packages = option(parsed, "packages")
     const serviceKeyPath = option(parsed, "service-key")
     const classicBridgePath = option(parsed, "classic-bridge-path")
+    if (parsed.options.has("read-only") && parsed.options.has("allow-writes")) {
+      throw new AppError("OPTION_CONFLICT", "Choose --read-only or --allow-writes, not both")
+    }
+    const existingProfile = (await profiles.list()).find(profile => profile.id === id.toUpperCase())
+    const readOnly = parsed.options.has("read-only") ? true
+      : parsed.options.has("allow-writes") ? false : existingProfile?.readOnly
+    const allowedPackages = packages !== undefined ? packages.split(",")
+      : existingProfile?.readOnly !== undefined ? existingProfile.allowedPackages : undefined
 
     if (serviceKeyPath) {
       // A BTP service key already carries the endpoint, client id, and client
@@ -252,6 +265,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
       const key = loadBtpServiceKey(serviceKeyPath)
       const serviceKeyInput: SapProfileInput = {
         id,
+        ...(readOnly !== undefined ? { readOnly } : {}),
         url: key.url,
         client: key.client,
         ...(language ? { language } : {}),
@@ -263,7 +277,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
         tokenUrl: key.tokenUrl,
         clientId: key.clientId,
         ...(option(parsed, "scope") ? { scope: option(parsed, "scope") } : {}),
-        ...(packages ? { allowedPackages: packages.split(",") } : {})
+        ...(allowedPackages !== undefined ? { allowedPackages } : {})
       }
       const manager = new ConnectionManager(profiles, secrets)
       const result = await addProfile(serviceKeyInput, profiles, secrets, {
@@ -280,16 +294,18 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     }
 
     const authTypeOption = option(parsed, "auth-type") ?? "basic"
-    if (!["basic", "oauth-client-credentials", "oauth-authorization-code", "bearer-passthrough", "btp-destination"]
+    if (authTypeOption === "bearer-passthrough") throw tokenPassthroughRefused()
+    if (!["basic", "oauth-client-credentials", "oauth-authorization-code", "btp-destination"]
       .includes(authTypeOption)) {
       throw new AppError(
         "AUTH_TYPE_INVALID",
-        "--auth-type must be basic, oauth-client-credentials, oauth-authorization-code, bearer-passthrough, or btp-destination"
+        "--auth-type must be basic, oauth-client-credentials, oauth-authorization-code, or btp-destination"
       )
     }
     const authType = authTypeOption.replaceAll("-", "_") as SapProfile["authType"]
     const input: SapProfileInput = {
       id,
+      ...(readOnly !== undefined ? { readOnly } : {}),
       url: requiredOption(parsed, "url"),
       client: requiredOption(parsed, "client"),
       ...(language ? { language } : {}),
@@ -312,7 +328,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
             ...(option(parsed, "scope") ? { scope: option(parsed, "scope") } : {})
           }
         : {}),
-      ...(packages ? { allowedPackages: packages.split(",") } : {})
+      ...(allowedPackages !== undefined ? { allowedPackages } : {})
     }
     if (!parsed.options.has("login")) {
       writeJson(await addProfile(input, profiles, secrets))
@@ -320,7 +336,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     }
 
     const candidate = normalizeProfile(input)
-    if (candidate.authType === "bearer_passthrough" || candidate.authType === "btp_destination") {
+    if (candidate.authType === "btp_destination") {
       throw new AppError(
         "AUTH_PASSTHROUGH_REQUIRED",
         "Request-scoped profiles do not use profile add --login; connect through an OIDC-authenticated HTTP session"
@@ -355,8 +371,10 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
       password,
       validateCredentials: async (profile, value) => {
         stderr.write("Testing SAP connection...\n")
-        await manager.validateCredentials(profile, value)
+        let verifiedCredential = value
+        await manager.validateCredentials(profile, value, credential => { verifiedCredential = credential })
         stderr.write("SAP connection verified. Saving credentials...\n")
+        return verifiedCredential
       }
     }))
     return
@@ -380,7 +398,12 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
 
   if (action === "status") {
     const profile = await profiles.get(id)
-    if (profile.authType === "btp_destination" || profile.authType === "bearer_passthrough") {
+    if (profile.authType === "bearer_passthrough") {
+      writeJson({ profileId: profile.id, authType: profile.authType, credentialAvailable: false,
+        credentialSource: "unsupported_passthrough", nextAction: tokenPassthroughRefused().message })
+      return
+    }
+    if (profile.authType === "btp_destination") {
       writeJson({
         profileId: profile.id, authType: profile.authType, username: profile.username ?? null,
         credentialAvailable: false, credentialSource: "http_oidc", localCredentialRequired: false,
@@ -406,7 +429,8 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
 
   if (action === "login") {
     const storedProfile = await profiles.get(id)
-    if (storedProfile.authType === "bearer_passthrough" || storedProfile.authType === "btp_destination") {
+    if (storedProfile.authType === "bearer_passthrough") throw tokenPassthroughRefused()
+    if (storedProfile.authType === "btp_destination") {
       throw new AppError(
         "AUTH_PASSTHROUGH_REQUIRED",
         "Request-scoped profiles receive credentials from OIDC-authenticated HTTP sessions"
@@ -450,10 +474,11 @@ async function authCommand(parsed: ParsedArguments, profiles: ProfileStore, secr
 
     const manager = new ConnectionManager(profiles, secrets)
     stderr.write("Testing SAP connection...\n")
-    await manager.validateCredentials(profile, password)
+    let verifiedCredential = password
+    await manager.validateCredentials(profile, password, credential => { verifiedCredential = credential })
     stderr.write("SAP connection verified. Saving credentials...\n")
     await profiles.upsert(profile)
-    await secrets.set(profile.id, password)
+    await secrets.set(profile.id, verifiedCredential)
     writeJson({
       profileId: profile.id,
       authType: profile.authType,
@@ -584,7 +609,11 @@ async function onboardCommand(
     await runOnboard({
       profiles,
       secrets,
-      validateCredentials: (profile, password) => manager.validateCredentials(profile, password)
+      validateCredentials: async (profile, password) => {
+        let verifiedCredential = password
+        await manager.validateCredentials(profile, password, credential => { verifiedCredential = credential })
+        return verifiedCredential
+      }
     })
   } finally {
     await manager.close()
@@ -852,6 +881,12 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
   }
 
   const http = parsed.options.has("http")
+  if (!http && parsed.options.has("oauth-resource-url")) {
+    throw new AppError("OPTION_CONFLICT", "--oauth-resource-url requires --http")
+  }
+  if (http && parsed.options.has("onboard-if-empty")) {
+    throw new AppError("ONBOARD_STDIO_REQUIRED", "--onboard-if-empty is available only for app-managed local stdio servers")
+  }
   const auditRecorder = resolveAuditRecorder(
     parsed,
     apiVersion,
@@ -863,6 +898,8 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
     const apiKeysFile = option(parsed, "api-keys-file")
     const apiKeys = apiKeysFile ? loadApiKeyRecords(apiKeysFile) : []
     const oidc = resolveOidcAuthenticator(parsed)
+    const oauthResourceUrl = parsed.options.has("oauth-resource-url")
+      ? requiredOption(parsed, "oauth-resource-url") : process.env.SAP_ABAP_MCP_OAUTH_RESOURCE_URL
     const pepperFile = option(parsed, "api-key-pepper-file") ??
       process.env.SAP_ABAP_MCP_API_KEY_PEPPER_FILE
     const apiKeyPepper = pepperFile ? loadApiKeyPepper(pepperFile) : undefined
@@ -898,6 +935,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
         : {}),
       ...(auditRecorder ? { auditRecorder } : {}),
       ...(oidc ? { oidc } : {}),
+      ...(oauthResourceUrl !== undefined ? { oauthResourceUrl } : {}),
       ...(apiKeyPepper ? { apiKeyPepper } : {}),
       // One service and one MCP server per session, so preview plans, staged Git
       // snapshots, and execution plans are never shared between principals. The
@@ -942,6 +980,25 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
     return
   }
 
+  let onboarding: RunningOnboardServer | undefined
+  if (parsed.options.has("onboard-if-empty") &&
+    (process.env.SAP_ABAP_MCP_OPEN_SETUP === "true" || (await profiles.list()).length === 0)) {
+    onboarding = await startOnboardServer({
+      profiles,
+      secrets,
+      hostManaged: true,
+      disconnectProfile: id => manager.disconnectProfile(id),
+      validateCredentials: async (profile, password) => {
+        let verifiedCredential = password
+        await manager.validateCredentials(profile, password, credential => { verifiedCredential = credential })
+        return verifiedCredential
+      }
+    })
+    stderr.write(`SAP setup: ${onboarding.url}\n`)
+    defaultOpenBrowser(onboarding.url)
+    void onboarding.finished.then(() => onboarding?.close()).catch(() => undefined)
+  }
+
   const server = createMcpServer(
     new AbapToolService(manager, secrets),
     {
@@ -954,6 +1011,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
   const close = async () => {
     if (closing) return
     closing = true
+    await onboarding?.close().catch(() => undefined)
     await server.close().catch(() => undefined)
     await manager.close()
     if (auditRecorder) await auditRecorder.close().catch(() => undefined)

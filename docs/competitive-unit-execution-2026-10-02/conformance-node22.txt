@@ -1,0 +1,175 @@
+TAP version 13
+# Subtest: v1 compatibility profile has stable proposal metadata and unique requirements
+ok 1 - v1 compatibility profile has stable proposal metadata and unique requirements
+  ---
+  duration_ms: 0.85925
+  type: 'test'
+  ...
+# Subtest: complete profile discovery passes with exact evidence counts
+ok 2 - complete profile discovery passes with exact evidence counts
+  ---
+  duration_ms: 1.076708
+  type: 'test'
+  ...
+# Subtest: a missing required capability fails with its exact tool name
+ok 3 - a missing required capability fails with its exact tool name
+  ---
+  duration_ms: 0.14775
+  type: 'test'
+  ...
+# Subtest: required tool without an explicit read-only hint fails (false)
+ok 4 - required tool without an explicit read-only hint fails (false)
+  ---
+  duration_ms: 0.133958
+  type: 'test'
+  ...
+# Subtest: required tool without an explicit read-only hint fails (undefined)
+ok 5 - required tool without an explicit read-only hint fails (undefined)
+  ---
+  duration_ms: 0.121667
+  type: 'test'
+  ...
+# Subtest: execution hints on optional tools do not fail the read-only core
+ok 6 - execution hints on optional tools do not fail the read-only core
+  ---
+  duration_ms: 0.0515
+  type: 'test'
+  ...
+# Subtest: a missing required resource fails with its exact resource name
+ok 7 - a missing required resource fails with its exact resource name
+  ---
+  duration_ms: 0.096625
+  type: 'test'
+  ...
+# Subtest: sap.quality.unit_test full viewer enforces execution risk before the service callback
+ok 8 - sap.quality.unit_test full viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 303.109625
+  type: 'test'
+  ...
+# {"mode":"full","role":"viewer","executions":0,"advertised":false}
+# Subtest: sap.quality.unit_test full developer enforces execution risk before the service callback
+ok 9 - sap.quality.unit_test full developer enforces execution risk before the service callback
+  ---
+  duration_ms: 221.961625
+  type: 'test'
+  ...
+# Subtest: sap.quality.unit_test minimal viewer enforces execution risk before the service callback
+ok 10 - sap.quality.unit_test minimal viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 258.874833
+  type: 'test'
+  ...
+# {"mode":"minimal","role":"viewer","executions":0}
+# Subtest: sap.quality.unit_test minimal developer enforces execution risk before the service callback
+ok 11 - sap.quality.unit_test minimal developer enforces execution risk before the service callback
+  ---
+  duration_ms: 283.5125
+  type: 'test'
+  ...
+# {"mode":"minimal","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.quality.unit_test adaptive viewer enforces execution risk before the service callback
+ok 12 - sap.quality.unit_test adaptive viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 223.712583
+  type: 'test'
+  ...
+# {"mode":"adaptive","role":"viewer","executions":0}
+# Subtest: sap.quality.unit_test adaptive developer enforces execution risk before the service callback
+ok 13 - sap.quality.unit_test adaptive developer enforces execution risk before the service callback
+  ---
+  duration_ms: 324.333084
+  type: 'test'
+  ...
+# {"mode":"adaptive","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.quality.unit_test single viewer enforces execution risk before the service callback
+ok 14 - sap.quality.unit_test single viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 205.469834
+  type: 'test'
+  ...
+# {"mode":"single","role":"viewer","executions":0}
+# Subtest: sap.quality.unit_test single developer enforces execution risk before the service callback
+ok 15 - sap.quality.unit_test single developer enforces execution risk before the service callback
+  ---
+  duration_ms: 287.672292
+  type: 'test'
+  ...
+# {"mode":"single","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.transport.assess full viewer enforces execution risk before the service callback
+ok 16 - sap.transport.assess full viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 174.39375
+  type: 'test'
+  ...
+# {"mode":"full","role":"viewer","executions":0,"advertised":false}
+# Subtest: sap.transport.assess full developer enforces execution risk before the service callback
+ok 17 - sap.transport.assess full developer enforces execution risk before the service callback
+  ---
+  duration_ms: 143.298875
+  type: 'test'
+  ...
+# Subtest: sap.transport.assess minimal viewer enforces execution risk before the service callback
+ok 18 - sap.transport.assess minimal viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 191.49125
+  type: 'test'
+  ...
+# {"mode":"minimal","role":"viewer","executions":0}
+# Subtest: sap.transport.assess minimal developer enforces execution risk before the service callback
+ok 19 - sap.transport.assess minimal developer enforces execution risk before the service callback
+  ---
+  duration_ms: 185.284709
+  type: 'test'
+  ...
+# {"mode":"minimal","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.transport.assess adaptive viewer enforces execution risk before the service callback
+ok 20 - sap.transport.assess adaptive viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 159.245833
+  type: 'test'
+  ...
+# {"mode":"adaptive","role":"viewer","executions":0}
+# Subtest: sap.transport.assess adaptive developer enforces execution risk before the service callback
+ok 21 - sap.transport.assess adaptive developer enforces execution risk before the service callback
+  ---
+  duration_ms: 158.881875
+  type: 'test'
+  ...
+# {"mode":"adaptive","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.transport.assess single viewer enforces execution risk before the service callback
+ok 22 - sap.transport.assess single viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 160.522583
+  type: 'test'
+  ...
+# {"mode":"single","role":"viewer","executions":0}
+# Subtest: sap.transport.assess single developer enforces execution risk before the service callback
+ok 23 - sap.transport.assess single developer enforces execution risk before the service callback
+  ---
+  duration_ms: 151.802542
+  type: 'test'
+  ...
+# {"mode":"single","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: legacy run_unit_tests viewer enforces execution risk before the service callback
+ok 24 - legacy run_unit_tests viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 7.389083
+  type: 'test'
+  ...
+# {"role":"viewer","executions":0,"advertised":false}
+# Subtest: legacy run_unit_tests developer enforces execution risk before the service callback
+ok 25 - legacy run_unit_tests developer enforces execution risk before the service callback
+  ---
+  duration_ms: 18.237
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4441.020875

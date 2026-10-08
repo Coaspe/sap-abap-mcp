@@ -16,6 +16,7 @@ import { ABAP_OBJECT_TYPES } from "./abap-object-types.js"
 import type { AuditRecorder } from "./audit-log.js"
 import type { HttpRole } from "./http/auth.js"
 import { instrumentAudit } from "./mcp/audit-instrumentation.js"
+import { instrumentProgress } from "./mcp/progress-instrumentation.js"
 import { applyRolePolicy } from "./mcp/role-policy.js"
 import {
   DEFERRED_RESULT_CHUNK_BYTE_LIMIT,
@@ -135,9 +136,9 @@ function createMcpServerInternal(
     {
       instructions: apiVersion === "v1"
         ? options.singleTool
-          ? "Use sap with name=search and arguments={query} to find capabilities, or name=describe and arguments={name} for a known capability. Invoke its actual name with the described risk, schemaHash and arguments. Describe again on CAPABILITY_SCHEMA_CHANGED."
+          ? "Use sap with name=search and arguments={query} to find capabilities, or name=describe and arguments={name} or {names:[...]} for known capabilities. Invoke its actual name with the described risk, schemaHash and arguments. Describe again on CAPABILITY_SCHEMA_CHANGED."
           : options.adaptive
-          ? "Use advertised tools directly. For a known capability name, skip search: call sap.capability.describe, then the matching invoke_read, invoke_write or invoke_destructive with its schemaHash and arguments. Otherwise use sap.capability.search; browse categories if needed. Reuse schemas until CAPABILITY_SCHEMA_CHANGED. If systemId is unknown, describe sap.system.list."
+          ? "Use advertised tools directly. For a known capability name, skip search: call sap.capability.describe (batch known names with names), then the matching invoke_read, invoke_write or invoke_destructive with its schemaHash and arguments. Otherwise use sap.capability.search; browse categories if needed. Reuse schemas until CAPABILITY_SCHEMA_CHANGED. If systemId is unknown, describe sap.system.list."
           : "Call sap.system.list when systemId is unknown, then use sap.system.inspect for normalized SAP system metadata. Delete one exact repository object only by calling sap.repository.delete.preview first, then pass its unchanged planId and confirmation to sap.repository.delete.execute."
         : "Call get_connected_systems when connectionId is unknown. Search before reading, and read actual SAP source before suggesting ABAP changes or signatures. Use compact-v1 summaries first; call read_deferred_result only when omitted exact data is needed. Writes are blocked for production profiles; a non-empty allowedPackages list restricts writes to those packages, while an empty list allows all packages. Read current source before editing, provide a transport for non-local packages, then inspect returned diagnostics before activation."
     }
@@ -148,6 +149,7 @@ function createMcpServerInternal(
   if (options.auditRecorder) {
     instrumentAudit(server, options.auditRecorder)
   }
+  instrumentProgress(server)
   const deferredResults = new DeferredResultStore()
   const deferredResultsEnabled = !options.enabledV0Tools ||
     options.enabledV0Tools.has(DEFERRED_RESULT_TOOL_NAME)

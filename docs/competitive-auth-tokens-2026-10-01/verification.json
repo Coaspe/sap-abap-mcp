@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-01",
+  "stage": "guided-advanced-auth-and-batched-discovery",
+  "baselineTests": 572,
+  "finalTests": 590,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "stdioModes": [
+    "default-minimal",
+    "adaptive",
+    "full",
+    "minimal",
+    "single"
+  ],
+  "profileConformancePassed": true,
+  "sourceSnapshotMatchesVerifiedMirror": true,
+  "sourceFiles": [
+    {
+      "path": "src/connection-manager.ts",
+      "sha256": "48e5c64bc85c127c1744705713362540c238f2b6e3feeacb5dd16d03194b30c7"
+    },
+    {
+      "path": "src/index.ts",
+      "sha256": "ab043d6a9f747aa4dafb86d1a13e0ebd615b1c3cf6cb6a3d8ca2f8d51c9cc79e"
+    },
+    {
+      "path": "src/mcp-server.ts",
+      "sha256": "d647167b4c93ece4d3375b366b5c97ca7512da4cccd64df16a1274fcc6945ec1"
+    },
+    {
+      "path": "src/mcp/v1/adaptive-tools.ts",
+      "sha256": "cccc7700058fceb3f9a3f26a1702c86ba5901b98340c52f4bd83c3e2342eeffd"
+    },
+    {
+      "path": "src/mcp/v1/contracts.ts",
+      "sha256": "14bc0eafad05fa5aac0c1275503c4bd9d6eae1074a747a1c7bb734f63d9b82b7"
+    },
+    {
+      "path": "src/mcp/v1/result.ts",
+      "sha256": "9c27ab8ae3b97200a6cf0a22e34ec991edd1f5ead50342309be3e8438708707d"
+    },
+    {
+      "path": "src/oauth-authorization-code.ts",
+      "sha256": "6139279892bc5d08ac26d5070951f82a3913ac27193e0b045323afc670ac775b"
+    },
+    {
+      "path": "src/onboard.ts",
+      "sha256": "80d49be3acfcb98f49fa0700a8d73848d477f80a7647a57d90943c28b0b05859"
+    },
+    {
+      "path": "src/onboard-page.ts",
+      "sha256": "52e4204e39988e8e196b013fb5c4e2f695c5bce41bfb1a65ff4d0d2d87dd2073"
+    },
+    {
+      "path": "src/mcp/progress-instrumentation.ts",
+      "sha256": "47771adb49066b64261530cf8f0cad223f3534ad7216fcfe00b2da21f38f6efc"
+    },
+    {
+      "path": "test/connection-manager-oauth.test.ts",
+      "sha256": "69817a82c3f5b4e898deb1f369f078c43242b6307a83ab3748d424808aa85d60"
+    },
+    {
+      "path": "test/oauth-authorization-code.test.ts",
+      "sha256": "e4abed54a76162d4c215e80fc0aa20631ae4fae1bd050347fbaf71d917d59300"
+    },
+    {
+      "path": "test/onboard.test.ts",
+      "sha256": "7ceff3ba47116828522332557113b0c5c70c3dcc56c4473c2765d9f754a40a19"
+    },
+    {
+      "path": "test/v1-adaptive.test.ts",
+      "sha256": "e9bdfcbc6e61ce53e548da2ab15550b058b000d3a03965f4fe344699724f76aa"
+    },
+    {
+      "path": "test/v1-result.test.ts",
+      "sha256": "7b40f986a44559c0ca2f988047c2ef475f70390954ac4d00c5e7528ebc6807e3"
+    },
+    {
+      "path": "test/progress-instrumentation.test.ts",
+      "sha256": "bb419afbfbdb1da7063b268adb6ececd56ff07c9fa456594af138ad9dca9aadf"
+    },
+    {
+      "path": "scripts/benchmark-mcp-workflow.mjs",
+      "sha256": "5d4fe9a49120a8491056e14b808ad268db5915ef170c223a7d8403a989836136"
+    },
+    {
+      "path": "mcpb/manifest.json",
+      "sha256": "c3684e50df0f8f4c3230f1b324e8175cba75f8de090fbf055ecd629a592ff840"
+    }
+  ],
+  "installedVerifiedBuildFiles": 462,
+  "workspaceRuntimeMatchesVerifiedBuild": true,
+  "validationEnvironment": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-mcp-quality-check-fbfummtf",
+  "originalWorkspaceDirectFullTestRun": false,
+  "reason": "macOS dataless file reads; validated identical sources with same lockfile in hydrated temporary mirror",
+  "liveSapCalls": 0,
+  "modelBenchmarkCalls": 0,
+  "uiVerification": {
+    "provider": "synthetic local fixture",
+    "browserOAuthToClientStep": true,
+    "narrowViewportWidth": 390,
+    "narrowScrollWidth": 390,
+    "screenshotFormat": "JPEG"
+  },
+  "unverified": [
+    "real company OAuth/SSO login",
+    "BTP user identity/permission isolation in a live tenant",
+    "cross-competitor identical-task success rates",
+    "host billing and cumulative conversation token costs",
+    "native phone accessibility"
+  ],
+  "published": false,
+  "packDryRun": {
+    "fileCount": 342,
+    "size": 1595278,
+    "verifiedRequiredFiles": [
+      "dist/src/onboard.js",
+      "dist/src/oauth-authorization-code.js",
+      "dist/src/mcp/v1/adaptive-tools.js",
+      "docs/competitive-auth-tokens-2026-10-01/verification.json",
+      "docs/competitive-auth-tokens-2026-10-01/token-summary.json",
+      "docs/competitive-auth-tokens-2026-10-01/01-btp-service-key.jpg",
+      "docs/competitive-auth-tokens-2026-10-01/03-narrow-oauth.jpg"
+    ]
+  }
+}

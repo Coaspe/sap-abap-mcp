@@ -1,0 +1,12 @@
+✔ v0 forwards separate binding category and OData version (28.839292ms)
+✔ v1 forwards separate binding category and OData version (40.640292ms)
+✔ creates a minimal safe XLSX package (17.287625ms)
+✔ limits sheet names by Unicode code point and writes the same package to disk (31.298209ms)
+ℹ tests 656
+ℹ suites 0
+ℹ pass 656
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9270.765459

@@ -1,0 +1,113 @@
+{
+  "generatedAt": "2026-10-01T04:43:21.484Z",
+  "tokenizer": "o200k_base",
+  "method": "ARC-1 published schema factory, unknown SAP capabilities, no plugins/auth filtering; our real in-memory MCP tools/list. No SAP calls or task executions. Defaults differ in permissions and functionality.",
+  "arcPackage": {
+    "name": "arc-1",
+    "version": "1.4.0",
+    "toolsModuleSha256": "8142e5a787fd7b4a3ae16dd361cd76084813d34e5cf8f5e3fdb178c9fa0e078d"
+  },
+  "arc": [
+    {
+      "scenario": "standard-default",
+      "toolCount": 9,
+      "toolArrayBytes": 47459,
+      "toolsListBytes": 47469,
+      "toolArrayTokens": 11285,
+      "names": [
+        "SAPRead",
+        "SAPSearch",
+        "SAPNavigate",
+        "SAPLint",
+        "SAPDiagnose",
+        "SAPContext",
+        "SAPManage",
+        "SAPTransport",
+        "SAPGit"
+      ]
+    },
+    {
+      "scenario": "standard-write-data-git-enabled",
+      "toolCount": 12,
+      "toolArrayBytes": 72729,
+      "toolsListBytes": 72739,
+      "toolArrayTokens": 17334,
+      "names": [
+        "SAPRead",
+        "SAPSearch",
+        "SAPWrite",
+        "SAPActivate",
+        "SAPNavigate",
+        "SAPQuery",
+        "SAPLint",
+        "SAPDiagnose",
+        "SAPContext",
+        "SAPManage",
+        "SAPTransport",
+        "SAPGit"
+      ]
+    },
+    {
+      "scenario": "hyperfocused-default",
+      "toolCount": 1,
+      "toolArrayBytes": 917,
+      "toolsListBytes": 927,
+      "toolArrayTokens": 209,
+      "names": [
+        "SAP"
+      ]
+    }
+  ],
+  "ours": [
+    {
+      "scenario": "adaptive",
+      "toolCount": 17,
+      "toolArrayBytes": 26728,
+      "toolsListBytes": 26738,
+      "toolArrayTokens": 6585,
+      "names": [
+        "sap.system.list",
+        "sap.system.inspect",
+        "sap.system.capabilities",
+        "sap.repository.search",
+        "sap.source.read",
+        "sap.repository.inspect",
+        "sap.repository.resolve",
+        "sap.repository.where_used",
+        "sap.semantic.complete",
+        "sap.semantic.definition",
+        "sap.source.diagnose",
+        "sap.source.search",
+        "sap.capability.search",
+        "sap.capability.describe",
+        "sap.capability.invoke_read",
+        "sap.capability.invoke_write",
+        "sap.capability.invoke_destructive"
+      ]
+    },
+    {
+      "scenario": "minimal",
+      "toolCount": 5,
+      "toolArrayBytes": 3667,
+      "toolsListBytes": 3677,
+      "toolArrayTokens": 880,
+      "names": [
+        "sap.capability.search",
+        "sap.capability.describe",
+        "sap.capability.invoke_read",
+        "sap.capability.invoke_write",
+        "sap.capability.invoke_destructive"
+      ]
+    },
+    {
+      "scenario": "single",
+      "toolCount": 1,
+      "toolArrayBytes": 863,
+      "toolsListBytes": 873,
+      "toolArrayTokens": 215,
+      "names": [
+        "sap"
+      ]
+    }
+  ]
+}

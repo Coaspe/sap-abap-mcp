@@ -6,3 +6,5 @@ dist/
 .sap-abap-mcp.json
 .worktrees/
 artifacts/
+!vendor/mermaid/dist/
+!vendor/mermaid/dist/**

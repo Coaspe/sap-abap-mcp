@@ -1,0 +1,695 @@
+{
+  "date": "2026-10-01",
+  "tokenizer": "o200k_base",
+  "measurement": "tools plus initialization instructions, requests and complete results; UUIDs normalized",
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "runs": {
+    "before": [
+      {
+        "mode": "full",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 5,
+        "totalWithInstructionsTokens": 62576,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "full",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 5,
+        "totalWithInstructionsTokens": 56995,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "full",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 24,
+        "totalWithInstructionsTokens": 176652,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "full",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 24,
+        "totalWithInstructionsTokens": 64291,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 17,
+        "schemaTokens": 6583,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 26368,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 17,
+        "schemaTokens": 6583,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 20787,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 17,
+        "schemaTokens": 6583,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 140444,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 17,
+        "schemaTokens": 6583,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 28083,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 5,
+        "schemaTokens": 883,
+        "clientToolCalls": 8,
+        "totalWithInstructionsTokens": 22442,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 5,
+        "schemaTokens": 883,
+        "clientToolCalls": 8,
+        "totalWithInstructionsTokens": 16863,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 5,
+        "schemaTokens": 883,
+        "clientToolCalls": 27,
+        "totalWithInstructionsTokens": 137506,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 5,
+        "schemaTokens": 883,
+        "clientToolCalls": 27,
+        "totalWithInstructionsTokens": 25166,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 1,
+        "schemaTokens": 209,
+        "clientToolCalls": 8,
+        "totalWithInstructionsTokens": 21760,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 1,
+        "schemaTokens": 209,
+        "clientToolCalls": 8,
+        "totalWithInstructionsTokens": 16181,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 1,
+        "schemaTokens": 209,
+        "clientToolCalls": 27,
+        "totalWithInstructionsTokens": 136824,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 1,
+        "schemaTokens": 209,
+        "clientToolCalls": 27,
+        "totalWithInstructionsTokens": 24484,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      }
+    ],
+    "individual": [
+      {
+        "mode": "full",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 5,
+        "totalWithInstructionsTokens": 62576,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "full",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 5,
+        "totalWithInstructionsTokens": 56995,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "full",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 24,
+        "totalWithInstructionsTokens": 176652,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "full",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 24,
+        "totalWithInstructionsTokens": 64291,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 17,
+        "schemaTokens": 6580,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 26371,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 17,
+        "schemaTokens": 6580,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 20790,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 17,
+        "schemaTokens": 6580,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 140447,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 17,
+        "schemaTokens": 6580,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 28086,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 5,
+        "schemaTokens": 880,
+        "clientToolCalls": 8,
+        "totalWithInstructionsTokens": 22445,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 5,
+        "schemaTokens": 880,
+        "clientToolCalls": 8,
+        "totalWithInstructionsTokens": 16866,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 5,
+        "schemaTokens": 880,
+        "clientToolCalls": 27,
+        "totalWithInstructionsTokens": 137509,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 5,
+        "schemaTokens": 880,
+        "clientToolCalls": 27,
+        "totalWithInstructionsTokens": 25169,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 1,
+        "schemaTokens": 215,
+        "clientToolCalls": 8,
+        "totalWithInstructionsTokens": 21771,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 1,
+        "schemaTokens": 215,
+        "clientToolCalls": 8,
+        "totalWithInstructionsTokens": 16192,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 1,
+        "schemaTokens": 215,
+        "clientToolCalls": 27,
+        "totalWithInstructionsTokens": 136835,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 1,
+        "schemaTokens": 215,
+        "clientToolCalls": 27,
+        "totalWithInstructionsTokens": 24495,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      }
+    ],
+    "batch": [
+      {
+        "mode": "full",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 5,
+        "totalWithInstructionsTokens": 62576,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "full",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 5,
+        "totalWithInstructionsTokens": 56995,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "full",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 24,
+        "totalWithInstructionsTokens": 176652,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "full",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 120,
+        "schemaTokens": 44109,
+        "clientToolCalls": 24,
+        "totalWithInstructionsTokens": 64291,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 17,
+        "schemaTokens": 6580,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 26377,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 17,
+        "schemaTokens": 6580,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 20796,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 17,
+        "schemaTokens": 6580,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 140453,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "adaptive",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 17,
+        "schemaTokens": 6580,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 28092,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 5,
+        "schemaTokens": 880,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 22229,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 5,
+        "schemaTokens": 880,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 16650,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 5,
+        "schemaTokens": 880,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 137293,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "minimal",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 5,
+        "schemaTokens": 880,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 24953,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": false,
+        "unchangedReads": 1,
+        "toolCount": 1,
+        "schemaTokens": 215,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 21547,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": true,
+        "unchangedReads": 1,
+        "toolCount": 1,
+        "schemaTokens": 215,
+        "clientToolCalls": 6,
+        "totalWithInstructionsTokens": 15968,
+        "serviceCalls": {
+          "source": 3,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": false,
+        "unchangedReads": 20,
+        "toolCount": 1,
+        "schemaTokens": 215,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 136611,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      },
+      {
+        "mode": "single",
+        "conditional": true,
+        "unchangedReads": 20,
+        "toolCount": 1,
+        "schemaTokens": 215,
+        "clientToolCalls": 25,
+        "totalWithInstructionsTokens": 24271,
+        "serviceCalls": {
+          "source": 22,
+          "components": 1,
+          "diagnostics": 1
+        }
+      }
+    ]
+  },
+  "limitations": [
+    "JSON-RPC framing and other initialization fields",
+    "host-native tool search and schema caching",
+    "model billing and cumulative conversation replay",
+    "SAP network traffic and latency",
+    "write approval interactions",
+    "prompt/resource lists and prompt bodies (not requested in this workflow)"
+  ]
+}

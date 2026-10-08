@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-01",
+  "passed": true,
+  "platform": "darwin",
+  "node": "v24.11.1",
+  "codexVersion": "codex-cli 0.153.4",
+  "package": {
+    "version": "1.7.1",
+    "integrity": "sha512-7t2Ud2uLIUyY8UjR9X/U65ddbhKNSa9BBHL3M7yFdpYx4dQ1todzVaiKvG/xxSIz4C5e2voq5i3vfxSDhuHp8w==",
+    "fromLocalUnpublishedTarball": true,
+    "installScriptsDisabled": true,
+    "installedPathContainsSpaces": true,
+    "installMs": 2408
+  },
+  "registration": {
+    "realCli": true,
+    "isolatedConfiguration": true,
+    "unrelatedEntryPreserved": true,
+    "repeatDidNotRewriteConfig": true,
+    "registeredCurrentInstalledRuntime": true,
+    "mcpConnectionStatus": "unknown"
+  },
+  "runtime": {
+    "toolCount": 5,
+    "initializationMs": 392,
+    "profileFileVersion": 2,
+    "readOnlyPolicyReported": true,
+    "credentialAvailable": false
+  },
+  "sapVerification": "synthetic validator and in-memory secret store; no SAP authentication performed",
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "userConfigurationChanged": false,
+  "claudeCliTested": false,
+  "windowsTested": false,
+  "linuxTested": false,
+  "published": false
+}

@@ -83,7 +83,7 @@ const systemInfo: SapSystemInfo = {
   queryTimestamp: "2026-07-16T00:00:00.000Z"
 }
 
-function createService() {
+function createService(documentation = "") {
   const client = {
     searchObjects: async () => [object],
     readObject: async () => ({
@@ -108,6 +108,7 @@ function createService() {
     readSourceByUri: async () => ({ source, sourceUri: `${object.uri}/source/main` }),
     formatSource: async () => `${source}\n`,
     getAdtDiscovery: async () => ({ discovery: [], core: [] }),
+    getAbapDocumentation: async () => documentation,
     getSystemInfo: async () => systemInfo,
     getDumps: async () => ({
       dumps: [{
@@ -207,6 +208,73 @@ function createService() {
     }
   })
 }
+
+test("documentation pages omit HTML assets and preserve readable examples and table cells", async () => {
+  const html = `<html><head><style>${"x".repeat(100000)}</style><script>hidden()</script></head><body><h1>SHIFT</h1><pre>IF a &lt; b.\n  WRITE '😀'.</pre><table><tr><td>INPUT</td><td>STRING</td></tr></table><p>${"가😀".repeat(3000)}</p></body></html>`
+  const service = createService(html)
+  const input = {
+    connectionId: "DEV100", fileUri: `adt://DEV100${object.uri}/source/main`,
+    action: "documentation" as const, line: 1, column: 0,
+    implementation: false, startIndex: 0, maxResults: 50
+  }
+  const legacy = await service.inspectCode(input) as any
+  assert.equal(legacy.format, "html")
+  const first = await service.inspectCode({ ...input, documentationFormat: "text" }) as any
+  assert.equal(first.format, "text")
+  assert.equal(first.sourceFormat, "html")
+  assert.equal(first.returned, 4000)
+  assert.equal(first.nextOffset, 4000)
+  assert.match(first.content, /IF a < b\.\n  WRITE '😀'\./)
+  assert.match(first.content, /INPUT\tSTRING/)
+  assert.doesNotMatch(first.content, /hidden|<style>|<html>|\uFFFD/)
+  assert.ok(Buffer.byteLength(JSON.stringify(first)) < Buffer.byteLength(JSON.stringify(legacy)) / 5)
+  let complete = first.content
+  let offset = first.nextOffset
+  while (offset !== null) {
+    const page = await service.inspectCode({ ...input, documentationFormat: "text", documentation: { offset, maxChars: 4000 } }) as any
+    assert.equal(page.documentHash, first.documentHash)
+    assert.equal(page.returnedBytes, Buffer.byteLength(page.content))
+    complete += page.content
+    offset = page.nextOffset
+  }
+  assert.ok(complete.endsWith("가😀".repeat(3000)))
+  const whole = await service.inspectCode({ ...input, documentationFormat: "text", documentation: { offset: 0, maxChars: 16000 } }) as any
+  assert.equal(complete, whole.content)
+  assert.equal(whole.truncated, false)
+  const raw = await service.inspectCode({ ...input, documentationFormat: "html", documentation: { offset: 0, maxChars: 16000 } }) as any
+  assert.equal(raw.content, Array.from(html).slice(0, 16000).join(""))
+  let rawComplete = raw.content
+  let rawOffset = raw.nextOffset
+  while (rawOffset !== null) {
+    const page = await service.inspectCode({ ...input, documentationFormat: "html", documentation: { offset: rawOffset, maxChars: 16000 } }) as any
+    assert.equal(page.documentHash, raw.documentHash)
+    rawComplete += page.content
+    rawOffset = page.nextOffset
+  }
+  assert.equal(rawComplete, html)
+  const changed = await createService(html.replace("SHIFT", "REPLACE")).inspectCode({ ...input, documentationFormat: "text" }) as any
+  assert.notEqual(changed.documentHash, first.documentHash)
+})
+
+test("documentation paging preserves literal comparison operators and handles empty and final pages", async () => {
+  const content = "IF a < b AND c > d. 😀가😀"
+  const input = {
+    connectionId: "DEV100", fileUri: `adt://DEV100${object.uri}/source/main`,
+    action: "documentation" as const, line: 1, column: 0,
+    implementation: false, startIndex: 0, maxResults: 50,
+    documentationFormat: "text" as const
+  }
+  const plain = await createService(content).inspectCode(input) as any
+  assert.equal(plain.content, content)
+  assert.equal(plain.sourceFormat, "text")
+  const empty = await createService().inspectCode(input) as any
+  assert.equal(empty.content, "")
+  assert.equal(empty.nextOffset, null)
+  const final = await createService(content).inspectCode({ ...input, documentation: { offset: 100, maxChars: 3 } }) as any
+  assert.equal(final.content, "")
+  assert.equal(final.truncated, false)
+  assert.equal(final.nextOffset, null)
+})
 
 test("connected system discovery omits connection details already available from the profile", async () => {
   const result = await createService().getConnectedSystems()
@@ -685,4 +753,16 @@ test("batch stops scheduling later groups after the code budget is exhausted", a
     assert.ok(!item.ok && "deferred" in item && item.deferred)
     assert.deepEqual(item.request, requests[index + 4])
   }
+})
+
+
+test("documentation HTML parser handles malformed closing tags and decodes entities once", async () => {
+  const service = createService('<html><style>hide-style</style ><script>hide-script</script foo="bar"><p>kept &amp;lt; &lt; &quot; &#x1F600;</p><!-- hidden --!><p>tail</p></html>')
+  const result = await service.inspectCode({
+    connectionId: "DEV100", fileUri: `adt://DEV100${object.uri}/source/main`,
+    action: "documentation", line: 1, column: 0,
+    implementation: false, startIndex: 0, maxResults: 50,
+    documentationFormat: "text"
+  }) as any
+  assert.equal(result.content, 'kept &lt; < " 😀\ntail')
 })

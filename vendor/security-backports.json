@@ -1,0 +1,61 @@
+{
+  "status": "local-maintained-backports",
+  "upstreamReleaseClaimed": false,
+  "sources": {
+    "node-forge": {
+      "version": "1.4.0",
+      "tarball": "https://registry.npmjs.org/node-forge/-/node-forge-1.4.0.tgz",
+      "integrity": "sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ=="
+    },
+    "sprintf-js": {
+      "version": "1.1.3",
+      "tarball": "https://registry.npmjs.org/sprintf-js/-/sprintf-js-1.1.3.tgz",
+      "integrity": "sha512-Oo+0REFV59/rz3gfJNKQiBlwfHaSESl1pcGyABQsnnIfWOFt6JNj5gCog2U6MLZ//IGYD+nA8nI+mTShREReaA=="
+    },
+    "mermaid": {
+      "version": "11.16.1",
+      "tarball": "https://registry.npmjs.org/mermaid/-/mermaid-11.16.1.tgz",
+      "integrity": "sha512-TQsq6u22fAn3rek5VOubrhKPo1g5hwC3FXUN9hiyupTckcYiGuuKGkNQrKYwGJkXUxZdojwRG46gsSCFZMDp4g=="
+    }
+  },
+  "fixes": {
+    "rsa": {
+      "advisory": "GHSA-86w9-cpqp-85rv",
+      "upstreamReview": "https://github.com/digitalbazaar/forge/pull/1157",
+      "reviewCommit": "683ab3344899cc08a581e4d5675a33e87aff7b04",
+      "changes": "Validate nested DigestAlgorithm child count and empty ASN.1 NULL parameters."
+    },
+    "sprintf": {
+      "advisory": "GHSA-hp3w-g68c-fv3c",
+      "changes": "Clamp e/f/g numeric precision to ECMAScript-supported limits; retain normal string/URI formatting."
+    },
+    "mermaid": {
+      "advisory": "GHSA-238p-pmpm-9mq7",
+      "changes": "Use official KaTeX 0.18.2 and rebuild the standalone browser bundle from the supported core ESM entry. Remove old prebundled KaTeX copies. Escape backslashes before CSS URL parentheses.",
+      "builder": "esbuild 0.27.2"
+    },
+    "pem": {
+      "changes": "Use fixed message boundaries and linear header parsing to prevent polynomial regex backtracking; preserve encrypted and multi-message PEM."
+    },
+    "forgeHttp": {
+      "changes": "Use null-prototype cookie maps including loaded path maps; trim header whitespace with the built-in linear operation."
+    }
+  },
+  "runtimeHashes": {
+    "rsa": "ff1d46675dbf07c80b438381c0a41b9b16ae3d4c84d103b1e9f067ad4a9c00fe",
+    "sprintf": "41c1cae8166179dd7a3f7bdb9e826c007af68188e79e7e8bfed5f73e1ffda0ac",
+    "mermaidBrowser": "0067641addeec27b9b3c7b3ab82720d3b0404c61e18e45a723d03d803e983a31",
+    "pem": "1a8144822e6c09d7599687bdbcb7f067718078ac2f660e9d16eb522ad0e67a1f",
+    "forgeHttp": "ec30498452f19340cbee73c67cba1d5925f20caecbfd067c6ba1a03f1beeb4b4"
+  },
+  "reviewedUpstreamAdvisories": {
+    "GHSA-86w9-cpqp-85rv": {
+      "package": "node-forge",
+      "modified": "2026-10-01T21:40:55.016251Z"
+    },
+    "GHSA-hp3w-g68c-fv3c": {
+      "package": "sprintf-js",
+      "modified": "2026-10-06T00:00:08.436043Z"
+    }
+  }
+}

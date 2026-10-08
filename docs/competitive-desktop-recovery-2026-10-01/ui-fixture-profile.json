@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "profiles": [
+    {
+      "id": "DEV100",
+      "url": "https://sap.example.test",
+      "client": "100",
+      "language": "EN",
+      "environment": "development",
+      "allowDataQueries": false,
+      "readOnly": true,
+      "allowedPackages": [
+        "Z_LOCKED"
+      ],
+      "authType": "basic",
+      "username": "FIXTURE"
+    }
+  ]
+}

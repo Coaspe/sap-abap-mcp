@@ -1,0 +1,31 @@
+{
+  "reportDate": "2026-10-02",
+  "scope": "Locally reviewed, opt-in first-setup evidence only",
+  "status": "intake-prepared-no-participants-recorded",
+  "telemetry": "off",
+  "sourceOfCounts": "No participant reports or moderated sessions have been recorded in this local scorecard. Public/unreviewed reports are not counted automatically.",
+  "recordedReports": 0,
+  "attemptedSetups": 0,
+  "completedWithoutHelp": 0,
+  "completedWithHelp": 0,
+  "setupFailures": 0,
+  "firstReadAttempts": 0,
+  "firstReadPassed": 0,
+  "firstReadFailed": 0,
+  "repeatUseConfirmed": 0,
+  "repeatUseDeclined": 0,
+  "repeatUseUnobserved": 0,
+  "medianSetupTimeBand": null,
+  "verifiedLiveCompatibilityRecords": 0,
+  "verifiedPublicAdopters": 0,
+  "independentConformanceImplementationsVerified": 0,
+  "reviewRules": [
+    "Count failed attempts and unobserved follow-ups; do not silently drop them.",
+    "Separate published npm, supplied preview and local-checkout builds and starting states.",
+    "Exclude reports without aggregate consent from aggregate counts.",
+    "Treat self-reported outcomes separately from validated live compatibility and consented public adoption.",
+    "Store only bounded aggregate metadata; no customer identities, source, URLs or credentials."
+  ],
+  "reports": [],
+  "completionClaim": false
+}

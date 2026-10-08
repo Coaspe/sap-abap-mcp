@@ -43,7 +43,7 @@ Run the bundled change-assurance skill:
 /sap-abap-mcp:sap-abap-change-assurance
 ```
 
-It uses the read-only `assess_transport` action to combine ATC, ABAP Unit, and optional target-system comparison without releasing the transport. CI workflows can request JSON, SARIF 2.1.0, and JUnit XML evidence. A truncated or failed check returns `incomplete`, never a pass.
+It uses the `assess_transport` action, which requires execution permission for ABAP Unit, to combine ATC, ABAP Unit, and optional target-system comparison without releasing the transport. CI workflows can request JSON, SARIF 2.1.0, and JUnit XML evidence. A truncated or failed check returns `incomplete`, never a pass.
 
 ## Codex
 
@@ -55,7 +55,13 @@ Install **SAP ABAP MCP** from the `Coaspe SAP Developer Tools` marketplace in th
 
 Every SAP-facing tool requires an explicit `connectionId`. Live SAP behavior depends on the selected SAP release, configuration, and authorizations.
 
-The default v1 server advertises all 120 tools. For lower prompt/schema token use, launch with `serve --preset compact` (12 everyday read/inspect tools), `--preset development` (34 development tools), or `--preset assurance` (15 read-only review tools). The current surface adds typed DDIC workflows, enhancement inspection, bounded runtime feeds, confirmed executable-program profiling, and an opt-in same-origin Screen/GUI Status bridge while keeping the compact preset unchanged. See [`docs/advanced-workflows.md`](../../docs/advanced-workflows.md) and [`docs/classic-bridge.md`](../../docs/classic-bridge.md) for the composed and optional workflows.
+The CLI defaults to five minimal gateways while retaining discovery of all 120 v1 capabilities; use `serve --toolsets all` for direct advertisement of every tool. For lower prompt/schema token use, launch with `serve --preset compact` (12 everyday read/inspect tools), `--preset development` (34 development tools), or `--preset assurance` (15 review and quality-execution tools). The current surface adds typed DDIC workflows, enhancement inspection, bounded runtime feeds, confirmed executable-program profiling, and an opt-in same-origin Screen/GUI Status bridge while keeping the compact preset unchanged. See [`docs/advanced-workflows.md`](../../docs/advanced-workflows.md) and [`docs/classic-bridge.md`](../../docs/classic-bridge.md) for the composed and optional workflows.
+
+Hosts with native MCP Resource readers can use the existing canonical source
+Resource for full-source reads. This avoids a duplicate structured tool body;
+use bounded tools for source ranges and conditional rechecks.
+[Usage and measured caller strategies](../../docs/adaptive-mode.md#full-source-reads-through-native-resources-2026-10-02)
+state the host requirement and offline comparison limits.
 
 Node.js applications can also import `createEmbeddedMcpServer` from the package root, provide their own SAP connection provider, and attach the MCP transport managed by the host application. Importing the library entry does not start the CLI.
 

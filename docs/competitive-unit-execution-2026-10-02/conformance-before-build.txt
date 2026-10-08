@@ -1,0 +1,4 @@
+
+> @coaspe/sap-abap-mcp@1.7.1 build
+> tsc -p tsconfig.json
+
