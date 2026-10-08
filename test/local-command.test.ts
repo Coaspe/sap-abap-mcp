@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
@@ -26,10 +27,11 @@ test("Windows npm-style command shims preserve arguments without executing opera
   try {
     const entry = join(dir, "echo-args.js")
     const captured = join(dir, "arguments.json")
-    await writeFile(entry, "require('node:fs').writeFileSync(process.argv[2], JSON.stringify(process.argv.slice(3)))")
+    await writeFile(entry, "#!/usr/bin/env node\nrequire('node:fs').writeFileSync(process.argv[2], JSON.stringify(process.argv.slice(3)))")
     const command = join(dir, "echo-args.cmd")
-    await writeFile(command, `@echo off\r\n"${process.execPath}" "${entry}" %*\r\n`)
-    const args = ["가 나", 'quote"value', "a&b|c", "(value)"]
+    const cmdShim = createRequire(import.meta.url)("cmd-shim") as (source: string, target: string) => Promise<void>
+    await cmdShim(entry, command)
+    const args = ["가 나", 'quote"value', "%PATH%", "a&b|c", "(value)", "trailing\\"]
     const result = await runLocalCommand(command, [captured, ...args])
     assert.equal(result.ok, true, result.stderr)
     assert.deepEqual(JSON.parse(await readFile(captured, "utf8")), args)

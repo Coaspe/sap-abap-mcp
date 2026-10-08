@@ -1,6 +1,6 @@
 # Release CodeQL triage, 2026-10-08
 
-PR #29 scans project and vendored sources without excluding either. Actual findings are fixed in source: HTML uses the WHATWG parse5 parser with scripts/styles omitted and entities decoded once; URI and filename suffix cleanup is linear; Windows commands use cross-spawn argument arrays; forge PEM framing/header parsing no longer backtracks; cookie and restored cookie-path maps have null prototypes; Mermaid CSS marker URLs escape backslashes before parentheses.
+PR #29 scans project and vendored sources without excluding either. Actual findings are fixed in source: HTML uses the WHATWG parse5 parser with scripts/styles omitted and entities decoded once; URI and filename suffix cleanup is linear; Windows commands resolve native executables or npm shim targets and spawn argument arrays without a command shell; forge PEM framing/header parsing no longer backtracks; cookie and restored cookie-path maps have null prototypes; Mermaid CSS marker URLs escape backslashes before parentheses.
 
 ## Six false positives: Mermaid diagram arrow lexers
 
