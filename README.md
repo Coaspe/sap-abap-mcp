@@ -960,8 +960,7 @@ they report no usable credential and are neither deleted nor converted.
 Use independently authenticated SAP profiles, or configure the experimental
 [BTP Destination exchange/propagation profile](docs/btp-destination-integration.md)
 with the administrator. `profile add` no longer accepts `--auth-type bearer-passthrough`,
-and `auth login` cannot repair that mode. This change is in the local checkout,
-not a claim about the currently published npm release.
+and `auth login` cannot repair that mode. This compatibility change applies to 2.0.0.
 
 ### 6. Transport security
 
@@ -1188,7 +1187,7 @@ Removing a profile also removes its SAP password or OAuth client secret and stor
 | RAP generator is unavailable | The SAP release or installed components may not expose the RAP generator endpoints. |
 | Private Git access fails | Store credentials for the exact canonical repository URL. |
 
-Browser SSO-only, MFA-only, certificate-only, and Kerberos-only SAP systems are not supported by this release. Use Basic Auth or an explicitly configured OAuth client-credentials client accepted by the ADT endpoint.
+Browser OAuth requires an explicitly registered client and ADT authorization. A browser-only SAML login does not establish that OAuth is available. Certificate-only, Kerberos-only, and unsupported SSO configurations require a supported independent SAP credential.
 
 ## Local development
 
@@ -1213,7 +1212,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 - Package: `@coaspe/sap-abap-mcp`
 - Checkout manifest version: `2.0.0`
 - Version 2.0.0 uses maintained security backports and an explicit release discovery contract: [vendor/README.md](vendor/README.md), [spec/RELEASE-PROFILE.md](spec/RELEASE-PROFILE.md). Checkout metadata and local validation do not prove publication; confirm the intended version in GitHub Releases and npm before installing a pinned version.
-- Install: `npx @coaspe/sap-abap-mcp@1.7.1`
+- Install: `npx @coaspe/sap-abap-mcp@2.0.0`
 - Patch fixes: [1.7.1 release record](docs/release-1.7.1.md).
 - Source lineage and company acceptance scope: [release record](docs/release-1.7.0.md). Default CLI startup exposes five gateways; all 120 capabilities remain discoverable.
 - Runtime: minimum compatible Node.js 20; use a maintained LTS release (currently 22 or 24)
