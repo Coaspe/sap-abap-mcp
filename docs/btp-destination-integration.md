@@ -167,7 +167,7 @@ Service access or token exchange. The input JWT must come from the authenticated
 HTTP caller; the resolver does not authenticate that JWT itself. The selectable profile binds this
 resolver to the authenticated HTTP session. Actual BTP flows remain unverified.
 
-The unreleased checkout also refuses legacy direct `bearer_passthrough` profiles
+Version 2.0.0 also refuses legacy direct `bearer_passthrough` profiles
 before SAP client creation, including manually supplied OIDC tokens. Existing
 files remain readable; see [migration](setup-and-profiles.md#request-scoped-bearer-passthrough).
 For principal propagation the SDK may pass the caller JWT as a Connectivity

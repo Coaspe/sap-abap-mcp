@@ -1,6 +1,6 @@
 # Claude Desktop setup without a separate Node installation
 
-This checkout's MCPB preview includes the server and its dependencies. Claude
+The 2.0.0 MCPB bundle includes the server and its dependencies. Claude
 Desktop provides the Node runtime, so this path does not require terminal
 commands, a separate Node/npm installation, Claude Code or Codex CLI.
 See [Anthropic's extension guide](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop)
@@ -12,8 +12,8 @@ by this bundle; organization policy can disable custom extensions.
 ## First setup
 
 1. In Claude Desktop, open Settings → Extensions → Advanced settings → Install
-   Extension and select the supplied `.mcpb` file. Use an identified publisher
-   and verify the supplied checksum. This local preview is unsigned and unpublished.
+   Extension and select the `.mcpb` file from the [2.0.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.0).
+   Verify its published SHA-256 checksum. The bundle is unsigned.
 2. If no SAP profiles exist, the extension starts the browser setup on
    `127.0.0.1`. If the browser does not open, use the `SAP setup:` URL in the
    extension's logs. The random setup token is required; never post that URL
@@ -36,7 +36,7 @@ from the extension directory and follows `SAP_ABAP_MCP_HOME` or the ordinary
 per-user profile directory. Uninstalling the extension does not delete profiles
 or credentials. Existing explicit access policy remains unchanged.
 
-In the unreleased wizard, returning to SAP setup after a save immediately shows
+In the wizard, returning to SAP setup after a save immediately shows
 that connection's card. Choose **Verify connection** to reuse the saved
 credential. The current step number and keyboard focus follow backward as well
 as forward navigation. See the [captured local flow](competitive-onboard-flow-2026-10-01/verification.json);

@@ -118,7 +118,7 @@ all profiles reachable by that principal.
 
 For caller-specific BTP identity, use the experimental
 [Destination exchange/propagation profile](btp-destination-integration.md).
-The unreleased checkout refuses direct MCP-token forwarding before SAP login;
+Version 2.0.0 refuses direct MCP-token forwarding before SAP login;
 see [legacy profile migration](setup-and-profiles.md#request-scoped-bearer-passthrough).
 
 ## Transport and session controls
@@ -194,7 +194,7 @@ host interface.
 
 ## Current limitation: token exchange
 
-Direct `bearer-passthrough` is refused in this unreleased checkout. SAP Basic/OAuth
+Direct `bearer-passthrough` is refused in 2.0.0. SAP Basic/OAuth
 profiles use independent credentials. The experimental `btp-destination` profile supports SDK-backed
 `OAuth2UserTokenExchange` or Cloud Connector principal propagation. The profile,
 HTTP identity scope, resolver and transport are connected and tested locally;

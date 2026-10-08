@@ -1,6 +1,6 @@
 # Conditional source reads
 
-Unreleased local builds reduce repeated source text in MCP responses through the
+Version 2.0.0 reduces repeated source text in MCP responses through the
 existing `sap.source.read` tool. This complements the SAP-side ETag cache: the
 cache reduces backend transfer, while conditional reads reduce returned content.
 
@@ -53,7 +53,7 @@ must account for `code` being absent only on a matching conditional response.
 The legacy v0 tool contracts are unchanged.
 
 The same retained-code pattern is available per item in
-[`sap.source.read_batch`](batch-source-reads.md#conditional-batch-rechecks-unreleased).
+[`sap.source.read_batch`](batch-source-reads.md#conditional-batch-rechecks).
 Use a validator returned by that batch item; batch and individual hashes are
 different representations. A matching batch item leaves its code budget free
 for changed objects while preserving per-item failures and continuation.

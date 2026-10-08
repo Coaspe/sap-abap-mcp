@@ -100,7 +100,9 @@ to use individual reads for known large ranges still applies. Four-read groups
 can wait for their slowest member before starting the next group. All 513 local
 tests pass, including v1 deferred status and one-based request preservation.
 
-## Conditional batch rechecks (unreleased)
+<a id="conditional-batch-rechecks-unreleased"></a>
+
+## Conditional batch rechecks
 
 Keep each successful item's code and `result.contentHash`. To recheck that same
 system, object and requested range, add the hash as the item's `ifNoneMatch`:
