@@ -2,7 +2,7 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
-## 2.0.0 — release candidate (2026-10-08; unpublished)
+## 2.0.0 — 2026-10-08
 
 ### Release preparation
 
