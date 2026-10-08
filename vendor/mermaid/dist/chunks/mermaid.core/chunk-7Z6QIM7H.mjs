@@ -781,7 +781,7 @@ var insertEdge = /* @__PURE__ */ __name(function(elem, edge, clusterDb, diagramT
   let url = "";
   if (getConfig2().flowchart.arrowMarkerAbsolute || getConfig2().state.arrowMarkerAbsolute) {
     url = window.location.protocol + "//" + window.location.host + window.location.pathname + window.location.search;
-    url = url.replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+    url = url.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
   }
   log.info("arrowTypeStart", edge.arrowTypeStart);
   log.info("arrowTypeEnd", edge.arrowTypeEnd);

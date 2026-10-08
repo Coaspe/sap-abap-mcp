@@ -1,4 +1,5 @@
-import { execFile, spawn } from "node:child_process"
+import { spawn } from "node:child_process"
+import crossSpawn from "cross-spawn"
 import { randomBytes } from "node:crypto"
 import { realpath, stat } from "node:fs/promises"
 import {
@@ -207,38 +208,46 @@ function oneLine(value: string): string | undefined {
   return line?.slice(0, 200)
 }
 
-function windowsCommandLine(command: string, args: readonly string[]): string {
-  const quote = (value: string): string => {
-    if (/[\r\n]/.test(value)) throw new AppError("COMMAND_ARGUMENT_INVALID", "Command arguments cannot contain line breaks")
-    return `"${value.replaceAll("%", "%%").replaceAll('"', '""')}"`
-  }
-  return [command, ...args].map(quote).join(" ")
-}
-
 export const runLocalCommand: CommandRunner = async (command, args) =>
   new Promise(resolve => {
-    const platform = process.platform
-    const executable = platform === "win32" ? process.env.ComSpec ?? "cmd.exe" : command
-    const executableArgs = platform === "win32"
-      ? ["/d", "/s", "/c", windowsCommandLine(command, args)]
-      : [...args]
-    execFile(
-      executable,
-      executableArgs,
-      { encoding: "utf8", timeout: 30_000, maxBuffer: 1024 * 1024, windowsHide: true },
-      (error, commandStdout, commandStderr) => {
-        const output = String(commandStdout ?? "")
-        const errorOutput = String(commandStderr ?? "")
-        const missing = (error as NodeJS.ErrnoException | null)?.code === "ENOENT" ||
-          /not recognized as an internal or external command|command not found/i.test(errorOutput)
-        resolve({
-          ok: !error,
-          stdout: output,
-          stderr: errorOutput,
-          missing
-        })
+    const child = crossSpawn(command, [...args], {
+      windowsHide: true, stdio: ["ignore", "pipe", "pipe"]
+    })
+    const timeout = setTimeout(() => child.kill(), 30_000)
+    const output: Buffer[] = []
+    const errorOutput: Buffer[] = []
+    let outputBytes = 0
+    let errorBytes = 0
+    let overflow = false
+    const collect = (chunk: Buffer, stderr: boolean) => {
+      if (stderr) errorBytes += chunk.length
+      else outputBytes += chunk.length
+      if (outputBytes > 1024 * 1024 || errorBytes > 1024 * 1024) {
+        overflow = true
+        child.kill()
+        return
       }
-    )
+      const chunks = stderr ? errorOutput : output
+      chunks.push(chunk)
+    }
+    child.stdout?.on("data", chunk => collect(chunk, false))
+    child.stderr?.on("data", chunk => collect(chunk, true))
+    child.on("error", error => {
+      clearTimeout(timeout)
+      resolve({
+        ok: false, stdout: "", stderr: error.message,
+        missing: (error as NodeJS.ErrnoException).code === "ENOENT"
+      })
+    })
+    child.on("close", (code, signal) => {
+      clearTimeout(timeout)
+      const stderr = Buffer.concat(errorOutput).toString("utf8")
+      resolve({
+        ok: code === 0 && signal === null && !overflow,
+        stdout: Buffer.concat(output).toString("utf8"), stderr,
+        missing: /not recognized as an internal or external command|command not found/i.test(stderr)
+      })
+    })
   })
 
 async function pathExists(path: string): Promise<boolean> {

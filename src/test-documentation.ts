@@ -53,8 +53,12 @@ function currentDate(): string {
 }
 
 function safeFileName(title: string): string {
-  const normalized = title.trim().replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "")
-  return `${normalized || "test-documentation"}.docx`
+  const normalized = title.trim().replace(/[^a-zA-Z0-9._-]+/g, "_")
+  let start = 0
+  let end = normalized.length
+  while (start < end && normalized[start] === "_") start++
+  while (end > start && normalized[end - 1] === "_") end--
+  return `${normalized.slice(start, end) || "test-documentation"}.docx`
 }
 
 export async function createTestDocumentation(input: TestDocumentationInput) {

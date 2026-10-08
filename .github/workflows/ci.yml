@@ -31,6 +31,19 @@ jobs:
           node scripts/benchmark-capability-discovery.mjs --tokens
           npm run build:mcpb
 
+  windows-runtime:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm run build
+      - run: node --test dist/test/local-command.test.js dist/test/security-backports.test.js dist/test/token-efficiency.test.js
+      - run: node scripts/smoke-v1-stdio.mjs
+
   package:
     runs-on: ubuntu-latest
     steps:

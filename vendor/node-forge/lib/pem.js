@@ -95,16 +95,40 @@ pem.encode = function(msg, options) {
 pem.decode = function(str) {
   var rval = [];
 
-  // split string into PEM messages (be lenient w/EOF on BEGIN line)
-  var rMessage = /\s*-----BEGIN ([A-Z0-9- ]+)-----\r?\n?([\x21-\x7e\s]+?(?:\r?\n\r?\n))?([:A-Za-z0-9+\/=\s]+?)-----END \1-----/g;
-  var rHeader = /([\x21-\x7e]+):\s*([\x21-\x7e\s^:]+)/;
+  // Split at fixed boundaries before validating each message. This keeps
+  // malformed inputs linear rather than repeatedly backtracking over them.
+  var parts = str.split('-----BEGIN ');
   var rCRLF = /\r?\n/;
   var match;
-  while(true) {
-    match = rMessage.exec(str);
-    if(!match) {
-      break;
+  for(var pi = 1; pi < parts.length; ++pi) {
+    var part = parts[pi];
+    var labelEnd = part.indexOf('-----');
+    if(labelEnd < 1) {
+      continue;
     }
+    var label = part.slice(0, labelEnd);
+    if(!/^[A-Z0-9 -]+$/.test(label)) {
+      continue;
+    }
+    var end = part.indexOf('-----END ' + label + '-----', labelEnd + 5);
+    if(end === -1) {
+      continue;
+    }
+    var content = part.slice(labelEnd + 5, end).replace(/^\r?\n/, '');
+    var separator = /\r?\n\r?\n/.exec(content);
+    var headers = null;
+    var body = content;
+    if(separator && separator.index > 0) {
+      headers = content.slice(0, separator.index + separator[0].length);
+      body = content.slice(separator.index + separator[0].length);
+      if(!/^[\x21-\x7e\s]+$/.test(headers)) {
+        continue;
+      }
+    }
+    if(!/^[:A-Za-z0-9+\/=\s]+$/.test(body)) {
+      continue;
+    }
+    match = [null, label, headers, body];
 
     // accept "NEW CERTIFICATE REQUEST" as "CERTIFICATE REQUEST"
     // https://datatracker.ietf.org/doc/html/rfc7468#section-7
@@ -133,7 +157,7 @@ pem.decode = function(str) {
     var li = 0;
     while(match && li < lines.length) {
       // get line, trim any rhs whitespace
-      var line = lines[li].replace(/\s+$/, '');
+      var line = lines[li].trimEnd();
 
       // RFC2822 unfold any following folded lines
       for(var nl = li + 1; nl < lines.length; ++nl) {
@@ -146,7 +170,11 @@ pem.decode = function(str) {
       }
 
       // parse header
-      match = line.match(rHeader);
+      var colon = line.indexOf(':');
+      var name = line.slice(0, colon);
+      var value = line.slice(colon + 1).trimStart();
+      match = colon > 0 && /^[\x21-\x39\x3b-\x7e]+$/.test(name) && value ?
+        [null, name, value] : null;
       if(match) {
         var header = {name: match[1], values: []};
         var values = match[2].split(',');

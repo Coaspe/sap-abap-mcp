@@ -102,17 +102,20 @@
     "@sap-cloud-sdk/connectivity": "4.9.1",
     "@sap-cloud-sdk/http-client": "4.9.1",
     "abap-adt-api": "8.4.1",
+    "cross-spawn": "7.0.6",
     "diff": "9.0.0",
     "docx": "9.5.1",
     "dompurify": "3.4.16",
     "fast-xml-parser": "5.10.1",
     "fflate": "0.8.3",
     "mermaid": "file:vendor/mermaid",
-    "zod": "4.4.3",
     "node-forge": "file:vendor/node-forge",
-    "sprintf-js": "file:vendor/sprintf-js"
+    "parse5": "7.3.0",
+    "sprintf-js": "file:vendor/sprintf-js",
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@types/cross-spawn": "6.0.6",
     "@types/node": "24.13.3",
     "js-tiktoken": "1.0.21",
     "typescript": "7.0.2"

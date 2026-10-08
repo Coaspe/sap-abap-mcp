@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { generateKeyPairSync, sign } from "node:crypto"
+import { spawnSync } from "node:child_process"
 import { createRequire } from "node:module"
 import test from "node:test"
 
@@ -88,5 +89,58 @@ test("KaTeX ignores inherited trust and polluted settings processors", () => {
       if (previous) Object.defineProperty(Object.prototype, name, previous)
       else delete (Object.prototype as Record<string, unknown>)[name]
     }
+  }
+})
+
+
+test("PEM parser preserves encrypted headers and rejects adversarial inputs within a bounded subprocess", () => {
+  const message = {
+    type: "RSA PRIVATE KEY", procType: { version: "4", type: "ENCRYPTED" },
+    dekInfo: { algorithm: "AES-256-CBC", parameters: "0011223344556677" },
+    headers: [{ name: "Fixture", values: ["first", "second"] }], body: "fixture"
+  }
+  const encoded = forge.pem.encode(message)
+  const decoded = forge.pem.decode(encoded)[0]
+  assert.equal(decoded.body, message.body)
+  assert.deepEqual(decoded.procType, message.procType)
+  assert.deepEqual(decoded.dekInfo, message.dekInfo)
+  assert.deepEqual(decoded.headers, message.headers)
+  assert.equal(forge.pem.decode(encoded + encoded).length, 2)
+  assert.equal(forge.pem.decode("-----BEGIN CERTIFICATE-----Zg==-----END CERTIFICATE-----")[0].body, "f")
+  const script = String.raw`const pem = require(process.argv[1]);
+    for (const value of ["\t".repeat(200000), "-----BEGIN ".repeat(20000),
+      "-----BEGIN  -----" + " \t\n\n\t".repeat(20000),
+      "-----BEGIN CERTIFICATE-----\nProc-Type: 4,ENCRYPTED\n" + "!".repeat(200000) + "\n\nZg==\n-----END CERTIFICATE-----"]) {
+      try { pem.decode(value) } catch {} }
+    process.stdout.write("done")`
+  const result = spawnSync(process.execPath, ["-e", script, require.resolve("node-forge/lib/pem.js")], { encoding: "utf8", timeout: 3000 })
+  assert.equal(result.error, undefined)
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout, "done")
+})
+
+test("HTTP cookie names and paths cannot modify object prototypes", () => {
+  const http = require("node-forge/lib/http.js")
+  const client = http.createClient({
+    url: "http://localhost", persistCookies: false,
+    socketPool: { createSocket: () => ({ id: "fixture", connected: false }) }
+  })
+  try {
+    for (const name of ["__proto__", "constructor", "session"]) {
+      const cookie = { name, value: "fixture", path: "__proto__", secure: false }
+      assert.equal(client.setCookie(cookie), true)
+      assert.equal(client.getCookie(name, "__proto__"), cookie)
+      assert.equal(Object.getPrototypeOf(client.cookies), null)
+      assert.equal(Object.getPrototypeOf(client.cookies[name]), null)
+      assert.equal(client.removeCookie(name, "__proto__"), true)
+    }
+    assert.equal(Object.getPrototypeOf({}), Object.prototype)
+    assert.equal(Object.prototype.hasOwnProperty.call(Object.prototype, "value"), false)
+    client.clearCookies()
+    assert.equal(Object.getPrototypeOf(client.cookies), null)
+  } finally {
+    // The fixture does not create a transport or connect to a server.
+    client.sockets = []
+    client.destroy()
   }
 })
