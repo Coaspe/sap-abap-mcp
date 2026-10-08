@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process"
-import { createRequire } from "node:module"
+import readCmdShim from "read-cmd-shim"
 import which from "which"
 import { randomBytes } from "node:crypto"
 import { realpath, stat } from "node:fs/promises"
@@ -208,8 +208,6 @@ function oneLine(value: string): string | undefined {
   const line = value.split(/\r?\n/).map(item => item.trim()).find(Boolean)
   return line?.slice(0, 200)
 }
-
-const readCmdShim = createRequire(import.meta.url)("read-cmd-shim") as (path: string) => Promise<string>
 
 export const runLocalCommand: CommandRunner = async (command, args) => {
   let executable = command
