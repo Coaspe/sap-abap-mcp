@@ -27,7 +27,7 @@ headless automation from any supported local MCP host.
 | Agent hosts | Codex, Claude, and other MCP clients, locally or over HTTP | MCP hosts configured against the running ADT server |
 | SAP sessions | Multiple named profiles in one process | SAP projects and sessions managed by ADT |
 | Guardrails | Production profiles are read-only; writes support package restrictions and explicit confirmations; HTTP mode adds API key roles, rate limits, and a structured audit log | Governed by the installed ADT version, SAP authorizations, and client configuration |
-| Assurance | Read-only transport assessment with JSON, SARIF, and JUnit evidence | SAP-provided in-IDE development workflows |
+| Assurance | Transport quality assessment with JSON, SARIF, and JUnit evidence; ABAP Unit requires execution permission | SAP-provided in-IDE development workflows |
 | Verification | Separates implemented, discovered, authorized, and live-verified capabilities | SAP product support and release documentation |
 
 This is a deployment-model comparison, not a capability benchmark or a claim
