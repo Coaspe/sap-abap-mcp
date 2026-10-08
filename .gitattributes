@@ -1,0 +1,4 @@
+vendor/** linguist-vendored -whitespace
+assets/mermaid.min.js linguist-generated -whitespace
+# Preserve captured regression output byte-for-byte.
+docs/competitive-*/*.txt -whitespace

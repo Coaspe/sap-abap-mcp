@@ -2,6 +2,66 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
+## 2.0.0 — 2026-10-08
+
+### Release preparation
+
+- Preserve legacy HTML documentation responses; opt-in `format=text` provides bounded pages with `nextOffset` and `documentHash`.
+- Ship identified, source-pinned security backports for node-forge and sprintf-js; rebuild the supported Mermaid browser distribution with official KaTeX 0.18.2. Consumer installations receive the same bundled code without install scripts. These are locally maintained backports, not newly published upstream versions.
+- Validate ten release capabilities as eight read-only tools and two explicitly non-read-only execution tools. The separate public interoperability proposal is unchanged and is not claimed as conformant or ratified.
+- Use major version 2.0.0 because the token-passthrough authentication refusal below changes existing behavior. Existing independent SAP credentials remain supported.
+
+
+
+### Added
+
+- HTTP OIDC deployments can set a reviewed HTTPS `--oauth-resource-url` (or `SAP_ABAP_MCP_OAUTH_RESOURCE_URL`) to advertise RFC 9728 protected-resource metadata and a discovery URL in 401 challenges. OAuth-aware clients discover the configured external issuer; permitted browser origins can read the challenge through CORS. Metadata retains Host/Origin restrictions and never derives URLs from request headers. Existing manual-token/API-key behavior is preserved; no new tool, dependency or schema is added. SDK PKCE and signed-token acceptance use a synthetic issuer, not live IdP evidence.
+- MCPB exposes an off-by-default Open SAP setup on startup setting, reopening the existing app-managed browser wizard for credential renewal or another connection. It uses the host Node runtime, keeps verified profile scope, requires no additional CLI, and adds no MCP tools. Authentication errors describe this recovery path.
+- v1 source batches accept per-item `ifNoneMatch` validators and return `contentHash`/`notModified`. Authorized reads still run; matching code is omitted before the shared byte budget, so later objects can proceed. Changed source, failures and continuation remain explicit, with no new MCP tool or legacy v0 contract change.
+- App-managed stdio startup supports `--onboard-if-empty`; the MCPB preview opens local SAP setup only when profiles are absent, skips external CLI detection/registration, and requires successful SAP verification before finishing. The MCP stays available after setup, using the host's Node runtime with five advertised tools.
+- Onboarding compares an existing Claude/Codex registration with the selected profile, runtime/API mode, profile directory and enabled status. Different or unavailable details show review values and keep Finish disabled until a usable matching registration is found; existing registrations are never replaced automatically.
+- New browser-created profiles default to read-only access. Users can explicitly enable changes in selected packages or all packages; production stays read-only. CLI `profile add` supports `--read-only` and `--allow-writes`, preserving an existing explicit policy when neither is supplied.
+- Explicit access policies use profile file format 2 so older runtimes reject them instead of silently dropping the read-only flag. Legacy profiles without an explicit policy remain in format 1.
+- Browser onboarding provides English and Korean screens, recovery hints and first-query prompts, selected by browser preference or the header language link. SAP profile language is independent.
+- Concurrent OIDC HTTP and actual SAP SDK proxy tests cover caller-bound source caches, denied revalidation, session replay, independent logout, audit attribution and credential refresh failure. These use synthetic SAP/identity fixtures; live BTP acceptance remains open.
+- Browser onboarding supports BTP ABAP service-key import, OAuth client credentials and browser OAuth PKCE alongside Basic Auth. Authentication precedes protected persistence; supported saved profiles can be renewed, and pending authentication can be cancelled without replacing credentials.
+- Capability descriptions accept `names` for up to ten exact schemas in one request, preserving single-name responses, schema hashes, role filtering and risk enforcement. Workflow benchmarks measure batched discovery with the real MCP client and o200k tokenizer.
+
+- v1 errors include optional recovery actions and logical next capabilities for authentication, authorization, source/schema conflicts, unsupported operations, policy refusals and SAP failures. Guidance never authorizes a policy bypass or an automatic write retry.
+- Tool calls with a request progress token send start, five-second elapsed-time and completion notifications. Direct and gateway modes preserve tool results; cancellation stops notifications and notification failure does not fail the operation.
+
+### Fixed
+
+- The profile conformance validator rejects required tools with missing or false read-only hints instead of passing on names alone. It reports the existing proposal mismatch for ABAP Unit and transport assessment; no profile requirements, identifier, MCP tools or schemas are changed. Conformance remains a discovery-metadata check, not live safety evidence.
+
+- Correct v1 ABAP Unit and transport-assessment annotations to execution risk. Viewer sessions cannot discover or invoke either capability, and read gateways reject them before the service callback; developer execution stays available through the write gateway. The associated transport workflow prompt follows the same role boundary. Legacy v0 already had this restriction. No tools or input schemas are added. The proposed interoperability profile still has an unresolved read-only-core mismatch, now documented separately from its names-only discovery result.
+
+
+- Updated the pinned MCP SDK from 1.30.0 to 1.31.0, including its upstream HTTP batch limit. An established session rejects a 101-message JSON-RPC batch before executing any SAP-facing tool, then still accepts a normal call. The package remains in SDK 1.x; no tool schema or product setting is added. Local regression and compatibility evidence do not establish live SAP acceptance.
+
+
+- Cached direct and HTTP Destination connections reopen when a saved profile's SAP target, language, classic bridge or authentication configuration changes. The old session is logged out and its OAuth provider invalidated where applicable; unrelated profiles stay connected. Access-policy-only edits still reuse the current session. No MCP tools or schemas change.
+
+
+- Installation guidance recommends maintained Node.js LTS releases, distinguishes Node 20 minimum compatibility from security support, and removes direct SAP OIDC forwarding from agent prerequisites. CI also covers Node 22. Official macOS arm64 Node 20.20.2, 22.23.3 and 24.21.0 binaries pass the 656-test suite, protocol discovery, standalone bundle startup and unchanged token workload. The security backports above address the unpatched node-forge dependency without changing the SDK version.
+
+- Refresh DOMPurify to 3.4.16 and locked Axios, fast-uri and ip-address to 1.20.0, 3.1.8 and 10.7.3 within their existing dependency ranges. The upstream node-forge advisory has no published patch; this candidate adds the source-pinned backport documented above and verifies the installed runtime. Existing Destination policy rejects client-certificate authentication, now covered explicitly in the policy regression test.
+
+- Browser onboarding refreshes saved-profile cards after successful verification, so returning to SAP setup immediately shows a newly saved connection without entering its credential again. Backward navigation restores the current step number; step changes focus the new heading and identify the current step programmatically. No MCP tool, dependency or additional registration call is added.
+
+- Compatibility change: direct `bearer-passthrough` SAP authentication is refused with `TOKEN_PASSTHROUGH_REFUSED`, including manual-token HTTP sessions. Existing profile files remain readable and report no usable credential; new profile creation and local login for that mode are refused. Use independent SAP credentials or experimental BTP Destination exchange/propagation. Internet exchange results containing the original MCP token in their actual Authorization header are also refused. No tool or dependency is added; live BTP acceptance remains unverified.
+
+- Invalidated OAuth requests cannot return or cache late token responses. Local browser OAuth refresh and setup saves serialize credential changes per profile, rejecting refreshes against a replaced credential and completing rollback before later saves. A token is cached only after successful persistence. This coordinates one shared SecretStore in the server process; it is not a cross-process storage lock. No MCP tools or schemas change.
+- Successful app-managed profile saves disconnect that profile's cached SAP client after persistence, so the next call uses renewed credentials and connection settings. Failed validation preserves the cached client and saved credential; unrelated profiles stay connected.
+- Standalone MCPB builds include root package metadata and keep the `dist/src` entry layout. The previous single-file entry failed before MCP initialization in a clean directory. Packing now checks real standalone startup with empty PATH, first-run setup and existing-profile reuse; build tools are pinned.
+- Capability search matches normalized words and phrases rather than substrings, keeping exact-name and role/risk filters. Full caller, dependency and transport-review queries now find the intended tool within three results without adding advertised tools.
+- Claude onboarding places the server name before its variadic `--env` option. Real Claude Code 2.1.286 rejected the previous argument order; isolated real-CLI registration and MCP health checks now pass. Status parsing recognizes current checkmark symbols and failure details.
+- Cached local and request-scoped SAP clients apply current profile access policy on acquisition without logging in again. Terminal credential renewal preserves read-only policy and displays it in the review. Read-only refusals cover SAP writes, transports, debugger controls, ABAP execution and ABAP Unit.
+- OIDC signature verification uses native JOSE EC signatures and the required RSA-PSS salt length, checks algorithm/key type/curve and signing-key restrictions, and rejects inherited algorithm names. Request-scoped connection discovery no longer reads local passwords; failed SAP login releases its client before an explicit retry.
+- Credential validation holds rotated browser OAuth credentials in memory until the SAP system read succeeds. Setup/login stores the validated credential; failed authentication leaves protected credentials unchanged, and failed login closes its ADT client.
+
+- Browser onboarding normalizes SAP authentication/authorization errors and sanitizes messages without returning raw diagnostics. It adds setup recovery hints, OAuth/SSO guidance, protected-storage and package-scope explanations, and a copyable first-query prompt for the selected profile. Narrow-screen step connectors no longer cross labels.
+
 ## 1.7.1 - 2026-09-15
 
 ### Fixed

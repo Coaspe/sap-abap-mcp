@@ -55,6 +55,10 @@ for (const preset of [...V1_PRESET_NAMES.filter(name => name !== "adaptive" && n
       t.after(close)
       const tools = new Set((await client.listTools()).tools.map(tool => tool.name))
       const expected = V1_WORKFLOW_PROMPTS.filter(prompt => prompt.tools.every(tool => tools.has(tool)))
+      if (expected.length === 0) {
+        assert.equal(client.getServerCapabilities()?.prompts, undefined)
+        return
+      }
       const prompts = (await client.listPrompts()).prompts
       assert.deepEqual(prompts.map(prompt => prompt.name), expected.map(prompt => prompt.name))
       for (const prompt of prompts) {
@@ -68,10 +72,11 @@ for (const preset of [...V1_PRESET_NAMES.filter(name => name !== "adaptive" && n
   }
 }
 
-test("viewer cannot retrieve the source change workflow even by guessing its name", async t => {
+test("viewer cannot retrieve source change or test-execution workflows by guessing their names", async t => {
   const { client, close } = await connect({ role: "viewer" })
   t.after(close)
   await assert.rejects(client.getPrompt({ name: "sap-change-object", arguments: { systemId: "DEV100", target: "Z_DEMO" } }), /not found/i)
+  await assert.rejects(client.getPrompt({ name: "sap-review-transport", arguments: { systemId: "DEV100", target: "DEVK900001" } }), /not found/i)
 })
 
 test("workflow arguments reject blank, missing and oversized values", async t => {

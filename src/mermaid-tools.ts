@@ -1,5 +1,4 @@
 import { copyFile, mkdtemp, writeFile } from "node:fs/promises"
-import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import DOMPurify from "dompurify"
@@ -240,8 +239,7 @@ export async function createMermaidDiagram(
   const outputDirectory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-mermaid-"))
   const assetPath = join(outputDirectory, "mermaid.min.js")
   const htmlPath = join(outputDirectory, "diagram.html")
-  const require = createRequire(import.meta.url)
-  await copyFile(require.resolve("mermaid/dist/mermaid.min.js"), assetPath)
+  await copyFile(new URL("../../assets/mermaid.min.js", import.meta.url), assetPath)
   const encodedCode = Buffer.from(code, "utf8").toString("base64")
   const html = `<!doctype html>
 <html lang="en">

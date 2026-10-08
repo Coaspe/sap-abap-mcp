@@ -52,6 +52,16 @@ test("AUTH_REQUIRED maps to authentication and is not retryable", async () => {
   assert.equal(result.isError, true)
   assert.equal(payload.category, "authentication")
   assert.equal(payload.retryable, false)
+  assert.match(payload.recovery?.message ?? "", /Open SAP setup on startup/)
+})
+
+test("MCP token forwarding refusal is a policy error with configuration recovery, never a login retry", () => {
+  const payload = V1_ERROR_SCHEMA.parse(textPayload(v1Failure(new AppError("TOKEN_PASSTHROUGH_REFUSED", "Direct MCP token forwarding is refused"))))
+  assert.equal(payload.category, "policy")
+  assert.equal(payload.retryable, false)
+  assert.equal(payload.recovery?.action, "review_policy")
+  assert.match(payload.recovery?.message ?? "", /Destination|independent/)
+  assert.deepEqual(payload.recovery?.nextTools, [])
 })
 
 test("SAP_AUTHORIZATION_DENIED maps to authorization and is not retryable", () => {
@@ -79,6 +89,33 @@ test("a transient read-side SAP operation failure is retryable", () => {
 
   assert.equal(payload.category, "sap")
   assert.equal(payload.retryable, true)
+})
+
+test("recoverable v1 failures give bounded next actions without bypassing policy or retrying writes", () => {
+  for (const [code, action, nextTools] of [
+    ["AUTH_REQUIRED", "authenticate", ["sap.system.list"]],
+    ["SAP_AUTHORIZATION_DENIED", "check_authorization", ["sap.system.capabilities"]],
+    ["SOURCE_CHANGED", "refresh_source", ["sap.repository.inspect", "sap.source.read"]],
+    ["CAPABILITY_SCHEMA_CHANGED", "describe_capability", ["sap.capability.describe"]],
+    ["SAP_CAPABILITY_UNAVAILABLE", "check_capability", ["sap.system.capabilities"]],
+    ["PROFILE_NOT_FOUND", "select_system", ["sap.system.list"]],
+    ["PACKAGE_NOT_ALLOWED", "review_policy", []],
+    ["SAP_OPERATION_FAILED", "inspect_state", []]
+  ] as const) {
+    const payload = V1_ERROR_SCHEMA.parse(textPayload(v1Failure(
+      new AppError(code, "Authorization: Bearer private-token", { httpStatus: 503 })
+    )))
+    assert.equal(payload.recovery?.action, action)
+    assert.deepEqual(payload.recovery?.nextTools, nextTools)
+    assert.equal(JSON.stringify(payload).includes("private-token"), false)
+  }
+  const transient = V1_ERROR_SCHEMA.parse(textPayload(v1Failure(
+    new AppError("SAP_OPERATION_FAILED", "Interrupted write", { httpStatus: 503 })
+  )))
+  assert.match(transient.recovery!.message, /read back the target/)
+  const policy = V1_ERROR_SCHEMA.parse(textPayload(v1Failure(new AppError("PRODUCTION_WRITE_BLOCKED", "Denied"))))
+  assert.match(policy.recovery!.message, /Do not weaken policy/)
+  assert.equal(V1_ERROR_SCHEMA.parse(textPayload(v1Failure(new Error("Unknown failure")))).recovery, undefined)
 })
 
 test("failure redacts secrets and bounds details by UTF-8 bytes", () => {

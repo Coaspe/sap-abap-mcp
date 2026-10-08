@@ -789,7 +789,9 @@ export class AdtSapClient implements SapClient {
       // Older backends can reject object structure for some object types.
     }
 
-    candidates.push(`${uri.replace(/\/+$/, "")}/source/main`, uri)
+    let end = uri.length
+    while (end > 0 && uri[end - 1] === "/") end--
+    candidates.push(`${uri.slice(0, end)}/source/main`, uri)
 
     let lastError: unknown
     for (const sourceUri of [...new Set(candidates)]) {

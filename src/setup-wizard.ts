@@ -186,7 +186,7 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
     if (existing && existing.authType !== "basic") {
       throw new AppError(
         "PROFILE_AUTH_TYPE_UNSUPPORTED",
-        "The interactive setup wizard manages Basic Auth profiles. Use profile add and auth login to manage OAuth or bearer-passthrough profiles."
+        "The interactive setup wizard manages Basic Auth profiles. Use profile add and auth login for OAuth profiles, or the BTP Destination guide for request-scoped authentication. Legacy bearer passthrough is unsupported."
       )
     }
 
@@ -225,8 +225,8 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
     const environment = await prompter.select(
       "Environment",
       [
-        { value: "development", label: "Development — writes allowed" },
-        { value: "quality", label: "Quality — writes allowed" },
+        { value: "development", label: "Development" },
+        { value: "quality", label: "Quality" },
         { value: "production", label: "Production — read only" }
       ],
       existing?.environment ?? "development"
@@ -274,7 +274,9 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       `  Environment: ${environmentLabel(profile.environment)}`,
       `  SAP data queries: ${profile.allowDataQueries ? "Enabled (all read-only SQL)" : profile.environment === "production" ? "Disabled (production policy)" : "Disabled"}`,
       ...(profile.classicBridgePath ? [`  Classic bridge: ${profile.classicBridgePath}`] : []),
-      `  Writable packages: ${profile.allowedPackages.length > 0 ? profile.allowedPackages.join(", ") : "All packages"}`
+      profile.readOnly || profile.environment === "production"
+        ? "  Access scope: Read only (SAP changes and ABAP execution disabled)"
+        : `  Writable packages: ${profile.allowedPackages.length > 0 ? profile.allowedPackages.join(", ") : "All packages"}`
     ].join("\n"))
 
     const confirmed = await prompter.confirm(

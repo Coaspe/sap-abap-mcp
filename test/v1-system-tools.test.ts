@@ -285,3 +285,16 @@ test("all mode exposes matching v0 and v1 write toolsets", async () => {
     ])
   )
 })
+
+test("system listing exposes a read-only policy without changing the development environment", async () => {
+  const { service } = createServiceStub()
+  service.getConnectedSystems = async () => ({ systems: [{ id: "DEV100", environment: "development", credentialAvailable: true, readOnly: true }] })
+  const connection = await connectedClient(service, { apiVersion: "v1", enabledV1Tools: new Set(["sap.system.list"]) })
+  try {
+    const result = await connection.client.callTool({ name: "sap.system.list", arguments: {} }) as CallToolResult
+    assert.notEqual(result.isError, true)
+    const envelope = JSON.parse(firstText(result))
+    assert.equal(envelope.data.systems[0].readOnly, true)
+    assert.equal(envelope.data.systems[0].environment, "development")
+  } finally { await connection.close() }
+})

@@ -70,6 +70,8 @@ export interface HttpServerOptions {
   apiKeys: readonly ApiKeyRecord[]
   /** Optional OIDC/JWT authenticator, accepted alongside API keys. */
   oidc?: OidcAuthenticator
+  /** Reviewed public HTTPS MCP endpoint; enables RFC 9728 discovery with OIDC. */
+  oauthResourceUrl?: string
   /**
    * Server-side secret for API key records stored as `keyHmacSha256`. Without
    * it those records cannot verify, so a missing secret denies access rather
@@ -114,6 +116,27 @@ const UNKNOWN_PRINCIPAL = { id: "unknown", source: "unknown" } as const
 
 function jsonRpcError(code: number, message: string): string {
   return JSON.stringify({ jsonrpc: "2.0", error: { code, message }, id: null })
+}
+
+function oauthDiscovery(options: HttpServerOptions) {
+  if (options.oauthResourceUrl === undefined) return undefined
+  const issuer = options.oidc?.issuer
+  const parse = (value: string | undefined): URL => {
+    try {
+      if (!value || /[\s\\"?#]/u.test(value)) throw new Error("Invalid URL")
+      const url = new URL(value)
+      if (url.protocol !== "https:" || url.username || url.password) throw new Error("Invalid URL")
+      return url
+    } catch {
+      throw new AppError("OAUTH_DISCOVERY_CONFIG_INVALID",
+        "OAuth discovery requires OIDC with a trusted HTTPS issuer and a public HTTPS MCP URL without credentials, query or fragment")
+    }
+  }
+  const resource = parse(options.oauthResourceUrl)
+  parse(issuer)
+  const path = "/.well-known/oauth-protected-resource" + (resource.pathname === "/" ? "" : resource.pathname)
+  return { path, url: resource.origin + path,
+    metadata: { resource: resource.href, authorization_servers: [issuer!], bearer_methods_supported: ["header"] } }
 }
 
 function headerValue(
@@ -184,6 +207,9 @@ export async function startHttpMcpServer(
       "HTTP mode requires at least one API key or an OIDC issuer. Create a key with: sap-abap-mcp apikey new <id>"
     )
   }
+  const discovery = oauthDiscovery(options)
+  const challenge = "Bearer realm=\"sap-abap-mcp\"" +
+    (discovery ? `, resource_metadata="${discovery.url}"` : "")
   const host = options.host ?? DEFAULT_HTTP_HOST
   const port = options.port ?? DEFAULT_HTTP_PORT
   const allowedOrigins = new Set(
@@ -239,7 +265,7 @@ export async function startHttpMcpServer(
       response.setHeader("vary", "Origin")
       response.setHeader("access-control-allow-methods", "GET, POST, DELETE, OPTIONS")
       response.setHeader("access-control-allow-headers", CORS_ALLOWED_HEADERS)
-      response.setHeader("access-control-expose-headers", "mcp-session-id")
+      response.setHeader("access-control-expose-headers", discovery ? "mcp-session-id, www-authenticate" : "mcp-session-id")
       response.setHeader("access-control-max-age", "600")
     }
   }
@@ -314,6 +340,15 @@ export async function startHttpMcpServer(
       return
     }
 
+    if (discovery && (path === discovery.path || path === "/.well-known/oauth-protected-resource")) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        sendJson(response, 405, jsonRpcError(-32000, "Method not allowed"), { allow: "GET, HEAD, OPTIONS" })
+        return
+      }
+      sendJson(response, 200, request.method === "HEAD" ? "" : JSON.stringify(discovery.metadata))
+      return
+    }
+
     if (path === HEALTH_ENDPOINT) {
       if (request.method !== "GET") {
         sendJson(response, 405, jsonRpcError(-32000, "Method not allowed"))
@@ -353,7 +388,7 @@ export async function startHttpMcpServer(
           startedAt
         )
         sendJson(response, 401, jsonRpcError(-32001, "Unauthorized"), {
-          "www-authenticate": "Bearer realm=\"sap-abap-mcp\", error=\"invalid_token\""
+          "www-authenticate": challenge + ", error=\"invalid_token\""
         })
         return
       }
@@ -368,7 +403,7 @@ export async function startHttpMcpServer(
         startedAt
       )
       sendJson(response, 401, jsonRpcError(-32001, "Unauthorized"), {
-        "www-authenticate": "Bearer realm=\"sap-abap-mcp\""
+        "www-authenticate": challenge
       })
       return
     }

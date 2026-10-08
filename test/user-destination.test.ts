@@ -19,6 +19,18 @@ function destination(): Destination {
 function sdk(value: Destination | null) {
   return { alwaysSubscriber, getDestinationFromDestinationService: async () => value }
 }
+
+test("user-token exchange rejects the original MCP credential even when destination labels claim exchange", async () => {
+  for (const scheme of ["Bearer", "bearer"]) {
+    const token = { ...destination().authTokens![0]!, value: request.userJwt,
+      http_header: { key: "Authorization", value: scheme + " " + request.userJwt } }
+    await assert.rejects(resolveUserDestination(request, sdk({ ...destination(), authTokens: [token] })), hasCode("DESTINATION_MISMATCH"))
+  }
+  const legitimate = await resolveUserDestination(request, sdk(destination()))
+  assert.notEqual(legitimate.authTokens?.[0]?.http_header.value, "Bearer " + request.userJwt)
+  await assert.rejects(resolveUserDestination(request, sdk({ ...destination(), authTokens: [{ ...destination().authTokens![0]!,
+    http_header: { key: "Authorization", value: "Bearer " + request.userJwt } }] })), hasCode("DESTINATION_MISMATCH"))
+})
 const hasCode = (code: string) => (error: unknown) => error instanceof AppError && error.code === code
 
 test("user destinations use service-only subscriber lookup without cross-call caching", async () => {
@@ -42,6 +54,7 @@ test("destination validation rejects endpoint and user-authentication policy mis
     { url: "https://other.example.test" }, { url: "http://sap.example.test" },
     { url: "https://user:secret@sap.example.test" }, { url: "https://sap.example.test?secret=value" },
     { authentication: "BasicAuthentication" }, { authentication: "OAuth2ClientCredentials" },
+    { authentication: "ClientCertificateAuthentication" },
     { sapClient: "200" }, { proxyType: "OnPremise" }, { isTrustingAllCertificates: true },
     { forwardAuthToken: true }, { headers: { AUTHORIZATION: "technical-user" } },
     { queryParameters: { "sap-client": "200" } },
@@ -136,4 +149,59 @@ test("user transport refreshes proxy credentials per request and fails closed wi
   assert.equal(seen[2]!.user, "Bearer second-user-4")
   assert.equal(seen[3]!.user, "Bearer fixture-user-token-5")
   assert.equal(lookups, 5)
+})
+
+test("concurrent SDK proxy requests keep caller identity and cookies bound through exchange failure", { timeout: 15000 }, async t => {
+  const seen: Array<{ user: string; cookie: string }> = []
+  const server = createServer((req, res) => {
+    seen.push({ user: String(req.headers["sap-connectivity-authentication"]), cookie: String(req.headers.cookie) })
+    res.end("fixture source")
+  })
+  server.listen(0, "127.0.0.1")
+  await once(server, "listening")
+  t.after(() => new Promise<void>((resolve, reject) => {
+    server.close(error => error ? reject(error) : resolve())
+    server.closeAllConnections()
+  }))
+  const address = server.address()
+  assert.ok(address && typeof address !== "string")
+  const pending: Array<() => void> = []
+  const attempts = new Map<string, number>()
+  let denyAlice = false
+  const injected = { alwaysSubscriber, getDestinationFromDestinationService: async (options: Parameters<typeof import("@sap-cloud-sdk/connectivity").getDestinationFromDestinationService>[0]) => {
+    assert.equal(options.useCache, false)
+    assert.equal(options.selectionStrategy, alwaysSubscriber)
+    const user = options.jwt!
+    const attempt = (attempts.get(user) ?? 0) + 1
+    attempts.set(user, attempt)
+    if (attempts.size < 2 || pending.length < 2) {
+      await new Promise<void>(resolve => {
+        pending.push(resolve)
+        if (pending.length === 2) pending.toReversed().forEach(release => release())
+      })
+    }
+    if (user === "alice" && denyAlice) throw new Error("fixture exchange refused")
+    return { name: "SAP_DEV", url: "http://virtual-sap:8000", authentication: "PrincipalPropagation" as const,
+      proxyType: "OnPremise" as const, proxyConfiguration: { host: "127.0.0.1", port: address.port,
+        protocol: "http" as const, headers: { "Proxy-Authorization": "Bearer service",
+          "SAP-Connectivity-Authentication": `Bearer ${user}-${attempt}` } } }
+  } }
+  const input: UserDestinationRequest = { ...request, expectedUrl: "http://virtual-sap:8000", authentication: "PrincipalPropagation" }
+  const alice = createUserDestinationTransportFactory({ ...input, userJwt: "alice" }, injected)()
+  const bob = createUserDestinationTransportFactory({ ...input, userJwt: "bob" }, injected)()
+  await Promise.all([
+    alice.request({ url: "/sap/source", headers: { Cookie: "session=alice" } }),
+    bob.request({ url: "/sap/source", headers: { Cookie: "session=bob" } })
+  ])
+  assert.deepEqual(seen.toSorted((a, b) => a.user.localeCompare(b.user)), [
+    { user: "Bearer alice-1", cookie: "session=alice" }, { user: "Bearer bob-1", cookie: "session=bob" }
+  ])
+  denyAlice = true
+  await assert.rejects(alice.request({ url: "/sap/source" }), hasCode("DESTINATION_UNAVAILABLE"))
+  assert.equal(seen.length, 2)
+  await bob.request({ url: "/sap/source", headers: { Cookie: "session=bob" } })
+  assert.deepEqual(seen.at(-1), { user: "Bearer bob-2", cookie: "session=bob" })
+  denyAlice = false
+  await alice.request({ url: "/sap/source", headers: { Cookie: "session=alice" } })
+  assert.deepEqual(seen.at(-1), { user: "Bearer alice-3", cookie: "session=alice" })
 })

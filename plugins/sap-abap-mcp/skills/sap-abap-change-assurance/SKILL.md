@@ -5,7 +5,7 @@ description: Assess an SAP transport before release by running ATC, ABAP Unit, a
 
 # SAP ABAP change assurance
 
-Assess a transport through live, read-only ADT checks. Keep the assessment distinct from the destructive release action.
+Assess a transport through live ADT checks. ABAP Unit executes application tests and requires execution permission; a read-only profile refuses it. Keep the assessment distinct from the destructive release action.
 
 ## Run the assessment
 

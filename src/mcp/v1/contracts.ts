@@ -40,6 +40,11 @@ export const V1_ERROR_SCHEMA = z.object({
   ]),
   message: z.string().min(1),
   retryable: z.boolean(),
+  recovery: z.object({
+    action: z.string().min(1),
+    message: z.string().min(1),
+    nextTools: z.array(z.string().min(1))
+  }).optional(),
   details: z.record(z.string(), z.unknown()).optional()
 })
 

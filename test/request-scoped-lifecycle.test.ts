@@ -11,16 +11,16 @@ function deferred<T>() {
 }
 
 test("closing during profile lookup prevents creation of a late user connection", async () => {
-  const lookup = deferred<boolean>()
+  const lookup = deferred<{ authType: "bearer_passthrough" }>()
   let created = 0
   const provider = new RequestScopedConnectionProvider({
-    usesRequestScopedCredentials: () => lookup.promise,
+    getProfile: () => lookup.promise,
     createBearerClient: async () => { created++; return {} as SapClient }
   } as unknown as ConnectionManager, "fixture-token")
   const pending = provider.getClient("DEV100")
   const rejected = assert.rejects(pending, /session is closed/)
   await provider.close()
-  lookup.resolve(true)
+  lookup.resolve({ authType: "bearer_passthrough" })
   await rejected
   assert.equal(created, 0)
   await assert.rejects(provider.getClient("DEV100"), /session is closed/)
@@ -32,7 +32,7 @@ test("closing waits for pending login, logs out once, and never returns the clos
   const started = deferred<void>()
   let logouts = 0
   const provider = new RequestScopedConnectionProvider({
-    usesRequestScopedCredentials: async () => true,
+    getProfile: async () => ({ authType: "btp_destination" }),
     createBearerClient: () => { started.resolve(); return login.promise }
   } as unknown as ConnectionManager, "fixture-token")
   const pending = provider.getClient("DEV100")

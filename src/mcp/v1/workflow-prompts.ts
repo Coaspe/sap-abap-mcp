@@ -40,11 +40,11 @@ export const V1_WORKFLOW_PROMPTS = [
     title: "Assess Transport Readiness",
     description: "Review one transport with bounded quality evidence; assessment does not release it.",
     targetDescription: "Exact transport request number",
-    writes: false,
+    writes: true,
     tools: [...CONTEXT_TOOLS, "sap.transport.inspect", "sap.transport.assess"],
     steps: [
       "Read the target request with sap.transport.inspect and verify the system, request identity, status and object scope.",
-      "Use sap.transport.assess to collect the existing read-only quality assessment. Read its tool schema first and use the returned evidence identifiers and paging fields.",
+      "Use sap.transport.assess with execution permission to collect the quality assessment, which can run application tests. Read its tool schema first and use the returned evidence identifiers and paging fields.",
       "Distinguish failed checks, unavailable checks, untested objects and incomplete evidence from passed checks. Never infer readiness from a successful MCP response alone.",
       "Report the readiness verdict, blocking findings, evidence scope and the smallest remediation steps. Assessment is not permission to release; do not release, delete or change the transport."
     ]

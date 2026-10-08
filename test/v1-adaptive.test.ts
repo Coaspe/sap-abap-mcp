@@ -118,7 +118,8 @@ test("single discovery errors provide a recoverable schema without reflecting su
         assert.equal(envelope.details.inputSchema.properties.limit.maximum, 50)
         assert.equal(envelope.details.inputSchema.properties.limit.default, 10)
       } else {
-        assert.deepEqual(envelope.details.inputSchema.required, ["name"])
+        assert.equal(envelope.details.inputSchema.properties.name.type, "string")
+        assert.equal(envelope.details.inputSchema.properties.names.maxItems, 10)
       }
       assert.doesNotMatch(firstText(failed), /sensitive-fixture|"secret"/)
     }
@@ -199,8 +200,9 @@ for (const role of ["viewer", "developer", "admin"] as const) {
     const connection = await connectedServer({ adaptive: true, role })
     try {
       const prompts = (await connection.client.listPrompts()).prompts
-      assert.equal(prompts.length, role === "viewer" ? 3 : 4)
+      assert.equal(prompts.length, role === "viewer" ? 2 : 4)
       assert.equal(prompts.some(prompt => prompt.name === "sap-change-object"), role !== "viewer")
+      assert.equal(prompts.some(prompt => prompt.name === "sap-review-transport"), role !== "viewer")
       for (const prompt of prompts) {
         const result = await connection.client.getPrompt({
           name: prompt.name,
@@ -631,4 +633,71 @@ test("minimal preset exposes only gateways and can discover and invoke system li
     assert.equal(result.isError, undefined)
     assert.equal((textEnvelope(result).data as any).systems[0].id, "DEV100")
   } finally { await connection.close() }
+})
+
+for (const preset of ["minimal", "single"] as const) {
+  test(`${preset} batches known capability schemas with unchanged hashes and exact invocation`, async () => {
+    const connection = await connectedServer({ apiVersion: "v1", ...resolveServeToolSelection("v1", undefined, preset) })
+    try {
+      const describeArgs = async (args: Record<string, unknown>) => connection.client.callTool(preset === "single"
+        ? { name: "sap", arguments: { name: "describe", arguments: args } }
+        : { name: "sap.capability.describe", arguments: args }) as Promise<CallToolResult>
+      const names = ["sap.system.list", "sap.source.read", "sap.source.patch"]
+      const batch = textEnvelope(await describeArgs({ names }))
+      const capabilities = batch.data?.capabilities as Array<{ name: string; schemaHash: string; inputSchema: unknown; risk: string; annotations: unknown }>
+      assert.deepEqual(capabilities.map(capability => capability.name), names)
+      for (const capability of capabilities) {
+        const single = textEnvelope(await describeArgs({ name: capability.name }))
+        assert.deepEqual(capability, single.data?.capability)
+        assert.equal("outputSchema" in capability, false)
+      }
+      const first = capabilities[0]!
+      const result = await connection.client.callTool(preset === "single"
+        ? { name: "sap", arguments: { name: first.name, risk: first.risk, schemaHash: first.schemaHash } }
+        : { name: "sap.capability.invoke_read", arguments: { name: first.name, schemaHash: first.schemaHash } }) as CallToolResult
+      assert.equal(textEnvelope(result).status, "succeeded")
+      for (const invalid of [{}, { names: [] }, { name: names[0], names }, { names: Array(11).fill(names[0]) }]) {
+        assert.equal((await describeArgs(invalid)).isError, true)
+      }
+    } finally { await connection.close() }
+  })
+
+  test(`${preset} batch schema descriptions preserve viewer isolation and optional output schemas`, async () => {
+    const connection = await connectedServer({ apiVersion: "v1", role: "viewer", ...resolveServeToolSelection("v1", undefined, preset) })
+    try {
+      const call = (args: Record<string, unknown>) => connection.client.callTool(preset === "single"
+        ? { name: "sap", arguments: { name: "describe", arguments: args } }
+        : { name: "sap.capability.describe", arguments: args }) as Promise<CallToolResult>
+      assert.equal(resultCode(await call({ names: ["sap.system.list", "sap.source.patch"] })), "CAPABILITY_NOT_FOUND")
+      const result = textEnvelope(await call({ names: ["sap.system.list"], includeOutputSchema: true }))
+      const capability = (result.data?.capabilities as Array<Record<string, unknown>>)[0]!
+      assert.ok(capability.outputSchema)
+      assert.equal(capability.risk, "read")
+    } finally { await connection.close() }
+  })
+}
+
+
+test("task discovery finds callers, dependencies and transport review without substring matches", async () => {
+  for (const preset of ["minimal", "single"] as const) {
+    const connection = await connectedServer({ apiVersion: "v1", ...resolveServeToolSelection("v1", undefined, preset) })
+    try {
+      const search = async (query: string) => {
+        const args = { query, limit: 3 }
+        const result = await connection.client.callTool(preset === "single"
+          ? { name: "sap", arguments: { name: "search", arguments: args } }
+          : { name: "sap.capability.search", arguments: args }) as CallToolResult
+        assert.equal(result.isError, undefined)
+        return (textEnvelope(result).data?.tools as CapabilitySummary[]).map(tool => tool.name)
+      }
+      for (const [query, expected] of [
+        ["find callers of a method", "sap.repository.where_used"],
+        ["dependencies of this class", "sap.repository.dependency_graph"],
+        ["review transport changes", "sap.transport.assess"]
+      ] as const) assert.ok((await search(query)).includes(expected), query)
+      assert.deepEqual(await search("ransport"), [])
+      assert.deepEqual(await search("!!!"), [])
+      assert.deepEqual(await search("sap.repository.where_used"), ["sap.repository.where_used"])
+    } finally { await connection.close() }
+  }
 })
