@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
-import crossSpawn from "cross-spawn"
+import { createRequire } from "node:module"
+import which from "which"
 import { randomBytes } from "node:crypto"
 import { realpath, stat } from "node:fs/promises"
 import {
@@ -208,9 +209,34 @@ function oneLine(value: string): string | undefined {
   return line?.slice(0, 200)
 }
 
-export const runLocalCommand: CommandRunner = async (command, args) =>
-  new Promise(resolve => {
-    const child = crossSpawn(command, [...args], {
+const readCmdShim = createRequire(import.meta.url)("read-cmd-shim") as (path: string) => Promise<string>
+
+export const runLocalCommand: CommandRunner = async (command, args) => {
+  let executable = command
+  let executableArgs = [...args]
+  if (process.platform === "win32") {
+    try {
+      executable = await which(command)
+      if (/\.cmd$/i.test(executable)) {
+        const target = resolve(dirname(executable), await readCmdShim(executable))
+        if (/\.[cm]?js$/i.test(target)) {
+          executable = process.execPath
+          executableArgs = [target, ...args]
+        } else if (/\.(?:exe|com)$/i.test(target)) {
+          executable = target
+        } else {
+          return { ok: false, stdout: "", stderr: "Unsupported Windows command shim target", missing: false }
+        }
+      }
+    } catch (error) {
+      return {
+        ok: false, stdout: "", stderr: error instanceof Error ? error.message : String(error),
+        missing: (error as NodeJS.ErrnoException).code === "ENOENT"
+      }
+    }
+  }
+  return new Promise(resolve => {
+    const child = spawn(executable, executableArgs, {
       windowsHide: true, stdio: ["ignore", "pipe", "pipe"]
     })
     const timeout = setTimeout(() => child.kill(), 30_000)
@@ -249,6 +275,7 @@ export const runLocalCommand: CommandRunner = async (command, args) =>
       })
     })
   })
+}
 
 async function pathExists(path: string): Promise<boolean> {
   try {
