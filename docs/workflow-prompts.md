@@ -1,13 +1,9 @@
 # Native workflow prompts
 
-These changes are unreleased in this checkout. `npx @coaspe/sap-abap-mcp@latest`
-currently resolves to the separately published 1.6.0 package, which does not
-contain these prompts. Build this checkout and use its absolute entrypoint to
-try them:
+Native prompts are included in 2.0.0. Configure your MCP host to run:
 
 ```sh
-npm run build
-node dist/src/index.js serve --profile DEV100 --preset development
+npx -y @coaspe/sap-abap-mcp@2.0.0 serve --profile DEV100 --preset development
 ```
 
 `serve` speaks MCP over stdio; it is intended to be started by your MCP host,

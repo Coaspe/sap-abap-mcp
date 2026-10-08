@@ -4,16 +4,13 @@ This guide covers local SAP connection profiles used by the npm package,
 repository plugins, and local MCP registry installs. Profiles are independent
 of a particular MCP client and remain on the user's machine.
 
-The `npx ...@latest` examples run the published npm version (1.7.1 at the
-2026-10-01 audit). To exercise this checkout's unreleased changes, first build and replace
-that command prefix with `node /absolute/path/to/sap-abap-mcp/dist/src/index.js`.
-See [source reconciliation](reconciliation-1.7.0-beta.1.md) before
-treating published behavior as local behavior.
+The `npx ...@latest` examples run the published npm version. The behavior
+described here is included in 2.0.0; use `@2.0.0` to pin this release.
 
 Interactive `setup` creates and edits Basic Auth profiles. OAuth profiles use
 the explicit commands below; Destination profiles use the BTP guide.
 
-The unreleased browser `onboard` flow supports Basic Auth, BTP ABAP service-key
+The browser `onboard` flow supports Basic Auth, BTP ABAP service-key
 import, OAuth client credentials and browser OAuth Authorization Code with PKCE.
 The screen supports English and Korean. The browser's first preferred language
 selects Korean for `ko` and English for other language tags; clients without a
@@ -53,7 +50,7 @@ use the supported advanced authentication flow rather than guess a password.
 
 ## Access scope in this checkout
 
-The unreleased browser wizard starts new profiles with **read-only** access.
+The browser wizard starts new profiles with **read-only** access.
 No development package is required for the first system or source query. The
 Access scope selector can instead enable changes in selected packages (a
 non-empty allowlist is required) or explicitly in all packages. Production
@@ -97,7 +94,7 @@ changing the profile; finish it before narrowing scope.
 
 ## Existing registration checks
 
-In this unreleased checkout, Step 3 compares the selected profile against an
+In 2.0.0, Step 3 compares the selected profile against an
 existing `sap-abap` registration. Codex uses `mcp get --json`; Claude uses the
 displayed fields from `mcp get`. The comparison checks the Node/server paths,
 v1/stdio mode, selected profile (or an unfiltered current server), explicit
@@ -128,7 +125,7 @@ and [Codex's official MCP guide](https://learn.chatgpt.com/docs/extend/mcp?surfa
 
 ## Desktop bundle first setup
 
-The unpublished MCPB preview can start the browser wizard through Claude
+The 2.0.0 MCPB bundle can start the browser wizard through Claude
 Desktop's built-in Node runtime when no profiles exist. That app manages the
 registration; the wizard does not require npm, Claude Code or Codex CLI and
 does not add another MCP server. See [desktop bundle setup](desktop-bundle-setup.md).
@@ -208,7 +205,7 @@ data queries before validation, as production opt-in is forbidden. Onboarding
 restores the writable-package field when editing a saved profile; a network
 verification failure leaves it saved and does not force password replacement.
 
-In this unreleased checkout, the next acquisition of a cached direct or HTTP
+In 2.0.0, the next acquisition of a cached direct or HTTP
 Destination connection detects saved SAP URL/client, language, classic bridge
 and authentication-setting changes and opens the updated connection after
 logging out the old one. Access-policy-only edits reuse the existing session.
@@ -313,7 +310,7 @@ keys are rejected with `SERVICE_KEY_CERTIFICATE_UNSUPPORTED`.
 
 ## Request-scoped bearer passthrough
 
-Unreleased compatibility change: direct forwarding of an MCP client's token as
+2.0.0 compatibility change: direct forwarding of an MCP client's token as
 SAP authorization is refused with `TOKEN_PASSTHROUGH_REFUSED`. Existing
 `bearer_passthrough` profile files remain readable but cannot connect; `auth
 status` reports `credentialAvailable: false` and `unsupported_passthrough`.
@@ -460,10 +457,9 @@ are introduced.
 
 ## Voluntary first-setup check
 
-The unreleased checkout includes a bounded GitHub issue form at
+Version 2.0.0 includes a bounded GitHub issue form at
 [`.github/ISSUE_TEMPLATE/compatibility-report.yml`](../.github/ISSUE_TEMPLATE/compatibility-report.yml).
-It is not available in the public issue chooser until a reviewed change is
-published. Submission is voluntary and public under the contributor's GitHub
+Submission is voluntary and public under the contributor's GitHub
 account; the form requests no SAP credentials, URLs, object names, code, logs or
 attachments. No background telemetry is added.
 

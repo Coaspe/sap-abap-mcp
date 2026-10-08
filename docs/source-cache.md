@@ -1,6 +1,6 @@
 # SAP-revalidated source cache
 
-Unreleased local builds retain eligible source responses in memory for the
+Version 2.0.0 retains eligible source responses in memory for the
 lifetime of one `AdtSapClient`. No new MCP tools, settings or dependencies are
 added. Source is not persisted to disk.
 

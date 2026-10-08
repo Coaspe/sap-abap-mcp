@@ -1,11 +1,11 @@
 # Adaptive capability discovery
 
-Unreleased local CLI builds start with **five gateways** (`minimal`) instead of
+The 2.0.0 CLI starts with **five gateways** (`minimal`) instead of
 exposing every schema. The optional `adaptive` preset also exposes 12 common
 read tools, for 17 tools total. Both retain the full capability catalog and
 native workflow prompts. [Workflow measurements](workflow-mode-benchmark.md)
 explain the default and the cost of additional discovery calls.
-The separately published npm package is not updated by these local changes.
+Use `@2.0.0` to pin this behavior in an npm-based MCP configuration.
 
 ## Startup and compatibility
 
@@ -191,7 +191,7 @@ measurements](single-tool-mode.md).
 
 ## Actual stdio startup comparison: 2026-10-02
 
-The current unreleased checkout and integrity-verified published competitor
+The then-unreleased checkout and integrity-verified published competitor
 packages were started as real CLI processes under Node 24.21.0 on macOS arm64.
 The same SDK client initialized each server and read every `tools/list` page.
 These estimates tokenize minified returned tool arrays and a separate

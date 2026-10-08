@@ -38,12 +38,11 @@ Editing keeps the Server name fixed. On Windows and macOS it verifies SAP before
 
 The wizard creates Basic Auth profiles. For explicit OAuth client credentials, use `profile add --auth-type oauth-client-credentials --token-url <url> --client-id <id> [--scope <scope>] --login`; enter the client secret only at the hidden local prompt. On macOS or Windows, browser SSO uses `--auth-type oauth-authorization-code --authorization-url <url> --token-url <url> --client-id <id> [--scope <scope>] --login` with a loopback redirect and S256 PKCE. Linux's environment-only secret store cannot safely persist or rotate a browser credential, so browser login is refused there; use Basic Auth or client credentials from a profile-specific environment variable instead.
 
-Unreleased checkout compatibility change: direct `bearer-passthrough` profiles
+2.0.0 compatibility change: direct `bearer-passthrough` profiles
 are refused with `TOKEN_PASSTHROUGH_REFUSED`; existing files remain readable.
 Use independent SAP credentials or the experimental BTP Destination
 exchange/propagation flow. See [migration](docs/setup-and-profiles.md#request-scoped-bearer-passthrough)
-and [BTP prerequisites](docs/btp-destination-integration.md). The published npm
-release has not been updated; re-authentication does not repair direct forwarding.
+and [BTP prerequisites](docs/btp-destination-integration.md). Re-authentication does not repair direct forwarding.
 
 Optional Screen/Dynpro and GUI Status access requires a reviewed SAP-side
 bridge plus `--classic-bridge-path /sap/<path>`. Read
