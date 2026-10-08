@@ -38,9 +38,11 @@ const SEARCH_ARGUMENTS = z.object({
   limit: z.number().int().min(1).max(50).default(10)
 }).strict()
 const DESCRIBE_ARGUMENTS = z.object({
-  name: TOOL_NAME,
+  name: TOOL_NAME.optional(),
+  names: z.array(TOOL_NAME).min(1).max(10).optional(),
   includeOutputSchema: z.boolean().default(false)
-}).strict()
+}).strict().refine(input => (input.name === undefined) !== (input.names === undefined),
+  "Provide either name or names")
 
 function parseDiscoveryArguments<T>(schema: z.ZodType<T>, input: unknown, operation: string): T {
   const parsed = schema.safeParse(input)
@@ -114,6 +116,10 @@ function normalizedTokens(value: string): string[] {
   return value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
 }
 
+function normalizedSearchText(value: string): string {
+  return ` ${normalizedTokens(value).join(" ")} `
+}
+
 // Index parameter names, declared choices and prose, not boilerplate or defaults.
 function schemaSearchText(value: unknown): string {
   if (!value || typeof value !== "object") return ""
@@ -134,20 +140,24 @@ function relevance(tool: Tool, query: string, termWeights: ReadonlyMap<string, n
   if (normalized.length === 0) return 1
   if (tool.name.toLowerCase() === normalized) return 10_000
 
-  const name = tool.name.toLowerCase()
-  const title = tool.title?.toLowerCase() ?? ""
-  const description = tool.description?.toLowerCase() ?? ""
-  const parameters = schemaSearchText(tool.inputSchema)
-  let score = name.includes(normalized) ? 100 : 0
-  score += title.includes(normalized) ? 50 : 0
-  score += description.includes(normalized) ? 20 : 0
-  score += parameters.includes(normalized) ? 8 : 0
-  for (const token of normalizedTokens(normalized)) {
-    score += name.includes(token) ? 10 : 0
-    score += title.includes(token) ? 5 : 0
-    score += description.includes(token) ? 2 : 0
-    score += parameters.includes(token) ? 1 : 0
-    if ([name, title, description, parameters].some(text => text.includes(token))) {
+  const tokens = [...new Set(normalizedTokens(normalized))]
+  if (tokens.length === 0) return 0
+  const phrase = normalizedSearchText(normalized)
+  const name = normalizedSearchText(tool.name)
+  const title = normalizedSearchText(tool.title ?? "")
+  const description = normalizedSearchText(tool.description ?? "")
+  const parameters = normalizedSearchText(schemaSearchText(tool.inputSchema))
+  let score = name.includes(phrase) ? 100 : 0
+  score += title.includes(phrase) ? 50 : 0
+  score += description.includes(phrase) ? 20 : 0
+  score += parameters.includes(phrase) ? 8 : 0
+  for (const token of tokens) {
+    const term = ` ${token} `
+    score += name.includes(term) ? 10 : 0
+    score += title.includes(term) ? 5 : 0
+    score += description.includes(term) ? 2 : 0
+    score += parameters.includes(term) ? 1 : 0
+    if ([name, title, description, parameters].some(text => text.includes(term))) {
       score += termWeights.get(token) ?? 0
     }
   }
@@ -246,9 +256,9 @@ class AdaptiveCapabilityGateway {
     const exact = available.find(tool => tool.name.toLowerCase() === query.toLowerCase())
     // Specific terms should outweigh common words such as "check" or "read".
     const searchTexts = available.map(tool =>
-      `${tool.name} ${tool.title ?? ""} ${tool.description ?? ""} ${schemaSearchText(tool.inputSchema)}`.toLowerCase())
+      normalizedSearchText(`${tool.name} ${tool.title ?? ""} ${tool.description ?? ""} ${schemaSearchText(tool.inputSchema)}`))
     const termWeights = new Map(normalizedTokens(query).map(token => [token,
-      Math.round(20 * Math.log((available.length + 1) / (searchTexts.filter(text => text.includes(token)).length + 1)))
+      Math.round(20 * Math.log((available.length + 1) / (searchTexts.filter(text => text.includes(` ${token} `)).length + 1)))
     ]))
     const candidates = (exact ? [exact] : available)
       .map(tool => ({ tool, score: relevance(tool, query, termWeights) }))
@@ -301,22 +311,21 @@ class AdaptiveCapabilityGateway {
   }
 
   async describe(
-    name: string,
-    includeOutputSchema: boolean
+    input: z.infer<typeof DESCRIBE_ARGUMENTS>
   ): Promise<CallToolResult> {
-    const tool = await this.tool(name)
-    this.assertOpen()
-    return v1Success({
-      capability: {
+    const names = input.names ?? [input.name!]
+    const capabilities = await Promise.all(names.map(async name => {
+      const tool = await this.tool(name)
+      this.assertOpen()
+      return {
         ...capabilitySummary(tool),
         schemaHash: schemaHash(tool),
         inputSchema: tool.inputSchema,
-        ...(includeOutputSchema && tool.outputSchema
-          ? { outputSchema: tool.outputSchema }
-          : {}),
+        ...(input.includeOutputSchema && tool.outputSchema ? { outputSchema: tool.outputSchema } : {}),
         ...(tool.annotations ? { annotations: tool.annotations } : {})
       }
-    })
+    }))
+    return v1Success(input.names ? { capabilities } : { capability: capabilities[0] })
   }
 
   async invoke(
@@ -365,7 +374,7 @@ export function registerAdaptiveV1Tools(
   const gateway = new AdaptiveCapabilityGateway(options)
   if (options.singleTool) {
     server.registerTool("sap", {
-      description: "SAP capabilities: name=search, arguments={query}; name=describe, arguments={name}. Invoke the described name with risk, schemaHash and arguments.",
+      description: "SAP capabilities: name=search, arguments={query}; name=describe, arguments={name} or {names:[...]}. Invoke the described name with risk, schemaHash and arguments.",
       inputSchema: z.object({
         name: TOOL_NAME,
         arguments: TOOL_ARGUMENTS.default({}),
@@ -382,7 +391,7 @@ export function registerAdaptiveV1Tools(
       }
       if (input.name === "describe") {
         const args = parseDiscoveryArguments(DESCRIBE_ARGUMENTS, input.arguments, "describe")
-        const result = await gateway.describe(args.name, args.includeOutputSchema)
+        const result = await gateway.describe(args)
         Object.defineProperty(result, RESOLVED_TOOL_RISK, { value: "read" })
         return result
       }
@@ -398,7 +407,7 @@ export function registerAdaptiveV1Tools(
     {
       title: "Search SAP Capabilities",
       description:
-        "Search or page through the complete SAP tool catalog. Use category browsing when keyword search misses.",
+        "Find capabilities; browse categories if keyword search misses.",
       inputSchema: SEARCH_ARGUMENTS,
       annotations: V1_READ_ONLY_ANNOTATIONS
     },
@@ -409,13 +418,11 @@ export function registerAdaptiveV1Tools(
     {
       title: "Describe SAP Capability",
       description:
-        "Return the exact input schema and schema hash for one capability before invoking it.",
+        "Get exact input schemas and hashes: name or names (up to 10).",
       inputSchema: DESCRIBE_ARGUMENTS,
       annotations: V1_READ_ONLY_ANNOTATIONS
     },
-    ({ name, includeOutputSchema }) => runV1Tool(
-      () => gateway.describe(name, includeOutputSchema)
-    )
+    input => runV1Tool(() => gateway.describe(input))
   )
 
   const registerInvoke = (
@@ -427,7 +434,7 @@ export function registerAdaptiveV1Tools(
     {
       title: `Invoke ${risk[0]?.toUpperCase()}${risk.slice(1)} SAP Capability`,
       description:
-        `Invoke a ${risk} capability after sap.capability.describe. The original tool validation and result are preserved.`,
+        `Invoke a ${risk} capability with its described schemaHash and arguments.`,
       inputSchema: z.object({
         name: TOOL_NAME,
         schemaHash: SCHEMA_HASH,

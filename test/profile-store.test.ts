@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises"
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
@@ -124,4 +124,19 @@ test("ProfileStore rejects production data-query opt-in", async () => {
     typeof error === "object" && error !== null && "code" in error &&
     error.code === "DATA_QUERY_PRODUCTION_FORBIDDEN"
   )
+})
+
+
+test("explicit read-only policies use profile format 2 and version 1 cannot silently carry the policy", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-readonly-format-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const store = new ProfileStore(directory)
+  await store.upsert({ id: "DEV100", url: "https://sap.example.test", client: "100" })
+  assert.equal(JSON.parse(await readFile(store.filePath, "utf8")).version, 1)
+  await store.upsert({ id: "DEV100", url: "https://sap.example.test", client: "100", readOnly: true })
+  const data = JSON.parse(await readFile(store.filePath, "utf8"))
+  assert.equal(data.version, 2)
+  assert.equal((await store.get("DEV100")).readOnly, true)
+  await writeFile(store.filePath, JSON.stringify({ ...data, version: 1 }))
+  await assert.rejects(store.list(), { code: "PROFILE_FILE_INVALID" })
 })

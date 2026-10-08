@@ -1,0 +1,142 @@
+---
+name: First setup and first read report
+description: Report setup duration, first-read outcome and a bounded failure category
+  without confidential SAP data.
+title: 'Setup and first-read report: '
+body:
+- type: markdown
+  attributes:
+    value: This report is public and associated with your GitHub account. It is for
+      voluntary setup and first-read feedback, not a paid-service enquiry. Do not
+      include SAP URLs, users, profile or object names, credentials, tokens, cookies,
+      code, logs, screenshots, transport contents or business data. No attachment
+      or diagnostic dump is requested. A report is self-reported evidence; it does
+      not automatically establish live SAP compatibility or public adopter consent.
+- type: input
+  id: build
+  attributes:
+    label: Product version and setup path
+    description: Use the npm version and published npm / supplied preview / local
+      checkout label. Do not enter customer or SAP identifiers.
+    placeholder: 1.7.1, published npm
+  validations:
+    required: true
+- type: dropdown
+  id: sap_family
+  attributes:
+    label: SAP family
+    options:
+    - ECC
+    - S/4HANA
+    - ABAP Cloud
+    - Prefer not to disclose
+  validations:
+    required: true
+- type: dropdown
+  id: mcp_client
+  attributes:
+    label: MCP client application
+    options:
+    - Codex
+    - Claude Code
+    - Claude Desktop
+    - Other
+  validations:
+    required: true
+- type: dropdown
+  id: operating_system
+  attributes:
+    label: Operating system
+    options:
+    - macOS
+    - Windows
+    - Linux
+    - Other
+  validations:
+    required: true
+- type: dropdown
+  id: starting_state
+  attributes:
+    label: Starting state
+    options:
+    - First MCP setup; no saved SAP profile
+    - Prior MCP experience; no saved SAP profile
+    - Reusing or repairing an existing SAP profile
+    - Prefer not to disclose
+  validations:
+    required: true
+- type: dropdown
+  id: setup_time
+  attributes:
+    label: Time until MCP setup was usable
+    options:
+    - Less than 5 minutes
+    - 5-15 minutes
+    - More than 15 minutes
+    - Did not finish
+    - Not attempted
+    description: Start at the first install/setup action, including client restart.
+      Stop when the client can see the intended MCP server. SAP first-read success
+      is reported separately.
+  validations:
+    required: true
+- type: dropdown
+  id: setup_outcome
+  attributes:
+    label: Setup outcome
+    options:
+    - Completed without maintainer help
+    - Completed with maintainer help
+    - Did not complete
+    - Not attempted
+  validations:
+    required: true
+- type: dropdown
+  id: first_read
+  attributes:
+    label: First SAP read outcome
+    options:
+    - Passed
+    - Failed
+    - Not attempted
+    description: Use the setup page first-query prompt or a user-selected non-sensitive
+      development object. Do not run application tests or writes for this report.
+  validations:
+    required: true
+- type: dropdown
+  id: failure_category
+  attributes:
+    label: Failure category
+    options:
+    - No failure
+    - Setup or MCP client registration
+    - Authentication or authorization
+    - SAP connectivity or capability
+    - Unknown failure
+    description: Choose one bounded category; do not paste errors or logs. A failure
+      category is not a confirmed product defect.
+  validations:
+    required: true
+- type: dropdown
+  id: repeat_use
+  attributes:
+    label: Actual repeat use within 30 days
+    options:
+    - Used again for a real development read
+    - Did not use again
+    - Follow-up not due or not observed
+    description: This is actual repeat use, not an intention to use. Leave follow-up
+      unobserved until it happens.
+  validations:
+    required: false
+- type: dropdown
+  id: aggregate_consent
+  attributes:
+    label: May this report contribute to anonymous aggregate outcomes?
+    options:
+    - 'Yes'
+    - 'No'
+    description: The original issue remains public. An organization name, alias or
+      quote needs separate explicit permission before listing in ADOPTERS.md.
+  validations:
+    required: true

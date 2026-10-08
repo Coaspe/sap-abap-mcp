@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process"
 import { randomBytes } from "node:crypto"
-import { stat } from "node:fs/promises"
+import { realpath, stat } from "node:fs/promises"
 import {
   createServer,
   type IncomingMessage,
@@ -11,7 +11,11 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { stderr, stdout } from "node:process"
 import { z } from "zod"
-import { AppError, errorPayload } from "./errors.js"
+import { AppError } from "./errors.js"
+import { parseBtpServiceKey } from "./btp-service-key.js"
+import { browserOAuthLogin } from "./oauth-authorization-code.js"
+import { V1_ERROR_SCHEMA } from "./mcp/v1/contracts.js"
+import { v1Failure } from "./mcp/v1/result.js"
 import { onboardPage } from "./onboard-page.js"
 import { saveProfileCredential } from "./save-profile-credential.js"
 import {
@@ -26,24 +30,46 @@ const HOST = "127.0.0.1"
 const MAX_BODY_BYTES = 32 * 1024
 const MCP_SERVER_NAME = "sap-abap"
 
-const profileRequestSchema = z.object({
+const httpsEndpoint = z.string().trim().max(2048).refine(value => {
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash
+  } catch {
+    return false
+  }
+}, "Use a complete HTTPS URL without credentials, a query, or a fragment")
+
+const profileFields = {
   id: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/),
-  url: z.string().trim().max(2048).refine(value => {
-    try {
-      const url = new URL(value)
-      return url.protocol === "https:" && !url.username && !url.password &&
-        !url.search && !url.hash
-    } catch {
-      return false
-    }
-  }, "SAP URL must be a complete HTTPS URL without credentials, a query, or a fragment"),
-  client: z.string().trim().regex(/^\d{1,3}$/),
-  username: z.string().trim().min(1).max(256),
-  password: z.string().min(1).max(4096),
   language: z.string().trim().regex(/^[A-Za-z]{2}$/),
   environment: z.enum(["development", "quality", "production"]),
-  allowedPackages: z.string().max(4096).optional()
-}).strict()
+  allowedPackages: z.string().max(4096).optional(),
+  accessMode: z.enum(["read_only", "packages", "unrestricted"]).optional()
+}
+const connectionFields = {
+  ...profileFields,
+  url: httpsEndpoint,
+  client: z.string().trim().regex(/^\d{1,3}$/)
+}
+const oauthFields = {
+  ...connectionFields,
+  tokenUrl: httpsEndpoint,
+  clientId: z.string().trim().min(1).max(256),
+  scope: z.string().trim().max(2048).optional()
+}
+const profileRequestSchema = z.preprocess(raw => {
+  if (raw && typeof raw === "object" && !("authType" in raw)) return { ...raw, authType: "basic" }
+  return raw
+}, z.discriminatedUnion("authType", [
+  z.object({ ...connectionFields, authType: z.literal("basic"),
+    username: z.string().trim().min(1).max(256), password: z.string().min(1).max(4096) }).strict(),
+  z.object({ ...oauthFields, authType: z.literal("oauth_client_credentials"),
+    clientSecret: z.string().min(1).max(4096) }).strict(),
+  z.object({ ...oauthFields, authType: z.literal("oauth_authorization_code"),
+    authorizationUrl: httpsEndpoint }).strict(),
+  z.object({ ...profileFields, authType: z.literal("btp_service_key"),
+    serviceKey: z.string().min(1).max(24 * 1024) }).strict()
+]))
 
 const verifyRequestSchema = z.object({
   profileId: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/)
@@ -69,6 +95,13 @@ export type CommandRunner = (
 
 export type OnboardClientId = "claude" | "codex"
 
+interface RegistrationTarget {
+  command: string
+  serverFile: string
+  profileId: string
+  profileHome: string
+}
+
 export interface OnboardClientStatus {
   id: OnboardClientId
   label: string
@@ -78,6 +111,11 @@ export interface OnboardClientStatus {
   installUrl: string
   version?: string
   issue?: string
+  registration?: {
+    state: "matches" | "different" | "unknown"
+    differences: Array<"runtime" | "profile" | "profile-home" | "disabled">
+    expected: RegistrationTarget
+  }
 }
 
 export interface OnboardFileStatus {
@@ -94,10 +132,16 @@ export interface OnboardProfileStatus {
   authType: SapProfile["authType"]
   credentialAvailable: boolean
   username?: string
+  tokenUrl?: string
+  authorizationUrl?: string
+  clientId?: string
+  scope?: string
   allowedPackages: string[]
+  readOnly: boolean
 }
 
 export interface OnboardStatus {
+  hostManaged?: boolean
   environment: {
     platform: NodeJS.Platform
     nodeVersion: string
@@ -113,11 +157,14 @@ export interface OnboardStatus {
 interface OnboardServices {
   profiles: ProfileStore
   secrets: SecretStore
-  validateCredentials(profile: SapProfile, password: string): Promise<void>
+  validateCredentials(profile: SapProfile, password: string): Promise<void | string>
+  disconnectProfile?: (profileId: string) => Promise<void>
+  browserLogin?: typeof browserOAuthLogin
   runner?: CommandRunner
   platform?: NodeJS.Platform
   homeDirectory?: string
   workingDirectory?: string
+  hostManaged?: boolean
 }
 
 export interface StartOnboardServerOptions extends OnboardServices {
@@ -208,7 +255,9 @@ function clientRegistration(output: string): Pick<OnboardClientStatus, "configur
   const row = output.replace(/\u001b\[[0-9;]*m/g, "").split(/\r?\n/)
     .find(line => new RegExp(`^\\s*${MCP_SERVER_NAME}(?=[\\s:]|$)`, "i").test(line))
   if (!row) return { configured: false, mcpConnectionStatus: "unknown" }
-  const status = row.match(/(?:\s+-\s+|:\s*)(?:[✓✗⚠]\s*)?(connected|failed(?: to connect)?|needs authentication|requires authentication)\s*$/i)?.[1]?.toLowerCase()
+  const separator = row.lastIndexOf(" - ")
+  const statusText = separator >= 0 ? row.slice(separator + 3) : row.replace(/^\s*sap-abap:\s*/i, "")
+  const status = statusText.match(/^(?:[✓✔✗✘⚠!]\s*)?(connected|failed(?: to connect)?|needs authentication|requires authentication)(?=\s|$)/i)?.[1]?.toLowerCase()
   return { configured: true, mcpConnectionStatus: status === "connected" ? "connected"
     : status?.startsWith("failed") ? "failed"
     : status?.includes("authentication") ? "authentication-required" : "unknown" }
@@ -216,7 +265,8 @@ function clientRegistration(output: string): Pick<OnboardClientStatus, "configur
 
 async function inspectClient(
   definition: typeof CLIENTS[number],
-  runner: CommandRunner
+  runner: CommandRunner,
+  target?: RegistrationTarget
 ): Promise<OnboardClientStatus> {
   const versionResult = await runner(definition.command, ["--version"])
   if (!versionResult.ok) {
@@ -235,18 +285,87 @@ async function inspectClient(
 
   const listResult = await runner(definition.command, ["mcp", "list"])
   const version = oneLine(versionResult.stdout || versionResult.stderr)
+  const registration = listResult.ok ? clientRegistration(`${listResult.stdout}\n${listResult.stderr}`)
+    : { configured: false, mcpConnectionStatus: "unknown" as const }
   return {
     id: definition.id,
     label: definition.label,
     installed: true,
-    ...(listResult.ok ? clientRegistration(`${listResult.stdout}\n${listResult.stderr}`)
-      : { configured: false, mcpConnectionStatus: "unknown" as const }),
+    ...registration,
+    ...(registration.configured && target
+      ? { registration: await inspectRegistration(definition, runner, target) } : {}),
     installUrl: definition.installUrl,
     ...(version ? { version } : {}),
     ...(!listResult.ok
       ? { issue: oneLine(listResult.stderr) ?? "MCP settings could not be read" }
       : {})
   }
+}
+
+function registrationTarget(options: OnboardServices, profileId: string): RegistrationTarget {
+  return {
+    command: process.execPath,
+    serverFile: fileURLToPath(new URL("./index.js", import.meta.url)),
+    profileId,
+    profileHome: dirname(resolve(options.profiles.filePath))
+  }
+}
+
+async function sameFile(left: string, right: string): Promise<boolean> {
+  try { return await realpath(left) === await realpath(right) }
+  catch { return left === right }
+}
+
+async function inspectRegistration(
+  definition: typeof CLIENTS[number],
+  runner: CommandRunner,
+  expected: RegistrationTarget
+): Promise<NonNullable<OnboardClientStatus["registration"]>> {
+  const unknown = { state: "unknown" as const, differences: [], expected }
+  const details = await runner(definition.command, ["mcp", "get", MCP_SERVER_NAME,
+    ...(definition.id === "codex" ? ["--json"] : [])])
+  if (!details.ok) return unknown
+  let command: string, args: string[], profileHome: string | undefined, enabled = true
+  if (definition.id === "codex") {
+    const schema = z.object({ enabled: z.boolean().optional(), transport: z.object({
+      type: z.string(), command: z.string().optional(), args: z.array(z.string()).optional(),
+      env: z.record(z.string(), z.string()).nullable().optional()
+    }) })
+    let parsed: z.infer<typeof schema>
+    try { parsed = schema.parse(JSON.parse(details.stdout)) } catch { return unknown }
+    if (parsed.transport.type !== "stdio") return { state: "different", differences: ["runtime"], expected }
+    if (!parsed.transport.command || !parsed.transport.args?.length) return unknown
+    command = parsed.transport.command
+    args = parsed.transport.args
+    profileHome = parsed.transport.env?.SAP_ABAP_MCP_HOME
+    enabled = parsed.enabled !== false
+  } else {
+    const output = details.stdout.replace(/\u001b\[[0-9;]*m/g, "")
+    const field = (name: string) => output.match(new RegExp(`^\\s*${name}:\\s*(.*)$`, "m"))?.[1]?.trim()
+    if (field("Type") !== "stdio") return field("Type")
+      ? { state: "different", differences: ["runtime"], expected } : unknown
+    const displayedCommand = field("Command"), displayedArgs = field("Args")
+    if (!displayedCommand || !displayedArgs) return unknown
+    const serve = displayedArgs.indexOf(" serve")
+    if (serve < 0) return { state: "different", differences: ["runtime"], expected }
+    command = displayedCommand
+    args = [displayedArgs.slice(0, serve), ...displayedArgs.slice(serve + 1).split(/\s+/)]
+    profileHome = output.match(/^\s+SAP_ABAP_MCP_HOME=(.*)$/m)?.[1]?.trim()
+    enabled = !/disabled|rejected|pending approval/i.test(field("Status") ?? "")
+  }
+  if ([command, ...args, profileHome ?? ""].some(value => /\$\{|%[^%]+%/.test(value))) return unknown
+  args = args.flatMap(value => value.startsWith("--") && value.includes("=")
+    ? [value.slice(0, value.indexOf("=")), value.slice(value.indexOf("=") + 1)] : [value])
+  const differences: NonNullable<OnboardClientStatus["registration"]>["differences"] = []
+  if (!await sameFile(command, expected.command) || !await sameFile(args[0]!, expected.serverFile) ||
+      args[1] !== "serve" || args.includes("--http") || (args.includes("--api-version") && args[args.lastIndexOf("--api-version") + 1] !== "v1")) {
+    differences.push("runtime")
+  }
+  const profiles = args.flatMap((value, index) => value === "--profile" ? [args[index + 1] ?? ""] : [])
+  if (profiles.length > 1 || (profiles.length === 1 && profiles[0]!.toUpperCase() !== expected.profileId)) differences.push("profile")
+  if (profileHome && !await sameFile(profileHome, expected.profileHome)) differences.push("profile-home")
+  if (!enabled) differences.push("disabled")
+  return { state: differences.length ? "different" : profileHome ? "matches" : "unknown", differences, expected }
 }
 
 function expectedFiles(home: string, cwd: string): string[] {
@@ -262,15 +381,16 @@ function expectedFiles(home: string, cwd: string): string[] {
   ]
 }
 
-export async function inspectOnboardStatus(options: OnboardServices): Promise<OnboardStatus> {
+export async function inspectOnboardStatus(options: OnboardServices, profileId?: string): Promise<OnboardStatus> {
   const runner = options.runner ?? runLocalCommand
   const platform = options.platform ?? process.platform
   const home = options.homeDirectory ?? homedir()
   const cwd = options.workingDirectory ?? process.cwd()
+  const target = profileId ? registrationTarget(options, (await options.profiles.get(profileId)).id) : undefined
   const [npm, clients, files, profiles] = await Promise.all([
-    runner("npm", ["--version"]),
-    Promise.all(CLIENTS.map(client => inspectClient(client, runner))),
-    Promise.all(expectedFiles(home, cwd).map(async path => ({ path, exists: await pathExists(path) }))),
+    options.hostManaged ? Promise.resolve({ ok: false, stdout: "", stderr: "" }) : runner("npm", ["--version"]),
+    options.hostManaged ? Promise.resolve([]) : Promise.all(CLIENTS.map(client => inspectClient(client, runner, target))),
+    options.hostManaged ? Promise.resolve([]) : Promise.all(expectedFiles(home, cwd).map(async path => ({ path, exists: await pathExists(path) }))),
     options.profiles.list().then(items => Promise.all(items.map(async profile => ({
       id: profile.id,
       url: profile.url,
@@ -279,13 +399,19 @@ export async function inspectOnboardStatus(options: OnboardServices): Promise<On
       environment: profile.environment,
       authType: profile.authType,
       allowedPackages: profile.allowedPackages,
+      readOnly: Boolean(profile.readOnly || profile.environment === "production"),
       ...(profile.username ? { username: profile.username } : {}),
+      ...(profile.authType === "oauth_client_credentials" || profile.authType === "oauth_authorization_code"
+        ? { tokenUrl: profile.tokenUrl, clientId: profile.clientId, ...(profile.scope ? { scope: profile.scope } : {}),
+            ...(profile.authType === "oauth_authorization_code" ? { authorizationUrl: profile.authorizationUrl } : {}) }
+        : {}),
       credentialAvailable: await options.secrets.get(profile.id).then(Boolean).catch(() => false)
     }))))
   ])
   const npmVersion = oneLine(npm.stdout || npm.stderr)
 
   return {
+    ...(options.hostManaged ? { hostManaged: true } : {}),
     environment: {
       platform,
       nodeVersion: process.version,
@@ -304,7 +430,8 @@ export async function inspectOnboardStatus(options: OnboardServices): Promise<On
 
 async function saveAndVerifyProfile(
   raw: unknown,
-  options: OnboardServices
+  options: OnboardServices,
+  signal: AbortSignal
 ): Promise<OnboardProfileStatus> {
   const platform = options.platform ?? process.platform
   if (platform !== "win32" && platform !== "darwin") {
@@ -317,27 +444,52 @@ async function saveAndVerifyProfile(
   const existing = (await options.profiles.list()).find(
     profile => profile.id === request.id.toUpperCase()
   )
-  if (existing && existing.authType !== "basic") {
-    throw new AppError(
-      "PROFILE_AUTH_TYPE_UNSUPPORTED",
-      `Profile ${existing.id} uses advanced authentication and cannot be replaced by Basic Auth onboarding`
-    )
+  const authType = request.authType === "btp_service_key" ? "oauth_client_credentials" : request.authType
+  if (existing && existing.authType !== authType) {
+    throw new AppError("PROFILE_AUTH_TYPE_UNSUPPORTED", `Profile ${existing.id} uses a different authentication type. Use a new connection name.`)
+  }
+  const requestedPackages = request.allowedPackages?.split(",").map(value => value.trim()).filter(Boolean)
+  if ((request.accessMode === "packages" && !requestedPackages?.length) ||
+      (request.environment === "production" && request.accessMode !== undefined && request.accessMode !== "read_only")) {
+    throw new AppError("PROFILE_WRITE_POLICY_INVALID", "Choose read-only access or specify packages for changes on a development or quality system")
   }
   const input: SapProfileInput = {
     ...existing,
     id: request.id,
-    url: request.url,
-    client: request.client,
-    username: request.username,
+    url: request.authType === "btp_service_key" ? "" : request.url,
+    client: request.authType === "btp_service_key" ? "" : request.client,
     language: request.language,
     environment: request.environment,
+    authType,
+    readOnly: request.accessMode === undefined ? existing ? existing.readOnly : true : request.accessMode === "read_only",
     allowDataQueries: request.environment === "production" ? false : existing?.allowDataQueries ?? false,
-    allowedPackages: request.allowedPackages === undefined ? existing?.allowedPackages ?? []
-      : request.allowedPackages.split(",").map(value => value.trim()).filter(Boolean)
+    allowedPackages: request.accessMode === "unrestricted" ? [] : requestedPackages ?? existing?.allowedPackages ?? []
+  }
+  let credential: string
+  if (request.authType === "btp_service_key") {
+    const key = parseBtpServiceKey(request.serviceKey)
+    Object.assign(input, { url: key.url, client: key.client, tokenUrl: key.tokenUrl, clientId: key.clientId })
+    credential = key.clientSecret
+  } else if (request.authType === "basic") {
+    input.username = request.username
+    credential = request.password
+  } else {
+    Object.assign(input, { tokenUrl: request.tokenUrl, clientId: request.clientId, scope: request.scope || undefined })
+    if (request.authType === "oauth_authorization_code") input.authorizationUrl = request.authorizationUrl
+    credential = request.authType === "oauth_client_credentials" ? request.clientSecret : ""
   }
   const profile = normalizeProfile(input)
-  await options.validateCredentials(profile, request.password)
-  await saveProfileCredential(options.profiles, options.secrets, input, request.password)
+  if (signal.aborted) throw new AppError("CANCELLED", "SAP setup was cancelled before authentication")
+  if (profile.authType === "oauth_authorization_code") {
+    credential = await (options.browserLogin ?? browserOAuthLogin)({
+      authorizationUrl: profile.authorizationUrl, tokenUrl: profile.tokenUrl,
+      clientId: profile.clientId, ...(profile.scope ? { scope: profile.scope } : {})
+    }, { signal })
+  }
+  credential = await options.validateCredentials(profile, credential) ?? credential
+  if (signal.aborted) throw new AppError("CANCELLED", "SAP setup was cancelled before saving")
+  await saveProfileCredential(options.profiles, options.secrets, input, credential)
+  await options.disconnectProfile?.(profile.id)
   return {
     id: profile.id,
     url: profile.url,
@@ -345,9 +497,10 @@ async function saveAndVerifyProfile(
     language: profile.language,
     environment: profile.environment,
     authType: profile.authType,
-    username: request.username,
+    ...(profile.username ? { username: profile.username } : {}),
     credentialAvailable: true,
-    allowedPackages: profile.allowedPackages
+    allowedPackages: profile.allowedPackages,
+    readOnly: Boolean(profile.readOnly || profile.environment === "production")
   }
 }
 
@@ -358,16 +511,20 @@ async function verifySavedProfile(raw: unknown, options: OnboardServices): Promi
   if (!password) {
     throw new AppError("AUTH_REQUIRED", `No saved SAP credential was found for ${profile.id}`)
   }
-  await options.validateCredentials(profile, password)
+  const verifiedCredential = await options.validateCredentials(profile, password)
+  if (verifiedCredential !== undefined && verifiedCredential !== password) {
+    await options.secrets.set(profile.id, verifiedCredential)
+  }
 }
 
 async function configureClient(raw: unknown, options: OnboardServices): Promise<OnboardClientStatus> {
   const request = parse(configureRequestSchema, raw)
-  await options.profiles.get(request.profileId)
+  const profile = await options.profiles.get(request.profileId)
   const runner = options.runner ?? runLocalCommand
   const definition = CLIENTS.find(client => client.id === request.clientId)
   if (!definition) throw new AppError("CLIENT_UNKNOWN", "Unknown AI client")
-  const current = await inspectClient(definition, runner)
+  const target = registrationTarget(options, profile.id)
+  const current = await inspectClient(definition, runner, target)
   if (!current.installed) {
     throw new AppError("CLIENT_NOT_INSTALLED", `${definition.label} is not installed`)
   }
@@ -381,13 +538,13 @@ async function configureClient(raw: unknown, options: OnboardServices): Promise<
     fileURLToPath(new URL("./index.js", import.meta.url)),
     "serve",
     "--profile",
-    request.profileId,
+    profile.id,
     "--preset",
     request.preset
   ]
   const profileEnvironment = `SAP_ABAP_MCP_HOME=${dirname(resolve(options.profiles.filePath))}`
   const args = definition.id === "claude"
-    ? ["mcp", "add", "--transport", "stdio", "--scope", "user", "--env", profileEnvironment, MCP_SERVER_NAME, "--", ...serverArgs]
+    ? ["mcp", "add", "--transport", "stdio", "--scope", "user", MCP_SERVER_NAME, "--env", profileEnvironment, "--", ...serverArgs]
     : ["mcp", "add", "--env", profileEnvironment, MCP_SERVER_NAME, "--", ...serverArgs]
   const result = await runner(definition.command, args)
   if (!result.ok) {
@@ -396,7 +553,7 @@ async function configureClient(raw: unknown, options: OnboardServices): Promise<
       oneLine(result.stderr || result.stdout) ?? `${definition.label} MCP configuration failed`
     )
   }
-  const configured = await inspectClient(definition, runner)
+  const configured = await inspectClient(definition, runner, target)
   if (!configured.configured) {
     throw new AppError(
       "CLIENT_CONFIG_NOT_FOUND",
@@ -456,10 +613,10 @@ function sendJson(response: ServerResponse, status: number, value: unknown): voi
   response.end(`${JSON.stringify(value)}\n`)
 }
 
-function errorStatus(error: unknown): number {
-  if (!(error instanceof AppError)) return 500
-  if (error.code === "ONBOARD_BUSY") return 409
-  if (error.code === "PROFILE_NOT_FOUND") return 404
+function errorStatus(code: string): number {
+  if (code === "INTERNAL_ERROR") return 500
+  if (code === "ONBOARD_BUSY") return 409
+  if (code === "PROFILE_NOT_FOUND") return 404
   return 400
 }
 
@@ -470,6 +627,8 @@ export async function startOnboardServer(
   const nonce = randomBytes(18).toString("base64url")
   let port = 0
   let writing = false
+  const verifiedProfiles = new Set<string>()
+  let activeProfile: AbortController | undefined
   let finish: (() => void) | undefined
   const finished = new Promise<void>(resolve => { finish = resolve })
 
@@ -510,7 +669,11 @@ export async function startOnboardServer(
         return
       }
       response.writeHead(200, { "content-type": "text/html; charset=utf-8" })
-      response.end(onboardPage(token, nonce))
+      const requestedLocale = url.searchParams.get("lang")
+      const preferredLanguage = request.headers["accept-language"]?.split(",")[0]?.trim().toLowerCase()
+      const locale = requestedLocale === "ko" || requestedLocale === "en" ? requestedLocale
+        : !preferredLanguage || preferredLanguage === "*" || /^ko(?:-|;|$)/.test(preferredLanguage) ? "ko" : "en"
+      response.end(onboardPage(token, nonce, locale, options.hostManaged))
       return
     }
 
@@ -527,33 +690,72 @@ export async function startOnboardServer(
 
     try {
       if (request.method === "GET" && url.pathname === "/api/status") {
-        sendJson(response, 200, await inspectOnboardStatus(options))
+        const profileId = url.searchParams.get("profileId")
+        if (profileId !== null) parse(verifyRequestSchema, { profileId })
+        sendJson(response, 200, await inspectOnboardStatus(options, profileId ?? undefined))
         return
       }
       if (request.method === "POST" && url.pathname === "/api/profile") {
-        const profile = await withWriteLock(() => readJson(request).then(body => saveAndVerifyProfile(body, options)))
+        const profile = await withWriteLock(async () => {
+          const controller = new AbortController()
+          activeProfile = controller
+          const disconnected = () => { if (!response.writableEnded) controller.abort() }
+          response.once("close", disconnected)
+          try {
+            return await saveAndVerifyProfile(await readJson(request), options, controller.signal)
+          } finally {
+            response.off("close", disconnected)
+            activeProfile = undefined
+          }
+        })
+        verifiedProfiles.add(profile.id)
         sendJson(response, 200, { profile })
         return
       }
+      if (request.method === "POST" && url.pathname === "/api/profile/cancel") {
+        await readJson(request)
+        activeProfile?.abort()
+        sendJson(response, 200, { ok: true })
+        return
+      }
       if (request.method === "POST" && url.pathname === "/api/profile/verify") {
-        await withWriteLock(() => readJson(request).then(body => verifySavedProfile(body, options)))
+        await withWriteLock(async () => {
+          const body = await readJson(request)
+          const { profileId } = parse(verifyRequestSchema, body)
+          verifiedProfiles.delete(profileId.toUpperCase())
+          await verifySavedProfile(body, options)
+          verifiedProfiles.add(profileId.toUpperCase())
+        })
         sendJson(response, 200, { ok: true })
         return
       }
       if (request.method === "POST" && url.pathname === "/api/client/configure") {
+        if (options.hostManaged) {
+          sendJson(response, 409, { code: "ONBOARD_HOST_MANAGED", message: "The installing app manages this MCP registration" })
+          return
+        }
         const client = await withWriteLock(() => readJson(request).then(body => configureClient(body, options)))
         sendJson(response, 200, { client })
         return
       }
       if (request.method === "POST" && url.pathname === "/api/finish") {
-        await readJson(request)
+        const body = await readJson(request)
+        if (options.hostManaged) {
+          const { profileId } = parse(verifyRequestSchema, body)
+          if (!verifiedProfiles.has(profileId.toUpperCase())) {
+            sendJson(response, 409, { code: "ONBOARD_PROFILE_UNVERIFIED", message: "Verify this SAP profile before finishing setup" })
+            return
+          }
+        }
         response.once("finish", () => finish?.())
         sendJson(response, 200, { ok: true })
         return
       }
       sendJson(response, 404, { code: "NOT_FOUND", message: "Onboarding route was not found" })
     } catch (error) {
-      sendJson(response, errorStatus(error), errorPayload(error))
+      const failure = v1Failure(error).content[0]
+      const payload = V1_ERROR_SCHEMA.parse(JSON.parse(failure?.type === "text" ? failure.text : "{}"))
+      sendJson(response, errorStatus(payload.code), { code: payload.code, message: payload.message })
     }
   })
 
@@ -574,6 +776,7 @@ export async function startOnboardServer(
     close: async () => {
       if (closed) return
       closed = true
+      activeProfile?.abort()
       await new Promise<void>((resolve, reject) => {
         server.close(error => error ? reject(error) : resolve())
       })
@@ -581,7 +784,7 @@ export async function startOnboardServer(
   }
 }
 
-function defaultOpenBrowser(url: string): void {
+export function defaultOpenBrowser(url: string): void {
   const command = process.platform === "darwin"
     ? "open"
     : process.platform === "win32"

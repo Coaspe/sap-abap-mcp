@@ -60,6 +60,7 @@ interface SemanticCallInput {
   publicApi?: boolean | undefined
   definitionName?: string | undefined
   documentation?: { offset: number; maxChars: number } | undefined
+  documentationFormat?: "text" | "html" | undefined
   includeRelated?: boolean | undefined
   ifNoneMatch?: string | undefined
   componentPath?: string[] | undefined
@@ -86,6 +87,7 @@ function inspectInput(
     ...(input.publicApi !== undefined ? { publicApi: input.publicApi } : {}),
     ...(input.definitionName !== undefined ? { definitionName: input.definitionName } : {}),
     ...(input.documentation ? { documentation: input.documentation } : {}),
+    ...(input.documentationFormat !== undefined ? { documentationFormat: input.documentationFormat } : {}),
     ...(input.includeRelated !== undefined ? { includeRelated: input.includeRelated } : {}),
     ...(input.ifNoneMatch !== undefined ? { ifNoneMatch: input.ifNoneMatch } : {}),
     ...(input.componentPath !== undefined ? { componentPath: input.componentPath } : {}),
@@ -203,7 +205,7 @@ export function registerV1CoreTools(
       "sap.repository.where_used",
       {
         title: "Find SAP Repository Usages",
-        description: "Find bounded where-used references for one ABAP object.",
+        description: "Find bounded where-used references and callers.",
         inputSchema: z.object({
           systemId: SYSTEM_ID,
           objectName: OBJECT_NAME,
@@ -333,17 +335,26 @@ export function registerV1CoreTools(
       "sap.semantic.documentation",
       {
         title: "Read ABAP Documentation",
-        description: "Read SAP ABAP language documentation.",
+        description: "Read ABAP keyword documentation. Prefer format=text for bounded pages (4000 chars by default); continue with nextOffset and restart if documentHash changes. Omit paging options for legacy HTML.",
         inputSchema: z.object({
           systemId: SYSTEM_ID,
           fileUri: FILE_URI,
           line: z.number().int().min(1).default(1),
-          column: z.number().int().min(0).default(0)
+          column: z.number().int().min(0).default(0),
+          format: z.enum(["text", "html"]).optional(),
+          offset: z.number().int().min(0).optional(),
+          maxChars: z.number().int().min(1).max(16000).optional()
         }).strict(),
         outputSchema: coreOutputSchema,
         annotations: V1_READ_ONLY_ANNOTATIONS
       },
-      input => semanticResult(service, input, "documentation")
+      input => semanticResult(service, {
+        ...input,
+        ...(input.format !== undefined || input.offset !== undefined || input.maxChars !== undefined ? {
+          documentation: { offset: input.offset ?? 0, maxChars: input.maxChars ?? 4000 },
+          documentationFormat: input.format ?? "html"
+        } : {})
+      }, "documentation")
     )
   }
 
@@ -444,7 +455,8 @@ export function registerV1CoreTools(
           requests: z.array(z.object({
             objectName: OBJECT_NAME,
             startLine: z.number().int().min(1).default(1),
-            lineCount: z.number().int().min(1).max(5000).default(10)
+            lineCount: z.number().int().min(1).max(5000).default(10),
+            ifNoneMatch: z.string().regex(/^[0-9a-f]{64}$/).optional().describe("Previous batch item contentHash; rechecks access and omits unchanged code. Retain the earlier range.")
           }).strict()).min(1).max(100)
         }).strict(),
         outputSchema: coreOutputSchema.extend({ status: z.enum(["succeeded", "partial"]) }),
@@ -454,14 +466,22 @@ export function registerV1CoreTools(
         const systemId = normalizeV1SystemId(input.systemId)
         const batch = await service.getBatchLines({
           connectionId: systemId,
+          includeContentHash: true,
           requests: input.requests.map(request => ({
             objectName: request.objectName,
             startLine: request.startLine - 1,
-            lineCount: request.lineCount
+            lineCount: request.lineCount,
+            ...(request.ifNoneMatch !== undefined ? { ifNoneMatch: request.ifNoneMatch } : {})
           }))
         })
         return v1Success(resultData({ ...batch,
-          results: batch.results.map((item, index) => ({ ...item, request: input.requests[index] }))
+          results: batch.results.map((item, index) => {
+            if (!item.ok) return { ...item, request: input.requests[index] }
+            const { ifNoneMatch: _validator, ...request } = input.requests[index]!
+            if (!item.result.notModified) return { ...item, request }
+            const { code: _code, ...result } = item.result
+            return { ...item, request, result }
+          })
         }), { systemId,
           status: batch.results.some(item => !item.ok || item.result.truncated) ? "partial" : "succeeded"
         })

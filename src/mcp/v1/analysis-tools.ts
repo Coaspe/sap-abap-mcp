@@ -115,7 +115,9 @@ export function registerV1AnalysisTools(
       description,
       inputSchema,
       outputSchema: analysisOutputSchema,
-      annotations: ANALYSIS_ANNOTATIONS
+      annotations: name === "sap.quality.unit_test" || name === "sap.transport.assess"
+        ? { ...ANALYSIS_ANNOTATIONS, readOnlyHint: false, idempotentHint: false }
+        : ANALYSIS_ANNOTATIONS
     }, callback)
   }
 
@@ -492,7 +494,7 @@ export function registerV1AnalysisTools(
   registerTool(
     "sap.repository.dependency_graph",
     "Build ABAP Dependency Graph",
-    "Build a bounded where-used dependency graph.",
+    "Map bounded where-used dependencies.",
     z.object({
       systemId: SYSTEM_ID,
       objectName: NON_EMPTY,
@@ -565,7 +567,7 @@ export function registerV1AnalysisTools(
   registerTool(
     "sap.transport.assess",
     "Assess SAP Transport",
-    "Run bounded change-assurance checks for one transport.",
+    "Review transport changes with bounded quality checks.",
     z.object({
       ...transportBaseShape,
       transportNumber: NON_EMPTY,

@@ -36,6 +36,7 @@ export class OAuthClientCredentialsProvider implements OAuthAccessTokenProvider 
   private readonly now: () => number
   private token: CachedToken | undefined
   private pending: Promise<CachedToken> | undefined
+  private revision = 0
 
   constructor(
     private readonly config: OAuthClientCredentialsConfig,
@@ -68,6 +69,7 @@ export class OAuthClientCredentialsProvider implements OAuthAccessTokenProvider 
 
   async getAccessToken(): Promise<string> {
     if (this.token && !this.refreshRequired()) return this.token.accessToken
+    const revision = this.revision
     if (!this.pending) {
       const pending = this.requestToken()
       this.pending = pending
@@ -75,7 +77,11 @@ export class OAuthClientCredentialsProvider implements OAuthAccessTokenProvider 
         if (this.pending === pending) this.pending = undefined
       }).catch(() => undefined)
     }
-    this.token = await this.pending
+    const token = await this.pending
+    if (revision !== this.revision) {
+      throw new AppError("CANCELLED", "OAuth token request was invalidated")
+    }
+    this.token = token
     return this.token.accessToken
   }
 
@@ -84,6 +90,7 @@ export class OAuthClientCredentialsProvider implements OAuthAccessTokenProvider 
   }
 
   invalidate(): void {
+    this.revision++
     this.token = undefined
     this.pending = undefined
   }

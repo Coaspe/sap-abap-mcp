@@ -38,7 +38,8 @@ const systemListDataSchema = z.object({
   systems: z.array(z.object({
     id: z.string().min(1),
     environment: z.enum(["development", "quality", "production"]),
-    credentialAvailable: z.boolean()
+    credentialAvailable: z.boolean(),
+    readOnly: z.boolean().optional()
   }))
 })
 

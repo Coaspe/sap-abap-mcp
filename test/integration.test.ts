@@ -6265,3 +6265,23 @@ test("invalid binding version fails before validation, transport allocation or c
   }), { code: "SERVICE_BINDING_OPTIONS_REQUIRED" })
   assert.deepEqual(fake.objectCreationOperations, [])
 })
+
+test("read-only development profiles allow source reads and block SAP mutation and execution paths", async () => {
+  const { fake, service } = createActivationHarness()
+  Object.assign(fake.profile, { readOnly: true })
+  assert.match((await service.getObjectByUri({ connectionId: "DEV100", uri: object.uri, startLine: 0, lineCount: 10 })).code, /CLASS/)
+  await assert.rejects(service.activateObject({ connectionId: "DEV100", url: object.uri }), { code: "PROFILE_READ_ONLY" })
+  await assert.rejects(service.manageTransportRequests({ action: "release_transport", connectionId: "DEV100",
+    transportNumber: "DEVK900123", confirmation: "DEVK900123", startIndex: 0, maxResults: 10, includeObjects: false }), { code: "PROFILE_READ_ONLY" })
+  await assert.rejects(service.runAbapApplication({ action: "preview_snippet", connectionId: "DEV100", code: "WRITE 42." }), { code: "PROFILE_READ_ONLY" })
+  await assert.rejects(service.manageDebugSession("DEV100", "start"), { code: "PROFILE_READ_ONLY" })
+  await assert.rejects(service.manageDebugBreakpoint({ connectionId: "DEV100", filePath: object.uri,
+    lineNumbers: [1], action: "set" }), { code: "PROFILE_READ_ONLY" })
+  await assert.rejects(service.debugStep({ connectionId: "DEV100", stepType: "continue", threadId: 1 }), { code: "PROFILE_READ_ONLY" })
+  await assert.rejects(service.runUnitTests("ZCL_DEMO", "DEV100"), { code: "PROFILE_READ_ONLY" })
+  assert.equal(fake.debugActive, false)
+  assert.deepEqual(fake.transportMutations, [])
+  assert.deepEqual(fake.replaceSourceCalls, [])
+  assert.equal(fake.replExecuteCalls, 0)
+  service.dispose()
+})

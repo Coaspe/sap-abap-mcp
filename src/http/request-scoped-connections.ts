@@ -1,11 +1,12 @@
-import { AppError } from "../errors.js"
+import { applyProfileAccessPolicy, profileConnectionKey } from "../profile-store.js"
+import { AppError, tokenPassthroughRefused } from "../errors.js"
 import type { ConnectionManager, ConnectionSummary } from "../connection-manager.js"
 import type { SapClient } from "../sap-client.js"
 import type { ConnectionProvider } from "../tool-service.js"
 
 export class RequestScopedConnectionProvider implements ConnectionProvider {
   private readonly allowed: ReadonlySet<string> | undefined
-  private readonly clients = new Map<string, Promise<SapClient>>()
+  private readonly clients = new Map<string, { connectionKey: string; pending: Promise<SapClient> }>()
   private closing: Promise<void> | undefined
 
   private assertOpen(): void {
@@ -25,7 +26,7 @@ export class RequestScopedConnectionProvider implements ConnectionProvider {
 
   async listConnections(): Promise<ConnectionSummary[]> {
     this.assertOpen()
-    const connections = await this.inner.listConnections()
+    const connections = await this.inner.listConnections(Boolean(this.bearerToken))
     this.assertOpen()
     if (!this.allowed) return connections
     return connections.filter(connection => this.allowed!.has(connection.id.toUpperCase()))
@@ -40,29 +41,41 @@ export class RequestScopedConnectionProvider implements ConnectionProvider {
         `This identity is not authorized for SAP profile ${normalized}`
       )
     }
-    const passthrough = await this.inner.usesRequestScopedCredentials(normalized)
+    const profile = await this.inner.getProfile(normalized)
     this.assertOpen()
-    if (!passthrough) {
+    if (profile.authType === "bearer_passthrough") throw tokenPassthroughRefused()
+    if (profile.authType !== "btp_destination") {
       const shared = await this.inner.getClient(normalized)
       this.assertOpen()
       return shared
     }
-    let client = this.clients.get(normalized)
-    if (!client) {
-      client = this.inner.createBearerClient(normalized, this.bearerToken)
-      this.clients.set(normalized, client)
-      client.catch(() => {
-        if (this.clients.get(normalized) === client) this.clients.delete(normalized)
+    let cached = this.clients.get(normalized)
+    const connectionKey = profileConnectionKey(profile)
+    if (!cached || cached.connectionKey !== connectionKey) {
+      const previous = cached
+      const created = {
+        connectionKey,
+        pending: (async () => {
+          if (previous) await previous.pending.then(client => client.logout()).catch(() => undefined)
+          this.assertOpen()
+          return this.inner.createBearerClient(normalized, this.bearerToken)
+        })()
+      }
+      cached = created
+      this.clients.set(normalized, created)
+      created.pending.catch(() => {
+        if (this.clients.get(normalized) === created) this.clients.delete(normalized)
       })
     }
-    const connected = await client
+    const connected = await cached.pending
     this.assertOpen()
+    applyProfileAccessPolicy(connected.profile, profile)
     return connected
   }
 
   close(): Promise<void> {
     if (!this.closing) {
-      this.closing = Promise.allSettled(this.clients.values()).then(async clients => {
+      this.closing = Promise.allSettled([...this.clients.values()].map(client => client.pending)).then(async clients => {
         await Promise.all(clients
           .filter((result): result is PromiseFulfilledResult<SapClient> => result.status === "fulfilled")
           .map(result => result.value.logout().catch(() => undefined)))

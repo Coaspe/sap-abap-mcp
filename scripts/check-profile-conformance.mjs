@@ -6,15 +6,13 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { evaluateProfile } from "../dist/src/profile-conformance.js"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
-const profile = JSON.parse(
-  await readFile(join(root, "spec", "sap-abap-mcp-profile-v1.json"), "utf8")
-)
 
 function parseLaunchArguments(argv) {
   let command = process.execPath
   // The compatibility profile requires directly advertised tools. The default
   // adaptive CLI exposes the same capabilities through discovery instead.
   let args = [join(root, "dist", "src", "index.js"), "serve", "--toolsets", "all"]
+  let profilePath = join(root, "spec", "sap-abap-mcp-profile-v1.json")
 
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index]
@@ -29,11 +27,14 @@ function parseLaunchArguments(argv) {
       }
       args = parsed
       index += 1
+    } else if (flag === "--profile" && value) {
+      profilePath = value
+      index += 1
     } else {
       throw new Error(`Unknown or incomplete argument: ${flag}`)
     }
   }
-  return { command, args }
+  return { command, args, profilePath }
 }
 
 async function collectPages(call) {
@@ -50,12 +51,14 @@ async function collectPages(call) {
 let client
 try {
   const launch = parseLaunchArguments(process.argv.slice(2))
+  const profile = JSON.parse(await readFile(launch.profilePath, "utf8"))
   client = new Client({
     name: "sap-abap-mcp-profile-conformance",
     version: profile.version
   })
   const transport = new StdioClientTransport({
-    ...launch,
+    command: launch.command,
+    args: launch.args,
     cwd: process.cwd(),
     stderr: "pipe"
   })

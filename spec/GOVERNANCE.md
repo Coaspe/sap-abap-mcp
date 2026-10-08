@@ -90,6 +90,8 @@ disagreement rather than hiding it.
 ## What conformance does and does not prove
 
 Passing proves that a server advertises the required capability and Resource
-names. It does not prove that a selected SAP release exposes an endpoint, that
+names, and explicitly marks each required tool with `readOnlyHint: true`. Tool
+annotations are server claims, not independent evidence of their actual effects.
+It does not prove that a selected SAP release exposes an endpoint, that
 the current user is authorized, that an operation succeeded against a live
 system, or that a mutation is safe.

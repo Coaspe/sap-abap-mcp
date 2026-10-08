@@ -1,11 +1,12 @@
-import { AppError } from "./errors.js"
+import { AppError, tokenPassthroughRefused } from "./errors.js"
 import {
   OAuthClientCredentialsProvider,
   type OAuthAccessTokenProvider
 } from "./oauth-client-credentials.js"
 import { OAuthAuthorizationCodeProvider } from "./oauth-authorization-code.js"
-import { ProfileStore, type SapProfile } from "./profile-store.js"
+import { applyProfileAccessPolicy, profileConnectionKey, ProfileStore, type SapProfile } from "./profile-store.js"
 import type { SecretStore } from "./secret-store.js"
+import { withProfileCredentialUpdate } from "./save-profile-credential.js"
 import {
   defaultSapClientFactory,
   type SapClient,
@@ -21,6 +22,7 @@ export interface ConnectionSummary {
   environment: SapProfile["environment"]
   username?: string
   credentialAvailable: boolean
+  readOnly?: boolean
 }
 
 type OAuthProfile = Extract<SapProfile, { authType: "oauth_client_credentials" }>
@@ -36,6 +38,7 @@ export type AuthorizationCodeProviderFactory = (
 ) => OAuthAccessTokenProvider
 
 interface CachedClient {
+  connectionKey: string
   pending: Promise<SapClient>
   tokenProvider?: OAuthAccessTokenProvider
 }
@@ -76,7 +79,7 @@ export class ConnectionManager {
       defaultAuthorizationCodeProviderFactory
   ) {}
 
-  async listConnections(): Promise<ConnectionSummary[]> {
+  async listConnections(requestScopedCredentialsAvailable = false): Promise<ConnectionSummary[]> {
     const profiles = await this.profiles.list()
     const allowed = this.allowedProfileId?.toUpperCase()
     const visible = allowed ? profiles.filter(profile => profile.id === allowed) : profiles
@@ -88,20 +91,27 @@ export class ConnectionManager {
         language: profile.language,
         environment: profile.environment,
         ...(profile.username ? { username: profile.username } : {}),
-        credentialAvailable: Boolean(await this.secrets.get(profile.id))
+        ...(profile.readOnly || profile.environment === "production" ? { readOnly: true } : {}),
+        credentialAvailable: profile.authType === "bearer_passthrough" ? false
+          : profile.authType === "btp_destination" ? requestScopedCredentialsAvailable
+          : Boolean(await this.secrets.get(profile.id))
       }))
     )
   }
 
   async getClient(connectionId: string): Promise<SapClient> {
-    const profile = await this.getAllowedProfile(connectionId)
+    const profile = await this.getProfile(connectionId)
+    if (profile.authType === "bearer_passthrough") throw tokenPassthroughRefused()
     let cached = this.clients.get(profile.id)
-    const previous = cached?.tokenProvider?.refreshRequired() ? cached : undefined
+    const connectionKey = profileConnectionKey(profile)
+    const previous = cached && (cached.connectionKey !== connectionKey || cached.tokenProvider?.refreshRequired())
+      ? cached : undefined
     if (!cached || previous) {
       const created: CachedClient = {
+        connectionKey,
         pending: (async () => {
           if (previous) {
-            previous.tokenProvider!.invalidate()
+            previous.tokenProvider?.invalidate()
             await previous.pending
               .then(client => client.logout())
               .catch(() => undefined)
@@ -117,23 +127,43 @@ export class ConnectionManager {
         if (this.clients.get(profile.id) === created) this.clients.delete(profile.id)
       })
     }
-    return cached.pending
+    const client = await cached.pending
+    applyProfileAccessPolicy(client.profile, profile)
+    return client
   }
 
-  async validateCredentials(profile: SapProfile, secret: string): Promise<void> {
-    if (profile.authType === "bearer_passthrough" || profile.authType === "btp_destination") {
+  async validateCredentials(
+    profile: SapProfile,
+    secret: string,
+    onVerifiedCredential?: (credential: string) => void
+  ): Promise<void> {
+    if (profile.authType === "bearer_passthrough") throw tokenPassthroughRefused()
+    if (profile.authType === "btp_destination") {
       throw new AppError(
         "AUTH_PASSTHROUGH_REQUIRED",
         "Request-scoped profiles are validated from an authenticated HTTP session"
       )
     }
-    const client = this.factory(profile, this.credential(profile, secret))
-    await client.login()
+    let verifiedCredential = secret
+    const client = this.factory(profile, this.credential(profile, secret, undefined, async credential => {
+      verifiedCredential = credential
+    }))
     try {
+      await client.login()
       await client.getSystemInfo(false)
+      onVerifiedCredential?.(verifiedCredential)
     } finally {
       await client.logout().catch(() => undefined)
     }
+  }
+
+  async disconnectProfile(connectionId: string): Promise<void> {
+    const id = connectionId.trim().toUpperCase()
+    const cached = this.clients.get(id)
+    if (!cached) return
+    this.clients.delete(id)
+    cached.tokenProvider?.invalidate()
+    await cached.pending.then(client => client.logout()).catch(() => undefined)
   }
 
   async close(): Promise<void> {
@@ -149,35 +179,39 @@ export class ConnectionManager {
   }
 
   async createBearerClient(connectionId: string, token: string): Promise<SapClient> {
-    const profile = await this.getAllowedProfile(connectionId)
-    if (profile.authType !== "bearer_passthrough" && profile.authType !== "btp_destination") {
+    const profile = await this.getProfile(connectionId)
+    if (profile.authType === "bearer_passthrough") throw tokenPassthroughRefused()
+    if (profile.authType !== "btp_destination") {
       throw new AppError(
         "AUTH_PASSTHROUGH_NOT_CONFIGURED",
         `Profile ${profile.id} does not accept request-scoped bearer credentials`
       )
     }
     if (!token) throw new AppError("AUTH_REQUIRED", "A SAP bearer token is required")
-    const transport = profile.authType === "btp_destination"
-      ? (await import("./user-destination.js")).createUserDestinationTransportFactory({
-          destinationName: profile.destinationName, expectedUrl: profile.url, sapClient: profile.client,
-          authentication: profile.destinationAuthentication, userJwt: token
-        })
-      : undefined
+    const transport = (await import("./user-destination.js")).createUserDestinationTransportFactory({
+      destinationName: profile.destinationName, expectedUrl: profile.url, sapClient: profile.client,
+      authentication: profile.destinationAuthentication, userJwt: token
+    })
     const client = this.factory(profile, { type: "bearer", fetchToken: async () => token }, transport)
-    await client.login()
-    return client
+    try {
+      await client.login()
+      return client
+    } catch (error) {
+      await client.logout().catch(() => undefined)
+      throw error
+    }
   }
 
   async usesBearerPassthrough(connectionId: string): Promise<boolean> {
-    return (await this.getAllowedProfile(connectionId)).authType === "bearer_passthrough"
+    return (await this.getProfile(connectionId)).authType === "bearer_passthrough"
   }
 
   async usesRequestScopedCredentials(connectionId: string): Promise<boolean> {
-    const type = (await this.getAllowedProfile(connectionId)).authType
+    const type = (await this.getProfile(connectionId)).authType
     return type === "bearer_passthrough" || type === "btp_destination"
   }
 
-  private async getAllowedProfile(connectionId: string): Promise<SapProfile> {
+  async getProfile(connectionId: string): Promise<SapProfile> {
     const normalizedId = connectionId.trim().toUpperCase()
     if (this.allowedProfileId && normalizedId !== this.allowedProfileId.toUpperCase()) {
       throw new AppError(
@@ -192,7 +226,8 @@ export class ConnectionManager {
     profile: SapProfile,
     setTokenProvider: (provider: OAuthAccessTokenProvider) => void
   ): Promise<SapClient> {
-    if (profile.authType === "bearer_passthrough" || profile.authType === "btp_destination") {
+    if (profile.authType === "bearer_passthrough") throw tokenPassthroughRefused()
+    if (profile.authType === "btp_destination") {
       throw new AppError(
         "AUTH_PASSTHROUGH_REQUIRED",
         `Profile ${profile.id} requires an OIDC-authenticated HTTP session`
@@ -202,10 +237,18 @@ export class ConnectionManager {
     if (!secret) {
       throw new AppError(
         "AUTH_REQUIRED",
-        `No credential is stored for ${profile.id}. Run: sap-abap-mcp auth login ${profile.id}`
+        `No credential is stored for ${profile.id}. Sign in locally using the setup wizard or auth login.`
       )
     }
-    const credential = this.credential(profile, secret, setTokenProvider)
+    let storedCredential = secret
+    const credential = this.credential(profile, secret, setTokenProvider, nextCredential =>
+      withProfileCredentialUpdate(this.secrets, profile.id, async () => {
+        if (await this.secrets.get(profile.id) !== storedCredential) {
+          throw new AppError("CANCELLED", "Stored credential changed while OAuth refresh was pending")
+        }
+        await this.secrets.set(profile.id, nextCredential)
+        storedCredential = nextCredential
+      }))
     const client = this.factory(profile, credential)
     await client.login()
     return client
@@ -214,7 +257,8 @@ export class ConnectionManager {
   private credential(
     profile: SapProfile,
     secret: string,
-    setTokenProvider?: (provider: OAuthAccessTokenProvider) => void
+    setTokenProvider: ((provider: OAuthAccessTokenProvider) => void) | undefined,
+    persistCredential: (credential: string) => Promise<void>
   ): SapCredential {
     if (profile.authType === "basic") return { type: "basic", password: secret }
     if (profile.authType === "bearer_passthrough" || profile.authType === "btp_destination") {
@@ -225,7 +269,7 @@ export class ConnectionManager {
       : this.authorizationCodeProviderFactory(
           profile,
           secret,
-          credential => this.secrets.set(profile.id, credential)
+          persistCredential
         )
     setTokenProvider?.(tokenProvider)
     return { type: "bearer", fetchToken: () => tokenProvider.getAccessToken() }

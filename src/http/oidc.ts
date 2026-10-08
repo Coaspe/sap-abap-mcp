@@ -1,4 +1,5 @@
 import {
+  constants,
   createPublicKey,
   verify,
   type JsonWebKey as NodeJsonWebKey,
@@ -84,24 +85,6 @@ function decodeJson(segment: string, label: string): Record<string, unknown> {
   return parsed as Record<string, unknown>
 }
 
-/**
- * Convert an ECDSA JOSE signature (r||s) to the DER encoding `crypto.verify`
- * expects. JOSE uses fixed-width concatenation; DER uses a SEQUENCE of INTEGERs.
- */
-function joseToDerSignature(signature: Buffer): Buffer {
-  const half = signature.length / 2
-  const encodeInteger = (bytes: Buffer): Buffer => {
-    let start = 0
-    while (start < bytes.length - 1 && bytes[start] === 0) start += 1
-    let value = bytes.subarray(start)
-    if ((value[0] ?? 0) & 0x80) value = Buffer.concat([Buffer.from([0]), value])
-    return Buffer.concat([Buffer.from([0x02, value.length]), value])
-  }
-  const r = encodeInteger(signature.subarray(0, half))
-  const s = encodeInteger(signature.subarray(half))
-  const body = Buffer.concat([r, s])
-  return Buffer.concat([Buffer.from([0x30, body.length]), body])
-}
 
 export interface JwksFetcher {
   (uri: string): Promise<unknown>
@@ -126,8 +109,9 @@ const defaultJwksFetcher: JwksFetcher = async uri => {
   return JSON.parse(text)
 }
 
+
 interface CachedKeys {
-  keys: Map<string, KeyObject>
+  keys: Map<string, { key: KeyObject; algorithm?: string }>
   expiresAt: number
 }
 
@@ -156,13 +140,14 @@ export class JwksKeyStore {
     }
   }
 
-  async get(keyId: string): Promise<KeyObject | undefined> {
+  async get(keyId: string, algorithm?: string): Promise<KeyObject | undefined> {
     if (!this.cached || this.cached.expiresAt <= this.now()) await this.refresh()
     const hit = this.cached?.keys.get(keyId)
-    if (hit) return hit
+    if (hit) return !algorithm || !hit.algorithm || hit.algorithm === algorithm ? hit.key : undefined
     // Unknown kid: refresh once in case the issuer rotated keys.
     await this.refresh()
-    return this.cached?.keys.get(keyId)
+    const refreshed = this.cached?.keys.get(keyId)
+    return refreshed && (!algorithm || !refreshed.algorithm || refreshed.algorithm === algorithm) ? refreshed.key : undefined
   }
 
   private async refresh(): Promise<void> {
@@ -174,16 +159,18 @@ export class JwksKeyStore {
         if (!Array.isArray(rawKeys)) {
           throw new AppError("JWKS_INVALID", "The JWKS document has no keys array")
         }
-        const keys = new Map<string, KeyObject>()
+        const keys = new Map<string, { key: KeyObject; algorithm?: string }>()
         for (const entry of rawKeys) {
           const jwk = entry as Record<string, unknown>
           const keyId = typeof jwk.kid === "string" ? jwk.kid : undefined
-          if (!keyId || (jwk.use !== undefined && jwk.use !== "sig")) continue
+          if (!keyId || (jwk.use !== undefined && jwk.use !== "sig") ||
+              (jwk.alg !== undefined && typeof jwk.alg !== "string") ||
+              (jwk.key_ops !== undefined && (!Array.isArray(jwk.key_ops) || !jwk.key_ops.includes("verify")))) continue
           try {
-            keys.set(keyId, createPublicKey({
-              key: jwk as unknown as NodeJsonWebKey,
-              format: "jwk"
-            }))
+            keys.set(keyId, {
+              key: createPublicKey({ key: jwk as unknown as NodeJsonWebKey, format: "jwk" }),
+              ...(typeof jwk.alg === "string" ? { algorithm: jwk.alg } : {})
+            })
           } catch {
             // Skip a key this runtime cannot import rather than failing the set.
           }
@@ -284,7 +271,7 @@ export async function verifyJwt(
   const [headerSegment, payloadSegment, signatureSegment] = parts as [string, string, string]
   const header = decodeJson(headerSegment, "header")
   const algorithm = header.alg
-  if (typeof algorithm !== "string" || !(algorithm in SUPPORTED_ALGORITHMS)) {
+  if (typeof algorithm !== "string" || !Object.hasOwn(SUPPORTED_ALGORITHMS, algorithm)) {
     throw new AppError(
       "JWT_ALGORITHM_UNSUPPORTED",
       `Unsupported JWT algorithm: ${String(algorithm)}`,
@@ -295,23 +282,33 @@ export async function verifyJwt(
   if (typeof keyId !== "string" || keyId.length === 0) {
     throw new AppError("JWT_MALFORMED", "The JWT header has no kid")
   }
-  const key = await keys.get(keyId)
+  const key = await keys.get(keyId, algorithm)
   if (!key) {
     throw new AppError("JWT_KEY_UNKNOWN", "No signing key matches the token kid")
   }
 
   const spec = SUPPORTED_ALGORITHMS[algorithm as SupportedJwtAlgorithm]
+  const ecCurves = { ES256: "prime256v1", ES384: "secp384r1", ES512: "secp521r1" }
+  const ecCurve = ecCurves[algorithm as keyof typeof ecCurves]
+  if (ecCurve ? key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== ecCurve
+    : key.asymmetricKeyType !== "rsa" || (key.asymmetricKeyDetails?.modulusLength ?? 0) < 2048) {
+    throw new AppError("JWT_KEY_MISMATCH", "The JWT algorithm does not match its signing key")
+  }
   const signingInput = Buffer.from(`${headerSegment}.${payloadSegment}`, "utf8")
-  let signature = base64UrlDecode(signatureSegment)
-  if (algorithm.startsWith("ES")) signature = joseToDerSignature(signature)
-  const verified = verify(
-    spec.name,
-    signingInput,
-    spec.padding === "pss"
-      ? { key, padding: 6 /* RSA_PKCS1_PSS_PADDING */, saltLength: 0 /* DIGEST */ }
-      : key,
-    signature
-  )
+  const signature = base64UrlDecode(signatureSegment)
+  let verified = false
+  try {
+    verified = verify(spec.name, signingInput, {
+      key,
+      ...(ecCurve ? { dsaEncoding: "ieee-p1363" as const } : {}),
+      ...(spec.padding === "pss" ? {
+        padding: constants.RSA_PKCS1_PSS_PADDING,
+        saltLength: constants.RSA_PSS_SALTLEN_DIGEST
+      } : {})
+    }, signature)
+  } catch {
+    // Malformed signatures are authentication failures, without crypto internals.
+  }
   if (!verified) {
     throw new AppError("JWT_SIGNATURE_INVALID", "The JWT signature is not valid")
   }
@@ -345,6 +342,8 @@ export async function verifyJwt(
 }
 
 export interface OidcAuthenticator {
+  /** Trusted configured issuer, used for optional MCP OAuth discovery. */
+  readonly issuer?: string
   resolve(credential: string): Promise<HttpPrincipal>
 }
 
@@ -357,6 +356,7 @@ export function createOidcAuthenticator(
   now: () => number = Date.now
 ): OidcAuthenticator {
   return {
+    issuer: configuration.issuer,
     resolve: async credential => {
       const { subject, role, claims } = await verifyJwt(
         credential,
