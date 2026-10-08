@@ -1,0 +1,59 @@
+✔ v1 compatibility profile has stable proposal metadata and unique requirements (0.298542ms)
+✔ complete profile discovery passes with exact evidence counts (0.32275ms)
+✔ a missing required capability fails with its exact tool name (0.068833ms)
+✖ required tool without an explicit read-only hint fails (false) (0.299792ms)
+✖ required tool without an explicit read-only hint fails (undefined) (0.074458ms)
+✔ execution hints on optional tools do not fail the read-only core (0.04525ms)
+✔ a missing required resource fails with its exact resource name (0.05825ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 5
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30.655917
+
+✖ failing tests:
+
+test at dist/test/profile-conformance.test.js:60:5
+✖ required tool without an explicit read-only hint fails (false) (0.299792ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/profile-conformance.test.js:68:16)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/profile-conformance.test.js:60:5
+✖ required tool without an explicit read-only hint fails (undefined) (0.074458ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/profile-conformance.test.js:68:16)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,72 @@
+[
+  {
+    "args": [
+      "--version"
+    ],
+    "ok": true,
+    "stdout": "2.1.286 (Claude Code)\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "mcp",
+      "get",
+      "--help"
+    ],
+    "ok": true,
+    "stdout": "Usage: claude mcp get [options] <name>\n\nGet details about an MCP server. Unapproved .mcp.json servers are shown as ⏸\nPending approval and not connected to; approved servers are health-checked\nunless disabled for this project.\n\nOptions:\n  -h, --help  Display help for command\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "mcp",
+      "add",
+      "--transport",
+      "stdio",
+      "--scope",
+      "user",
+      "--env",
+      "SAP_ABAP_MCP_HOME=/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-claude-cli-DtVRVW/profiles",
+      "sap-abap",
+      "--",
+      "/Users/coaspe/.nvm/versions/node/v24.11.1/bin/node",
+      "-e",
+      "process.stdin.resume()"
+    ],
+    "ok": false,
+    "code": 1,
+    "stdout": "",
+    "stderr": "Invalid environment variable format: sap-abap, environment variables should be added as: -e KEY1=value1 -e KEY2=value2\n"
+  },
+  {
+    "args": [
+      "mcp",
+      "add",
+      "--transport",
+      "stdio",
+      "--scope",
+      "user",
+      "sap-abap",
+      "--env",
+      "SAP_ABAP_MCP_HOME=/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-claude-cli-DtVRVW/profiles",
+      "--",
+      "/Users/coaspe/.nvm/versions/node/v24.11.1/bin/node",
+      "-e",
+      "process.stdin.resume()"
+    ],
+    "ok": true,
+    "stdout": "Added stdio MCP server sap-abap with command: /Users/coaspe/.nvm/versions/node/v24.11.1/bin/node -e process.stdin.resume() to user config\nFile modified: /var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-claude-cli-DtVRVW/config/.claude.json\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "mcp",
+      "get",
+      "sap-abap"
+    ],
+    "ok": false,
+    "code": 143,
+    "stdout": "",
+    "stderr": ""
+  }
+]

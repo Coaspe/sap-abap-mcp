@@ -1,0 +1,157 @@
+{
+  "generatedDate": "2026-10-02",
+  "stage": "identical offline source read, refresh and denial replay",
+  "passed": true,
+  "node": "24.21.0",
+  "platform": "macOS arm64",
+  "configurations": 12,
+  "products": 4,
+  "freshSessions": 36,
+  "fixtureAcceptanceChecks": 144,
+  "mcpOperations": 174,
+  "sameMeasuredResultsAcrossThreeFreshSessions": true,
+  "method": "Actual released competitor CLI processes and unreleased local checkout; SDK tool calls against the same loopback ADT fixture. Script chooses known read operations. Minimal/single/adaptive include optional search plus describe; known-* skips optional search. Resource paths include template discovery. These are explicit caller strategies, not model-selected workflows.",
+  "measurement": "Minified complete parameters/results, fixed returned tool schemas once, and separate instructions field; UUID and loopback-origin normalization; SDK protocol-error representation when calls throw.",
+  "tokenizer": "o200k_base",
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "realBillingMeasured": false,
+  "sapWrites": 0,
+  "newMcpTools": 0,
+  "newProductSettings": 0,
+  "newDependencies": 0,
+  "runtimeCodeChanged": false,
+  "nativeResourceRouteAlreadyImplemented": true,
+  "sameOperationCountComparison": [
+    {
+      "mode": "minimal",
+      "knownCapabilityToolTokens": 11588,
+      "nativeResourceTokens": 7539,
+      "reductionPercent": 34.941,
+      "bothMcpOperations": 5
+    },
+    {
+      "mode": "single",
+      "knownCapabilityToolTokens": 10905,
+      "nativeResourceTokens": 6853,
+      "reductionPercent": 37.157,
+      "bothMcpOperations": 5
+    }
+  ],
+  "resourceHostSupport": "Actual SDK Resource reads tested; native chat-host reader schemas and Resource-to-model forwarding are not verified or costed.",
+  "repetition": "repeatability.json",
+  "measurements": "measurements.json",
+  "reproducer": "measure.mjs",
+  "fixtureReview": "fixture-review.json",
+  "rawTraceArchive": {
+    "path": "artifacts/competitive-read-workflow-2026-10-02/transcripts.zip",
+    "bytes": 107668,
+    "sha256": "a383af1fee37ac172c833d95b9db7dfcaed4bd00bb47e232fd3f13972112f099",
+    "files": 3,
+    "syntheticOnly": true
+  },
+  "packageSnapshotsVerifiedAgain": [
+    {
+      "name": "arc-1",
+      "version": "1.4.0",
+      "integrity": "sha512-d5TweC5ObG+2nZOOLlL3jvwUEjVVJKDDC/0zUljeJuvnV/NH0Aj0y8SENks3/kFSkXDItt4671gOgiyrkxmsZw==",
+      "registry": "https://registry.npmjs.org/arc-1/1.4.0",
+      "gitHead": "1a6b21cf8524249276b4749766584560cd17f783",
+      "entrySha256": "178bff488b40a31be382133efe32b2d14a9e25153b883695b718744dce119500",
+      "manifestSha256": "d41e1c951f6e2e3476d1044e93858d825d4e7af39af62a26bcffebb4b8460cd5",
+      "dependencyLockSha256": "1aeceacf2df9fd3fea6210d959102c04e173d2b622d4245e1a161d50ad47df61"
+    },
+    {
+      "name": "abap-adt-mcp",
+      "version": "2.7.0",
+      "integrity": "sha512-806VCxhU6+xLgexcp3bmrAZRomLYBz6+Z8slR5S+SfhLBMjyLl2bGlxMWaYH7KmepoConttePWc9Wppu195TKQ==",
+      "registry": "https://registry.npmjs.org/abap-adt-mcp/2.7.0",
+      "gitHead": "5139867a8c9af30f311a295e7b175d92e1937ebc",
+      "entrySha256": "a403d6098d65eafaca9c1a6c593234f851af69f619f82540c0ed5cbfd7e84094",
+      "manifestSha256": "e31846bbd36f7ea5dee081df2c9542b87ac271420d7e0a51c11c0e6ba3bcea83",
+      "dependencyLockSha256": "4faef2407f2769b06d9467f5d18df83f55bd1a1e01ac0f9bd81a1482f062a8d8"
+    },
+    {
+      "name": "@mcp-abap-adt/core",
+      "version": "15.0.0",
+      "integrity": "sha512-EHhFR5mQgZz4ZlUCR/8oY/wHAxdoU9opRvUML2CY6I39LEjyp+Fayb49VpamZsUbsbSUX9PHvgUsbRChy3zIpg==",
+      "registry": "https://registry.npmjs.org/@mcp-abap-adt/core/15.0.0",
+      "gitHead": "ec208a87dc7080c58bd10dfad6d836061360a7fe",
+      "entrySha256": "981a56d49bb73cbbc47e78af8127f20c3ecbda69aab7fcea99a9d948b9e587e5",
+      "manifestSha256": "fc85bb68955f8a0fea14c6f894d83a2c29a2a90ffaff26ea59c296373472a0c3",
+      "dependencyLockSha256": "4d80f34d65819bdc717f44c52b2931ecc20f5c23f4d49f6ef41da47e9451fcb2"
+    }
+  ],
+  "dependencyArchive": "artifacts/competitive-stdio-surface-2026-10-02/dependency-locks.zip",
+  "limitations": [
+    "Live SAP compatibility and authorization",
+    "Model task selection/correctness, billing and conversation replay",
+    "Host schema caching/tool search and host-native Resource reader schemas",
+    "Other initialize and JSON-RPC framing fields",
+    "SAP latency rankings and ordinary novice setup",
+    "General outbound-network monitoring",
+    "Full T1-T5 acceptance; this is one offline source-read subtask",
+    "ARC optional feature/draft discovery endpoints outside this fixture return 404; these cannot rank production network round trips.",
+    "The 41-token Resource/single difference from ARC hyperfocused is too small and incomplete in host costs to establish a practical advantage.",
+    "T1-T5 live acceptance, novice setup completion and independent adoption stay unverified."
+  ],
+  "primarySources": [
+    "https://github.com/arc-mcp/arc-1",
+    "https://github.com/williansaez/abap-adt-mcp",
+    "https://github.com/fr0ster/mcp-abap-adt",
+    "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#structured-content",
+    "https://modelcontextprotocol.io/specification/2025-11-25/server/resources"
+  ],
+  "operationCountExclusions": [
+    "initialize",
+    "tools/list counted separately in fixed schema fields",
+    "notifications",
+    "teardown",
+    "internal server-side gateway catalog protocol"
+  ],
+  "runtimeInventory": {
+    "file": "runtime-inventory.json",
+    "sourceFiles": 80,
+    "compiledFiles": 240,
+    "sha256": "6336a2d9a93a1dca971ef3fb70a3364e52c2ee30b2bd8d9c77a6d15678f6970e",
+    "originalAndMirrorByteEqual": true,
+    "priorExecutionPolicySourceHashesRetained": true
+  },
+  "documentationChanges": [
+    {
+      "path": "README.md",
+      "beforeSha256": "c8f9d110ca52cbfe3cd17edc22216888a2287914bfb572367182c24505319ca7",
+      "afterSha256": "1489ff37c2cc32b48c68a9c98a7e4a754eab115a32a4ef7de317e2bfadb687d0"
+    },
+    {
+      "path": "docs/adaptive-mode.md",
+      "beforeSha256": "ca8f015bc51251cd2d1640c2f8d86247e6b6b82a90652dfe9a83f154ebe80d59",
+      "afterSha256": "28a2525dd6757b1e97cb244e48264f30130545f69aa806d5ed5ade1288314dd2"
+    },
+    {
+      "path": "docs/abap-task-comparison.md",
+      "beforeSha256": "388449f4b4f0d7a2cfbcff8ad2f8921706aa7d1ba412cc31271b9aa38b6681aa",
+      "afterSha256": "9397967738837519d662a24bc354304971de23d1d46574ebf08f809b9f3063ce"
+    },
+    {
+      "path": "docs/competitive-research-2026-10-01.ko.md",
+      "beforeSha256": "af43bef786ea66f06340ce223d132961335c40db320406593d1eac5500b04aca",
+      "afterSha256": "0f3cc390d91c99e539f88df634b9cc5f5077c0a10aa015412e950d38027a7548"
+    },
+    {
+      "path": "plugins/sap-abap-mcp/README.md",
+      "beforeSha256": "a0dc79dc192384219936d8a1181f27ed407fdef14de7b060285b7595bc2cecb0",
+      "afterSha256": "b2d38d6c8963facb75c5cefa60ceb835630b6b981249a7a432ee27efb114c6a0"
+    }
+  ],
+  "reproducerSha256": "6bcaa9b20e72e5e606f1584760df9e1bc3b2948dfeb623d2c302baa008abbdee",
+  "retainedDocumentationBackup": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-read-workflow-doc-backup-g_tc300i",
+  "npmPackDryRun": {
+    "fileCount": 507,
+    "verificationIncluded": true,
+    "reproducerIncluded": true,
+    "runtimeInventoryIncluded": true,
+    "rawTraceArchiveExcluded": true,
+    "published": false
+  }
+}

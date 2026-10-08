@@ -1,0 +1,161 @@
+✖ full viewer enforces ABAP Unit execution risk before the service callback (72.373166ms)
+ℹ {"mode":"full","role":"viewer","executions":1,"advertised":true}
+✖ full developer enforces ABAP Unit execution risk before the service callback (52.664708ms)
+✖ minimal viewer enforces ABAP Unit execution risk before the service callback (65.595625ms)
+ℹ {"mode":"minimal","role":"viewer","executions":1,"advertisedRisk":"read"}
+✖ minimal developer enforces ABAP Unit execution risk before the service callback (55.535708ms)
+ℹ {"mode":"minimal","role":"developer","executions":1,"advertisedRisk":"read"}
+✖ adaptive viewer enforces ABAP Unit execution risk before the service callback (54.4655ms)
+ℹ {"mode":"adaptive","role":"viewer","executions":1,"advertisedRisk":"read"}
+✖ adaptive developer enforces ABAP Unit execution risk before the service callback (60.850083ms)
+ℹ {"mode":"adaptive","role":"developer","executions":1,"advertisedRisk":"read"}
+✖ single viewer enforces ABAP Unit execution risk before the service callback (44.859542ms)
+ℹ {"mode":"single","role":"viewer","executions":1,"advertisedRisk":"read"}
+✖ single developer enforces ABAP Unit execution risk before the service callback (51.374416ms)
+ℹ {"mode":"single","role":"developer","executions":1,"advertisedRisk":"read"}
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1068.380084
+
+✖ failing tests:
+
+test at dist/test/unit-execution-policy.test.js:11:9
+✖ full viewer enforces ABAP Unit execution risk before the service callback (72.373166ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:27:28)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:11:9
+✖ full developer enforces ABAP Unit execution risk before the service callback (52.664708ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:31:28)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:11:9
+✖ minimal viewer enforces ABAP Unit execution risk before the service callback (65.595625ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:48:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:11:9
+✖ minimal developer enforces ABAP Unit execution risk before the service callback (55.535708ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:48:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:11:9
+✖ adaptive viewer enforces ABAP Unit execution risk before the service callback (54.4655ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:48:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:11:9
+✖ adaptive developer enforces ABAP Unit execution risk before the service callback (60.850083ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:48:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:11:9
+✖ single viewer enforces ABAP Unit execution risk before the service callback (44.859542ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:48:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/unit-execution-policy.test.js:11:9
+✖ single developer enforces ABAP Unit execution risk before the service callback (51.374416ms)
+  AssertionError [ERR_ASSERTION]: A read gateway must never execute application tests
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/unit-execution-policy.test.js:48:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

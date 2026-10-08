@@ -1,0 +1,83 @@
+{
+  "name": "@coaspe/mermaid-security-backport",
+  "version": "11.16.1",
+  "description": "Markdown-ish syntax for generating flowcharts, mindmaps, sequence diagrams, class diagrams, gantt charts, git graphs and more.",
+  "type": "module",
+  "module": "./dist/mermaid.core.mjs",
+  "types": "./dist/mermaid.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/mermaid.d.ts",
+      "import": "./dist/mermaid.core.mjs",
+      "default": "./dist/mermaid.core.mjs"
+    },
+    "./*": "./*"
+  },
+  "keywords": [
+    "diagram",
+    "markdown",
+    "flowchart",
+    "sequence diagram",
+    "gantt",
+    "class diagram",
+    "git graph",
+    "mindmap",
+    "packet diagram",
+    "c4 diagram",
+    "er diagram",
+    "pie chart",
+    "pie diagram",
+    "quadrant chart",
+    "requirement diagram",
+    "graph",
+    "eventmodeling diagram"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mermaid-js/mermaid"
+  },
+  "author": "Knut Sveidqvist",
+  "license": "MIT",
+  "standard": {
+    "ignore": [
+      "**/parser/*.js",
+      "dist/**/*.js",
+      "cypress/**/*.js"
+    ],
+    "globals": [
+      "page"
+    ]
+  },
+  "dependencies": {
+    "@braintree/sanitize-url": "^7.1.2",
+    "@iconify/utils": "^3.0.2",
+    "@types/d3": "^7.4.3",
+    "@upsetjs/venn.js": "^2.0.0",
+    "cytoscape": "^3.33.3",
+    "cytoscape-cose-bilkent": "^4.1.0",
+    "cytoscape-fcose": "^2.2.0",
+    "d3": "^7.9.0",
+    "d3-sankey": "^0.12.3",
+    "dagre-d3-es": "7.0.14",
+    "dayjs": "^1.11.20",
+    "dompurify": "^3.3.3",
+    "es-toolkit": "^1.45.1",
+    "katex": "0.18.2",
+    "khroma": "^2.1.0",
+    "marked": "^16.3.0",
+    "roughjs": "^4.6.6",
+    "stylis": "^4.3.6",
+    "ts-dedent": "^2.2.0",
+    "uuid": "^11.1.0 || ^12 || ^13 || ^14.0.0",
+    "@mermaid-js/parser": "^1.2.0"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "private": true
+}

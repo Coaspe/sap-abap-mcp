@@ -68,6 +68,7 @@ function validateDestination(destination: Destination, request: UserDestinationR
     if (tokens.length !== 1 || tokens.some(token => token.error ||
       token.http_header?.key.toLowerCase() !== "authorization" ||
       !/^Bearer [^\s]+$/i.test(token.http_header.value) ||
+      token.http_header.value.slice(7) === request.userJwt ||
       (token.expiresIn !== undefined && !(Number(token.expiresIn) > 0)))) invalidDestination()
   }
   return destination as HttpDestination

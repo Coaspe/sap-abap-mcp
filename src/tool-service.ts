@@ -215,8 +215,9 @@ export interface WriteClassicObjectInput extends ReadClassicObjectInput {
 }
 
 export interface GetBatchLinesInput {
-  requests: Array<{ objectName: string; startLine: number; lineCount: number }>
+  requests: Array<{ objectName: string; startLine: number; lineCount: number; ifNoneMatch?: string }>
   connectionId: string
+  includeContentHash?: boolean
 }
 
 export interface GetObjectByUriInput {
@@ -410,6 +411,7 @@ export interface InspectCodeInput extends WorkspaceFileInput {
   definitionName?: string
   includeRelated?: boolean
   documentation?: { offset: number; maxChars: number }
+  documentationFormat?: "text" | "html"
   ifNoneMatch?: string
   componentPath?: string[]
   visibility?: "public" | "protected" | "private"
@@ -1244,7 +1246,14 @@ function abapIdentifierRange(source: string, line: number, column: number) {
   return { startColumn, endColumn }
 }
 
+function requireProfileWrites(client: SapClient): void {
+  if (client.profile.readOnly) {
+    throw new AppError("PROFILE_READ_ONLY", `SAP changes and ABAP execution are disabled for read-only profile ${client.profile.id}`)
+  }
+}
+
 function requireWritablePackage(client: SapClient, packageName?: string): string {
+  requireProfileWrites(client)
   if (client.profile.environment === "production") {
     throw new AppError(
       "PRODUCTION_WRITE_BLOCKED",
@@ -1272,6 +1281,7 @@ function requireWritablePackage(client: SapClient, packageName?: string): string
 }
 
 function requireNonProduction(client: SapClient): void {
+  requireProfileWrites(client)
   if (client.profile.environment === "production") {
     throw new AppError(
       "PRODUCTION_WRITE_BLOCKED",
@@ -1281,6 +1291,7 @@ function requireNonProduction(client: SapClient): void {
 }
 
 function requireExecutableProfile(client: SapClient): void {
+  requireProfileWrites(client)
   if (client.profile.environment === "production") {
     throw new AppError(
       "SAP_CAPABILITY_UNAVAILABLE",
@@ -1721,10 +1732,11 @@ export class AbapToolService {
   async getConnectedSystems() {
     const systems = await this.connections.listConnections()
     return {
-      systems: systems.map(({ id, environment, credentialAvailable }) => ({
+      systems: systems.map(({ id, environment, credentialAvailable, readOnly }) => ({
         id,
         environment,
-        credentialAvailable
+        credentialAvailable,
+        ...(readOnly ? { readOnly: true } : {})
       }))
     }
   }
@@ -2122,6 +2134,30 @@ export class AbapToolService {
           input.column
         )
       )
+      if (input.documentationFormat !== undefined) {
+        const sourceFormat = /<\/?(?:html|head|body|p|pre|code|table|div|span|h[1-6]|br|style|script|ul|ol|li|a|b|i|em|strong)(?:\s|\/?>)/i.test(result) ? "html" : "text"
+        const document = input.documentationFormat === "text" && sourceFormat === "html"
+          ? stripHtml(result.replace(/<\/t[dh]>/gi, "\t").replace(/<\/(?:tr|pre)>/gi, "\n"))
+          : result
+        const characters = Array.from(document)
+        const { offset, maxChars } = input.documentation ?? { offset: 0, maxChars: 4000 }
+        const content = characters.slice(offset, offset + maxChars).join("")
+        const returned = Array.from(content).length
+        const nextOffset = offset + returned < characters.length ? offset + returned : null
+        return {
+          connectionId: target.connectionId,
+          object: objectIdentity(target.object),
+          format: input.documentationFormat === "text" ? "text" : sourceFormat,
+          sourceFormat,
+          content,
+          documentHash: createHash("sha256").update(document).digest("hex"),
+          offset, returned, totalChars: characters.length, nextOffset,
+          originalBytes: Buffer.byteLength(result, "utf8"),
+          returnedBytes: Buffer.byteLength(content, "utf8"),
+          truncated: nextOffset !== null,
+          capabilityStatusAtExecution
+        }
+      }
       return {
         connectionId: target.connectionId,
         object: objectIdentity(target.object),
@@ -3393,6 +3429,7 @@ export class AbapToolService {
   ) {
     const client = await this.connections.getClient(connectionId)
     const object = await resolveObject(client, objectName)
+    requireProfileWrites(client)
     const classes = await client.runUnitTests(object.uri)
     const results = classes.map(testClass => {
       const methods = testClass.testmethods.map(method => ({
@@ -4964,6 +5001,7 @@ export class AbapToolService {
     terminalMode = false
   ) {
     const client = await this.connections.getClient(connectionId)
+    if (action !== "status") requireProfileWrites(client)
     const status = action === "start"
       ? await client.startDebugSession(debugUser, terminalMode)
       : action === "stop"
@@ -4981,6 +5019,7 @@ export class AbapToolService {
   }) {
     const location = parseAdtLocation(input.filePath, input.connectionId)
     const client = await this.connections.getClient(location.connectionId)
+    requireProfileWrites(client)
     const results = await client.setDebugBreakpoints(
       location.path,
       input.lineNumbers,
@@ -5003,6 +5042,7 @@ export class AbapToolService {
     targetLine?: number
   }) {
     const client = await this.connections.getClient(input.connectionId)
+    requireProfileWrites(client)
     const result = await client.debugStep(input.stepType, input.targetLine)
     return {
       connectionId: input.connectionId.toUpperCase(),
@@ -6382,16 +6422,34 @@ export class AbapToolService {
         error: sanitizeV1Message(result.reason instanceof Error ? result.reason.message : String(result.reason))
       }
       const { connectionId: _connectionId, ...value } = result.value
+      const request = input.requests[index]!
+      const contentHash = (source: typeof value) => createHash("sha256").update(JSON.stringify({
+        systemId: input.connectionId.toUpperCase(),
+        objectName: request.objectName.toUpperCase(),
+        startLine: request.startLine + 1, lineCount: request.lineCount, source
+      })).digest("hex")
+      const hash = input.includeContentHash ? contentHash(value) : undefined
+      if (hash !== undefined && request.ifNoneMatch === hash) {
+        // The authorized read has completed. Unchanged code consumes no shared
+        // output budget; retain paging so an unchanged page is not completeness.
+        return { request, ok: true as const, result: {
+          ...value, code: "", contentHash: hash, notModified: true
+        } }
+      }
       const lines = value.endLine < value.startLine ? [] : value.code.split("\n")
       const page = selectLines(lines, 0, lines.length, remaining, false)
       const code = page.selected.join("\n")
       remaining -= Buffer.byteLength(code)
-      return { request: input.requests[index], ok: true as const, result: {
+      const bounded = {
         ...value, code,
         endLine: value.startLine + page.selected.length - 1,
         truncated: value.truncated || page.truncated,
         nextLine: page.truncated ? value.startLine + page.selected.length : value.nextLine,
         ...(page.truncated ? { truncationReason: "batch_byte_budget" } : {})
+      }
+      return { request, ok: true as const, result: {
+        ...bounded,
+        ...(hash !== undefined ? { contentHash: contentHash(bounded), notModified: false } : {})
       } }
     }
     const items: Array<ReturnType<typeof formatResult> | {

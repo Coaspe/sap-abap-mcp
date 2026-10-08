@@ -1,0 +1,34 @@
+{
+  "status": "local-review-draft",
+  "currentProfileId": "io.github.Coaspe/sap-abap-mcp/profile/v1",
+  "currentProfileVersion": "1.0.0",
+  "problem": "The required read-only core includes capabilities that execute application tests. The current validator checks names only.",
+  "proposedRequiredReadOnlyTools": [
+    "sap.system.list",
+    "sap.system.inspect",
+    "sap.repository.search",
+    "sap.source.read",
+    "sap.source.diagnose",
+    "sap.quality.atc.run",
+    "sap.transport.inspect",
+    "sap.rap.availability"
+  ],
+  "proposedOptionalExecutionTools": [
+    "sap.quality.unit_test",
+    "sap.transport.assess"
+  ],
+  "requiredResourcesUnchanged": [
+    "sap-capability-evidence",
+    "sap-evidence",
+    "sap-transport"
+  ],
+  "contractImpact": "Removing required names changes compatibility; review the version impact through existing governance before changing the published proposal or validator.",
+  "safetyImpact": "Separate read-only discovery from execution permissions; advertised hints are not live behavior evidence. The production server now denies viewers and read gateways before application-test callbacks.",
+  "implementationEvidence": "verification.json and regression-after.txt in this directory; synthetic services, no live SAP calls.",
+  "governance": "../../spec/GOVERNANCE.md",
+  "discussionPublished": false,
+  "profileChanged": false,
+  "validatorChanged": false,
+  "independentAdoptionProven": false,
+  "nextReview": "Prepare a public discussion with the compatibility and security evidence, review objections for at least 14 days, and pair any approved contract change with validator tests and a changelog. No discussion has been posted."
+}

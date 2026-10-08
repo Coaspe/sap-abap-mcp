@@ -1,0 +1,12 @@
+[
+  {
+    "path": "",
+    "from": "1.7.1",
+    "to": "1.7.1"
+  },
+  {
+    "path": "node_modules/@modelcontextprotocol/sdk",
+    "from": "1.30.0",
+    "to": "1.31.0"
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-10-02T06:45:41.905Z",
+  "node": "24.11.1",
+  "yamlParsed": true,
+  "schemaValidated": true,
+  "schemaSource": "https://raw.githubusercontent.com/SchemaStore/schemastore/64cc4a9ee27111df7a6a68eb64451690234a12ba/src/schemas/json/github-issue-forms.json",
+  "schemaSha256": "c2722dbf00334ce4fdeffa960b8c9047caf4f1cbb8f3809663f4d604b1d3ae76",
+  "fieldCount": 11,
+  "requestedUploads": 0,
+  "freeTextFields": [
+    "build"
+  ],
+  "negativeControlsPassed": [
+    "Malformed dropdown option",
+    "Duplicate field identifier",
+    "Credential input field",
+    "Diagnostic upload field"
+  ],
+  "zeroRecordedReportsAndNullableMedian": true,
+  "runtimeCodeChanged": false,
+  "remoteWrites": 0,
+  "limitations": [
+    "SchemaStore and local policy validation are not GitHub server or rendered-form acceptance.",
+    "No contributor session, live SAP operation, first read, external report or adoption was collected.",
+    "The form requests no secrets; it cannot prevent arbitrary GitHub edits or contributor mistakes.",
+    "Ruby is a local verification dependency, not a product runtime requirement."
+  ]
+}

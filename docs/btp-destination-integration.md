@@ -28,8 +28,8 @@ configuring an arbitrary OIDC provider does not establish BTP trust.
 The HTTP session creates a private ADT client using the refreshing Destination
 transport. Shared/direct connections and API-key-only or stdio requests cannot
 use this profile. `profile add --login` and `auth login` reject it with an OIDC
-session instruction. Existing browser onboarding only edits Basic profiles;
-use the CLI for this experimental mode. This command is for the local checkout,
+session instruction. Browser onboarding handles Basic, service-key and OAuth profiles;
+use the CLI for this request-scoped Destination mode. This command is for the local checkout,
 not a claim that the published npm release contains it.
 
 CLI/profile and manager tests verify persistence, local-login rejection, absence
@@ -136,8 +136,8 @@ headers. It also reproduced an SDK encoding trap: ordinary custom query values
 are treated as already encoded, losing `#start=...` in navigation URIs. The bridge
 sets `parameterEncoder: encodeAllParameters` and tests exact URI round trips.
 
-This is a low-level bridge, not yet a user-selectable Destination profile. The
-bridge itself does not resolve destinations, validate the caller's identity,
+This low-level bridge is composed with the selectable Destination profile
+described above. The bridge itself does not resolve destinations or validate the caller's identity,
 perform token exchange or prove Cloud Connector connectivity. The real SDK proxy test supplies
 fixture tokens and cannot establish SAP-side identity or authorization.
 
@@ -153,19 +153,26 @@ without retaining SDK error objects or service credentials.
 After resolution it checks the configured URL, SAP client and exact requested
 authentication mode. Internet user-token exchange requires HTTPS and one
 successful Bearer exchange result; a reported non-positive or invalid lifetime
-is rejected. Principal propagation requires
+or an actual Authorization header containing the original MCP token is rejected.
+Principal propagation requires
 an OnPremise destination with both proxy and user propagation Bearer headers.
 Technical-user modes, trust-all TLS, direct token forwarding and conflicting
 configured authentication headers are rejected. These are deliberately explicit
 initial compatibility limits, including the subscriber-only selection policy.
 
-Four offline tests exercise repeated calls for two users, endpoint/client/auth
+Resolver tests exercise repeated calls for two users, endpoint/client/auth
 mismatches, propagation headers, missing identity and error sanitization. Their
 SDK service boundary is injected: they do not prove successful Destination
 Service access or token exchange. The input JWT must come from the authenticated
-HTTP caller; the resolver does not authenticate that JWT itself. Connecting this
-resolver to an identity-scoped profile and validating the actual BTP flows remain
-required before exposing the feature to users.
+HTTP caller; the resolver does not authenticate that JWT itself. The selectable profile binds this
+resolver to the authenticated HTTP session. Actual BTP flows remain unverified.
+
+The unreleased checkout also refuses legacy direct `bearer_passthrough` profiles
+before SAP client creation, including manually supplied OIDC tokens. Existing
+files remain readable; see [migration](setup-and-profiles.md#request-scoped-bearer-passthrough).
+For principal propagation the SDK may pass the caller JWT as a Connectivity
+assertion alongside its service proxy token. That broker assertion is distinct
+from forwarding the JWT as SAP's `Authorization` credential and remains supported.
 
 The existing identity-scoped connection provider now has terminal, idempotent
 closure. A profile lookup that finishes after closure cannot start a new user
@@ -178,7 +185,7 @@ OIDC token rotation now invalidates the old MCP session and disposes its SAP
 scope. The response is HTTP 404, requiring initialization with the refreshed
 token. An HTTP regression test verifies both cleanup and forwarding of the new
 token to the new session. This fixes retention of the opening SAP bearer token;
-it does not yet refresh exchanged Destination credentials inside a SAP client.
+the refreshing transport below resolves Destination credentials again for each ADT request.
 
 The subsequent `createUserDestinationTransportFactory` composes service-only
 resolution with the SDK HTTP bridge. It snapshots the configured endpoint and
@@ -191,32 +198,35 @@ This deliberately incurs one Destination lookup per ADT request; it is not a
 claim of optimal latency or service-call cost. A local SDK/proxy regression test
 verifies changed credentials on successive requests, no request after failed
 refresh, binding despite mutation of the caller's input object, and isolation
-between two users and clone transports. Actual BTP token exchange remains
-unverified, and the factory still needs integration with a selectable profile.
+between two users and clone transports. The selectable profile uses this factory. Actual BTP token exchange remains
+unverified.
 
-## Intended integration, not a new working configuration
+## Local identity isolation evidence
 
-1. Add an explicit Destination-backed profile mode. Keep current Basic,
-   client-credentials, browser OAuth and direct bearer passthrough semantics.
-   Do not silently reinterpret an existing profile as token exchange.
-2. Resolve the destination with the already-authenticated HTTP caller's JWT.
-   Validate the chosen auth/proxy mode and endpoint against the configured
-   profile; do not fall back to a technical user when propagation is required.
-3. Inject the SDK-backed transport into the existing ADT client. Preserve
-   raw XML/text, encoded paths, query parameters, cookies, all response headers,
-   304 responses, error classifications and ADT's CSRF/stateful behavior.
-   Do not enable a second independent CSRF/session implementation.
-4. Keep the connection inside the existing identity-scoped provider. Reject
-   absent identity and unsupported destination modes. Verify renewal, logout,
-   tenant/user separation and policy enforcement before enabling caching.
-5. Load BTP dependencies only for this profile mode, with no additional MCP
-   tools or default schema growth. Add diagnostic setup output for missing
-   bindings/destinations; never print service credentials or exchanged tokens.
+The OIDC HTTP test opens two real MCP sessions against one Destination profile
+and reads the same source URI concurrently. The SAP boundary is synthetic, while
+the production session, request-scoped provider, SourceCache, minimal gateways
+and audit recorder are used. Both users receive only their own source, even with
+the same SAP ETag. An unchanged read omits code only after revalidation. A denied
+revalidation returns no cached body and evicts that user's entry. Cross-user
+session replay is refused; closing one session leaves the other working. Audit
+records identify the caller without containing JWTs or returned source bodies.
+
+A separate concurrent test uses the actual SAP SDK HTTP bridge with a loopback
+proxy. Destination lookup is injected and completes in reverse order for two
+users. Caller tokens and ADT cookies remain paired; a failed exchange sends no SAP
+request, and the other user continues with fresh credentials. These tests do not
+establish live tenant trust, token exchange or Cloud Connector access.
+
+Request-scoped profile discovery reports a credential only inside an
+authenticated HTTP scope, without reading a local password. A failed SAP login
+logs out its owned client before a later explicit retry. Availability is evidence
+of a supplied credential, not proof of SAP authorization.
 
 ## Acceptance evidence still needed
 
-Offline contract tests must cover header precedence, body/query fidelity,
-encoded namespaces, 304 retention policy, error conversion and separate users.
+Local contract tests cover header precedence, body/query fidelity, encoded
+namespaces, 304 retention policy, error conversion and separate users.
 A local HTTP adapter test must exercise real ADT login, CSRF and cookie reuse.
 Live BTP validation must demonstrate both ABAP Environment user-token exchange
 and on-premise Cloud Connector propagation with two users of different SAP

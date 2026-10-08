@@ -28,7 +28,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const readme = readText("README.md")
   const directoryReference = readText("docs/mcp-directory-submissions.md")
 
-  assert.equal(packageJson.version, "1.7.1")
+  assert.equal(packageJson.version, "2.0.0")
   assert.ok(readme.includes("Checkout manifest version: `" + packageJson.version + "`"))
   assert.ok(
     directoryReference.includes("Current source release: `" + packageJson.version + "`")
@@ -123,10 +123,16 @@ test("MCPB metadata launches the bundled local server on supported secret-store 
   assert.equal(manifest.license, "MIT")
   assert.equal(manifest.icon, "icon.png")
   assert.equal(manifest.server.type, "node")
-  assert.equal(manifest.server.entry_point, "server/index.mjs")
+  assert.equal(manifest.server.entry_point, "dist/src/index.js")
   assert.deepEqual(manifest.server.mcp_config, {
     command: "node",
-    args: ["${__dirname}/server/index.mjs", "serve"]
+    args: ["${__dirname}/dist/src/index.js", "serve", "--onboard-if-empty"],
+    env: { SAP_ABAP_MCP_OPEN_SETUP: "${user_config.open_setup}" }
+  })
+  assert.deepEqual(manifest.user_config.open_setup, {
+    type: "boolean", title: "Open SAP setup on startup",
+    description: "Reopen the local browser setup to sign in again or add a SAP connection. Turn off after finishing to avoid reopening on each extension restart. No credentials are entered here.",
+    default: false, required: false
   })
   assert.deepEqual(manifest.compatibility.platforms, ["darwin", "win32"])
   assert.equal(manifest.compatibility.runtimes.node, ">=20")

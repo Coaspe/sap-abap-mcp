@@ -1,0 +1,99 @@
+{
+  "generatedAt": "2026-10-02T06:32:21.764054+00:00",
+  "stage": "Unpublished standard-review packet and exact low-token catalog comparison",
+  "passedReviewChecks": true,
+  "candidateRequiredTools": 8,
+  "candidateRequiredResources": 3,
+  "candidateSchemaValid": true,
+  "versionDecision": "1.1.0 provisional; reviewers must resolve consumer compatibility before ratification",
+  "freshSessions": 3,
+  "catalogSchemasExactMatches": {
+    "full": 8,
+    "minimal": 8,
+    "single": 8
+  },
+  "candidateDirectConformance": {
+    "full": true,
+    "minimal": false,
+    "single": false
+  },
+  "currentProfileConformance": {
+    "full": false,
+    "minimal": false,
+    "single": false
+  },
+  "fixedSchemaPlusInstructionTokens": {
+    "full": 44199,
+    "minimal": 961,
+    "single": 275
+  },
+  "catalogInspectionToolCalls": {
+    "full": 0,
+    "minimal": 1,
+    "single": 1
+  },
+  "catalogResponseTokens": 8568,
+  "notTaskOrBillingComparison": true,
+  "sapFacingToolCalls": 0,
+  "modelCalls": 0,
+  "runtimeSourceAndCompiledFilesUnchanged": 320,
+  "unchangedControls": {
+    "package.json": "68ab1fe1b56ce4cf6c5a19051baba0ddae3c65869a906dba2692682bb9562e7a",
+    "package-lock.json": "919154feb3082a85d88907e63c3fe0b96425758832f046eac363a6acfef559cf",
+    "spec/sap-abap-mcp-profile-v1.json": "1fc2c936db0f16492dd01d4298c2e904e76317f3cc57c7f984c5ee9d2a25a320",
+    "spec/sap-abap-mcp-profile-v1.schema.json": "2f152250bb4501121465e3c79e568c628ef2c085d7555640165022275d5a17c7",
+    ".github/workflows/ci.yml": "6e59cb1d375658ff180f56ce405bb56285b659bf7f2da7e4c585cc6b1c51e486"
+  },
+  "coreCandidateChangeVerified": "Only version and removal of two required execution names; resources and existing safety obligations retained",
+  "profileRatified": false,
+  "remoteWrites": 0,
+  "discussionPublished": false,
+  "postingAuthorized": false,
+  "releasePublished": false,
+  "adoptionProvenByThisStage": false,
+  "checks": [
+    "Eight input schemas, output schemas and annotations exactly match full-mode discovery",
+    "Original and mirror 320 source/runtime files match",
+    "Original profile, schema, manifest, lockfile and CI are unchanged",
+    "Actual current-profile failures retained for every mode",
+    "Candidate schema is validated with installed Ajv 8.20.0 draft 2020-12 support"
+  ],
+  "initialHarnessError": "The first probe read capabilities outside the existing structuredContent.data envelope. Corrected in the reproducer; not counted as a product or live-SAP failure.",
+  "files": {
+    "candidate.json": "86182d9047e7a5a88f44556e431df085456e496b59fe357db7ab0d5d9584d5c8",
+    "measurements.json": "42c4473921f85f4ad5a212ee5efb137d371f405e72fc5980d8987a73052d7344",
+    "measure.mjs": "4aab8c283b54499e9dbe26addbec6c9bbb39409b53d3ce7c02fe1979057a8b7d",
+    "discussion-draft.json": "2ae5d8e8248e2218b1ac27983655d5aa4ab9a8bc528b898aa1ca246d61ac75d9",
+    "runs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "backup": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-profile-review-backup-xbkalq4f",
+  "documentationChanges": [
+    {
+      "path": "spec/README.md",
+      "beforeSha256": "2f88ca3a8bcd22d916e414e54f2b39f4776eb5bdf2714d04ee6d576a6ec8c753",
+      "afterSha256": "7106e9b41e4752dcd097b540dea380aadd9facc2c66d7450a9c0932431961c06"
+    },
+    {
+      "path": "docs/competitive-research-2026-10-01.ko.md",
+      "beforeSha256": "4117e0f04230bb3c7c642f7f96dda824dca9715de9f58b7c2f4738e4fd4b0513",
+      "afterSha256": "b2b8a24e91bd915b12037162ef147bc3d3b84b10c0b24931d09ca1d4b16023ca"
+    }
+  ],
+  "primarySources": [
+    "https://modelcontextprotocol.io/specification/2025-11-25/server/tools",
+    "https://semver.org/spec/v2.0.0.html",
+    "https://ajv.js.org/json-schema.html#draft-2020-12"
+  ],
+  "remainingGates": [
+    "Public discussion, 14-day objection review and version decision",
+    "Neutral discovery agreement with independent implementations",
+    "Live SAP task/billing/novice setup and opt-in adoption evidence"
+  ],
+  "reproducer": "node docs/competitive-profile-review-2026-10-02/measure.mjs <output.json>",
+  "npmPackDryRun": {
+    "files": 522,
+    "allReviewFilesIncluded": true,
+    "artifactArchivesExcluded": true,
+    "published": false
+  }
+}

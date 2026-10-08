@@ -23,4 +23,12 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm run check
+      - run: npm run verify:backports
+      - run: npm run conformance:release
+      - run: npm run smoke:v1
+      - run: node scripts/sync-mcpb-tools.mjs --check
+      - run: node scripts/sync-lobehub-manifest.mjs --check
+      - run: npm run audit:backports
+      - run: npm audit --omit=dev
+      - run: npm audit signatures
       - run: npm publish --provenance --access public

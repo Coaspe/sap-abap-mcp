@@ -9,6 +9,11 @@ export class AppError extends Error {
   }
 }
 
+export function tokenPassthroughRefused(): AppError {
+  return new AppError("TOKEN_PASSTHROUGH_REFUSED",
+    "MCP client tokens cannot be used as SAP Authorization credentials. Configure a BTP Destination exchange/propagation profile or an independently authenticated SAP profile.")
+}
+
 export function errorPayload(error: unknown): {
   code: string
   message: string

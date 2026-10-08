@@ -22,13 +22,19 @@ const cases = [
   { query: "where used", expected: "sap.repository.where_used" },
   { query: "syntax check", expected: "sap.source.diagnose" },
   { query: "check syntax", expected: "sap.source.diagnose" },
-  { query: "unit tests", expected: "sap.quality.unit_test" },
+  { query: "unit tests", expected: "sap.quality.unit_test", roles: ["developer", "admin"] },
   { query: "includeRelated", expected: "sap.semantic.components" },
   { query: "KTD", expected: "sap.semantic.components" },
   { query: "jumpToLine", expected: "sap.debug.step", roles: ["developer", "admin"] },
   { query: "upsert", expected: "sap.classic.write", roles: ["developer", "admin"] },
-  { query: "sarif", expected: "sap.transport.assess" },
+  { query: "sarif", expected: "sap.transport.assess", roles: ["developer", "admin"] },
   { query: "sap.transport.release", name: "sap.transport.release", expected: "sap.transport.release", roles: ["admin"], exact: true },
+  { query: "list SAP systems", expected: "sap.system.list", maxRank: 3 },
+  { query: "find callers of a method", expected: "sap.repository.where_used", maxRank: 3 },
+  { query: "dependencies of this class", expected: "sap.repository.dependency_graph", maxRank: 3 },
+  { query: "review transport changes", expected: "sap.transport.assess", maxRank: 3, roles: ["developer", "admin"] },
+  { query: "inspect runtime dump", expected: "sap.runtime.dump.inspect", maxRank: 3 },
+  { query: "analyze ABAP trace performance", expected: "sap.runtime.trace.inspect", maxRank: 3 },
   { query: "qzxv9876plmk", expected: null }
 ]
 const runs = []
@@ -57,10 +63,10 @@ for (const preset of ["adaptive", "minimal", "single"]) {
         const names = result.structuredContent.data.tools.map(tool => tool.name)
         const visible = fixture.expected !== null && (!fixture.roles || fixture.roles.includes(role))
         const rank = fixture.expected === null || !names.includes(fixture.expected) ? null : names.indexOf(fixture.expected) + 1
-        const passed = visible ? rank !== null && (!fixture.exact || (rank === 1 && names.length === 1))
+        const passed = visible ? rank !== null && rank <= (fixture.maxRank ?? 5) && (!fixture.exact || (rank === 1 && names.length === 1))
           : fixture.expected === null ? names.length === 0 : rank === null
         if (!passed) failures.push({ preset, role, query: fixture.query, expected: fixture.expected, visible, names })
-        queries.push({ query: fixture.query, expected: fixture.expected, visible, rank, passed,
+        queries.push({ query: fixture.query, expected: fixture.expected, visible, rank, maxRank: fixture.maxRank ?? 5, passed,
           names, request: measure(request), response: measure(result) })
       }
       runs.push({ preset, role, toolCount: tools.length, fixedSchema: measure(tools), queries })

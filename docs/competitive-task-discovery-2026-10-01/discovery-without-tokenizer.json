@@ -1,0 +1,3134 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-01T04:44:38.707Z",
+  "tokenizer": null,
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "method": "Real in-memory MCP discovery; authored English query fixtures; UUID-normalized minified requests and complete results. Not an LLM success-rate benchmark. Schemas counted once per session; each query reported separately.",
+  "exclusions": [
+    "initialization and JSON-RPC framing",
+    "model billing and conversation replay",
+    "SAP calls and latency"
+  ],
+  "passed": true,
+  "failures": [],
+  "runs": [
+    {
+      "preset": "adaptive",
+      "role": "viewer",
+      "toolCount": 15,
+      "fixedSchema": {
+        "bytes": 25145
+      },
+      "queries": [
+        {
+          "query": "sap.semantic.components",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 90
+          },
+          "response": {
+            "bytes": 1002
+          }
+        },
+        {
+          "query": "where used",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.repository.dependency_graph"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1276
+          }
+        },
+        {
+          "query": "syntax check",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "check syntax",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "unit tests",
+          "expected": "sap.quality.unit_test",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.quality.unit_test",
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1242
+          }
+        },
+        {
+          "query": "includeRelated",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 81
+          },
+          "response": {
+            "bytes": 996
+          }
+        },
+        {
+          "query": "KTD",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 2,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.inspect",
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 70
+          },
+          "response": {
+            "bytes": 1492
+          }
+        },
+        {
+          "query": "jumpToLine",
+          "expected": "sap.debug.step",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "upsert",
+          "expected": "sap.classic.write",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 73
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "sarif",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 72
+          },
+          "response": {
+            "bytes": 830
+          }
+        },
+        {
+          "query": "sap.transport.release",
+          "expected": "sap.transport.release",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 119
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "list SAP systems",
+          "expected": "sap.system.list",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.system.list",
+            "sap.repository.compare",
+            "sap.ops.watch.task.list",
+            "sap.transport.user.list",
+            "sap.transport.list"
+          ],
+          "request": {
+            "bytes": 83
+          },
+          "response": {
+            "bytes": 2672
+          }
+        },
+        {
+          "query": "find callers of a method",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.source.read",
+            "sap.quality.atc.cached",
+            "sap.quality.atc.documentation",
+            "sap.runtime.dump.list"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2700
+          }
+        },
+        {
+          "query": "dependencies of this class",
+          "expected": "sap.repository.dependency_graph",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.semantic.components",
+            "sap.source.read",
+            "sap.repository.dependency_graph",
+            "sap.source.read_batch",
+            "sap.text_elements.read"
+          ],
+          "request": {
+            "bytes": 93
+          },
+          "response": {
+            "bytes": 3282
+          }
+        },
+        {
+          "query": "review transport changes",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.transport.assess",
+            "sap.semantic.format_preview",
+            "sap.transport.inspect",
+            "sap.transport.object.resolve",
+            "sap.transport.compare"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2616
+          }
+        },
+        {
+          "query": "inspect runtime dump",
+          "expected": "sap.runtime.dump.inspect",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.dump.inspect",
+            "sap.runtime.dump.list",
+            "sap.runtime.trace.inspect",
+            "sap.debug.session.inspect",
+            "sap.git.inspect"
+          ],
+          "request": {
+            "bytes": 87
+          },
+          "response": {
+            "bytes": 2686
+          }
+        },
+        {
+          "query": "analyze ABAP trace performance",
+          "expected": "sap.runtime.trace.inspect",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.trace.configuration",
+            "sap.runtime.trace.hit_list",
+            "sap.runtime.trace.inspect",
+            "sap.runtime.trace.statements",
+            "sap.runtime.trace.list"
+          ],
+          "request": {
+            "bytes": 97
+          },
+          "response": {
+            "bytes": 2762
+          }
+        },
+        {
+          "query": "qzxv9876plmk",
+          "expected": null,
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 406
+          }
+        }
+      ]
+    },
+    {
+      "preset": "adaptive",
+      "role": "developer",
+      "toolCount": 17,
+      "fixedSchema": {
+        "bytes": 26728
+      },
+      "queries": [
+        {
+          "query": "sap.semantic.components",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 90
+          },
+          "response": {
+            "bytes": 1002
+          }
+        },
+        {
+          "query": "where used",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.repository.dependency_graph"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1276
+          }
+        },
+        {
+          "query": "syntax check",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "check syntax",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "unit tests",
+          "expected": "sap.quality.unit_test",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.quality.unit_test",
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1242
+          }
+        },
+        {
+          "query": "includeRelated",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 81
+          },
+          "response": {
+            "bytes": 996
+          }
+        },
+        {
+          "query": "KTD",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 2,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.inspect",
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 70
+          },
+          "response": {
+            "bytes": 1492
+          }
+        },
+        {
+          "query": "jumpToLine",
+          "expected": "sap.debug.step",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.debug.step"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 794
+          }
+        },
+        {
+          "query": "upsert",
+          "expected": "sap.classic.write",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.classic.write"
+          ],
+          "request": {
+            "bytes": 73
+          },
+          "response": {
+            "bytes": 1146
+          }
+        },
+        {
+          "query": "sarif",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 72
+          },
+          "response": {
+            "bytes": 830
+          }
+        },
+        {
+          "query": "sap.transport.release",
+          "expected": "sap.transport.release",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 119
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "list SAP systems",
+          "expected": "sap.system.list",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.system.list",
+            "sap.repository.compare",
+            "sap.ops.watch.task.list",
+            "sap.transport.user.list",
+            "sap.transport.list"
+          ],
+          "request": {
+            "bytes": 83
+          },
+          "response": {
+            "bytes": 2674
+          }
+        },
+        {
+          "query": "find callers of a method",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.source.read",
+            "sap.quality.atc.cached",
+            "sap.quality.atc.documentation",
+            "sap.runtime.dump.list"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2702
+          }
+        },
+        {
+          "query": "dependencies of this class",
+          "expected": "sap.repository.dependency_graph",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.semantic.components",
+            "sap.source.read",
+            "sap.repository.dependency_graph",
+            "sap.source.read_batch",
+            "sap.execution.preview"
+          ],
+          "request": {
+            "bytes": 93
+          },
+          "response": {
+            "bytes": 3400
+          }
+        },
+        {
+          "query": "review transport changes",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.transport.assess",
+            "sap.semantic.format_preview",
+            "sap.transport.create",
+            "sap.transport.inspect",
+            "sap.transport.object.add"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2616
+          }
+        },
+        {
+          "query": "inspect runtime dump",
+          "expected": "sap.runtime.dump.inspect",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.dump.inspect",
+            "sap.runtime.dump.list",
+            "sap.runtime.trace.inspect",
+            "sap.debug.session.inspect",
+            "sap.git.inspect"
+          ],
+          "request": {
+            "bytes": 87
+          },
+          "response": {
+            "bytes": 2686
+          }
+        },
+        {
+          "query": "analyze ABAP trace performance",
+          "expected": "sap.runtime.trace.inspect",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.trace.configuration",
+            "sap.runtime.trace.hit_list",
+            "sap.runtime.trace.inspect",
+            "sap.runtime.trace.statements",
+            "sap.runtime.trace.list"
+          ],
+          "request": {
+            "bytes": 97
+          },
+          "response": {
+            "bytes": 2762
+          }
+        },
+        {
+          "query": "qzxv9876plmk",
+          "expected": null,
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 406
+          }
+        }
+      ]
+    },
+    {
+      "preset": "adaptive",
+      "role": "admin",
+      "toolCount": 17,
+      "fixedSchema": {
+        "bytes": 26728
+      },
+      "queries": [
+        {
+          "query": "sap.semantic.components",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 90
+          },
+          "response": {
+            "bytes": 1002
+          }
+        },
+        {
+          "query": "where used",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.repository.dependency_graph"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1276
+          }
+        },
+        {
+          "query": "syntax check",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "check syntax",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "unit tests",
+          "expected": "sap.quality.unit_test",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.quality.unit_test",
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1242
+          }
+        },
+        {
+          "query": "includeRelated",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 81
+          },
+          "response": {
+            "bytes": 996
+          }
+        },
+        {
+          "query": "KTD",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 2,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.inspect",
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 70
+          },
+          "response": {
+            "bytes": 1492
+          }
+        },
+        {
+          "query": "jumpToLine",
+          "expected": "sap.debug.step",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.debug.step"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 794
+          }
+        },
+        {
+          "query": "upsert",
+          "expected": "sap.classic.write",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.classic.write"
+          ],
+          "request": {
+            "bytes": 73
+          },
+          "response": {
+            "bytes": 1146
+          }
+        },
+        {
+          "query": "sarif",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 72
+          },
+          "response": {
+            "bytes": 830
+          }
+        },
+        {
+          "query": "sap.transport.release",
+          "expected": "sap.transport.release",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.release"
+          ],
+          "request": {
+            "bytes": 119
+          },
+          "response": {
+            "bytes": 840
+          }
+        },
+        {
+          "query": "list SAP systems",
+          "expected": "sap.system.list",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.system.list",
+            "sap.repository.compare",
+            "sap.ops.watch.task.list",
+            "sap.transport.user.list",
+            "sap.transport.list"
+          ],
+          "request": {
+            "bytes": 83
+          },
+          "response": {
+            "bytes": 2674
+          }
+        },
+        {
+          "query": "find callers of a method",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.source.read",
+            "sap.quality.atc.cached",
+            "sap.quality.atc.documentation",
+            "sap.runtime.dump.list"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2702
+          }
+        },
+        {
+          "query": "dependencies of this class",
+          "expected": "sap.repository.dependency_graph",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.semantic.components",
+            "sap.source.read",
+            "sap.repository.dependency_graph",
+            "sap.source.read_batch",
+            "sap.execution.preview"
+          ],
+          "request": {
+            "bytes": 93
+          },
+          "response": {
+            "bytes": 3400
+          }
+        },
+        {
+          "query": "review transport changes",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.transport.assess",
+            "sap.semantic.format_preview",
+            "sap.transport.create",
+            "sap.transport.delete",
+            "sap.transport.inspect"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2560
+          }
+        },
+        {
+          "query": "inspect runtime dump",
+          "expected": "sap.runtime.dump.inspect",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.dump.inspect",
+            "sap.runtime.dump.list",
+            "sap.runtime.trace.inspect",
+            "sap.debug.session.inspect",
+            "sap.git.inspect"
+          ],
+          "request": {
+            "bytes": 87
+          },
+          "response": {
+            "bytes": 2686
+          }
+        },
+        {
+          "query": "analyze ABAP trace performance",
+          "expected": "sap.runtime.trace.inspect",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.trace.configuration",
+            "sap.runtime.trace.hit_list",
+            "sap.runtime.trace.inspect",
+            "sap.runtime.trace.statements",
+            "sap.runtime.trace.list"
+          ],
+          "request": {
+            "bytes": 97
+          },
+          "response": {
+            "bytes": 2762
+          }
+        },
+        {
+          "query": "qzxv9876plmk",
+          "expected": null,
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 406
+          }
+        }
+      ]
+    },
+    {
+      "preset": "minimal",
+      "role": "viewer",
+      "toolCount": 3,
+      "fixedSchema": {
+        "bytes": 2084
+      },
+      "queries": [
+        {
+          "query": "sap.semantic.components",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 90
+          },
+          "response": {
+            "bytes": 1002
+          }
+        },
+        {
+          "query": "where used",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.repository.dependency_graph"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1276
+          }
+        },
+        {
+          "query": "syntax check",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "check syntax",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "unit tests",
+          "expected": "sap.quality.unit_test",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.quality.unit_test",
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1242
+          }
+        },
+        {
+          "query": "includeRelated",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 81
+          },
+          "response": {
+            "bytes": 996
+          }
+        },
+        {
+          "query": "KTD",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 2,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.inspect",
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 70
+          },
+          "response": {
+            "bytes": 1492
+          }
+        },
+        {
+          "query": "jumpToLine",
+          "expected": "sap.debug.step",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "upsert",
+          "expected": "sap.classic.write",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 73
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "sarif",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 72
+          },
+          "response": {
+            "bytes": 830
+          }
+        },
+        {
+          "query": "sap.transport.release",
+          "expected": "sap.transport.release",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 119
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "list SAP systems",
+          "expected": "sap.system.list",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.system.list",
+            "sap.repository.compare",
+            "sap.ops.watch.task.list",
+            "sap.transport.user.list",
+            "sap.transport.list"
+          ],
+          "request": {
+            "bytes": 83
+          },
+          "response": {
+            "bytes": 2672
+          }
+        },
+        {
+          "query": "find callers of a method",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.source.read",
+            "sap.quality.atc.cached",
+            "sap.quality.atc.documentation",
+            "sap.runtime.dump.list"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2700
+          }
+        },
+        {
+          "query": "dependencies of this class",
+          "expected": "sap.repository.dependency_graph",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.semantic.components",
+            "sap.source.read",
+            "sap.repository.dependency_graph",
+            "sap.source.read_batch",
+            "sap.text_elements.read"
+          ],
+          "request": {
+            "bytes": 93
+          },
+          "response": {
+            "bytes": 3282
+          }
+        },
+        {
+          "query": "review transport changes",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.transport.assess",
+            "sap.semantic.format_preview",
+            "sap.transport.inspect",
+            "sap.transport.object.resolve",
+            "sap.transport.compare"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2616
+          }
+        },
+        {
+          "query": "inspect runtime dump",
+          "expected": "sap.runtime.dump.inspect",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.dump.inspect",
+            "sap.runtime.dump.list",
+            "sap.runtime.trace.inspect",
+            "sap.debug.session.inspect",
+            "sap.git.inspect"
+          ],
+          "request": {
+            "bytes": 87
+          },
+          "response": {
+            "bytes": 2686
+          }
+        },
+        {
+          "query": "analyze ABAP trace performance",
+          "expected": "sap.runtime.trace.inspect",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.trace.configuration",
+            "sap.runtime.trace.hit_list",
+            "sap.runtime.trace.inspect",
+            "sap.runtime.trace.statements",
+            "sap.runtime.trace.list"
+          ],
+          "request": {
+            "bytes": 97
+          },
+          "response": {
+            "bytes": 2762
+          }
+        },
+        {
+          "query": "qzxv9876plmk",
+          "expected": null,
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 406
+          }
+        }
+      ]
+    },
+    {
+      "preset": "minimal",
+      "role": "developer",
+      "toolCount": 5,
+      "fixedSchema": {
+        "bytes": 3667
+      },
+      "queries": [
+        {
+          "query": "sap.semantic.components",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 90
+          },
+          "response": {
+            "bytes": 1002
+          }
+        },
+        {
+          "query": "where used",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.repository.dependency_graph"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1276
+          }
+        },
+        {
+          "query": "syntax check",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "check syntax",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "unit tests",
+          "expected": "sap.quality.unit_test",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.quality.unit_test",
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1242
+          }
+        },
+        {
+          "query": "includeRelated",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 81
+          },
+          "response": {
+            "bytes": 996
+          }
+        },
+        {
+          "query": "KTD",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 2,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.inspect",
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 70
+          },
+          "response": {
+            "bytes": 1492
+          }
+        },
+        {
+          "query": "jumpToLine",
+          "expected": "sap.debug.step",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.debug.step"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 794
+          }
+        },
+        {
+          "query": "upsert",
+          "expected": "sap.classic.write",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.classic.write"
+          ],
+          "request": {
+            "bytes": 73
+          },
+          "response": {
+            "bytes": 1146
+          }
+        },
+        {
+          "query": "sarif",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 72
+          },
+          "response": {
+            "bytes": 830
+          }
+        },
+        {
+          "query": "sap.transport.release",
+          "expected": "sap.transport.release",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 119
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "list SAP systems",
+          "expected": "sap.system.list",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.system.list",
+            "sap.repository.compare",
+            "sap.ops.watch.task.list",
+            "sap.transport.user.list",
+            "sap.transport.list"
+          ],
+          "request": {
+            "bytes": 83
+          },
+          "response": {
+            "bytes": 2674
+          }
+        },
+        {
+          "query": "find callers of a method",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.source.read",
+            "sap.quality.atc.cached",
+            "sap.quality.atc.documentation",
+            "sap.runtime.dump.list"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2702
+          }
+        },
+        {
+          "query": "dependencies of this class",
+          "expected": "sap.repository.dependency_graph",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.semantic.components",
+            "sap.source.read",
+            "sap.repository.dependency_graph",
+            "sap.source.read_batch",
+            "sap.execution.preview"
+          ],
+          "request": {
+            "bytes": 93
+          },
+          "response": {
+            "bytes": 3400
+          }
+        },
+        {
+          "query": "review transport changes",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.transport.assess",
+            "sap.semantic.format_preview",
+            "sap.transport.create",
+            "sap.transport.inspect",
+            "sap.transport.object.add"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2616
+          }
+        },
+        {
+          "query": "inspect runtime dump",
+          "expected": "sap.runtime.dump.inspect",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.dump.inspect",
+            "sap.runtime.dump.list",
+            "sap.runtime.trace.inspect",
+            "sap.debug.session.inspect",
+            "sap.git.inspect"
+          ],
+          "request": {
+            "bytes": 87
+          },
+          "response": {
+            "bytes": 2686
+          }
+        },
+        {
+          "query": "analyze ABAP trace performance",
+          "expected": "sap.runtime.trace.inspect",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.trace.configuration",
+            "sap.runtime.trace.hit_list",
+            "sap.runtime.trace.inspect",
+            "sap.runtime.trace.statements",
+            "sap.runtime.trace.list"
+          ],
+          "request": {
+            "bytes": 97
+          },
+          "response": {
+            "bytes": 2762
+          }
+        },
+        {
+          "query": "qzxv9876plmk",
+          "expected": null,
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 406
+          }
+        }
+      ]
+    },
+    {
+      "preset": "minimal",
+      "role": "admin",
+      "toolCount": 5,
+      "fixedSchema": {
+        "bytes": 3667
+      },
+      "queries": [
+        {
+          "query": "sap.semantic.components",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 90
+          },
+          "response": {
+            "bytes": 1002
+          }
+        },
+        {
+          "query": "where used",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.repository.dependency_graph"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1276
+          }
+        },
+        {
+          "query": "syntax check",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "check syntax",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "unit tests",
+          "expected": "sap.quality.unit_test",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.quality.unit_test",
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 1242
+          }
+        },
+        {
+          "query": "includeRelated",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 81
+          },
+          "response": {
+            "bytes": 996
+          }
+        },
+        {
+          "query": "KTD",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 2,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.inspect",
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 70
+          },
+          "response": {
+            "bytes": 1492
+          }
+        },
+        {
+          "query": "jumpToLine",
+          "expected": "sap.debug.step",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.debug.step"
+          ],
+          "request": {
+            "bytes": 77
+          },
+          "response": {
+            "bytes": 794
+          }
+        },
+        {
+          "query": "upsert",
+          "expected": "sap.classic.write",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.classic.write"
+          ],
+          "request": {
+            "bytes": 73
+          },
+          "response": {
+            "bytes": 1146
+          }
+        },
+        {
+          "query": "sarif",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 72
+          },
+          "response": {
+            "bytes": 830
+          }
+        },
+        {
+          "query": "sap.transport.release",
+          "expected": "sap.transport.release",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.release"
+          ],
+          "request": {
+            "bytes": 119
+          },
+          "response": {
+            "bytes": 840
+          }
+        },
+        {
+          "query": "list SAP systems",
+          "expected": "sap.system.list",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.system.list",
+            "sap.repository.compare",
+            "sap.ops.watch.task.list",
+            "sap.transport.user.list",
+            "sap.transport.list"
+          ],
+          "request": {
+            "bytes": 83
+          },
+          "response": {
+            "bytes": 2674
+          }
+        },
+        {
+          "query": "find callers of a method",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.source.read",
+            "sap.quality.atc.cached",
+            "sap.quality.atc.documentation",
+            "sap.runtime.dump.list"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2702
+          }
+        },
+        {
+          "query": "dependencies of this class",
+          "expected": "sap.repository.dependency_graph",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.semantic.components",
+            "sap.source.read",
+            "sap.repository.dependency_graph",
+            "sap.source.read_batch",
+            "sap.execution.preview"
+          ],
+          "request": {
+            "bytes": 93
+          },
+          "response": {
+            "bytes": 3400
+          }
+        },
+        {
+          "query": "review transport changes",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.transport.assess",
+            "sap.semantic.format_preview",
+            "sap.transport.create",
+            "sap.transport.delete",
+            "sap.transport.inspect"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2560
+          }
+        },
+        {
+          "query": "inspect runtime dump",
+          "expected": "sap.runtime.dump.inspect",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.dump.inspect",
+            "sap.runtime.dump.list",
+            "sap.runtime.trace.inspect",
+            "sap.debug.session.inspect",
+            "sap.git.inspect"
+          ],
+          "request": {
+            "bytes": 87
+          },
+          "response": {
+            "bytes": 2686
+          }
+        },
+        {
+          "query": "analyze ABAP trace performance",
+          "expected": "sap.runtime.trace.inspect",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.trace.configuration",
+            "sap.runtime.trace.hit_list",
+            "sap.runtime.trace.inspect",
+            "sap.runtime.trace.statements",
+            "sap.runtime.trace.list"
+          ],
+          "request": {
+            "bytes": 97
+          },
+          "response": {
+            "bytes": 2762
+          }
+        },
+        {
+          "query": "qzxv9876plmk",
+          "expected": null,
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 79
+          },
+          "response": {
+            "bytes": 406
+          }
+        }
+      ]
+    },
+    {
+      "preset": "single",
+      "role": "viewer",
+      "toolCount": 1,
+      "fixedSchema": {
+        "bytes": 862
+      },
+      "queries": [
+        {
+          "query": "sap.semantic.components",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 102
+          },
+          "response": {
+            "bytes": 1002
+          }
+        },
+        {
+          "query": "where used",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.repository.dependency_graph"
+          ],
+          "request": {
+            "bytes": 89
+          },
+          "response": {
+            "bytes": 1276
+          }
+        },
+        {
+          "query": "syntax check",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "check syntax",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "unit tests",
+          "expected": "sap.quality.unit_test",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.quality.unit_test",
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 89
+          },
+          "response": {
+            "bytes": 1242
+          }
+        },
+        {
+          "query": "includeRelated",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 93
+          },
+          "response": {
+            "bytes": 996
+          }
+        },
+        {
+          "query": "KTD",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 2,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.inspect",
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 82
+          },
+          "response": {
+            "bytes": 1492
+          }
+        },
+        {
+          "query": "jumpToLine",
+          "expected": "sap.debug.step",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 89
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "upsert",
+          "expected": "sap.classic.write",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 85
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "sarif",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 84
+          },
+          "response": {
+            "bytes": 830
+          }
+        },
+        {
+          "query": "sap.transport.release",
+          "expected": "sap.transport.release",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 131
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "list SAP systems",
+          "expected": "sap.system.list",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.system.list",
+            "sap.repository.compare",
+            "sap.ops.watch.task.list",
+            "sap.transport.user.list",
+            "sap.transport.list"
+          ],
+          "request": {
+            "bytes": 95
+          },
+          "response": {
+            "bytes": 2672
+          }
+        },
+        {
+          "query": "find callers of a method",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.source.read",
+            "sap.quality.atc.cached",
+            "sap.quality.atc.documentation",
+            "sap.runtime.dump.list"
+          ],
+          "request": {
+            "bytes": 103
+          },
+          "response": {
+            "bytes": 2700
+          }
+        },
+        {
+          "query": "dependencies of this class",
+          "expected": "sap.repository.dependency_graph",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.semantic.components",
+            "sap.source.read",
+            "sap.repository.dependency_graph",
+            "sap.source.read_batch",
+            "sap.text_elements.read"
+          ],
+          "request": {
+            "bytes": 105
+          },
+          "response": {
+            "bytes": 3282
+          }
+        },
+        {
+          "query": "review transport changes",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.transport.assess",
+            "sap.semantic.format_preview",
+            "sap.transport.inspect",
+            "sap.transport.object.resolve",
+            "sap.transport.compare"
+          ],
+          "request": {
+            "bytes": 103
+          },
+          "response": {
+            "bytes": 2616
+          }
+        },
+        {
+          "query": "inspect runtime dump",
+          "expected": "sap.runtime.dump.inspect",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.dump.inspect",
+            "sap.runtime.dump.list",
+            "sap.runtime.trace.inspect",
+            "sap.debug.session.inspect",
+            "sap.git.inspect"
+          ],
+          "request": {
+            "bytes": 99
+          },
+          "response": {
+            "bytes": 2686
+          }
+        },
+        {
+          "query": "analyze ABAP trace performance",
+          "expected": "sap.runtime.trace.inspect",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.trace.configuration",
+            "sap.runtime.trace.hit_list",
+            "sap.runtime.trace.inspect",
+            "sap.runtime.trace.statements",
+            "sap.runtime.trace.list"
+          ],
+          "request": {
+            "bytes": 109
+          },
+          "response": {
+            "bytes": 2762
+          }
+        },
+        {
+          "query": "qzxv9876plmk",
+          "expected": null,
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 406
+          }
+        }
+      ]
+    },
+    {
+      "preset": "single",
+      "role": "developer",
+      "toolCount": 1,
+      "fixedSchema": {
+        "bytes": 863
+      },
+      "queries": [
+        {
+          "query": "sap.semantic.components",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 102
+          },
+          "response": {
+            "bytes": 1002
+          }
+        },
+        {
+          "query": "where used",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.repository.dependency_graph"
+          ],
+          "request": {
+            "bytes": 89
+          },
+          "response": {
+            "bytes": 1276
+          }
+        },
+        {
+          "query": "syntax check",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "check syntax",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "unit tests",
+          "expected": "sap.quality.unit_test",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.quality.unit_test",
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 89
+          },
+          "response": {
+            "bytes": 1242
+          }
+        },
+        {
+          "query": "includeRelated",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 93
+          },
+          "response": {
+            "bytes": 996
+          }
+        },
+        {
+          "query": "KTD",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 2,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.inspect",
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 82
+          },
+          "response": {
+            "bytes": 1492
+          }
+        },
+        {
+          "query": "jumpToLine",
+          "expected": "sap.debug.step",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.debug.step"
+          ],
+          "request": {
+            "bytes": 89
+          },
+          "response": {
+            "bytes": 794
+          }
+        },
+        {
+          "query": "upsert",
+          "expected": "sap.classic.write",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.classic.write"
+          ],
+          "request": {
+            "bytes": 85
+          },
+          "response": {
+            "bytes": 1146
+          }
+        },
+        {
+          "query": "sarif",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 84
+          },
+          "response": {
+            "bytes": 830
+          }
+        },
+        {
+          "query": "sap.transport.release",
+          "expected": "sap.transport.release",
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 131
+          },
+          "response": {
+            "bytes": 406
+          }
+        },
+        {
+          "query": "list SAP systems",
+          "expected": "sap.system.list",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.system.list",
+            "sap.repository.compare",
+            "sap.ops.watch.task.list",
+            "sap.transport.user.list",
+            "sap.transport.list"
+          ],
+          "request": {
+            "bytes": 95
+          },
+          "response": {
+            "bytes": 2674
+          }
+        },
+        {
+          "query": "find callers of a method",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.source.read",
+            "sap.quality.atc.cached",
+            "sap.quality.atc.documentation",
+            "sap.runtime.dump.list"
+          ],
+          "request": {
+            "bytes": 103
+          },
+          "response": {
+            "bytes": 2702
+          }
+        },
+        {
+          "query": "dependencies of this class",
+          "expected": "sap.repository.dependency_graph",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.semantic.components",
+            "sap.source.read",
+            "sap.repository.dependency_graph",
+            "sap.source.read_batch",
+            "sap.execution.preview"
+          ],
+          "request": {
+            "bytes": 105
+          },
+          "response": {
+            "bytes": 3400
+          }
+        },
+        {
+          "query": "review transport changes",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.transport.assess",
+            "sap.semantic.format_preview",
+            "sap.transport.create",
+            "sap.transport.inspect",
+            "sap.transport.object.add"
+          ],
+          "request": {
+            "bytes": 103
+          },
+          "response": {
+            "bytes": 2616
+          }
+        },
+        {
+          "query": "inspect runtime dump",
+          "expected": "sap.runtime.dump.inspect",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.dump.inspect",
+            "sap.runtime.dump.list",
+            "sap.runtime.trace.inspect",
+            "sap.debug.session.inspect",
+            "sap.git.inspect"
+          ],
+          "request": {
+            "bytes": 99
+          },
+          "response": {
+            "bytes": 2686
+          }
+        },
+        {
+          "query": "analyze ABAP trace performance",
+          "expected": "sap.runtime.trace.inspect",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.trace.configuration",
+            "sap.runtime.trace.hit_list",
+            "sap.runtime.trace.inspect",
+            "sap.runtime.trace.statements",
+            "sap.runtime.trace.list"
+          ],
+          "request": {
+            "bytes": 109
+          },
+          "response": {
+            "bytes": 2762
+          }
+        },
+        {
+          "query": "qzxv9876plmk",
+          "expected": null,
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 406
+          }
+        }
+      ]
+    },
+    {
+      "preset": "single",
+      "role": "admin",
+      "toolCount": 1,
+      "fixedSchema": {
+        "bytes": 863
+      },
+      "queries": [
+        {
+          "query": "sap.semantic.components",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 102
+          },
+          "response": {
+            "bytes": 1002
+          }
+        },
+        {
+          "query": "where used",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.repository.dependency_graph"
+          ],
+          "request": {
+            "bytes": 89
+          },
+          "response": {
+            "bytes": 1276
+          }
+        },
+        {
+          "query": "syntax check",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "check syntax",
+          "expected": "sap.source.diagnose",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.git.check",
+            "sap.artifact.mermaid.validate",
+            "sap.source.diagnose",
+            "sap.execution.health",
+            "sap.rap.availability"
+          ],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 2632
+          }
+        },
+        {
+          "query": "unit tests",
+          "expected": "sap.quality.unit_test",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.quality.unit_test",
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 89
+          },
+          "response": {
+            "bytes": 1242
+          }
+        },
+        {
+          "query": "includeRelated",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 93
+          },
+          "response": {
+            "bytes": 996
+          }
+        },
+        {
+          "query": "KTD",
+          "expected": "sap.semantic.components",
+          "visible": true,
+          "rank": 2,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.repository.inspect",
+            "sap.semantic.components"
+          ],
+          "request": {
+            "bytes": 82
+          },
+          "response": {
+            "bytes": 1492
+          }
+        },
+        {
+          "query": "jumpToLine",
+          "expected": "sap.debug.step",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.debug.step"
+          ],
+          "request": {
+            "bytes": 89
+          },
+          "response": {
+            "bytes": 794
+          }
+        },
+        {
+          "query": "upsert",
+          "expected": "sap.classic.write",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.classic.write"
+          ],
+          "request": {
+            "bytes": 85
+          },
+          "response": {
+            "bytes": 1146
+          }
+        },
+        {
+          "query": "sarif",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.assess"
+          ],
+          "request": {
+            "bytes": 84
+          },
+          "response": {
+            "bytes": 830
+          }
+        },
+        {
+          "query": "sap.transport.release",
+          "expected": "sap.transport.release",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 5,
+          "passed": true,
+          "names": [
+            "sap.transport.release"
+          ],
+          "request": {
+            "bytes": 131
+          },
+          "response": {
+            "bytes": 840
+          }
+        },
+        {
+          "query": "list SAP systems",
+          "expected": "sap.system.list",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.system.list",
+            "sap.repository.compare",
+            "sap.ops.watch.task.list",
+            "sap.transport.user.list",
+            "sap.transport.list"
+          ],
+          "request": {
+            "bytes": 95
+          },
+          "response": {
+            "bytes": 2674
+          }
+        },
+        {
+          "query": "find callers of a method",
+          "expected": "sap.repository.where_used",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.repository.where_used",
+            "sap.source.read",
+            "sap.quality.atc.cached",
+            "sap.quality.atc.documentation",
+            "sap.runtime.dump.list"
+          ],
+          "request": {
+            "bytes": 103
+          },
+          "response": {
+            "bytes": 2702
+          }
+        },
+        {
+          "query": "dependencies of this class",
+          "expected": "sap.repository.dependency_graph",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.semantic.components",
+            "sap.source.read",
+            "sap.repository.dependency_graph",
+            "sap.source.read_batch",
+            "sap.execution.preview"
+          ],
+          "request": {
+            "bytes": 105
+          },
+          "response": {
+            "bytes": 3400
+          }
+        },
+        {
+          "query": "review transport changes",
+          "expected": "sap.transport.assess",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.transport.assess",
+            "sap.semantic.format_preview",
+            "sap.transport.create",
+            "sap.transport.delete",
+            "sap.transport.inspect"
+          ],
+          "request": {
+            "bytes": 103
+          },
+          "response": {
+            "bytes": 2560
+          }
+        },
+        {
+          "query": "inspect runtime dump",
+          "expected": "sap.runtime.dump.inspect",
+          "visible": true,
+          "rank": 1,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.dump.inspect",
+            "sap.runtime.dump.list",
+            "sap.runtime.trace.inspect",
+            "sap.debug.session.inspect",
+            "sap.git.inspect"
+          ],
+          "request": {
+            "bytes": 99
+          },
+          "response": {
+            "bytes": 2686
+          }
+        },
+        {
+          "query": "analyze ABAP trace performance",
+          "expected": "sap.runtime.trace.inspect",
+          "visible": true,
+          "rank": 3,
+          "maxRank": 3,
+          "passed": true,
+          "names": [
+            "sap.runtime.trace.configuration",
+            "sap.runtime.trace.hit_list",
+            "sap.runtime.trace.inspect",
+            "sap.runtime.trace.statements",
+            "sap.runtime.trace.list"
+          ],
+          "request": {
+            "bytes": 109
+          },
+          "response": {
+            "bytes": 2762
+          }
+        },
+        {
+          "query": "qzxv9876plmk",
+          "expected": null,
+          "visible": false,
+          "rank": null,
+          "maxRank": 5,
+          "passed": true,
+          "names": [],
+          "request": {
+            "bytes": 91
+          },
+          "response": {
+            "bytes": 406
+          }
+        }
+      ]
+    }
+  ]
+}

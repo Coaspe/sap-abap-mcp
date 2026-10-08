@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "node": "v20.20.2",
+  "platform": "darwin",
+  "environment": "Absolute host Node executable, empty PATH, standalone bundled files",
+  "claudeDesktopApplicationTested": false,
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "runs": [
+    {
+      "profiles": "empty",
+      "tools": 5,
+      "serverVersion": "1.7.1",
+      "setupRequested": false,
+      "setupServerStarted": true,
+      "conditionalBatchSchemaAvailable": true,
+      "noSapCalls": true,
+      "noUserConfigurationChanges": true
+    },
+    {
+      "profiles": "existing",
+      "tools": 5,
+      "serverVersion": "1.7.1",
+      "setupRequested": false,
+      "setupServerStarted": false,
+      "conditionalBatchSchemaAvailable": true,
+      "noSapCalls": true,
+      "noUserConfigurationChanges": true
+    },
+    {
+      "profiles": "existing",
+      "tools": 5,
+      "serverVersion": "1.7.1",
+      "setupRequested": true,
+      "setupServerStarted": true,
+      "conditionalBatchSchemaAvailable": true,
+      "noSapCalls": true,
+      "noUserConfigurationChanges": true
+    }
+  ]
+}

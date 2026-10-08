@@ -1,0 +1,250 @@
+✖ direct connection reopens after changing SAP URL (17.109292ms)
+✖ direct connection reopens after changing SAP client (2.421916ms)
+✖ direct connection reopens after changing language (1.806333ms)
+✖ direct connection reopens after changing username (1.691542ms)
+✖ direct connection reopens after changing classic bridge (2.123458ms)
+✖ direct connection reopens after changing authentication type (1.978834ms)
+✖ direct connection reopens after changing token URL (1.59325ms)
+✖ direct connection reopens after changing OAuth client (1.462542ms)
+✖ direct connection reopens after changing scope (1.516084ms)
+✖ direct connection reopens after changing authorization URL (1.48225ms)
+✖ HTTP Destination connection reopens after changing SAP URL (2.573583ms)
+✖ HTTP Destination connection reopens after changing SAP client (1.606625ms)
+✖ HTTP Destination connection reopens after changing language (1.608375ms)
+✖ HTTP Destination connection reopens after changing classic bridge (2.900625ms)
+✖ HTTP Destination connection reopens after changing Destination name (1.701584ms)
+✖ HTTP Destination connection reopens after changing Destination authentication (1.520666ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 0
+ℹ fail 16
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 313.92825
+
+✖ failing tests:
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing SAP URL (17.109292ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing SAP client (2.421916ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing language (1.806333ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing username (1.691542ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing classic bridge (2.123458ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing authentication type (1.978834ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing token URL (1.59325ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing OAuth client (1.462542ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing scope (1.516084ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ direct connection reopens after changing authorization URL (1.48225ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ HTTP Destination connection reopens after changing SAP URL (2.573583ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ HTTP Destination connection reopens after changing SAP client (1.606625ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ HTTP Destination connection reopens after changing language (1.608375ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ HTTP Destination connection reopens after changing classic bridge (2.900625ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ HTTP Destination connection reopens after changing Destination name (1.701584ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at dist/test/connection-rebind.test.js:31:9
+✖ HTTP Destination connection reopens after changing Destination authentication (1.520666ms)
+  AssertionError [ERR_ASSERTION]: Next operation must use the saved SAP target and login context
+      at TestContext.<anonymous> (file:///private/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-onboard-final-s9hfny0b/dist/test/connection-rebind.test.js:53:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

@@ -12,17 +12,17 @@ setup remove [<server-name>]
 
 profile add <id> --url <url> --client <nnn> [--language EN]
     [--environment development|quality|production]
-    [--username <user>] [--packages ZPKG1,ZPKG2]
+    [--username <user>] [--packages ZPKG1,ZPKG2] [--read-only | --allow-writes]
     [--allow-data-queries]
     [--classic-bridge-path /sap/<path>]
-    [--auth-type basic|oauth-client-credentials|oauth-authorization-code|bearer-passthrough|btp-destination]
+    [--auth-type basic|oauth-client-credentials|oauth-authorization-code|btp-destination]
     [--destination-name <name> --destination-auth OAuth2UserTokenExchange|PrincipalPropagation]
     [--authorization-url <url>]
     [--token-url <url> --client-id <id> [--scope <scope>]]
     [--login [--password-stdin]]
 profile add <id> --service-key <path> [--language EN]
     [--environment development|quality|production]
-    [--scope <scope>] [--packages ZPKG1,ZPKG2]
+    [--scope <scope>] [--packages ZPKG1,ZPKG2] [--read-only | --allow-writes]
     [--allow-data-queries]
 profile list
 profile remove <id>
@@ -45,6 +45,7 @@ assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
     [--fail-on incomplete|failed]
 
 serve [--profile <id>] [--api-version v0|v1]
+    [--onboard-if-empty]
     [--preset compact|development|assurance|adaptive|minimal|single]
     [--toolsets core,write,analysis,debug,operations,artifacts|all]
     [--audit-log none|stderr|file] [--audit-log-file <path>]
@@ -53,6 +54,7 @@ serve [--profile <id>] [--api-version v0|v1]
      [--oidc-issuer <url> --oidc-audience <aud> [--oidc-jwks-uri <url>]
       [--oidc-role-claim <claim>] [--oidc-role-map <value>=<role>,...]
       [--oidc-default-role viewer|developer|admin]]
+     [--oauth-resource-url <public-https-mcp-url>]
      [--api-key-pepper-file <path>]
      [--host <host>] [--port <n>]
      [--allowed-origin <origin>] [--allowed-host <host>]
@@ -68,8 +70,15 @@ The default has five gateways and retains all 120 capabilities. The optional
 and invocation tools while keeping every v1 capability reachable on demand.
 That optional preset has 17 tools while 120 capabilities remain reachable. Select
 full mode explicitly when the host's discovery or per-tool policy needs original
-tool names. Published npm 1.6.0 and this checkout have different startup defaults;
-`npx ...@latest` examples use the registry release, not uncommitted local changes.
+tool names. Features marked unreleased require this checkout or a supplied
+preview; `npx ...@latest` examples use the registry release.
+
+`--onboard-if-empty` opens local SAP setup for an app-managed stdio server with
+no profiles. With this flag, `SAP_ABAP_MCP_OPEN_SETUP=true` reopens existing
+setup. Saved connections can be verified without entering their credential again.
+HTTP OAuth discovery uses `--oauth-resource-url` with a public HTTPS MCP URL.
+Direct `bearer-passthrough` profile creation is refused in this checkout; see
+the [migration guidance](setup-and-profiles.md#request-scoped-bearer-passthrough).
 
 ## Local-build registration
 

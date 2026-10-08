@@ -1,0 +1,232 @@
+TAP version 13
+# Subtest: MCP request tokens never create direct SAP bearer clients or report usable passthrough credentials
+ok 1 - MCP request tokens never create direct SAP bearer clients or report usable passthrough credentials
+  ---
+  duration_ms: 31.430208
+  type: 'test'
+  ...
+# Subtest: changing a Destination profile to passthrough during lookup cannot forward the MCP token
+ok 2 - changing a Destination profile to passthrough during lookup cannot forward the MCP token
+  ---
+  duration_ms: 2.603708
+  type: 'test'
+  ...
+# Subtest: browser OAuth renewal keeps the newest credential after a delayed network operation
+ok 3 - browser OAuth renewal keeps the newest credential after a delayed network operation
+  ---
+  duration_ms: 4.074083
+  type: 'test'
+  ...
+# Subtest: browser OAuth renewal keeps the newest credential after a delayed storage operation
+ok 4 - browser OAuth renewal keeps the newest credential after a delayed storage operation
+  ---
+  duration_ms: 2.647042
+  type: 'test'
+  ...
+# Subtest: browser OAuth renewal keeps the newest credential after a delayed saved-login operation
+ok 5 - browser OAuth renewal keeps the newest credential after a delayed saved-login operation
+  ---
+  duration_ms: 2.207459
+  type: 'test'
+  ...
+# Subtest: credential renewal disconnects only the saved profile and reopens with current credentials
+ok 6 - credential renewal disconnects only the saved profile and reopens with current credentials
+  ---
+  duration_ms: 2.93925
+  type: 'test'
+  ...
+# Subtest: ConnectionManager recreates an OAuth ADT client before its bearer token expires
+ok 7 - ConnectionManager recreates an OAuth ADT client before its bearer token expires
+  ---
+  duration_ms: 2.923292
+  type: 'test'
+  ...
+# Subtest: legacy bearer-passthrough profiles remain readable but cannot forward a request token
+ok 8 - legacy bearer-passthrough profiles remain readable but cannot forward a request token
+  ---
+  duration_ms: 2.8795
+  type: 'test'
+  ...
+# Subtest: request-scoped provider closes only Destination clients
+ok 9 - request-scoped provider closes only Destination clients
+  ---
+  duration_ms: 3.396417
+  type: 'test'
+  ...
+# Subtest: concurrent OAuth refreshes share one replacement while the old session logs out
+ok 10 - concurrent OAuth refreshes share one replacement while the old session logs out
+  ---
+  duration_ms: 1.576125
+  type: 'test'
+  ...
+# Subtest: credential validation keeps refreshed OAuth credentials in memory when SAP accepts the candidate
+ok 11 - credential validation keeps refreshed OAuth credentials in memory when SAP accepts the candidate
+  ---
+  duration_ms: 1.570209
+  type: 'test'
+  ...
+# Subtest: credential validation keeps refreshed OAuth credentials in memory when SAP rejects the candidate
+ok 12 - credential validation keeps refreshed OAuth credentials in memory when SAP rejects the candidate
+  ---
+  duration_ms: 1.72225
+  type: 'test'
+  ...
+# Subtest: credential validation cleans up an ADT client after failed login
+ok 13 - credential validation cleans up an ADT client after failed login
+  ---
+  duration_ms: 1.155125
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing SAP URL
+ok 14 - direct connection reopens after changing SAP URL
+  ---
+  duration_ms: 31.831292
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing SAP client
+ok 15 - direct connection reopens after changing SAP client
+  ---
+  duration_ms: 3.6005
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing language
+ok 16 - direct connection reopens after changing language
+  ---
+  duration_ms: 3.552833
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing username
+ok 17 - direct connection reopens after changing username
+  ---
+  duration_ms: 3.246292
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing classic bridge
+ok 18 - direct connection reopens after changing classic bridge
+  ---
+  duration_ms: 3.002416
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing authentication type
+ok 19 - direct connection reopens after changing authentication type
+  ---
+  duration_ms: 6.18575
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing token URL
+ok 20 - direct connection reopens after changing token URL
+  ---
+  duration_ms: 2.736583
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing OAuth client
+ok 21 - direct connection reopens after changing OAuth client
+  ---
+  duration_ms: 3.123875
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing scope
+ok 22 - direct connection reopens after changing scope
+  ---
+  duration_ms: 4.50125
+  type: 'test'
+  ...
+# Subtest: direct connection reopens after changing authorization URL
+ok 23 - direct connection reopens after changing authorization URL
+  ---
+  duration_ms: 2.858417
+  type: 'test'
+  ...
+# Subtest: HTTP Destination connection reopens after changing SAP URL
+ok 24 - HTTP Destination connection reopens after changing SAP URL
+  ---
+  duration_ms: 3.668959
+  type: 'test'
+  ...
+# Subtest: HTTP Destination connection reopens after changing SAP client
+ok 25 - HTTP Destination connection reopens after changing SAP client
+  ---
+  duration_ms: 4.070458
+  type: 'test'
+  ...
+# Subtest: HTTP Destination connection reopens after changing language
+ok 26 - HTTP Destination connection reopens after changing language
+  ---
+  duration_ms: 2.292708
+  type: 'test'
+  ...
+# Subtest: HTTP Destination connection reopens after changing classic bridge
+ok 27 - HTTP Destination connection reopens after changing classic bridge
+  ---
+  duration_ms: 2.200333
+  type: 'test'
+  ...
+# Subtest: HTTP Destination connection reopens after changing Destination name
+ok 28 - HTTP Destination connection reopens after changing Destination name
+  ---
+  duration_ms: 4.401958
+  type: 'test'
+  ...
+# Subtest: HTTP Destination connection reopens after changing Destination authentication
+ok 29 - HTTP Destination connection reopens after changing Destination authentication
+  ---
+  duration_ms: 6.580042
+  type: 'test'
+  ...
+# Subtest: profile CLI refuses new token-passthrough configuration and preserves existing saved profiles
+ok 30 - profile CLI refuses new token-passthrough configuration and preserves existing saved profiles
+  ---
+  duration_ms: 1695.38125
+  type: 'test'
+  ...
+# Subtest: BTP profile CLI stores explicit destination policy and rejects local login
+ok 31 - BTP profile CLI stores explicit destination policy and rejects local login
+  ---
+  duration_ms: 1410.060833
+  type: 'test'
+  ...
+# Subtest: BTP connections belong to the authenticated scope and cannot enter the shared pool
+ok 32 - BTP connections belong to the authenticated scope and cannot enter the shared pool
+  ---
+  duration_ms: 3.602
+  type: 'test'
+  ...
+# Subtest: BTP discovery reports the authenticated HTTP credential without reading local passwords
+ok 33 - BTP discovery reports the authenticated HTTP credential without reading local passwords
+  ---
+  duration_ms: 1.225208
+  type: 'test'
+  ...
+# Subtest: a failed request-scoped SAP login is logged out before a clean retry
+ok 34 - a failed request-scoped SAP login is logged out before a clean retry
+  ---
+  duration_ms: 1.625
+  type: 'test'
+  ...
+# Subtest: saved access policy changes reach cached direct and HTTP clients without another login
+ok 35 - saved access policy changes reach cached direct and HTTP clients without another login
+  ---
+  duration_ms: 4.117834
+  type: 'test'
+  ...
+# Subtest: closing during profile lookup prevents creation of a late user connection
+ok 36 - closing during profile lookup prevents creation of a late user connection
+  ---
+  duration_ms: 1.08875
+  type: 'test'
+  ...
+# Subtest: closing waits for pending login, logs out once, and never returns the closed client
+ok 37 - closing waits for pending login, logs out once, and never returns the closed client
+  ---
+  duration_ms: 0.218458
+  type: 'test'
+  ...
+1..37
+# tests 37
+# suites 0
+# pass 37
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3353.998166

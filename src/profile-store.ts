@@ -18,6 +18,7 @@ const baseProfileSchema = z.object({
   language: z.string().regex(/^[A-Z]{2}$/),
   environment: z.enum(["development", "quality", "production"]),
   allowDataQueries: z.boolean().default(false),
+  readOnly: z.boolean().optional(),
   allowedPackages: z.array(z.string().min(1)).default([]),
   classicBridgePath: classicBridgePathSchema.optional()
 })
@@ -69,9 +70,10 @@ const profileSchema = z.discriminatedUnion("authType", [
 ])
 
 const profileFileSchema = z.object({
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
   profiles: z.array(profileSchema)
-})
+}).refine(data => data.version === 2 || data.profiles.every(profile => profile.readOnly === undefined),
+  "Profiles with an explicit read-only policy require file version 2")
 
 type StoredSapProfile = z.infer<typeof profileSchema>
 export type SapProfile = StoredSapProfile extends infer Profile
@@ -89,6 +91,7 @@ export interface SapProfileInput {
   authType?: SapProfile["authType"]
   username?: string | undefined
   allowDataQueries?: boolean
+  readOnly?: boolean | undefined
   allowedPackages?: string[]
   tokenUrl?: string
   authorizationUrl?: string
@@ -116,6 +119,7 @@ export function normalizeProfile(input: SapProfileInput): StoredSapProfile {
     language: (input.language ?? "EN").trim().toUpperCase(),
     environment: input.environment ?? "development",
     allowDataQueries: input.allowDataQueries ?? false,
+    ...(input.readOnly !== undefined ? { readOnly: input.readOnly } : {}),
     authType,
     ...(authType === "btp_destination" ? {
       destinationName: input.destinationName?.trim(),
@@ -144,6 +148,27 @@ export function normalizeProfile(input: SapProfileInput): StoredSapProfile {
     )
   }
   return profile
+}
+
+export function profileConnectionKey(profile: SapProfile): string {
+  return JSON.stringify([
+    profile.url, profile.client, profile.language, profile.username,
+    profile.classicBridgePath, profile.authType,
+    ...(profile.authType === "oauth_client_credentials" || profile.authType === "oauth_authorization_code"
+      ? [profile.tokenUrl, profile.clientId, profile.scope,
+          profile.authType === "oauth_authorization_code" ? profile.authorizationUrl : undefined]
+      : profile.authType === "btp_destination"
+        ? [profile.destinationName, profile.destinationAuthentication]
+        : [])
+  ])
+}
+
+export function applyProfileAccessPolicy(target: SapProfile, policy: SapProfile): void {
+  if (policy.readOnly === undefined) delete target.readOnly
+  else target.readOnly = policy.readOnly
+  target.environment = policy.environment
+  target.allowedPackages = [...policy.allowedPackages]
+  target.allowDataQueries = policy.allowDataQueries ?? false
 }
 
 export class ProfileStore {
@@ -201,7 +226,10 @@ export class ProfileStore {
   }
 
   private async writeAll(data: z.infer<typeof profileFileSchema>): Promise<void> {
-    const parsed = profileFileSchema.parse(data)
+    const parsed = profileFileSchema.parse({
+      ...data,
+      version: data.profiles.some(profile => profile.readOnly !== undefined) ? 2 : 1
+    })
     const directory = dirname(this.filePath)
     const temporaryPath = `${this.filePath}.tmp-${process.pid}`
     await mkdir(directory, { recursive: true, mode: 0o700 })

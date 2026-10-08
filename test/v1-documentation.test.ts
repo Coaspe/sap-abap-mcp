@@ -74,7 +74,7 @@ test("published unversioned launches use the current v1 default", async () => {
 
   for (const args of [
     plugin.mcpServers["sap-abap"].args,
-    mcpb.server.mcp_config.args,
+    mcpb.server.mcp_config.args.filter(value => value !== "--onboard-if-empty"),
     registryArguments.map(argument => argument.value)
   ]) {
     assertUnversionedServeArgs(args)

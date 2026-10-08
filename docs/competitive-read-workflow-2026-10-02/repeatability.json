@@ -1,0 +1,82 @@
+{
+  "runs": 3,
+  "allPassed": true,
+  "configurations": 12,
+  "freshSessions": 36,
+  "fixtureAcceptanceChecks": 144,
+  "mcpOperations": 174,
+  "repeated": [
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "full",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "minimal",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "single",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "adaptive",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "resource-minimal",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "resource-single",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "known-minimal",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "known-single",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "arc-1",
+      "scenario": "standard",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "arc-1",
+      "scenario": "hyperfocused",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "abap-adt-mcp",
+      "scenario": "focused",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    },
+    {
+      "product": "@mcp-abap-adt/core",
+      "scenario": "default-onprem",
+      "freshSessions": 3,
+      "metricsAndResponseHashesRepeatedExactly": true
+    }
+  ]
+}

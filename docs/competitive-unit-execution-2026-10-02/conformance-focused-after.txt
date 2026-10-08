@@ -1,0 +1,48 @@
+✔ v1 compatibility profile has stable proposal metadata and unique requirements (0.327416ms)
+✔ complete profile discovery passes with exact evidence counts (0.619625ms)
+✔ a missing required capability fails with its exact tool name (0.116833ms)
+✔ required tool without an explicit read-only hint fails (false) (0.093416ms)
+✔ required tool without an explicit read-only hint fails (undefined) (0.0625ms)
+✔ execution hints on optional tools do not fail the read-only core (0.053417ms)
+✔ a missing required resource fails with its exact resource name (0.064292ms)
+✔ sap.quality.unit_test full viewer enforces execution risk before the service callback (64.859542ms)
+ℹ {"mode":"full","role":"viewer","executions":0,"advertised":false}
+✔ sap.quality.unit_test full developer enforces execution risk before the service callback (51.844ms)
+✔ sap.quality.unit_test minimal viewer enforces execution risk before the service callback (59.015583ms)
+ℹ {"mode":"minimal","role":"viewer","executions":0}
+✔ sap.quality.unit_test minimal developer enforces execution risk before the service callback (58.927083ms)
+ℹ {"mode":"minimal","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.quality.unit_test adaptive viewer enforces execution risk before the service callback (49.00525ms)
+ℹ {"mode":"adaptive","role":"viewer","executions":0}
+✔ sap.quality.unit_test adaptive developer enforces execution risk before the service callback (57.004791ms)
+ℹ {"mode":"adaptive","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.quality.unit_test single viewer enforces execution risk before the service callback (39.443292ms)
+ℹ {"mode":"single","role":"viewer","executions":0}
+✔ sap.quality.unit_test single developer enforces execution risk before the service callback (49.210125ms)
+ℹ {"mode":"single","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.transport.assess full viewer enforces execution risk before the service callback (29.261167ms)
+ℹ {"mode":"full","role":"viewer","executions":0,"advertised":false}
+✔ sap.transport.assess full developer enforces execution risk before the service callback (37.829333ms)
+✔ sap.transport.assess minimal viewer enforces execution risk before the service callback (36.364208ms)
+ℹ {"mode":"minimal","role":"viewer","executions":0}
+✔ sap.transport.assess minimal developer enforces execution risk before the service callback (51.930667ms)
+ℹ {"mode":"minimal","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.transport.assess adaptive viewer enforces execution risk before the service callback (48.377083ms)
+ℹ {"mode":"adaptive","role":"viewer","executions":0}
+✔ sap.transport.assess adaptive developer enforces execution risk before the service callback (63.292ms)
+ℹ {"mode":"adaptive","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.transport.assess single viewer enforces execution risk before the service callback (38.853916ms)
+ℹ {"mode":"single","role":"viewer","executions":0}
+✔ sap.transport.assess single developer enforces execution risk before the service callback (45.648959ms)
+ℹ {"mode":"single","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ legacy run_unit_tests viewer enforces execution risk before the service callback (7.886083ms)
+ℹ {"role":"viewer","executions":0,"advertised":false}
+✔ legacy run_unit_tests developer enforces execution risk before the service callback (6.306042ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1056.243042

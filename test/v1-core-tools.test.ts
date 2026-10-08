@@ -292,6 +292,7 @@ test("core adapters call the shared service once with normalized fixed operation
       method: "getBatchLines",
       input: {
         connectionId: "DEV100",
+        includeContentHash: true,
         requests: [{ objectName: "ZCL_DEMO", startLine: 1, lineCount: 4 }]
       }
     },
@@ -327,6 +328,31 @@ test("core adapters call the shared service once with normalized fixed operation
       }
     }
   ])
+})
+
+test("language documentation preserves legacy defaults and validates opt-in compact pages", async () => {
+  const { service, calls } = createCoreService()
+  const harness = await connectedClient(service)
+  try {
+    const args = { systemId: "DEV100", fileUri: "/sap/bc/adt/source" }
+    const first = await harness.client.callTool({ name: "sap.semantic.documentation", arguments: args })
+    assert.notEqual(first.isError, true)
+    assert.equal("documentation" in (calls[0]!.input as any), false)
+    assert.equal("documentationFormat" in (calls[0]!.input as any), false)
+    const compact = await harness.client.callTool({ name: "sap.semantic.documentation", arguments: { ...args, format: "text" } })
+    assert.notEqual(compact.isError, true)
+    assert.deepEqual((calls[1]!.input as any).documentation, { offset: 0, maxChars: 4000 })
+    assert.equal((calls[1]!.input as any).documentationFormat, "text")
+    const raw = await harness.client.callTool({ name: "sap.semantic.documentation", arguments: { ...args, format: "html", offset: 4000, maxChars: 16000 } })
+    assert.notEqual(raw.isError, true)
+    assert.deepEqual((calls[2]!.input as any).documentation, { offset: 4000, maxChars: 16000 })
+    assert.equal((calls[2]!.input as any).documentationFormat, "html")
+    for (const invalid of [{ offset: -1 }, { maxChars: 0 }, { maxChars: 16001 }, { format: "xml" }]) {
+      const result = await harness.client.callTool({ name: "sap.semantic.documentation", arguments: { ...args, ...invalid } })
+      assert.equal(result.isError, true)
+    }
+    assert.equal(calls.length, 3)
+  } finally { await harness.close() }
 })
 
 test("component navigation validates bounded paths and forwards filters", async () => {

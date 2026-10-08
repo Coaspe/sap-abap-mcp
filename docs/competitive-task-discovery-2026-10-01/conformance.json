@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-10-01T04:42:34.476Z",
+  "discoveryOnly": true,
+  "profile": {
+    "id": "io.github.Coaspe/sap-abap-mcp/profile/v1",
+    "version": "1.0.0",
+    "status": "proposal"
+  },
+  "server": {
+    "name": "sap-abap-mcp",
+    "title": "SAP ABAP MCP",
+    "icons": [
+      {
+        "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+        "mimeType": "image/png",
+        "sizes": [
+          "400x400"
+        ]
+      }
+    ],
+    "version": "1.7.1",
+    "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+    "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+  },
+  "requiredTools": {
+    "expected": 10,
+    "found": 10,
+    "missing": []
+  },
+  "requiredResources": {
+    "expected": 3,
+    "found": 3,
+    "missing": []
+  },
+  "failures": [],
+  "passed": true
+}

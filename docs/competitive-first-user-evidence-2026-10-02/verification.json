@@ -1,0 +1,99 @@
+{
+  "generatedAt": "2026-10-02T06:55:50.027030+00:00",
+  "stage": "Bounded first-user intake and zero-data scorecard",
+  "passedLocalIntakeChecks": true,
+  "schemaValidation": "Pinned SchemaStore issue-form draft-07 schema; GitHub documentation reviewed",
+  "negativeControls": [
+    "Malformed dropdown option",
+    "Duplicate field identifier",
+    "Credential input field",
+    "Diagnostic upload field"
+  ],
+  "requestedFieldCount": 11,
+  "requestedUploadFields": 0,
+  "freeTextFields": [
+    "Product build/setup label only"
+  ],
+  "recordedParticipantReports": 0,
+  "moderatedSessionsRun": 0,
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "externalMessagesSent": 0,
+  "remoteWrites": 0,
+  "newMcpTools": 0,
+  "newProductSettings": 0,
+  "newRuntimeDependencies": 0,
+  "newTelemetry": false,
+  "mirroredSourceAndRuntimeFilesMatchLastVerifiedOriginalSnapshot": 320,
+  "sourceOrRuntimeFilesWrittenByThisStage": 0,
+  "originalRuntimeRecheck": "Full-tree recheck stopped at unchanged resource-uri.d.ts after an observed blocked read. Not counted as a passed recheck. Changed form/docs and package controls are verified separately.",
+  "currentConnectionInspection": {
+    "profileDirectoryResolvedFrom": "actual ProfileStore defaults; no SAP_ABAP_MCP_HOME or XDG override",
+    "defaultProfileFileExists": false,
+    "savedProfileCount": 0,
+    "selectedRegisteredProfile": null,
+    "serverEnvironmentKeyNames": [],
+    "sapEnvironmentKeyNames": []
+  },
+  "currentProfileAndPackageControls": {
+    "package.json": "68ab1fe1b56ce4cf6c5a19051baba0ddae3c65869a906dba2692682bb9562e7a",
+    "package-lock.json": "919154feb3082a85d88907e63c3fe0b96425758832f046eac363a6acfef559cf",
+    "spec/sap-abap-mcp-profile-v1.json": "1fc2c936db0f16492dd01d4298c2e904e76317f3cc57c7f984c5ee9d2a25a320",
+    ".github/workflows/ci.yml": "6e59cb1d375658ff180f56ce405bb56285b659bf7f2da7e4c585cc6b1c51e486",
+    ".github/ISSUE_TEMPLATE/professional-services.yml": "ec2c8d59c348b76783395bafe9d684388e81b3c81288666fdc4b9c6daf09f4b6"
+  },
+  "publicAdopterEntriesAdded": 0,
+  "medianSetupTime": null,
+  "participantScope": "Public voluntary self-report; requires separate consent for aggregation and exact public adopter name/quote",
+  "formPublished": false,
+  "githubServerAcceptanceVerified": false,
+  "nativeFormRendered": false,
+  "productRuntimeTests": "Not rerun: mirrored source/runtime match the last 695-pass regression snapshot; this stage writes no runtime file. Metadata checks target the new form.",
+  "initialSchemaIssue": "Empty optional labels array was rejected by the validation schema; removed from the new form only. Existing paid-service form preserved.",
+  "verificationTooling": {
+    "ruby": "2.6.10",
+    "psych": "3.1.0",
+    "node": "24.11.1",
+    "note": "Local metadata verification only; not a product requirement"
+  },
+  "externalSchemaBundled": false,
+  "backup": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-first-user-feedback-backup-ubcakm0v",
+  "changes": [
+    {
+      "path": "ADOPTERS.md",
+      "beforeSha256": "620ff9413ea8f9db940db3da7cd3e66d3d7e485301ea3270276ca404066beb34",
+      "afterSha256": "b3506e82f53301545495519fc0e4754e917846cd8f77454cea9fdb5307ef79ee"
+    },
+    {
+      "path": "docs/setup-and-profiles.md",
+      "beforeSha256": "eb1152f4cc05074451f5bb10fab35799dc41dc6c75f927315d2f68156c12f1ac",
+      "afterSha256": "7486403ead5ead8b5bec2bb977ff2cf94f21a810621c1a52cfc6fc6a5a653232"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/compatibility-report.yml",
+      "previouslyExisted": false,
+      "afterSha256": "6cdafa28469b0d1edf4390c7df3332bffa2ed43b7c23bf52c2160e65df549b1b"
+    }
+  ],
+  "files": {
+    "form-check.json": "8d8331efe2c6c9c9a4eeee89dee4ad23b40b89b4b4754e41b04ca1034980f540",
+    "verify.mjs": "bab1c127d59a7f3172f561427777ea0ff308929ca1a637b639ea8f7348f40c00",
+    "scorecard.json": "1114874ff6734785511deebafe04fcc19cc14ab61d6c904b3924be278ed575b2",
+    "runs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "schema-source.json": "cb8db7f0bab69a66d2f744ee297ce5df4cb0a439bd59ba28a5ebb642c64d9f35"
+  },
+  "remainingAcceptance": [
+    "Opt-in novice development-profile setup and actual first read",
+    "Recorded failed attempts and real 30-day repeat-use follow-up",
+    "Separate live compatibility evidence and exact public adopter consent"
+  ],
+  "reproducer": "node docs/competitive-first-user-evidence-2026-10-02/verify.mjs <pinned-schema-cache.json> <output.json>",
+  "completionClaim": false,
+  "npmPackDryRun": {
+    "fileCount": 528,
+    "proofFilesIncluded": 6,
+    "githubFormExcludedFromNpm": "Repository template only; not an npm runtime file",
+    "externalSchemaNotBundled": true,
+    "published": false
+  }
+}

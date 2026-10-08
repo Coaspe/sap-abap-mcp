@@ -34,6 +34,7 @@ export interface OAuthAuthorizationCodeOptions {
 }
 
 export interface BrowserOAuthLoginOptions {
+  signal?: AbortSignal
   fetch?: typeof fetch
   openBrowser?: (url: string) => void
   timeoutMs?: number
@@ -83,65 +84,78 @@ function encodeCredential(value: StoredAuthorizationCredential): string {
 async function requestToken(
   config: OAuthAuthorizationCodeConfig,
   body: URLSearchParams,
-  fetchImplementation: typeof fetch
+  fetchImplementation: typeof fetch,
+  signal?: AbortSignal
 ): Promise<TokenResponse> {
-  let response: Response
+  const controller = new AbortController()
+  const cancel = () => controller.abort()
+  signal?.addEventListener("abort", cancel, { once: true })
+  if (signal?.aborted) cancel()
+  const timeout = setTimeout(cancel, TOKEN_TIMEOUT_MS)
+  timeout.unref()
   try {
-    response = await fetchImplementation(config.tokenUrl, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/x-www-form-urlencoded"
-      },
-      body: body.toString(),
-      signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS)
-    })
-  } catch {
-    throw new AppError(
-      "OAUTH_TOKEN_REQUEST_FAILED",
-      "OAuth token request failed before a response was received",
-      { tokenUrl: config.tokenUrl }
-    )
-  }
-  if (!response.ok) {
-    throw new AppError(
-      "OAUTH_TOKEN_REQUEST_FAILED",
-      `OAuth token endpoint returned HTTP ${response.status}`,
-      { tokenUrl: config.tokenUrl, httpStatus: response.status }
-    )
-  }
-  let payload: unknown
-  try {
-    payload = await response.json()
-  } catch {
-    throw new AppError(
-      "OAUTH_TOKEN_RESPONSE_INVALID",
-      "OAuth token endpoint did not return valid JSON",
-      { tokenUrl: config.tokenUrl }
-    )
-  }
-  const record = payload as Record<string, unknown>
-  const accessToken = record?.access_token
-  const refreshToken = record?.refresh_token
-  const expiresIn = Number(record?.expires_in)
-  const tokenType = record?.token_type
-  if (
-    typeof accessToken !== "string" || !accessToken ||
-    !Number.isFinite(expiresIn) || expiresIn <= 0 ||
-    (refreshToken !== undefined && typeof refreshToken !== "string") ||
-    (tokenType !== undefined &&
-      (typeof tokenType !== "string" || tokenType.toLowerCase() !== "bearer"))
-  ) {
-    throw new AppError(
-      "OAUTH_TOKEN_RESPONSE_INVALID",
-      "OAuth token response requires a Bearer access_token and positive expires_in",
-      { tokenUrl: config.tokenUrl }
-    )
-  }
-  return {
-    accessToken,
-    expiresIn,
-    ...(typeof refreshToken === "string" && refreshToken ? { refreshToken } : {})
+    let response: Response
+    try {
+      response = await fetchImplementation(config.tokenUrl, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        body: body.toString(),
+        signal: controller.signal
+      })
+    } catch {
+      if (signal?.aborted) throw new AppError("CANCELLED", "Browser OAuth login was cancelled")
+      throw new AppError(
+        "OAUTH_TOKEN_REQUEST_FAILED",
+        "OAuth token request failed before a response was received",
+        { tokenUrl: config.tokenUrl }
+      )
+    }
+    if (!response.ok) {
+      throw new AppError(
+        "OAUTH_TOKEN_REQUEST_FAILED",
+        `OAuth token endpoint returned HTTP ${response.status}`,
+        { tokenUrl: config.tokenUrl, httpStatus: response.status }
+      )
+    }
+    let payload: unknown
+    try {
+      payload = await response.json()
+    } catch {
+      throw new AppError(
+        "OAUTH_TOKEN_RESPONSE_INVALID",
+        "OAuth token endpoint did not return valid JSON",
+        { tokenUrl: config.tokenUrl }
+      )
+    }
+    const record = payload as Record<string, unknown>
+    const accessToken = record?.access_token
+    const refreshToken = record?.refresh_token
+    const expiresIn = Number(record?.expires_in)
+    const tokenType = record?.token_type
+    if (
+      typeof accessToken !== "string" || !accessToken ||
+      !Number.isFinite(expiresIn) || expiresIn <= 0 ||
+      (refreshToken !== undefined && typeof refreshToken !== "string") ||
+      (tokenType !== undefined &&
+        (typeof tokenType !== "string" || tokenType.toLowerCase() !== "bearer"))
+    ) {
+      throw new AppError(
+        "OAUTH_TOKEN_RESPONSE_INVALID",
+        "OAuth token response requires a Bearer access_token and positive expires_in",
+        { tokenUrl: config.tokenUrl }
+      )
+    }
+    return {
+      accessToken,
+      expiresIn,
+      ...(typeof refreshToken === "string" && refreshToken ? { refreshToken } : {})
+    }
+  } finally {
+    clearTimeout(timeout)
+    signal?.removeEventListener("abort", cancel)
   }
 }
 
@@ -164,6 +178,7 @@ export class OAuthAuthorizationCodeProvider implements OAuthAccessTokenProvider 
   private readonly fetchImplementation: typeof fetch
   private readonly now: () => number
   private pending: Promise<string> | undefined
+  private revision = 0
 
   constructor(
     private readonly config: OAuthAuthorizationCodeConfig,
@@ -197,11 +212,13 @@ export class OAuthAuthorizationCodeProvider implements OAuthAccessTokenProvider 
   }
 
   invalidate(): void {
+    this.revision++
     this.credential.expiresAt = 0
     this.pending = undefined
   }
 
   private async refresh(): Promise<string> {
+    const revision = this.revision
     if (!this.credential.refreshToken) {
       throw new AppError(
         "AUTH_REQUIRED",
@@ -215,13 +232,20 @@ export class OAuthAuthorizationCodeProvider implements OAuthAccessTokenProvider 
     })
     if (this.config.scope) body.set("scope", this.config.scope)
     const token = await requestToken(this.config, body, this.fetchImplementation)
-    this.credential = {
+    if (revision !== this.revision) {
+      throw new AppError("CANCELLED", "OAuth token refresh was invalidated")
+    }
+    const credential: StoredAuthorizationCredential = {
       version: 1,
       accessToken: token.accessToken,
       refreshToken: token.refreshToken ?? this.credential.refreshToken,
       expiresAt: this.now() + token.expiresIn * 1000 - Math.min(60_000, token.expiresIn * 100)
     }
-    await this.options.persistCredential?.(encodeCredential(this.credential))
+    await this.options.persistCredential?.(encodeCredential(credential))
+    if (revision !== this.revision) {
+      throw new AppError("CANCELLED", "OAuth token refresh was invalidated")
+    }
+    this.credential = credential
     return this.credential.accessToken
   }
 }
@@ -230,6 +254,7 @@ export async function browserOAuthLogin(
   config: OAuthAuthorizationCodeConfig,
   options: BrowserOAuthLoginOptions = {}
 ): Promise<string> {
+  if (options.signal?.aborted) throw new AppError("CANCELLED", "Browser OAuth login was cancelled")
   validateHttpsEndpoint(config.authorizationUrl, "OAuth authorization URL")
   validateHttpsEndpoint(config.tokenUrl, "OAuth token URL")
   if (!config.clientId) throw new AppError("OAUTH_CLIENT_ID_REQUIRED", "OAuth client ID is required")
@@ -281,18 +306,16 @@ export async function browserOAuthLogin(
   authorizationUrl.searchParams.set("code_challenge_method", "S256")
   if (config.scope) authorizationUrl.searchParams.set("scope", config.scope)
 
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  const cancel = () => rejectCode(new AppError("CANCELLED", "Browser OAuth login was cancelled"))
+  options.signal?.addEventListener("abort", cancel, { once: true })
   try {
-    (options.openBrowser ?? defaultOpenBrowser)(authorizationUrl.toString())
-    const timeoutMs = options.timeoutMs ?? BROWSER_LOGIN_TIMEOUT_MS
-    const code = await Promise.race([
-      codePromise,
-      new Promise<never>((_resolve, reject) => {
-        setTimeout(
-          () => reject(new AppError("OAUTH_CALLBACK_TIMEOUT", "Browser OAuth login timed out")),
-          timeoutMs
-        ).unref()
-      })
-    ])
+    if (options.signal?.aborted) cancel()
+    else (options.openBrowser ?? defaultOpenBrowser)(authorizationUrl.toString())
+    timeout = setTimeout(() => rejectCode(new AppError("OAUTH_CALLBACK_TIMEOUT", "Browser OAuth login timed out")),
+      options.timeoutMs ?? BROWSER_LOGIN_TIMEOUT_MS)
+    timeout.unref()
+    const code = await codePromise
     const token = await requestToken(
       config,
       new URLSearchParams({
@@ -302,7 +325,8 @@ export async function browserOAuthLogin(
         client_id: config.clientId,
         code_verifier: verifier
       }),
-      options.fetch ?? fetch
+      options.fetch ?? fetch,
+      options.signal
     )
     return encodeCredential({
       version: 1,
@@ -311,6 +335,8 @@ export async function browserOAuthLogin(
       expiresAt: Date.now() + token.expiresIn * 1000 - Math.min(60_000, token.expiresIn * 100)
     })
   } finally {
+    clearTimeout(timeout)
+    options.signal?.removeEventListener("abort", cancel)
     await new Promise<void>(resolve => server.close(() => resolve()))
   }
 }

@@ -1,0 +1,17 @@
+{
+  "discardedHarnessProbes": [
+    {
+      "stage": "process-env-only core launch",
+      "result": "core inspection fallback targeted its documented mock backend; not a live-SAP or product-failure result",
+      "correction": "Supply explicit isolated .env through MCP_ENV_PATH."
+    },
+    {
+      "stage": "explicit .env but no synthetic ABAP session cookie",
+      "result": "core refused the synthetic connection before a source request",
+      "correction": "The shared final fixture returns a synthetic SAP_SESSIONID cookie. Every final configuration uses the same fixture."
+    }
+  ],
+  "includedInFinalCostMeasurements": false,
+  "noVendorRuntimePatched": true,
+  "allFinalRunsUseSameReproducer": true
+}

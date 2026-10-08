@@ -187,3 +187,110 @@ for default minimal as well as explicit adaptive and full modes.
 tool surface. It exposes one gateway while retaining schema hashes and server
 policy checks; the default is minimal. See [usage, approval tradeoffs and
 measurements](single-tool-mode.md).
+
+
+## Actual stdio startup comparison: 2026-10-02
+
+The current unreleased checkout and integrity-verified published competitor
+packages were started as real CLI processes under Node 24.21.0 on macOS arm64.
+The same SDK client initialized each server and read every `tools/list` page.
+These estimates tokenize minified returned tool arrays and a separate
+`{instructions: ...}` field with `o200k_base`. They exclude other initialization
+fields, host formatting, provider caching and model billing.
+
+| Product and configuration | Tools | Schema tokens | Instruction-field tokens | Sum |
+| --- | ---: | ---: | ---: | ---: |
+| This checkout: default minimal | 5 | 880 | 81 | 961 |
+| This checkout: single | 1 | 215 | 60 | 275 |
+| ARC-1 1.4.0: standard | 9 | 11,285 | 409 | 11,694 |
+| ARC-1 1.4.0: hyperfocused | 1 | 209 | 409 | 618 |
+| abap-adt-mcp 2.7.0: default | 173 | 36,482 | 538 | 37,020 |
+| @mcp-abap-adt/core 15.0.0: default | 202 | 41,152 | 5 | 41,157 |
+
+The [complete report](competitive-stdio-surface-2026-10-02/surface.json) also
+includes adaptive/full and competitors' focused/readonly configurations. The
+[reproducer](competitive-stdio-surface-2026-10-02/measure.mjs) takes a snapshot
+JSON pointing to inspected, dependency-installed packages and an output path;
+run it with the intended Node executable. Tarball integrity and resolved
+dependency-lock hashes are in the verification record. No competitor source
+code is incorporated into this server.
+
+These configurations do not expose identical capabilities or permissions. Our
+profile store is empty, core uses its documented inspection-only mode, and the
+configured competitors target a synthetic loopback endpoint that returns 401.
+ARC-1 makes one local HEAD preflight per scenario; these are not SAP calls.
+The comparison does not cover warmed SAP discovery, plugins or identity-specific
+filtering. No task, model or live SAP call was made.
+
+ARC-1's single tool array is smaller than ours (209 versus 215); adding the
+measured instruction fields reverses this particular initial-cost comparison.
+Neither number establishes better task outcomes.
+
+Keep minimal as the default for separate read/write/dangerous gateways. Choose
+`serve --profile DEV100 --preset single` when lower initial context cost matters
+and the host handles the gateway's approval annotations acceptably. Choose
+adaptive when direct common-read tools are useful. Reuse described schemas
+within a session, batch descriptions when multiple capabilities are needed, and
+use conditional range/batch rechecks only while earlier code is retained. These
+existing options add no tools. Measure complete tasks before switching a team
+default; single developer/admin approvals can differ even for reads.
+
+
+## Full-source reads through native Resources: 2026-10-02
+
+For a host or SDK client that exposes native MCP Resource reads, the existing
+`sap-adt-source` template can retrieve source for a known canonical ADT URI
+without a capability search, description, or tool result containing a second
+structured copy of the source. No new preset or tool is needed. For example,
+a connected MCP SDK client can use:
+
+```js
+const result = await client.readResource({
+  uri: "adt://dev100/sap/bc/adt/programs/programs/z_example/source/main"
+})
+const source = result.contents[0]
+```
+
+Read the returned `contents` and their `_meta.truncated` / `_meta.nextLine`
+fields. An oversized Resource can be bounded; use `sap.source.read` paging to
+finish it. Use the tool for a method, a small source range, or conditional
+`ifNoneMatch` rechecks. Resource reads return the body again even when the
+backend validates an unchanged cached source. Both paths recheck SAP access;
+a denied read does not release cached source. Resource URI selection stays
+under the host's control, as described by the
+[official MCP Resource model](https://modelcontextprotocol.io/specification/2025-11-25/server/resources).
+Hosts that expose only tools should continue using the gateway. The SDK replay
+does not establish that every chat host exposes or forwards Resources.
+
+The same 200-line synthetic program was read, rechecked unchanged, changed
+externally, and then denied by the loopback fixture. Actual CLI processes
+completed all four stages. Known-capability gateway replay and Resource replay
+each used five workflow MCP operations: describe + four tool calls versus template
+discovery + four Resource reads. Search-and-describe gateway replay used six;
+the optional search can be omitted when the name is known.
+
+| This checkout, caller strategy | Workflow MCP operations | Complete-field estimated tokens |
+| --- | ---: | ---: |
+| minimal, known capability + describe | 5 | 11,588 |
+| minimal, native Resource + template discovery | 5 | 7,539 |
+| single, known capability + describe | 5 | 10,905 |
+| single, native Resource + template discovery | 5 | 6,853 |
+
+Resource replay reduced the estimates by 34.9% / 37.2% in these two comparisons
+without adding an MCP operation. This is an existing route, not an automatic
+change to tool responses. Fixed tool arrays and instruction fields are counted
+once; complete MCP parameter/result fields are estimated with `o200k_base`.
+Host-native Resource-reader schemas, model billing, JSON-RPC framing and
+conversation replay are excluded. Protocol errors use the SDK error
+representation. A host may forward only part of a result, so these numbers are
+not provider token charges.
+
+The same replay covered ARC-1 standard/hyperfocused, abap-adt-mcp focused and
+mcp-abap-adt/core configured on-premise. ARC-1 hyperfocused used fewer MCP
+operations than either of our discovery paths (four versus five). Its direct
+source result is smaller than our structured tool result. Our Resource/single
+estimate is only 41 tokens below it in this fixture, with host reader cost
+excluded; that is not proof of a practical product advantage.
+[Measurements, all configurations, traces and reproduction](competitive-read-workflow-2026-10-02/verification.json)
+retain the tradeoff. The read-only replay is not live SAP acceptance or an LLM
+task-success comparison.

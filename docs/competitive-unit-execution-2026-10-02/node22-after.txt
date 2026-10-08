@@ -1,0 +1,229 @@
+TAP version 13
+# Subtest: sap.quality.unit_test full viewer enforces execution risk before the service callback
+ok 1 - sap.quality.unit_test full viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 100.261041
+  type: 'test'
+  ...
+# {"mode":"full","role":"viewer","executions":0,"advertised":false}
+# Subtest: sap.quality.unit_test full developer enforces execution risk before the service callback
+ok 2 - sap.quality.unit_test full developer enforces execution risk before the service callback
+  ---
+  duration_ms: 81.917834
+  type: 'test'
+  ...
+# Subtest: sap.quality.unit_test minimal viewer enforces execution risk before the service callback
+ok 3 - sap.quality.unit_test minimal viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 86.434708
+  type: 'test'
+  ...
+# {"mode":"minimal","role":"viewer","executions":0}
+# Subtest: sap.quality.unit_test minimal developer enforces execution risk before the service callback
+ok 4 - sap.quality.unit_test minimal developer enforces execution risk before the service callback
+  ---
+  duration_ms: 96.671667
+  type: 'test'
+  ...
+# {"mode":"minimal","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.quality.unit_test adaptive viewer enforces execution risk before the service callback
+ok 5 - sap.quality.unit_test adaptive viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 87.842666
+  type: 'test'
+  ...
+# {"mode":"adaptive","role":"viewer","executions":0}
+# Subtest: sap.quality.unit_test adaptive developer enforces execution risk before the service callback
+ok 6 - sap.quality.unit_test adaptive developer enforces execution risk before the service callback
+  ---
+  duration_ms: 86.612334
+  type: 'test'
+  ...
+# {"mode":"adaptive","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.quality.unit_test single viewer enforces execution risk before the service callback
+ok 7 - sap.quality.unit_test single viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 70.145458
+  type: 'test'
+  ...
+# {"mode":"single","role":"viewer","executions":0}
+# Subtest: sap.quality.unit_test single developer enforces execution risk before the service callback
+ok 8 - sap.quality.unit_test single developer enforces execution risk before the service callback
+  ---
+  duration_ms: 77.528333
+  type: 'test'
+  ...
+# {"mode":"single","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.transport.assess full viewer enforces execution risk before the service callback
+ok 9 - sap.transport.assess full viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 47.604
+  type: 'test'
+  ...
+# {"mode":"full","role":"viewer","executions":0,"advertised":false}
+# Subtest: sap.transport.assess full developer enforces execution risk before the service callback
+ok 10 - sap.transport.assess full developer enforces execution risk before the service callback
+  ---
+  duration_ms: 52.065958
+  type: 'test'
+  ...
+# Subtest: sap.transport.assess minimal viewer enforces execution risk before the service callback
+ok 11 - sap.transport.assess minimal viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 68.952625
+  type: 'test'
+  ...
+# {"mode":"minimal","role":"viewer","executions":0}
+# Subtest: sap.transport.assess minimal developer enforces execution risk before the service callback
+ok 12 - sap.transport.assess minimal developer enforces execution risk before the service callback
+  ---
+  duration_ms: 63.846417
+  type: 'test'
+  ...
+# {"mode":"minimal","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.transport.assess adaptive viewer enforces execution risk before the service callback
+ok 13 - sap.transport.assess adaptive viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 62.727166
+  type: 'test'
+  ...
+# {"mode":"adaptive","role":"viewer","executions":0}
+# Subtest: sap.transport.assess adaptive developer enforces execution risk before the service callback
+ok 14 - sap.transport.assess adaptive developer enforces execution risk before the service callback
+  ---
+  duration_ms: 70.941209
+  type: 'test'
+  ...
+# {"mode":"adaptive","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: sap.transport.assess single viewer enforces execution risk before the service callback
+ok 15 - sap.transport.assess single viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 48.607708
+  type: 'test'
+  ...
+# {"mode":"single","role":"viewer","executions":0}
+# Subtest: sap.transport.assess single developer enforces execution risk before the service callback
+ok 16 - sap.transport.assess single developer enforces execution risk before the service callback
+  ---
+  duration_ms: 59.937458
+  type: 'test'
+  ...
+# {"mode":"single","role":"developer","executions":0,"advertisedRisk":"write"}
+# Subtest: legacy run_unit_tests viewer enforces execution risk before the service callback
+ok 17 - legacy run_unit_tests viewer enforces execution risk before the service callback
+  ---
+  duration_ms: 8.326791
+  type: 'test'
+  ...
+# {"role":"viewer","executions":0,"advertised":false}
+# Subtest: legacy run_unit_tests developer enforces execution risk before the service callback
+ok 18 - legacy run_unit_tests developer enforces execution risk before the service callback
+  ---
+  duration_ms: 12.683875
+  type: 'test'
+  ...
+# Subtest: v1 exposes four bounded workflow prompts without accessing SAP or adding tools
+ok 19 - v1 exposes four bounded workflow prompts without accessing SAP or adding tools
+  ---
+  duration_ms: 123.197417
+  type: 'test'
+  ...
+# Subtest: compact/viewer prompts reference only available tools
+ok 20 - compact/viewer prompts reference only available tools
+  ---
+  duration_ms: 37.319834
+  type: 'test'
+  ...
+# Subtest: compact/developer prompts reference only available tools
+ok 21 - compact/developer prompts reference only available tools
+  ---
+  duration_ms: 34.039625
+  type: 'test'
+  ...
+# Subtest: compact/admin prompts reference only available tools
+ok 22 - compact/admin prompts reference only available tools
+  ---
+  duration_ms: 36.257833
+  type: 'test'
+  ...
+# Subtest: development/viewer prompts reference only available tools
+ok 23 - development/viewer prompts reference only available tools
+  ---
+  duration_ms: 40.405458
+  type: 'test'
+  ...
+# Subtest: development/developer prompts reference only available tools
+ok 24 - development/developer prompts reference only available tools
+  ---
+  duration_ms: 36.621208
+  type: 'test'
+  ...
+# Subtest: development/admin prompts reference only available tools
+ok 25 - development/admin prompts reference only available tools
+  ---
+  duration_ms: 36.234334
+  type: 'test'
+  ...
+# Subtest: assurance/viewer prompts reference only available tools
+ok 26 - assurance/viewer prompts reference only available tools
+  ---
+  duration_ms: 26.341916
+  type: 'test'
+  ...
+# Subtest: assurance/developer prompts reference only available tools
+ok 27 - assurance/developer prompts reference only available tools
+  ---
+  duration_ms: 39.325167
+  type: 'test'
+  ...
+# Subtest: assurance/admin prompts reference only available tools
+ok 28 - assurance/admin prompts reference only available tools
+  ---
+  duration_ms: 33.972916
+  type: 'test'
+  ...
+# Subtest: full/viewer prompts reference only available tools
+ok 29 - full/viewer prompts reference only available tools
+  ---
+  duration_ms: 53.314334
+  type: 'test'
+  ...
+# Subtest: full/developer prompts reference only available tools
+ok 30 - full/developer prompts reference only available tools
+  ---
+  duration_ms: 61.485083
+  type: 'test'
+  ...
+# Subtest: full/admin prompts reference only available tools
+ok 31 - full/admin prompts reference only available tools
+  ---
+  duration_ms: 74.786375
+  type: 'test'
+  ...
+# Subtest: viewer cannot retrieve source change or test-execution workflows by guessing their names
+ok 32 - viewer cannot retrieve source change or test-execution workflows by guessing their names
+  ---
+  duration_ms: 21.890417
+  type: 'test'
+  ...
+# Subtest: workflow arguments reject blank, missing and oversized values
+ok 33 - workflow arguments reject blank, missing and oversized values
+  ---
+  duration_ms: 19.540084
+  type: 'test'
+  ...
+# Subtest: v0 and empty tool selections do not advertise unusable workflow prompts
+ok 34 - v0 and empty tool selections do not advertise unusable workflow prompts
+  ---
+  duration_ms: 29.973291
+  type: 'test'
+  ...
+1..34
+# tests 34
+# suites 0
+# pass 34
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1610.736667

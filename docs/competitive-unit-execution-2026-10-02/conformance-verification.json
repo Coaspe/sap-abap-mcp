@@ -1,0 +1,152 @@
+{
+  "generatedAt": "2026-10-02T06:17:10.730720+00:00",
+  "scope": "Correct existing proposal read-only metadata validation; no contract ratification",
+  "passedLocalRegression": true,
+  "buildPassed": true,
+  "focusedTests": {
+    "passed": 25,
+    "failed": 0
+  },
+  "allTests": {
+    "passed": 695,
+    "failed": 0,
+    "skipped": 0
+  },
+  "node22FocusedTests": {
+    "passed": 25,
+    "failed": 0
+  },
+  "before": {
+    "cliExitCode": 0,
+    "passed": true,
+    "regressionFailures": 2
+  },
+  "after": {
+    "cliExitCode": 1,
+    "passed": false,
+    "failures": [
+      {
+        "kind": "read-only-tool-unverified",
+        "name": "sap.quality.unit_test"
+      },
+      {
+        "kind": "read-only-tool-unverified",
+        "name": "sap.transport.assess"
+      }
+    ],
+    "discoveryOnly": true
+  },
+  "unchangedProfileSha256": "1fc2c936db0f16492dd01d4298c2e904e76317f3cc57c7f984c5ee9d2a25a320",
+  "productionAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 4,
+    "critical": 0,
+    "total": 4
+  },
+  "nodeForgeAdvisory": {
+    "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+    "patchedVersionAtCheck": null
+  },
+  "runtimeInventoryCheck": {
+    "checked": 320,
+    "changed": [
+      "dist/src/profile-conformance.d.ts",
+      "dist/src/profile-conformance.js",
+      "dist/src/profile-conformance.js.map",
+      "src/profile-conformance.ts"
+    ],
+    "sapServingSourceAndRuntimeUnchanged": true
+  },
+  "currentDefaultRegistration": {
+    "registered": true,
+    "selectedProfile": null,
+    "serverEnvironmentKeyNames": [],
+    "defaultProfileFileExists": false,
+    "sapEnvironmentKeyNames": []
+  },
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "hostRegistrationWrites": 0,
+  "remoteWrites": 0,
+  "releasePublished": false,
+  "ciConformanceGate": "expected exit 1; not weakened or bypassed",
+  "backupPath": "/var/folders/qy/779v9b217zz30l16dh2836c00000gn/T/sap-conformance-backup-of4cgxrv",
+  "installedFiles": [
+    {
+      "path": "src/profile-conformance.ts",
+      "beforeSha256": "8faa1f06e82f0a8936ae05e7603259d163e4bda71176b0792c2a5ad05f78fcbd",
+      "afterSha256": "3dfde2ace91391f7645084b8c093ef02b47daca3bc5bdd8c8401c78c0be493a8"
+    },
+    {
+      "path": "test/profile-conformance.test.ts",
+      "beforeSha256": "7d4a46e577ae118b71ae24bc5f6870d2556642978ed5a6956980cafb3c7fc9c0",
+      "afterSha256": "0b327f5a4a82e5a0e6a681e9dd9fcd748c9aad2c4a04134b446f94087ebcc709"
+    },
+    {
+      "path": "spec/README.md",
+      "beforeSha256": "186be977a2b68f8182711d23a530d55c4994340b9d0a13a3e9263dbcb2176e7a",
+      "afterSha256": "2f88ca3a8bcd22d916e414e54f2b39f4776eb5bdf2714d04ee6d576a6ec8c753"
+    },
+    {
+      "path": "spec/GOVERNANCE.md",
+      "beforeSha256": "a5c7777aa8400cd3b5f0dece6985af5a02e6c1ed52001d798c72a9b0145993b9",
+      "afterSha256": "e2547b961493641d4c381563723c26800ccd7e322a0c1207a62c90ee7f7cc772"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "beforeSha256": "3d2cc7987ba7c50f0454780e739d885ca4f86e602e80a2c9fe4ad6bc6fa44192",
+      "afterSha256": "c3f768f82197555f056be1b8d53921d21fd712a235e6a61694171f0e2a2c2370"
+    },
+    {
+      "path": "docs/competitive-research-2026-10-01.ko.md",
+      "beforeSha256": "0f3cc390d91c99e539f88df634b9cc5f5077c0a10aa015412e950d38027a7548",
+      "afterSha256": "4117e0f04230bb3c7c642f7f96dda824dca9715de9f58b7c2f4738e4fd4b0513"
+    },
+    {
+      "path": "dist/src/profile-conformance.d.ts",
+      "beforeSha256": "329ccd3f939a38b353c7b38c33497cf49f4b91ad42e81b9d3bccd13d53e86e18",
+      "afterSha256": "4c22f74557382b03cffc29bdc547f03d92eab710cf3e22bcf60dfc5703da036e"
+    },
+    {
+      "path": "dist/src/profile-conformance.js",
+      "beforeSha256": "562bf661dcf2ede7bd5e90f5db71dfc2cbfa67573888f6c0814f3e0d90be2167",
+      "afterSha256": "0ea8a7f4d26299d3b48c2b56acca3087958e517f0d124f049a48684e12834c78"
+    },
+    {
+      "path": "dist/src/profile-conformance.js.map",
+      "beforeSha256": "51f4bb1886b45309d2bc1453800138000d3a241e2c2666341b90c00a40edc5ba",
+      "afterSha256": "dc8f7348b789c2c1d3626a326f53bccb7af38f7b65c0f9e2bb7c7b80d6c211bd"
+    },
+    {
+      "path": "dist/test/profile-conformance.test.d.ts",
+      "beforeSha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "afterSha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/test/profile-conformance.test.js",
+      "beforeSha256": "030a2ed45784a39da57d15ebf71843f3049f139b815ac6153eaa5ed4822bd28c",
+      "afterSha256": "62262b39170ef6826c80b9283b1e41bfac3dbc502487f6606c73264f495d673d"
+    },
+    {
+      "path": "dist/test/profile-conformance.test.js.map",
+      "beforeSha256": "eb71af4ca1200e3644bb6ea80f6301a0ef696af87c538496683fb29ddb61e468",
+      "afterSha256": "b575b039bc0e67916845ab7f2f2d08e9b4e94473333b124b1bf50d408112bd15"
+    }
+  ],
+  "limitations": [
+    "Read-only annotations are server claims; no live effects verified.",
+    "Current proposal contradicts two execution tools and requires governance review.",
+    "Default registration inspection does not exhaust other possible profile locations.",
+    "No independent adoption or novice first-query evidence was generated.",
+    "Previously produced MCPB previews retain their historical validator."
+  ],
+  "npmPackDryRun": {
+    "fileCount": 516,
+    "validatorAndProofIncluded": true,
+    "artifactArchivesExcluded": true,
+    "published": false
+  },
+  "finalSourceTestsPassed": true
+}

@@ -52,6 +52,12 @@ their existing locked source comparison. Clients implementing the output schema
 must account for `code` being absent only on a matching conditional response.
 The legacy v0 tool contracts are unchanged.
 
+The same retained-code pattern is available per item in
+[`sap.source.read_batch`](batch-source-reads.md#conditional-batch-rechecks-unreleased).
+Use a validator returned by that batch item; batch and individual hashes are
+different representations. A matching batch item leaves its code budget free
+for changed objects while preserving per-item failures and continuation.
+
 ## Evidence
 
 The direct and adaptive MCP protocol tests use a 200-line source fixture:

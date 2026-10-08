@@ -3,6 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
 import { AppError } from "../src/errors.js"
 import { addProfile } from "../src/index.js"
 import { ProfileStore } from "../src/profile-store.js"
@@ -124,4 +126,23 @@ test("profile add login accepts OAuth client credentials without a SAP username"
 
   assert.equal(result.profile.authType, "oauth_client_credentials")
   assert.equal(await secrets.get("BTP100"), "client-secret")
+})
+
+test("profile CLI preserves read-only scope until writes are explicitly enabled", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-readonly-cli-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const run = promisify(execFile)
+  const args = ["dist/src/index.js", "profile", "add", "DEV100", "--url", "https://sap.example.test", "--client", "100", "--username", "USER"]
+  const options = { env: { ...process.env, SAP_ABAP_MCP_HOME: directory } }
+  await run(process.execPath, [...args, "--read-only", "--packages", "Z_SAFE"], options)
+  const profiles = new ProfileStore(directory)
+  assert.equal((await profiles.get("DEV100")).readOnly, true)
+  await run(process.execPath, args, options)
+  assert.equal((await profiles.get("DEV100")).readOnly, true)
+  assert.deepEqual((await profiles.get("DEV100")).allowedPackages, ["Z_SAFE"])
+  await run(process.execPath, [...args, "--allow-writes"], options)
+  assert.equal((await profiles.get("DEV100")).readOnly, false)
+  assert.deepEqual((await profiles.get("DEV100")).allowedPackages, ["Z_SAFE"])
+  await assert.rejects(run(process.execPath, [...args, "--read-only", "--allow-writes"], options), /OPTION_CONFLICT/)
+  assert.equal((await profiles.get("DEV100")).readOnly, false)
 })

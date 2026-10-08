@@ -10,9 +10,12 @@ const withTokens = cli[0] === "--tokens"
 if (withTokens) cli.shift()
 const knownCapabilities = cli[0] === "--known-capabilities"
 if (knownCapabilities) cli.shift()
+const batchDescribe = cli[0] === "--batch-describe"
+if (batchDescribe) cli.shift()
+if (batchDescribe && !knownCapabilities) throw new Error("--batch-describe requires --known-capabilities")
 const [flag, output, ...extra] = cli
 if (flag !== undefined && (flag !== "--output" || !output || extra.length)) {
-  throw new Error("Usage: node scripts/benchmark-mcp-workflow.mjs [--tokens] [--known-capabilities] [--output path]")
+  throw new Error("Usage: node scripts/benchmark-mcp-workflow.mjs [--tokens] [--known-capabilities] [--batch-describe] [--output path]")
 }
 const encoder = withTokens ? (await import("js-tiktoken")).getEncoding("o200k_base") : undefined
 // Synthetic data only. Normalize generated UUIDs, including the textual envelope.
@@ -94,6 +97,15 @@ async function run(mode, conditional, unchangedReads) {
     assert.ok(bytes(instructions) <= 1024, "Initialization instructions must not preload a capability catalog")
     advertised = new Set(listed.tools.map(tool => tool.name))
     const schemaBytes = bytes(listed.tools)
+    if (batchDescribe) {
+      const names = ["sap.semantic.components", "sap.source.read", "sap.source.diagnose"].filter(name => !advertised.has(name))
+      if (names.length) {
+        const result = await raw("describe-batch", mode === "single" ? "sap" : "sap.capability.describe",
+          mode === "single" ? { name: "describe", arguments: { names } } : { names })
+        assert.deepEqual(result.capabilities.map(capability => capability.name), names)
+        for (const capability of result.capabilities) hashes.set(capability.name, capability.schemaHash)
+      }
+    }
     const args = { systemId: "DEV100", fileUri: "/sap/bc/adt/oo/classes/zcl_demo/source/main", limit: 20 }
     const structure = await call("components", "sap.semantic.components", args)
     assert.deepEqual(structure.components, [component])
@@ -146,9 +158,9 @@ for (const mode of ["full", "adaptive", "minimal", "single"]) {
   }
 }
 const report = {
-  schemaVersion: "2.1", fixture: "components-200-line-source-rechecks-and-diagnostics",
+  schemaVersion: "2.2", fixture: "components-200-line-source-rechecks-and-diagnostics",
   measurement: "minified UTF-8 tool schemas plus tool request parameters and complete tool results",
-  discovery: knownCapabilities ? "known-name-describe" : "search-and-describe",
+  discovery: batchDescribe ? "known-names-batch-describe" : knownCapabilities ? "known-name-describe" : "search-and-describe",
   instructionsMeasurement: "Separate minified initialization instructions field, included only in totalWithInstructions fields",
   ...(encoder ? { tokenizer: "o200k_base" } : {}),
   liveSapCalls: 0, modelCalls: 0,

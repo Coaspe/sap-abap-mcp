@@ -1,0 +1,280 @@
+{
+  "generatedAt": "2026-10-02T05:20:50.588Z",
+  "node": "24.11.1",
+  "transport": "actual stdio",
+  "discoveryOnly": true,
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "profileSha256": "1fc2c936db0f16492dd01d4298c2e904e76317f3cc57c7f984c5ee9d2a25a320",
+  "namesOnly": {
+    "profile": {
+      "id": "io.github.Coaspe/sap-abap-mcp/profile/v1",
+      "version": "1.0.0",
+      "status": "proposal"
+    },
+    "server": {
+      "name": "sap-abap-mcp",
+      "title": "SAP ABAP MCP",
+      "icons": [
+        {
+          "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "400x400"
+          ]
+        }
+      ],
+      "version": "1.7.1",
+      "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+      "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+    },
+    "requiredTools": {
+      "expected": 10,
+      "found": 10,
+      "missing": []
+    },
+    "requiredResources": {
+      "expected": 3,
+      "found": 3,
+      "missing": []
+    },
+    "failures": [],
+    "passed": true
+  },
+  "requiredReadOnlyAnnotationAudit": {
+    "passed": false,
+    "required": [
+      {
+        "name": "sap.system.list",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.system.inspect",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.repository.search",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.source.read",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.source.diagnose",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.quality.unit_test",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": false
+      },
+      {
+        "name": "sap.quality.atc.run",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.transport.inspect",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.transport.assess",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": false
+      },
+      {
+        "name": "sap.rap.availability",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      }
+    ],
+    "violations": [
+      {
+        "name": "sap.quality.unit_test",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": false
+      },
+      {
+        "name": "sap.transport.assess",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": false
+      }
+    ]
+  },
+  "candidate": {
+    "status": "local-review-draft",
+    "changedPublishedContract": false,
+    "requiredCount": 8,
+    "annotationAuditPassed": true,
+    "tools": [
+      {
+        "name": "sap.system.list",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.system.inspect",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.repository.search",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.source.read",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.source.diagnose",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.quality.atc.run",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.transport.inspect",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      },
+      {
+        "name": "sap.rap.availability",
+        "advertised": true,
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "readOnlyObligationMetByAnnotation": true
+      }
+    ]
+  },
+  "limitation": "Discovery and advertised annotations do not prove live effects, SAP authorization, safety, or independent standard adoption."
+}

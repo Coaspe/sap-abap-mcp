@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "node": "v24.11.1",
+  "platform": "darwin",
+  "environment": "Absolute host Node executable, empty PATH, standalone bundled files",
+  "claudeDesktopApplicationTested": false,
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "runs": [
+    {
+      "profiles": "empty",
+      "tools": 5,
+      "serverVersion": "1.7.1",
+      "setupServerStarted": true,
+      "noSapCalls": true,
+      "noUserConfigurationChanges": true
+    },
+    {
+      "profiles": "existing",
+      "tools": 5,
+      "serverVersion": "1.7.1",
+      "setupServerStarted": false,
+      "noSapCalls": true,
+      "noUserConfigurationChanges": true
+    }
+  ]
+}

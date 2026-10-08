@@ -1,0 +1,74 @@
+✔ v1 compatibility profile has stable proposal metadata and unique requirements (0.337708ms)
+✔ complete profile discovery passes with exact evidence counts (0.375292ms)
+✔ a missing required capability fails with its exact tool name (0.078875ms)
+✔ sap.quality.unit_test full viewer enforces execution risk before the service callback (84.60225ms)
+ℹ {"mode":"full","role":"viewer","executions":0,"advertised":false}
+✔ sap.quality.unit_test full developer enforces execution risk before the service callback (62.291ms)
+✔ sap.quality.unit_test minimal viewer enforces execution risk before the service callback (77.2395ms)
+ℹ {"mode":"minimal","role":"viewer","executions":0}
+✔ sap.quality.unit_test minimal developer enforces execution risk before the service callback (71.969583ms)
+ℹ {"mode":"minimal","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.quality.unit_test adaptive viewer enforces execution risk before the service callback (59.421209ms)
+ℹ {"mode":"adaptive","role":"viewer","executions":0}
+✔ sap.quality.unit_test adaptive developer enforces execution risk before the service callback (77.759625ms)
+ℹ {"mode":"adaptive","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.quality.unit_test single viewer enforces execution risk before the service callback (56.411334ms)
+ℹ {"mode":"single","role":"viewer","executions":0}
+✔ sap.quality.unit_test single developer enforces execution risk before the service callback (66.1135ms)
+ℹ {"mode":"single","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.transport.assess full viewer enforces execution risk before the service callback (38.28475ms)
+ℹ {"mode":"full","role":"viewer","executions":0,"advertised":false}
+✔ sap.transport.assess full developer enforces execution risk before the service callback (45.007042ms)
+✔ sap.transport.assess minimal viewer enforces execution risk before the service callback (50.164625ms)
+ℹ {"mode":"minimal","role":"viewer","executions":0}
+✔ sap.transport.assess minimal developer enforces execution risk before the service callback (58.532417ms)
+ℹ {"mode":"minimal","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.transport.assess adaptive viewer enforces execution risk before the service callback (59.716125ms)
+ℹ {"mode":"adaptive","role":"viewer","executions":0}
+✔ sap.transport.assess adaptive developer enforces execution risk before the service callback (75.01825ms)
+ℹ {"mode":"adaptive","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ sap.transport.assess single viewer enforces execution risk before the service callback (47.960333ms)
+ℹ {"mode":"single","role":"viewer","executions":0}
+✔ sap.transport.assess single developer enforces execution risk before the service callback (56.371916ms)
+ℹ {"mode":"single","role":"developer","executions":0,"advertisedRisk":"write"}
+✔ legacy run_unit_tests viewer enforces execution risk before the service callback (6.15275ms)
+ℹ {"role":"viewer","executions":0,"advertised":false}
+✔ legacy run_unit_tests developer enforces execution risk before the service callback (11.877667ms)
+✔ single gateway discovers and invokes exact schemas while enforcing risk and schema hashes (125.743ms)
+✔ single viewer gateway remains read-only and cannot discover or invoke mutation tools (77.033083ms)
+✔ single discovery errors provide a recoverable schema without reflecting supplied secrets (70.440042ms)
+✔ single gateway audits the resolved capability risk without increasing wire metadata (59.805792ms)
+✔ adaptive exposes compact tools plus five fixed discovery tools (22.819375ms)
+✔ adaptive viewer workflows use deferred capabilities without losing guidance (12.684625ms)
+✔ adaptive developer workflows use deferred capabilities without losing guidance (15.636666ms)
+✔ adaptive admin workflows use deferred capabilities without losing guidance (9.665833ms)
+✔ adaptive catalog can enumerate every implemented v1 tool without search recall (81.781667ms)
+✔ adaptive describe and invoke preserve direct tool behavior (77.617167ms)
+✔ every implemented tool is describable and routes through its matching gateway (128.294625ms)
+✔ adaptive rejects stale schemas and the wrong risk gateway (58.715084ms)
+✔ adaptive viewer sessions cannot discover or call mutation gateways (50.840959ms)
+✔ adaptive developer sessions keep ordinary destructive tools and hide admin tools (66.663708ms)
+✔ adaptive artifact calls publish evidence through the outer Resource registry (75.669083ms)
+✔ adaptive invocation audits the underlying capability name exactly once (55.72775ms)
+✔ adaptive audit extracts the underlying write arguments (57.030833ms)
+✔ adaptive finds deferred parameter features without exposing their schemas in search (57.634875ms)
+✔ capability search discovers declared enum choices without exposing input schemas (153.990166ms)
+✔ specific task words outrank generic check matches without expanding the search schema (52.1755ms)
+✔ exact capability queries return one result without weakening filters or fuzzy discovery (103.579666ms)
+✔ minimal preset exposes only gateways and can discover and invoke system listing (46.578125ms)
+✔ minimal batches known capability schemas with unchanged hashes and exact invocation (52.088791ms)
+✔ minimal batch schema descriptions preserve viewer isolation and optional output schemas (35.896583ms)
+✔ single batches known capability schemas with unchanged hashes and exact invocation (50.761542ms)
+✔ single batch schema descriptions preserve viewer isolation and optional output schemas (35.048125ms)
+✔ task discovery finds callers, dependencies and transport review without substring matches (117.830167ms)
+✔ the analysis toolset advertises 30 action-free v1 contracts (55.3345ms)
+✔ data query preserves structured and cached-view transformations (14.674667ms)
+✔ analysis adapters call shared service capabilities with fixed actions (20.228708ms)
+ℹ tests 51
+ℹ suites 0
+ℹ pass 51
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2066.471833

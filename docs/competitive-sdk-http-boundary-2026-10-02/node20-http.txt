@@ -1,0 +1,346 @@
+TAP version 13
+# Subtest: OIDC resource metadata is public, stable and creates no SAP/MCP session
+ok 1 - OIDC resource metadata is public, stable and creates no SAP/MCP session
+  ---
+  duration_ms: 67.553083
+  ...
+# Subtest: missing and invalid tokens challenge with a discoverable fixed URL exposed to allowed origins
+ok 2 - missing and invalid tokens challenge with a discoverable fixed URL exposed to allowed origins
+  ---
+  duration_ms: 11.562375
+  ...
+# Subtest: metadata retains host and browser-origin restrictions
+ok 3 - metadata retains host and browser-origin restrictions
+  ---
+  duration_ms: 9.405333
+  ...
+# Subtest: API-key-only and legacy OIDC servers do not advertise invented OAuth discovery
+ok 4 - API-key-only and legacy OIDC servers do not advertise invented OAuth discovery
+  ---
+  duration_ms: 14.372
+  ...
+# Subtest: OAuth discovery refuses unsafe URLs and missing trusted issuer before listening
+ok 5 - OAuth discovery refuses unsafe URLs and missing trusted issuer before listening
+  ---
+  duration_ms: 2.001417
+  ...
+# Subtest: SDK discovers protected metadata without a challenge for /mcp
+ok 6 - SDK discovers protected metadata without a challenge for /mcp
+  ---
+  duration_ms: 12.665625
+  ...
+# Subtest: SDK discovers protected metadata without a challenge for /sap/mcp
+ok 7 - SDK discovers protected metadata without a challenge for /sap/mcp
+  ---
+  duration_ms: 15.151583
+  ...
+# Subtest: real SDK follows discovery and PKCE, then initializes with an audience-bound signed JWT
+ok 8 - real SDK follows discovery and PKCE, then initializes with an audience-bound signed JWT
+  ---
+  duration_ms: 303.498125
+  ...
+# Subtest: CLI accepts the public resource URL flag or environment only with HTTP OIDC
+ok 9 - CLI accepts the public resource URL flag or environment only with HTTP OIDC
+  ---
+  duration_ms: 2434.781625
+  ...
+# Subtest: authenticated minimal HTTP calls refuse direct token forwarding before SAP login
+ok 10 - authenticated minimal HTTP calls refuse direct token forwarding before SAP login
+  ---
+  duration_ms: 1554.609666
+  ...
+# Subtest: authenticated single HTTP calls refuse direct token forwarding before SAP login
+ok 11 - authenticated single HTTP calls refuse direct token forwarding before SAP login
+  ---
+  duration_ms: 330.658625
+  ...
+# Subtest: an RSA-signed token from the configured issuer verifies
+ok 12 - an RSA-signed token from the configured issuer verifies
+  ---
+  duration_ms: 185.694667
+  ...
+# Subtest: an ECDSA-signed token verifies after JOSE-to-DER conversion
+ok 13 - an ECDSA-signed token verifies after JOSE-to-DER conversion
+  ---
+  duration_ms: 2.114292
+  ...
+# Subtest: a tampered payload fails signature verification
+ok 14 - a tampered payload fails signature verification
+  ---
+  duration_ms: 143.95375
+  ...
+# Subtest: issuer, audience, expiry, nbf, and subject are all enforced
+ok 15 - issuer, audience, expiry, nbf, and subject are all enforced
+  ---
+  duration_ms: 80.683
+  ...
+# Subtest: an audience array containing the expected value is accepted
+ok 16 - an audience array containing the expected value is accepted
+  ---
+  duration_ms: 185.142583
+  ...
+# Subtest: symmetric and none algorithms are refused
+ok 17 - symmetric and none algorithms are refused
+  ---
+  duration_ms: 55.711417
+  ...
+# Subtest: a token signed by an unknown key is refused
+ok 18 - a token signed by an unknown key is refused
+  ---
+  duration_ms: 534.133542
+  ...
+# Subtest: malformed tokens are rejected before any key lookup
+ok 19 - malformed tokens are rejected before any key lookup
+  ---
+  duration_ms: 135.641834
+  ...
+# Subtest: the JWKS store requires HTTPS outside loopback
+ok 20 - the JWKS store requires HTTPS outside loopback
+  ---
+  duration_ms: 0.123125
+  ...
+# Subtest: role mapping takes the highest privilege and falls back to the default
+ok 21 - role mapping takes the highest privilege and falls back to the default
+  ---
+  duration_ms: 0.53175
+  ...
+# Subtest: the authenticator returns an oidc principal with the mapped role
+ok 22 - the authenticator returns an oidc principal with the mapped role
+  ---
+  duration_ms: 150.124458
+  ...
+# Subtest: a principal is limited to its assigned SAP profiles
+ok 23 - a principal is limited to its assigned SAP profiles
+  ---
+  duration_ms: 0.287417
+  ...
+# Subtest: an OIDC token authenticates a real HTTP session and is audited as oidc
+ok 24 - an OIDC token authenticates a real HTTP session and is audited as oidc
+  ---
+  duration_ms: 127.414833
+  ...
+# Subtest: an expired token is refused by the HTTP server and audited
+ok 25 - an expired token is refused by the HTTP server and audited
+  ---
+  duration_ms: 96.145542
+  ...
+# Subtest: HTTP mode still refuses to start with neither API keys nor OIDC
+ok 26 - HTTP mode still refuses to start with neither API keys nor OIDC
+  ---
+  duration_ms: 0.090708
+  ...
+# Subtest: only credentials shaped like a generated key are accepted
+ok 27 - only credentials shaped like a generated key are accepted
+  ---
+  duration_ms: 0.069791
+  ...
+# Subtest: a peppered record verifies only with the server secret
+ok 28 - a peppered record verifies only with the server secret
+  ---
+  duration_ms: 0.241834
+  ...
+# Subtest: a key file names its own digest algorithm
+ok 29 - a key file names its own digest algorithm
+  ---
+  duration_ms: 0.266208
+  ...
+# Subtest: trailing-character trimming is linear on repetition-heavy input
+ok 30 - trailing-character trimming is linear on repetition-heavy input
+  ---
+  duration_ms: 0.087042
+  ...
+# Subtest: an API key file carries a per-person SAP profile assignment
+ok 31 - an API key file carries a per-person SAP profile assignment
+  ---
+  duration_ms: 0.176833
+  ...
+# Subtest: OIDC accepts an RFC 7518 RS256 signature
+ok 32 - OIDC accepts an RFC 7518 RS256 signature
+  ---
+  duration_ms: 86.408792
+  ...
+# Subtest: OIDC accepts an RFC 7518 RS384 signature
+ok 33 - OIDC accepts an RFC 7518 RS384 signature
+  ---
+  duration_ms: 98.911042
+  ...
+# Subtest: OIDC accepts an RFC 7518 RS512 signature
+ok 34 - OIDC accepts an RFC 7518 RS512 signature
+  ---
+  duration_ms: 108.651416
+  ...
+# Subtest: OIDC accepts an RFC 7518 PS256 signature
+ok 35 - OIDC accepts an RFC 7518 PS256 signature
+  ---
+  duration_ms: 47.778125
+  ...
+# Subtest: OIDC accepts an RFC 7518 PS384 signature
+ok 36 - OIDC accepts an RFC 7518 PS384 signature
+  ---
+  duration_ms: 61.509459
+  ...
+# Subtest: OIDC accepts an RFC 7518 PS512 signature
+ok 37 - OIDC accepts an RFC 7518 PS512 signature
+  ---
+  duration_ms: 228.32875
+  ...
+# Subtest: OIDC accepts an RFC 7518 ES256 signature
+ok 38 - OIDC accepts an RFC 7518 ES256 signature
+  ---
+  duration_ms: 0.304417
+  ...
+# Subtest: OIDC accepts an RFC 7518 ES384 signature
+ok 39 - OIDC accepts an RFC 7518 ES384 signature
+  ---
+  duration_ms: 1.46
+  ...
+# Subtest: OIDC accepts an RFC 7518 ES512 signature
+ok 40 - OIDC accepts an RFC 7518 ES512 signature
+  ---
+  duration_ms: 3.229125
+  ...
+# Subtest: OIDC rejects RSA-PSS signatures with a salt length outside JOSE
+ok 41 - OIDC rejects RSA-PSS signatures with a salt length outside JOSE
+  ---
+  duration_ms: 79.62425
+  ...
+# Subtest: OIDC rejects signatures whose key type or EC curve does not match alg
+ok 42 - OIDC rejects signatures whose key type or EC curve does not match alg
+  ---
+  duration_ms: 1.537459
+  ...
+# Subtest: OIDC respects signing-key alg and key_ops restrictions
+ok 43 - OIDC respects signing-key alg and key_ops restrictions
+  ---
+  duration_ms: 55.0815
+  ...
+# Subtest: OIDC rejects inherited object properties as JWT algorithms
+ok 44 - OIDC rejects inherited object properties as JWT algorithms
+  ---
+  duration_ms: 153.750666
+  ...
+# Subtest: concurrent OIDC HTTP scopes isolate source validators, authorization, logout and audit
+ok 45 - concurrent OIDC HTTP scopes isolate source validators, authorization, logout and audit
+  ---
+  duration_ms: 417.907667
+  ...
+# Subtest: API key files store only hashes and reject malformed records
+ok 46 - API key files store only hashes and reject malformed records
+  ---
+  duration_ms: 3.775375
+  ...
+# Subtest: bearer credentials are parsed and unknown keys resolve to no principal
+ok 47 - bearer credentials are parsed and unknown keys resolve to no principal
+  ---
+  duration_ms: 1.099333
+  ...
+# Subtest: generated API keys meet the minimum accepted length
+ok 48 - generated API keys meet the minimum accepted length
+  ---
+  duration_ms: 0.131042
+  ...
+# Subtest: role policy hides mutations from viewers and admin-only tools from developers
+ok 49 - role policy hides mutations from viewers and admin-only tools from developers
+  ---
+  duration_ms: 0.082875
+  ...
+# Subtest: an API key file is loaded from disk
+ok 50 - an API key file is loaded from disk
+  ---
+  duration_ms: 13.966917
+  ...
+# Subtest: the fixed-window rate limiter blocks past its limit and resets
+ok 51 - the fixed-window rate limiter blocks past its limit and resets
+  ---
+  duration_ms: 3.290666
+  ...
+# Subtest: the concurrency limiter serializes work beyond its bound
+ok 52 - the concurrency limiter serializes work beyond its bound
+  ---
+  duration_ms: 9.693333
+  ...
+# Subtest: HTTP mode refuses to start without at least one API key
+ok 53 - HTTP mode refuses to start without at least one API key
+  ---
+  duration_ms: 0.457458
+  ...
+# Subtest: OIDC token rotation closes the old SAP scope and reinitialization forwards the new token
+ok 54 - OIDC token rotation closes the old SAP scope and reinitialization forwards the new token
+  ---
+  duration_ms: 522.005583
+  ...
+# Subtest: healthz answers without a credential and never reveals sessions of others
+ok 55 - healthz answers without a credential and never reveals sessions of others
+  ---
+  duration_ms: 9.653541
+  ...
+# Subtest: an unauthenticated MCP request is rejected and audited
+ok 56 - an unauthenticated MCP request is rejected and audited
+  ---
+  duration_ms: 5.823084
+  ...
+# Subtest: a browser Origin header is rejected unless it is allowlisted
+ok 57 - a browser Origin header is rejected unless it is allowlisted
+  ---
+  duration_ms: 4.908416
+  ...
+# Subtest: an allowlisted Origin receives CORS headers
+ok 58 - an allowlisted Origin receives CORS headers
+  ---
+  duration_ms: 3.52825
+  ...
+# Subtest: rate limiting returns 429 with Retry-After and an audit record
+ok 59 - rate limiting returns 429 with Retry-After and an audit record
+  ---
+  duration_ms: 56.122458
+  ...
+# Subtest: a non-initialize request without a session id is rejected
+ok 60 - a non-initialize request without a session id is rejected
+  ---
+  duration_ms: 6.368417
+  ...
+# Subtest: an unknown session id is rejected with 404
+ok 61 - an unknown session id is rejected with 404
+  ---
+  duration_ms: 13.880333
+  ...
+# Subtest: a viewer session advertises only read-only tools over HTTP
+ok 62 - a viewer session advertises only read-only tools over HTTP
+  ---
+  duration_ms: 577.287625
+  ...
+# Subtest: a developer session hides admin-only tools but keeps ordinary writes
+ok 63 - a developer session hides admin-only tools but keeps ordinary writes
+  ---
+  duration_ms: 195.154417
+  ...
+# Subtest: a tool call over HTTP is audited with the session principal
+ok 64 - a tool call over HTTP is audited with the session principal
+  ---
+  duration_ms: 48.154542
+  ...
+# Subtest: a session id cannot be replayed under a different API key
+ok 65 - a session id cannot be replayed under a different API key
+  ---
+  duration_ms: 66.673917
+  ...
+# Subtest: the session limit is enforced and audited
+ok 66 - the session limit is enforced and audited
+  ---
+  duration_ms: 101.017834
+  ...
+# Subtest: oversized HTTP JSON-RPC batches are rejected before any SAP-facing tool executes
+ok 67 - oversized HTTP JSON-RPC batches are rejected before any SAP-facing tool executes
+  ---
+  duration_ms: 47.065875
+  ...
+# {"httpStatus":400,"batchMessages":101,"toolServiceReads":0}
+1..67
+# tests 67
+# suites 0
+# pass 67
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5746.984334

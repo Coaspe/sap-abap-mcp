@@ -1,0 +1,53 @@
+{
+  "researchDate": "2026-10-01",
+  "repositories": [
+    {
+      "repository": "Coaspe/sap-abap-mcp",
+      "commit": "b411037456a9f70a16e43f58bcfdf82644cf8ed5",
+      "commitDate": "2026-09-15T02:03:35Z",
+      "url": "https://github.com/Coaspe/sap-abap-mcp/commit/b411037456a9f70a16e43f58bcfdf82644cf8ed5"
+    },
+    {
+      "repository": "arc-mcp/arc-1",
+      "commit": "a1875eaa34ccee97e3d0085ed4bdb0df1e6bb88f",
+      "commitDate": "2026-09-30T04:27:22Z",
+      "url": "https://github.com/arc-mcp/arc-1/commit/a1875eaa34ccee97e3d0085ed4bdb0df1e6bb88f"
+    },
+    {
+      "repository": "williansaez/abap-adt-mcp",
+      "commit": "3a3374c12e538a1f0e193b6f7f6100efdd47a66e",
+      "commitDate": "2026-09-30T12:48:46Z",
+      "url": "https://github.com/williansaez/abap-adt-mcp/commit/3a3374c12e538a1f0e193b6f7f6100efdd47a66e"
+    },
+    {
+      "repository": "fr0ster/mcp-abap-adt",
+      "commit": "42274ca8b91698b60a55d7c5f5dcc8b7aa040864",
+      "commitDate": "2026-09-30T20:33:45Z",
+      "url": "https://github.com/fr0ster/mcp-abap-adt/commit/42274ca8b91698b60a55d7c5f5dcc8b7aa040864"
+    },
+    {
+      "repository": "abapify/openadt",
+      "commit": "17580abab24752d320a39e2b1202fb455ff02280",
+      "commitDate": "2026-08-11T23:21:30Z",
+      "url": "https://github.com/abapify/openadt/commit/17580abab24752d320a39e2b1202fb455ff02280"
+    },
+    {
+      "repository": "oisee/vibing-steampunk",
+      "commit": "9886d2727f47506368b0a3c2f1c1766f1200f747",
+      "commitDate": "2026-09-14T12:33:31Z",
+      "url": "https://github.com/oisee/vibing-steampunk/commit/9886d2727f47506368b0a3c2f1c1766f1200f747"
+    },
+    {
+      "repository": "marcellourbani/vscode_abap_remote_fs",
+      "commit": "98da7ac491c7736052e045392f56a51bb0e4ac57",
+      "commitDate": "2026-09-30T15:02:54Z",
+      "url": "https://github.com/marcellourbani/vscode_abap_remote_fs/commit/98da7ac491c7736052e045392f56a51bb0e4ac57"
+    }
+  ],
+  "publishedPackage": {
+    "version": "1.7.1",
+    "gitHead": "b411037456a9f70a16e43f58bcfdf82644cf8ed5",
+    "integrity": "sha512-H6rd4sRHI+JP8yTOIOVDXlgdYXlh4KSqhCFBe1k1UzrCw8dfqu1r4Z1EoeOgA7LMgdT8HB4PBRr5gtgRrAybWQ=="
+  },
+  "localBaseCommit": "b411037456a9f70a16e43f58bcfdf82644cf8ed5"
+}

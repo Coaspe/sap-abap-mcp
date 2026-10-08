@@ -36,7 +36,8 @@ v0. The combined v0 + v1 surface is internal to automated parity tests and is no
 
 For common workloads, prefer a curated preset: `compact` exposes 12 everyday
 read/inspect tools, `development` exposes 34 read/write/quality tools, and
-`assurance` exposes 15 read-only review tools. Presets and toolsets are mutually
+`assurance` exposes 15 review tools. ABAP Unit and transport assessment require
+execution permission and are unavailable to a viewer. Presets and toolsets are mutually
 exclusive, and presets apply only to v1.
 
 Toolsets are optional schema-budget controls, not feature levels. Select one or
