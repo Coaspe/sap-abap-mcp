@@ -1211,7 +1211,7 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 
 - Package: `@coaspe/sap-abap-mcp`
 - Checkout manifest version: `2.0.0`
-- This checkout is an unpublished 2.0.0 release candidate. Its maintained security backports and release discovery contract are documented in [vendor/README.md](vendor/README.md) and [spec/RELEASE-PROFILE.md](spec/RELEASE-PROFILE.md). Public npm installation remains on the published release until publication is approved.
+- Version 2.0.0 uses maintained security backports and an explicit release discovery contract: [vendor/README.md](vendor/README.md), [spec/RELEASE-PROFILE.md](spec/RELEASE-PROFILE.md). Checkout metadata and local validation do not prove publication; confirm the intended version in GitHub Releases and npm before installing a pinned version.
 - Install: `npx @coaspe/sap-abap-mcp@1.7.1`
 - Patch fixes: [1.7.1 release record](docs/release-1.7.1.md).
 - Source lineage and company acceptance scope: [release record](docs/release-1.7.0.md). Default CLI startup exposes five gateways; all 120 capabilities remain discoverable.
