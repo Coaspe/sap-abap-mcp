@@ -4,7 +4,7 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## 2.0.0 — 2026-10-08
 
-### Release preparation
+### Release
 
 - Preserve legacy HTML documentation responses; opt-in `format=text` provides bounded pages with `nextOffset` and `documentHash`.
 - Ship identified, source-pinned security backports for node-forge and sprintf-js; rebuild the supported Mermaid browser distribution with official KaTeX 0.18.2. Consumer installations receive the same bundled code without install scripts. These are locally maintained backports, not newly published upstream versions.

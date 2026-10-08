@@ -27,7 +27,7 @@ headless automation from any supported local MCP host.
 | Agent hosts | Codex, Claude, and other MCP clients, locally or over HTTP | MCP hosts configured against the running ADT server |
 | SAP sessions | Multiple named profiles in one process | SAP projects and sessions managed by ADT |
 | Guardrails | Production profiles are read-only; writes support package restrictions and explicit confirmations; HTTP mode adds API key roles, rate limits, and a structured audit log | Governed by the installed ADT version, SAP authorizations, and client configuration |
-| Assurance | Read-only transport assessment with JSON, SARIF, and JUnit evidence | SAP-provided in-IDE development workflows |
+| Assurance | Transport quality assessment with JSON, SARIF, and JUnit evidence; ABAP Unit requires execution permission | SAP-provided in-IDE development workflows |
 | Verification | Separates implemented, discovered, authorized, and live-verified capabilities | SAP product support and release documentation |
 
 This is a deployment-model comparison, not a capability benchmark or a claim
@@ -54,9 +54,8 @@ application's runtime, so keep that application updated.
 
 ### Recommended: guided onboarding
 
-The commands below install the published npm release (`latest`: 1.7.1 at the
-2026-10-01 check). Features marked **unreleased** require this checkout or a
-supplied preview; they are not included by running `@latest` yet.
+The commands below install the published npm release. The features described
+here are included in 2.0.0; use `@2.0.0` instead of `@latest` to pin this version.
 
 Run one command and follow the local browser wizard. It checks npm, Claude Code,
 Codex, existing `.claude` and `.codex` settings, and saved SAP profiles. It then
@@ -85,12 +84,12 @@ selected profile. Reopen your client and use it to verify a real SAP system
 read; a saved registration alone does not prove SAP access. Setup failures show
 recovery guidance without returning raw credential diagnostics. The browser
 wizard supports Basic Auth, BTP ABAP service-key import, OAuth client credentials,
-and browser OAuth PKCE in this unreleased checkout. Authentication is verified
+and browser OAuth PKCE in 2.0.0. Authentication is verified
 before protected persistence; cancellation and failed verification preserve
 existing profiles. See the [authentication guide](docs/setup-and-profiles.md)
 for prerequisites and the published CLI alternatives.
 
-The unreleased wizard provides English and Korean screens based on the browser's
+The wizard provides English and Korean screens based on the browser's
 preferred language, with a language switch before setup. This screen language is
 independent of the SAP language selected for the connection.
 
@@ -99,8 +98,8 @@ the first connection does not require a writable package. To enable changes,
 choose selected packages or explicitly allow all packages. Read-only profiles
 block SAP changes, debugger controls, ABAP execution and ABAP Unit; source
 inspection and static checks remain available subject to SAP authorization.
-Existing profiles keep their saved policy. These unreleased profiles require
-the current runtime; see [access scope and upgrades](docs/setup-and-profiles.md#access-scope-in-this-checkout).
+Existing profiles keep their saved policy. These profiles require
+2.0.0 or newer; see [access scope and upgrades](docs/setup-and-profiles.md#access-scope-in-this-checkout).
 
 This checkout also compares an existing registration with the selected profile,
 current executable and profile directory before finishing. Different or unreadable
@@ -110,14 +109,14 @@ startup options and permissions remain under your control. See
 
 ### Claude Desktop without a separate Node installation
 
-The local MCPB preview uses Claude Desktop's built-in Node runtime. Installing
+The 2.0.0 MCPB bundle uses Claude Desktop's built-in Node runtime. Installing
 it opens the same SAP browser setup when no profiles exist, without requiring
 Claude Code, Codex CLI, npm or a duplicate MCP registration. Existing profiles
 skip automatic setup. Enable the extension's **Open SAP setup on startup**
 setting to renew credentials or add another connection, then turn it off after
 finishing. Follow [desktop bundle setup](docs/desktop-bundle-setup.md).
-This checkout's bundle changes are unpublished and actual Claude Desktop
-installation/live SAP acceptance remain unverified.
+Download the bundle and checksum from the [2.0.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.0).
+Actual Claude Desktop installation and live SAP acceptance remain unverified.
 
 ### Manual setup
 
@@ -189,7 +188,7 @@ tokens, or other confidential information in a public issue or discussion.
 ### Current v1 surface
 
 The v1 catalog contains 120 action-specific tools and seven Resources.
-Unreleased local CLI builds default to the `minimal` preset: five discovery/invocation tools. Other capabilities are loaded on demand.
+The 2.0.0 CLI defaults to the `minimal` preset: five discovery/invocation tools. Other capabilities are loaded on demand.
 Use `--toolsets all` to advertise the complete catalog directly. Use `--api-version v0` only for legacy
 client compatibility, or select toolsets explicitly when a host should
 advertise fewer schemas.
@@ -883,7 +882,9 @@ The equivalent environment variables are `SAP_ABAP_MCP_OIDC_ISSUER`,
 `SAP_ABAP_MCP_OIDC_AUDIENCE`, `SAP_ABAP_MCP_OIDC_JWKS_URI`, and
 `SAP_ABAP_MCP_OIDC_ROLE_MAP`.
 
-#### MCP OAuth discovery (unreleased)
+<a id="mcp-oauth-discovery-unreleased"></a>
+
+#### MCP OAuth discovery
 
 For OAuth-aware HTTP clients, set `--oauth-resource-url` to the reviewed public
 HTTPS MCP endpoint. The client can discover the existing identity provider from
@@ -950,7 +951,7 @@ list it in their `systemIds`. Then:
 Omitting `systemIds` keeps every configured profile reachable, which is the
 single-identity default. SAP logins stay pooled across sessions.
 
-Unreleased compatibility change: direct `bearer-passthrough` profiles now fail
+2.0.0 compatibility change: direct `bearer-passthrough` profiles now fail
 with `TOKEN_PASSTHROUGH_REFUSED` before any SAP client is created. The
 [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#access-token-privilege-restriction)
 requires a separate upstream credential. Saved legacy profiles remain readable;
@@ -959,8 +960,7 @@ they report no usable credential and are neither deleted nor converted.
 Use independently authenticated SAP profiles, or configure the experimental
 [BTP Destination exchange/propagation profile](docs/btp-destination-integration.md)
 with the administrator. `profile add` no longer accepts `--auth-type bearer-passthrough`,
-and `auth login` cannot repair that mode. This change is in the local checkout,
-not a claim about the currently published npm release.
+and `auth login` cannot repair that mode. This compatibility change applies to 2.0.0.
 
 ### 6. Transport security
 
@@ -1031,12 +1031,12 @@ lower-level composition, the same entry exports `createMcpServer`,
 
 ## Token-efficient operation
 
-The unreleased checkout pins MCP SDK 1.31.0. Its upstream transport rejects HTTP
+Version 2.0.0 pins MCP SDK 1.31.0. Its upstream transport rejects HTTP
 JSON-RPC batches above 100 messages before tool execution; the server's existing
 4 MiB request-body limit remains. This counts protocol messages, separately from HTTP request rate limits and
 `sap.source.read_batch` object bounds. Local regression verifies rejection and
-subsequent session usability;
-this does not make the remaining dependency audit clean.
+subsequent session usability. The production dependency audit and installed
+security-backport verification are separate release checks.
 
 The server is designed to keep model context usage bounded without removing useful data:
 
@@ -1062,7 +1062,7 @@ The server is designed to keep model context usage bounded without removing usef
 
 The complete 53-tool, 150-variant review and fixture measurements are in [`docs/response-token-audit.md`](docs/response-token-audit.md). Re-run `npm run benchmark:surface` for a machine-readable schema-cost report and `npm run benchmark:workflow` for [complete synthetic workflow payload costs](docs/workflow-cost-benchmark.md); see [`docs/compatibility-matrix.md`](docs/compatibility-matrix.md) for the live-evidence boundary.
 
-For several small source ranges, [conditional batch rechecks](docs/batch-source-reads.md#conditional-batch-rechecks-unreleased) reuse retained code while freshly checking every scheduled object. Run `npm run benchmark:conditional-batch -- --tokens` to compare full/conditional individual and batch workflows, including descriptions and first-read overhead. Default minimal mode still advertises five tools; estimates are separate from live SAP and billed model usage.
+For several small source ranges, [conditional batch rechecks](docs/batch-source-reads.md#conditional-batch-rechecks) reuse retained code while freshly checking every scheduled object. Run `npm run benchmark:conditional-batch -- --tokens` to compare full/conditional individual and batch workflows, including descriptions and first-read overhead. Default minimal mode still advertises five tools; estimates are separate from live SAP and billed model usage.
 
 For a known full-source URI, hosts with a native MCP Resource reader can use the
 existing `sap-adt-source` template. In the same 200-line offline replay this
@@ -1187,7 +1187,7 @@ Removing a profile also removes its SAP password or OAuth client secret and stor
 | RAP generator is unavailable | The SAP release or installed components may not expose the RAP generator endpoints. |
 | Private Git access fails | Store credentials for the exact canonical repository URL. |
 
-Browser SSO-only, MFA-only, certificate-only, and Kerberos-only SAP systems are not supported by this release. Use Basic Auth or an explicitly configured OAuth client-credentials client accepted by the ADT endpoint.
+Browser OAuth requires an explicitly registered client and ADT authorization. A browser-only SAML login does not establish that OAuth is available. Certificate-only, Kerberos-only, and unsupported SSO configurations require a supported independent SAP credential.
 
 ## Local development
 
@@ -1212,12 +1212,12 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 - Package: `@coaspe/sap-abap-mcp`
 - Checkout manifest version: `2.0.0`
 - Version 2.0.0 uses maintained security backports and an explicit release discovery contract: [vendor/README.md](vendor/README.md), [spec/RELEASE-PROFILE.md](spec/RELEASE-PROFILE.md). Checkout metadata and local validation do not prove publication; confirm the intended version in GitHub Releases and npm before installing a pinned version.
-- Install: `npx @coaspe/sap-abap-mcp@1.7.1`
+- Install: `npx @coaspe/sap-abap-mcp@2.0.0`
 - Patch fixes: [1.7.1 release record](docs/release-1.7.1.md).
 - Source lineage and company acceptance scope: [release record](docs/release-1.7.0.md). Default CLI startup exposes five gateways; all 120 capabilities remain discoverable.
 - Runtime: minimum compatible Node.js 20; use a maintained LTS release (currently 22 or 24)
 - Transport: local MCP over stdio by default; opt-in self-hosted Streamable HTTP
-- SAP authentication: SAP Basic Auth by default; opt-in OAuth client credentials or browser Authorization Code with PKCE. The unreleased checkout adds experimental BTP Destination exchange/propagation and refuses legacy direct OIDC token forwarding.
+- SAP authentication: SAP Basic Auth by default; opt-in OAuth client credentials or browser Authorization Code with PKCE. Version 2.0.0 adds experimental BTP Destination exchange/propagation and refuses legacy direct OIDC token forwarding.
 - HTTP client authentication: mandatory Bearer API keys with viewer/developer/admin roles
 - Secret storage: macOS Keychain, Windows DPAPI, or read-only environment variables on Linux
 - SAP API client: `abap-adt-api` 8.4.1
