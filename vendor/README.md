@@ -2,9 +2,9 @@
 
 These private source distributions preserve this project's SAP SDK 4.9.1 and ADT 8.4.1 support while upstream security releases are unavailable. They retain the upstream licenses and use distinct `@coaspe/*-security-backport` names. They are not official upstream releases.
 
-- node-forge: the 1.4.0 registry source receives the nested DigestAlgorithm count and empty NULL checks reviewed in upstream PR 1157, commit `683ab3344899cc08a581e4d5675a33e87aff7b04`. Its RSA, PSS, native signature and PKCS12 behavior is regression tested. The full upstream unit suite passes 837 tests, with four upstream pending tests.
+- node-forge: the 1.4.0 registry source receives the nested DigestAlgorithm count and empty NULL checks reviewed in upstream PR 1157, commit `683ab3344899cc08a581e4d5675a33e87aff7b04`. Its RSA, PSS, native signature and PKCS12 behavior is regression tested. PEM message/header parsing uses fixed boundaries to avoid polynomial backtracking. HTTP cookie maps use null prototypes, including restored path maps. The full upstream unit suite passes 837 tests, with four upstream pending tests.
 - sprintf-js: the 1.1.3 source clamps numeric e/f/g precision to the ECMAScript-supported range. Normal SAP URI `%s` substitution and valid numeric formats retain their behavior.
-- Mermaid: retain the 11.16.1 core ESM runtime and declarations, depend on official KaTeX 0.18.2, and rebuild `assets/mermaid.min.js`. Old browser bundles containing KaTeX 0.16.x are excluded. The single reviewed browser asset is also included in the standalone MCPB bundle.
+- Mermaid: retain the 11.16.1 core ESM runtime and declarations, depend on official KaTeX 0.18.2, and rebuild `assets/mermaid.min.js`. Old browser bundles containing KaTeX 0.16.x are excluded. The single reviewed browser asset is also included in the standalone MCPB bundle. CSS marker URLs escape backslashes before parentheses.
 
 `security-backports.json` records registry tarball integrity, the changed runtime hashes and patch scope. Parent SDK/ADT packages and their patched descendants are bundled so fresh consumer installations use the same code even with `--ignore-scripts`. No npm override, audit exception, postinstall patch or fabricated upstream version is used.
 

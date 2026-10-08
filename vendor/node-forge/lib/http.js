@@ -49,7 +49,12 @@ var _loadCookies = function(client) {
       var cookies = forge.util.getItem(
         client.socketPool.flashApi,
         _getStorageId(client), 'cookies');
-      client.cookies = cookies || {};
+      client.cookies = Object.create(null);
+      if(cookies) {
+        Object.keys(cookies).forEach(function(name) {
+          client.cookies[name] = Object.assign(Object.create(null), cookies[name]);
+        });
+      }
     } catch(ex) {
       // no flash storage available, just silently fail
       // TODO: i assume we want this logged somewhere or
@@ -474,7 +479,7 @@ http.createClient = function(options) {
     secure: (url.protocol === 'https:'),
     // cookie jar (key'd off of name and then path, there is only 1 domain
     // and one setting for secure per client so name+path is unique)
-    cookies: {},
+    cookies: Object.create(null),
     // default to flash storage of cookies
     persistCookies: (typeof(options.persistCookies) === 'undefined') ?
       true : options.persistCookies
@@ -691,7 +696,7 @@ http.createClient = function(options) {
 
         // add new cookie
         if(!(cookie.name in client.cookies)) {
-          client.cookies[cookie.name] = {};
+          client.cookies[cookie.name] = Object.create(null);
         }
         client.cookies[cookie.name][cookie.path] = cookie;
         rval = true;
@@ -779,7 +784,7 @@ http.createClient = function(options) {
    * Clears all cookies stored in this client.
    */
   client.clearCookies = function() {
-    client.cookies = {};
+    client.cookies = Object.create(null);
     _clearCookies(client);
   };
 
@@ -798,7 +803,7 @@ http.createClient = function(options) {
  * @return the trimmed string.
  */
 var _trimString = function(str) {
-  return str.replace(/^\s*/, '').replace(/\s*$/, '');
+  return str.trim();
 };
 
 /**

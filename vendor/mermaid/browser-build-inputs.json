@@ -20787,7 +20787,7 @@
       "format": "esm"
     },
     "vendor/mermaid/dist/chunks/mermaid.core/chunk-7Z6QIM7H.mjs": {
-      "bytes": 56104,
+      "bytes": 56127,
       "imports": [
         {
           "path": "vendor/mermaid/dist/chunks/mermaid.core/chunk-QR6OTTB3.mjs",
@@ -42687,7 +42687,7 @@
     }
   },
   "outputs": {
-    "vendor/mermaid/dist/mermaid.min.js": {
+    "assets/mermaid.min.js": {
       "imports": [],
       "exports": [],
       "entryPoint": "vendor/mermaid/dist/mermaid.core.mjs",
@@ -43674,7 +43674,7 @@
           "bytesInOutput": 2121
         },
         "vendor/mermaid/dist/chunks/mermaid.core/chunk-7Z6QIM7H.mjs": {
-          "bytesInOutput": 33958
+          "bytesInOutput": 33980
         },
         "node_modules/lodash-es/_freeGlobal.js": {
           "bytesInOutput": 98
@@ -44898,7 +44898,7 @@
           "bytesInOutput": 109
         }
       },
-      "bytes": 3455329
+      "bytes": 3455351
     }
   }
 }

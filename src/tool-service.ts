@@ -1,3 +1,4 @@
+import { parseFragment } from "parse5"
 import { createHash, randomUUID } from "node:crypto"
 import { execFile } from "node:child_process"
 import { mkdir, mkdtemp, stat, writeFile } from "node:fs/promises"
@@ -1119,8 +1120,22 @@ function parseAdtLocation(value: string, explicitConnectionId?: string) {
   )
 }
 
+function uriWithoutQueryAndFragment(value: string): string {
+  const query = value.indexOf("?")
+  const fragment = value.indexOf("#")
+  const end = Math.min(query < 0 ? value.length : query, fragment < 0 ? value.length : fragment)
+  return value.slice(0, end)
+}
+
+function sourceUriPath(value: string): string {
+  const path = uriWithoutQueryAndFragment(value)
+  let end = path.length
+  while (end > 0 && path[end - 1] === "/") end--
+  return path.slice(0, end)
+}
+
 function objectUriFromSourceUri(sourceUri: string): string {
-  const withoutQuery = sourceUri.replace(/[?#].*$/, "").replace(/\/+$/, "")
+  const withoutQuery = sourceUriPath(sourceUri)
   const classInclude = withoutQuery.match(
     /^(\/sap\/bc\/adt\/oo\/(?:classes|interfaces)\/[^/]+)\/includes\/[^/]+$/i
   )
@@ -1129,7 +1144,7 @@ function objectUriFromSourceUri(sourceUri: string): string {
 }
 
 function syntaxObjectUriFromSourceUri(objectUri: string, sourceUri: string): string {
-  const normalized = sourceUri.replace(/[?#].*$/, "").replace(/\/+$/, "")
+  const normalized = sourceUriPath(sourceUri)
   return /^\/sap\/bc\/adt\/oo\/(?:classes|interfaces)\/[^/]+\/includes\/[^/]+$/i
     .test(normalized)
     ? normalized
@@ -1143,7 +1158,7 @@ function canonicalActivationUri(value: unknown): string | undefined {
 
   if (candidate.startsWith("/")) {
     if (candidate.startsWith("//")) return undefined
-    encodedPath = candidate.replace(/[?#].*$/, "")
+    encodedPath = uriWithoutQueryAndFragment(candidate)
   } else {
     let parsed: URL
     try {
@@ -1398,20 +1413,22 @@ function changeAssuranceError(
 }
 
 function stripHtml(html: string): string {
-  return html
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>|<\/div>|<\/li>|<\/h[1-6]>/gi, "\n")
-    .replace(/<li[^>]*>/gi, "- ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, "\"")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim()
+  const text: string[] = []
+  const pending = [...parseFragment(html).childNodes].reverse()
+  while (pending.length) {
+    const node = pending.pop()!
+    if (node.nodeName === "#text" && "value" in node) text.push(node.value)
+    if (!("tagName" in node)) continue
+    if (node.tagName === "script" || node.tagName === "style") continue
+    if (node.tagName === "br") text.push("\n")
+    if (node.tagName === "li") text.push("- ")
+    // Block boundaries apply before the next sibling, after this node's text.
+    if (["p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6"].includes(node.tagName)) {
+      pending.push({ nodeName: "#text", value: "\n", parentNode: null })
+    }
+    for (let index = node.childNodes.length - 1; index >= 0; index--) pending.push(node.childNodes[index]!)
+  }
+  return text.join("").replaceAll("\u00a0", " ").replace(/\n{3,}/g, "\n\n").trim()
 }
 
 export class AbapToolService {
@@ -1848,7 +1865,7 @@ export class AbapToolService {
       }
       const definitionName = input.definitionName?.toUpperCase() ?? object.name
       const source = await client.readSourceByUri(input.definitionName ? location.path : objectUri, "active")
-      if (input.definitionName && location.path !== objectUri && source.sourceUri !== location.path.replace(/[?#].*$/, "")) {
+      if (input.definitionName && location.path !== objectUri && source.sourceUri !== uriWithoutQueryAndFragment(location.path)) {
         throw new AppError("SAP_VALIDATION_FAILED", "Public definition source differs from the requested source", { reason: "DEFINITION_SOURCE_MISMATCH" })
       }
       const declarations = await this.parsePublicApi(source.source, definitionName)
@@ -1912,7 +1929,7 @@ export class AbapToolService {
           let relatedSource
           let contract
           if (local) {
-            const target = (definition.url ?? "").replace(/[?#].*$/, "")
+            const target = uriWithoutQueryAndFragment(definition.url ?? "")
             if (target === source.sourceUri && ref.name === definitionName) {
               relatedContracts.push({ ...ref, uri, status: "already_included" })
               continue

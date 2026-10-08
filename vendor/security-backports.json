@@ -31,14 +31,22 @@
     },
     "mermaid": {
       "advisory": "GHSA-238p-pmpm-9mq7",
-      "changes": "Use official KaTeX 0.18.2 and rebuild the standalone browser bundle from the supported core ESM entry. Remove old prebundled KaTeX copies.",
+      "changes": "Use official KaTeX 0.18.2 and rebuild the standalone browser bundle from the supported core ESM entry. Remove old prebundled KaTeX copies. Escape backslashes before CSS URL parentheses.",
       "builder": "esbuild 0.27.2"
+    },
+    "pem": {
+      "changes": "Use fixed message boundaries and linear header parsing to prevent polynomial regex backtracking; preserve encrypted and multi-message PEM."
+    },
+    "forgeHttp": {
+      "changes": "Use null-prototype cookie maps including loaded path maps; trim header whitespace with the built-in linear operation."
     }
   },
   "runtimeHashes": {
     "rsa": "ff1d46675dbf07c80b438381c0a41b9b16ae3d4c84d103b1e9f067ad4a9c00fe",
     "sprintf": "41c1cae8166179dd7a3f7bdb9e826c007af68188e79e7e8bfed5f73e1ffda0ac",
-    "mermaidBrowser": "dc11eac843f3a53a6a373b0789d6204c01917cb0f3b6a8138618ed135969c129"
+    "mermaidBrowser": "0067641addeec27b9b3c7b3ab82720d3b0404c61e18e45a723d03d803e983a31",
+    "pem": "1a8144822e6c09d7599687bdbcb7f067718078ac2f660e9d16eb522ad0e67a1f",
+    "forgeHttp": "ec30498452f19340cbee73c67cba1d5925f20caecbfd067c6ba1a03f1beeb4b4"
   },
   "reviewedUpstreamAdvisories": {
     "GHSA-86w9-cpqp-85rv": {

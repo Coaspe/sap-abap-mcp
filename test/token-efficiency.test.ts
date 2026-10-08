@@ -754,3 +754,15 @@ test("batch stops scheduling later groups after the code budget is exhausted", a
     assert.deepEqual(item.request, requests[index + 4])
   }
 })
+
+
+test("documentation HTML parser handles malformed closing tags and decodes entities once", async () => {
+  const service = createService('<html><style>hide-style</style ><script>hide-script</script foo="bar"><p>kept &amp;lt; &lt; &quot; &#x1F600;</p><!-- hidden --!><p>tail</p></html>')
+  const result = await service.inspectCode({
+    connectionId: "DEV100", fileUri: `adt://DEV100${object.uri}/source/main`,
+    action: "documentation", line: 1, column: 0,
+    implementation: false, startIndex: 0, maxResults: 50,
+    documentationFormat: "text"
+  }) as any
+  assert.equal(result.content, 'kept &lt; < " 😀\ntail')
+})
