@@ -28,7 +28,7 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const readme = readText("README.md")
   const directoryReference = readText("docs/mcp-directory-submissions.md")
 
-  assert.equal(packageJson.version, "2.0.0")
+  assert.equal(packageJson.version, "2.0.1")
   assert.ok(readme.includes("Checkout manifest version: `" + packageJson.version + "`"))
   assert.ok(
     directoryReference.includes("Current source release: `" + packageJson.version + "`")
