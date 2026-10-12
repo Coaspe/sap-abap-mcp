@@ -8,13 +8,12 @@ versions observed for `@sap-cloud-sdk/connectivity` and
 `@sap-cloud-sdk/http-client` were both 4.9.1. The linked repository main sources
 are architectural evidence, not a claim that they exactly match those archives.
 
-## Experimental local checkout usage
+## Experimental usage in 2.0.0 and newer
 
-Build this checkout, then create a Destination profile without a stored password:
+Create a Destination profile with the published package, without a stored password:
 
 ```sh
-npm run build
-node dist/src/index.js profile add BTP100 --url https://your-abap-host --client 100 --auth-type btp-destination --destination-name ABAP_DEV --destination-auth OAuth2UserTokenExchange
+npx -y @coaspe/sap-abap-mcp@2.0.1 profile add BTP100 --url https://your-abap-host --client 100 --auth-type btp-destination --destination-name ABAP_DEV --destination-auth OAuth2UserTokenExchange
 ```
 
 For Cloud Connector, select `--destination-auth PrincipalPropagation` and the
@@ -29,8 +28,8 @@ The HTTP session creates a private ADT client using the refreshing Destination
 transport. Shared/direct connections and API-key-only or stdio requests cannot
 use this profile. `profile add --login` and `auth login` reject it with an OIDC
 session instruction. Browser onboarding handles Basic, service-key and OAuth profiles;
-use the CLI for this request-scoped Destination mode. This command is for the local checkout,
-not a claim that the published npm release contains it.
+use the CLI for this request-scoped Destination mode. The integration is included
+in 2.0.0 and newer; live BTP token exchange and SAP access remain unverified.
 
 CLI/profile and manager tests verify persistence, local-login rejection, absence
 of stored-password reads, and separate ownership for two users. They do not
@@ -39,8 +38,8 @@ prove live token exchange, Cloud Connector reachability or SAP permissions.
 For local setup checks, run:
 
 ```sh
-node dist/src/index.js auth status BTP100
-node dist/src/index.js doctor BTP100
+npx -y @coaspe/sap-abap-mcp@2.0.1 auth status BTP100
+npx -y @coaspe/sap-abap-mcp@2.0.1 doctor BTP100
 ```
 
 `auth status` identifies HTTP OIDC as the credential source and states that no

@@ -1,6 +1,6 @@
 # 2.0.0 릴리즈 준비 — 2026-10-08
 
-이 문서는 원본 작업 공간의 로컬 준비 및 설치 검증 기록이다. 공개 배포는 별도 승인과 해당 커밋의 GitHub CI 통과 후 수행한다. npm 2.0.0을 게시하지 않았다. GitHub CI 상태는 검토 PR에서 별도로 확인한다.
+이 문서는 2026-10-08 공개 배포 전 준비 시점의 기록이다. 그 후 승인과 CI 통과를 거쳐 [npm 2.0.0](https://www.npmjs.com/package/@coaspe/sap-abap-mcp/v/2.0.0), [GitHub v2.0.0](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.0), MCP Registry에 게시했다. 아래 준비 결과는 당시 기록으로 보존하며, 현재 설치 안내는 [README](../README.md)를 따른다.
 
 ## 완료한 수정과 검증
 

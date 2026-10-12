@@ -1,13 +1,14 @@
 # Default mode and workflow token costs
 
-The unreleased local CLI and new browser registrations default to `minimal`:
+The published 2.x CLI and new browser registrations default to `minimal`:
 five gateways and 880 fixed tool-schema tokens with `o200k_base` in the
 2026-10-01 checkout. The earlier 2026-09-08 measurements below used 883. Explicit
 `--preset adaptive` keeps 12 common direct tools plus those gateways (6,580
 tokens). Both expose the same role-filtered capabilities, prompts and resources.
 Library embedding retains its full direct default. Existing registrations with
 an explicit preset keep it; an unversioned local `serve` command uses the new
-default on restart. The published npm package has not changed.
+default on restart. The default is included in 2.0.0 and newer; the dated
+measurements below remain historical synthetic results, not billed model usage.
 
 ## Measured workflow
 

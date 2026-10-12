@@ -6,9 +6,9 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Current source release: `2.0.0`
-- npm published version: `1.6.0` (`latest`, verified 2026-09-07)
-- Source and npm release history differ; see [release source audit](release-source-audit-2026-09-07.md) before submitting an update.
+- Current source release: `2.0.1`
+- Release package: `@coaspe/sap-abap-mcp@2.0.1` (documentation-only patch to 2.0.0)
+- The historical [release source audit](release-source-audit-2026-09-07.md) describes the earlier 1.x source reconciliation; it is not the current release status.
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
 - License: MIT
@@ -23,7 +23,7 @@ Short description:
 
 Long description:
 
-> SAP ABAP MCP is a headless, client-neutral, governance-first Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. Its unreleased local v1 default exposes five discovery/invocation gateways, with 120 capabilities and seven Resources for source and structured DDIC work, semantic and enhancement inspection, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, profiled execution, runtime feeds, optional classic Screen/GUI Status access, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain, Windows DPAPI, or profile-specific environment variables on Linux. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
+> SAP ABAP MCP is a headless, client-neutral, governance-first Model Context Protocol server for ABAP development through SAP's ABAP Development Tools HTTP services. Its published 2.x v1 default exposes five discovery/invocation gateways, with 120 capabilities and seven Resources for source and structured DDIC work, semantic and enhancement inspection, activation, ABAP Unit and ATC, transports, abapGit, RAP generation, profiled execution, runtime feeds, optional classic Screen/GUI Status access, cross-system comparison, dependency analysis, and guarded refactoring. SAP profiles and credentials remain on the user's computer in macOS Keychain, Windows DPAPI, or profile-specific environment variables on Linux. SAP-dependent capabilities require validation against the user's own SAP release, configuration, and authorizations.
 
 ## Generic local installation
 
@@ -52,7 +52,25 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 - Network traffic goes directly from the user's computer to the configured SAP system and to npm when `npx` installs or updates the package.
 - Automated tests use an in-memory SAP implementation. SAP-dependent capabilities remain `unverified` until they succeed against the selected live SAP connection.
 
-## Submission status (2026-08-19)
+## 2.x release distribution
+
+| Target | Release | Verification |
+|---|---|---|
+| npm | 2.0.1 documentation patch | [Public package](https://www.npmjs.com/package/@coaspe/sap-abap-mcp/v/2.0.1); published through the provenance-enabled [Publish npm](../.github/workflows/publish-npm.yml) workflow |
+| Official MCP Registry | 2.0.1 | [io.github.Coaspe/sap-abap-mcp](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp); the npm package version must match `server.json` |
+| GitHub Release | v2.0.1 | [Release notes, MCPB and SHA-256 checksum](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.1) |
+
+The 2.0.0 release was published on 2026-10-08. Version 2.0.1 corrects the
+installation and distribution documentation without changing runtime code or
+dependencies. Release publication does not establish live SAP/BTP acceptance or
+update third-party directories. Verify each directory's public version and tool
+catalog independently; the historical statuses below are not current claims.
+
+## Historical submission snapshot (2026-08-19)
+
+The following table preserves the earlier submission record, including later
+1.x updates. Use the 2.x release links above for current installation; do not
+reuse the older version or tool-count claims as a new submission description.
 
 | Target | Status | Evidence or next action |
 |---|---|---|
