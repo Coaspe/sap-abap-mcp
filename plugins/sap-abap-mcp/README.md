@@ -4,7 +4,7 @@ This plugin starts [`@coaspe/sap-abap-mcp`](https://www.npmjs.com/package/@coasp
 
 ## Prerequisites
 
-- Node.js 20 or later
+- A maintained Node.js LTS release (22 or 24); minimum compatible version: 20
 - A reachable SAP system with ADT services enabled
 - The SAP URL, client number, username, environment classification, and optional package allowlist
 
@@ -33,7 +33,7 @@ npx @coaspe/sap-abap-mcp@latest setup remove DEV100
 
 Use `/mcp` to confirm that the plugin process is connected. That status alone does not prove that SAP authentication succeeded; the setup skill runs `doctor` for live ADT verification.
 
-OAuth client credentials and browser OAuth Authorization Code with PKCE are explicit advanced profile types; the wizard continues to create Basic Auth profiles. Ask the setup skill for the local `profile add --auth-type oauth-client-credentials|oauth-authorization-code` workflow. Browser login requires macOS Keychain or Windows DPAPI; Linux's environment-only store cannot safely persist token rotation. Client secrets or browser tokens stay in the protected local secret store, and access tokens are never placed in MCP arguments. A self-hosted OIDC HTTP deployment can instead use an explicit `bearer-passthrough` profile when SAP accepts the same user token.
+OAuth client credentials and browser OAuth Authorization Code with PKCE are explicit advanced profile types; the wizard continues to create Basic Auth profiles. Ask the setup skill for the local `profile add --auth-type oauth-client-credentials|oauth-authorization-code` workflow. Browser login requires macOS Keychain or Windows DPAPI; Linux's environment-only store cannot safely persist token rotation. Client secrets or browser tokens stay in the protected local secret store, and access tokens are never placed in MCP arguments. Since 2.0.0, direct `bearer-passthrough` profiles are refused with `TOKEN_PASSTHROUGH_REFUSED`. Use independent SAP credentials or the experimental [BTP Destination exchange/propagation flow](../../docs/btp-destination-integration.md), whose infrastructure and SAP authorizations require separate verification.
 
 ## Assess a transport before release
 

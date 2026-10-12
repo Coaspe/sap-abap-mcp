@@ -55,7 +55,7 @@ application's runtime, so keep that application updated.
 ### Recommended: guided onboarding
 
 The commands below install the published npm release. The features described
-here are included in 2.0.0; use `@2.0.0` instead of `@latest` to pin this version.
+here are included in 2.0.0; use `@2.0.1` instead of `@latest` to pin this version.
 
 Run one command and follow the local browser wizard. It checks npm, Claude Code,
 Codex, existing `.claude` and `.codex` settings, and saved SAP profiles. It then
@@ -115,7 +115,7 @@ Claude Code, Codex CLI, npm or a duplicate MCP registration. Existing profiles
 skip automatic setup. Enable the extension's **Open SAP setup on startup**
 setting to renew credentials or add another connection, then turn it off after
 finishing. Follow [desktop bundle setup](docs/desktop-bundle-setup.md).
-Download the bundle and checksum from the [2.0.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.0).
+Download the bundle and checksum from the [2.0.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.1).
 Actual Claude Desktop installation and live SAP acceptance remain unverified.
 
 ### Manual setup
@@ -399,12 +399,12 @@ Registry publication does not change the live-evidence boundary. SAP-dependent d
 The public [Smithery listing](https://smithery.ai/servers/aspalt85/sap-abap-mcp)
 uses a local MCPB bundle. This checkout's catalog contains five gateway tools
 and seven Resources, synchronized with the runtime before publication.
-The unpublished checkout does not establish the public listing's version or catalog.
+Publishing npm and GitHub releases does not update the public listing's version or catalog.
 
 The public [LobeHub listing](https://lobehub.com/mcp/coaspe-sap-abap-mcp)
 uses the owner-validated [`lhm.plugin.json`](lhm.plugin.json) manifest. The
 local manifest advertises the same default five gateway tools. Public listing
-version and catalog must be verified separately before release.
+version and catalog require independent verification.
 
 ## Privacy Policy
 
@@ -1210,9 +1210,9 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Checkout manifest version: `2.0.0`
+- Checkout manifest version: `2.0.1`
 - Version 2.0.0 uses maintained security backports and an explicit release discovery contract: [vendor/README.md](vendor/README.md), [spec/RELEASE-PROFILE.md](spec/RELEASE-PROFILE.md). Checkout metadata and local validation do not prove publication; confirm the intended version in GitHub Releases and npm before installing a pinned version.
-- Install: `npx @coaspe/sap-abap-mcp@2.0.0`
+- Install: `npx @coaspe/sap-abap-mcp@2.0.1`
 - Patch fixes: [1.7.1 release record](docs/release-1.7.1.md).
 - Source lineage and company acceptance scope: [release record](docs/release-1.7.0.md). Default CLI startup exposes five gateways; all 120 capabilities remain discoverable.
 - Runtime: minimum compatible Node.js 20; use a maintained LTS release (currently 22 or 24)
