@@ -109,13 +109,13 @@ startup options and permissions remain under your control. See
 
 ### Claude Desktop without a separate Node installation
 
-The 2.0.0 MCPB bundle uses Claude Desktop's built-in Node runtime. Installing
+The 2.0.1 MCPB bundle uses Claude Desktop's built-in Node runtime. Installing
 it opens the same SAP browser setup when no profiles exist, without requiring
 Claude Code, Codex CLI, npm or a duplicate MCP registration. Existing profiles
 skip automatic setup. Enable the extension's **Open SAP setup on startup**
 setting to renew credentials or add another connection, then turn it off after
 finishing. Follow [desktop bundle setup](docs/desktop-bundle-setup.md).
-Download the bundle and checksum from the [2.0.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.1).
+Download the bundle and checksum from the [2.0.1 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.1).
 Actual Claude Desktop installation and live SAP acceptance remain unverified.
 
 ### Manual setup
