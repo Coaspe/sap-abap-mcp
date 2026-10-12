@@ -5,7 +5,7 @@ repository plugins, and local MCP registry installs. Profiles are independent
 of a particular MCP client and remain on the user's machine.
 
 The `npx ...@latest` examples run the published npm version. The behavior
-described here is included in 2.0.0; use `@2.0.0` to pin this release.
+described here is included in 2.0.0; use `@2.0.1` to pin this release.
 
 Interactive `setup` creates and edits Basic Auth profiles. OAuth profiles use
 the explicit commands below; Destination profiles use the BTP guide.
@@ -322,7 +322,7 @@ or ask the administrator to configure a
 [BTP Destination exchange/propagation profile](btp-destination-integration.md).
 The latter requires actual BTP trust, bindings and SAP permission verification;
 changing the profile's authentication type alone does not establish them.
-This is local checkout behavior; the npm release has not been updated.
+This behavior is included in 2.0.0 and newer.
 
 ## Data-query permission
 

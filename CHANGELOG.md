@@ -2,6 +2,15 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
+## 2.0.1 — 2026-10-12
+
+### Documentation
+
+- Correct remaining unreleased/old-version wording in README, setup, BTP Destination, workflow benchmark, plugin and directory-submission guides. Published 2.x features no longer require an unpublished checkout.
+- Remove the plugin guide's recommendation to forward an MCP token directly to SAP; document the refusal introduced in 2.0.0 and independent SAP authentication.
+- Separate current npm/GitHub/MCP Registry distribution from historical third-party submission records. Preserve dated benchmark measurements and live-SAP/BTP limitations.
+- Synchronize release metadata and desktop bundle instructions. Runtime source and dependency versions are unchanged from 2.0.0.
+
 ## 2.0.0 — 2026-10-08
 
 ### Release
