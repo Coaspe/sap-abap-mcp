@@ -19,10 +19,10 @@ async function session(launch, profileHome, cwd, terminate = false) {
   const child = spawn(executable.command, executable.args, { cwd,
     env: { ...process.env, SAP_ABAP_MCP_HOME: profileHome }, stdio: ["pipe", "pipe", "pipe"] })
   let pending, buffer = "", protocolOnly = true, stderr = ""
-  let closed = false
+  let closed = false, exitSignal = null
   const exited = new Promise(resolve => {
     child.on("error", () => { closed = true; pending?.reject(new Error("EXECUTABLE_FAILED")); resolve(null) })
-    child.on("exit", code => { closed = true; pending?.reject(new Error("PROCESS_CLOSED")); resolve(code) })
+    child.on("exit", (code, signal) => { closed = true; exitSignal = signal; pending?.reject(new Error("PROCESS_CLOSED")); resolve(code) })
   })
   child.stderr.on("data", chunk => { stderr += String(chunk).slice(0, 2048) })
   child.stdout.on("data", chunk => {
@@ -56,6 +56,7 @@ async function session(launch, profileHome, cwd, terminate = false) {
     result.exitCode = await Promise.race([exited, new Promise(resolve => setTimeout(() => resolve("timeout"), 3000).unref())])
   } catch (error) { result.error = error.message }
   finally {
+    result.exitSignal = exitSignal
     result.protocolOnly = protocolOnly
     result.noCredentialPrompt = !/password:|client secret:/i.test(stderr)
     result.milliseconds = Math.round((performance.now() - started) * 1000) / 1000
@@ -119,6 +120,6 @@ try {
     actualHostRestart: "not_run", liveSapFirstRead: "not_run", userInstallationSuccesses: 0 }
   if (process.argv[3]) await writeFile(resolve(process.argv[3]), `${JSON.stringify(report, null, 2)}\n`)
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
-  if (matrix.some(row => !row.protocolInitialized || !row.toolsListed || !row.protocolOnly || row.exitCode !== 0) ||
-      !report.explicitHelp || !invalidCommand || termination.exitCode !== 0) process.exitCode = 1
+  if (matrix.some(row => !row.protocolInitialized || !row.toolsListed || !row.protocolOnly || row.exitCode !== 0 || !row.noCredentialPrompt || row.setupRequired !== !row.configured) ||
+      !report.explicitHelp || !invalidCommand || (process.platform === "win32" ? termination.exitCode === "timeout" || (!termination.exitSignal && termination.exitCode !== 0) : termination.exitCode !== 0)) process.exitCode = 1
 } finally { await rm(temporary, { recursive: true, force: true }) }
