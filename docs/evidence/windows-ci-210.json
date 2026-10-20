@@ -1,0 +1,238 @@
+{
+  "schemaVersion": "1.0",
+  "productVersion": "2.1.0",
+  "sourceCommit": "a812124c7018ee56c32591a0f970f65f5345f142",
+  "scope": "automated-fixture",
+  "connection": "github-actions-windows-runner",
+  "system": {
+    "sapRelease": "N/A",
+    "systemType": "N/A"
+  },
+  "capability": "windows-native-storage-and-installed-stdio",
+  "status": "unverified",
+  "observedAt": "2026-10-20T08:57:52.433Z",
+  "operation": "Native Windows DPAPI and an eight-case installed-tarball MCP protocol fixture; no SAP authentication",
+  "sanitizedResult": {
+    "sourceHead": "b00ec8cb7109f3797f6e85c135e33d0dbbe1e032",
+    "ciRun": "https://github.com/Coaspe/sap-abap-mcp/actions/runs/39396408649",
+    "job": "https://github.com/Coaspe/sap-abap-mcp/actions/runs/39396408649/job/118540133682",
+    "nativeStore": {
+      "observedAt": "2026-10-20T08:52:15.403Z",
+      "platform": "win32",
+      "scope": "throwaway-native-store",
+      "cases": [
+        {
+          "bytes": 64,
+          "roundtrip": true
+        },
+        {
+          "bytes": 32,
+          "roundtrip": true
+        },
+        {
+          "bytes": 9000,
+          "roundtrip": true
+        }
+      ],
+      "renewal": true,
+      "removed": true,
+      "sapAuthenticated": false
+    },
+    "installedTarball": {
+      "scope": "clean-installed-tarball-protocol-fixture",
+      "observedAt": "2026-10-20T08:57:52.433Z",
+      "platform": "win32",
+      "nodeVersion": "v22.23.3",
+      "tarballBytes": 13338658,
+      "tarballIntegrity": "sha512-tEYlplnG1fqihWYm0YwZIW+x6s4tOr7X5tT2HKTk6gZX6zoAP2CiNsgShMr8vnwwtSlwMhaL3fHWlfLBLM4BXQ==",
+      "packageVersion": "2.1.0",
+      "build": {
+        "sourceCommit": "a812124c7018ee56c32591a0f970f65f5345f142",
+        "worktreeDirty": false
+      },
+      "coldCacheInitiallyEmpty": true,
+      "coldInstallSeconds": 270.36773679999993,
+      "fullInstalledDisk": {
+        "bytes": 91849701,
+        "files": 17963
+      },
+      "matrix": [
+        {
+          "configured": false,
+          "viaNpx": false,
+          "args": [],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": true,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.1.0",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 903.459
+        },
+        {
+          "configured": false,
+          "viaNpx": false,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": true,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.1.0",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 915.066
+        },
+        {
+          "configured": false,
+          "viaNpx": true,
+          "args": [],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": true,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.1.0",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 1586.316
+        },
+        {
+          "configured": false,
+          "viaNpx": true,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": true,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.1.0",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 1528.086
+        },
+        {
+          "configured": true,
+          "viaNpx": false,
+          "args": [],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.1.0",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 874.439
+        },
+        {
+          "configured": true,
+          "viaNpx": false,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.1.0",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 857.276
+        },
+        {
+          "configured": true,
+          "viaNpx": true,
+          "args": [],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.1.0",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 1537.599
+        },
+        {
+          "configured": true,
+          "viaNpx": true,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.1.0",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 1513.827
+        }
+      ],
+      "warmStartupMilliseconds": [
+        856.892,
+        854.291,
+        856.491
+      ],
+      "runtimeBackportsVerified": true,
+      "mermaidParser": "passed",
+      "explicitHelp": true,
+      "invalidCommand": true,
+      "termination": {
+        "protocolInitialized": true,
+        "toolsListed": true,
+        "setupRequired": true,
+        "installationAccepted": false,
+        "sapAuthenticated": false,
+        "protocolOnly": true,
+        "exitCode": null,
+        "error": null,
+        "serverVersion": "2.1.0",
+        "exitSignal": "SIGTERM",
+        "noCredentialPrompt": true,
+        "milliseconds": 851.211
+      },
+      "windowsNpxCmd": "executed",
+      "actualHostRestart": "not_run",
+      "liveSapFirstRead": "not_run",
+      "userInstallationSuccesses": 0
+    },
+    "sapAuthenticated": false,
+    "liveSapRead": "not_run",
+    "independentUsersObserved": 0,
+    "interpretation": "This is a Windows-built artifact on a clean CI runner. Automated fixture success is separate from owner-reported live read-only completion and does not establish SAP compatibility or model task completion."
+  }
+}

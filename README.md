@@ -76,7 +76,7 @@ See [workflow prompts](docs/workflow-prompts.md) and [T1–T5 criteria](docs/aba
 | Clean npm tarball, macOS arm64, Node 24 | Eight launch/profile combinations, Unicode/spaces, help, invalid commands and shutdown passed on the reliability candidate |
 | macOS Keychain | Actual throwaway legacy-item/UTF-8/9,000-byte storage, renewal and deletion passed |
 | Windows read-only field procedure | Owner reports all supplied steps passed without candidate source changes; [sanitized operation records were not supplied](docs/evidence/owner-windows-readonly-report.json) |
-| Windows DPAPI / npx.cmd automation | Separate Windows CI gate checks native storage and the installed tarball; a Mac run does not verify Windows |
+| Windows DPAPI / npx.cmd automation | [Windows CI passed](docs/evidence/windows-ci-210.json): native storage/module-shadow regression, bundled launchers and eight installed-tarball protocol cases |
 | Native Desktop MCPB / host restart | Standalone bundle checks and an owner's overall field report remain distinct from retained app-level evidence |
 | Current 2.x live-SAP acceptance | **not verified** by retained operation-level records; owner-reported read-only completion is recorded separately |
 | Historical live SAP / model comparison | 2026-08-05 results are historical; no identical-model T1–T5 completion rate or product ranking is established |

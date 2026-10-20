@@ -6,7 +6,8 @@
   "records": [
     "published-201-installation.json",
     "candidate-reliability.json",
-    "owner-windows-readonly-report.json"
+    "owner-windows-readonly-report.json",
+    "windows-ci-210.json"
   ],
   "historicalDocuments": [
     {
