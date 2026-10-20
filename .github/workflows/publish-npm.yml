@@ -32,4 +32,4 @@ jobs:
       - run: npm audit --omit=dev
       - run: npm audit signatures
       - run: node scripts/pack-runtime.mjs artifacts
-      - run: npm publish --provenance --access public artifacts/*.tgz
+      - run: npm publish --provenance --access public ./artifacts/*.tgz

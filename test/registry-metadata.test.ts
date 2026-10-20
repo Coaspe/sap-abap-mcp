@@ -14,7 +14,7 @@ test("supply-chain metadata enables private reporting and npm provenance", () =>
   )
 
   const publishWorkflow = readText(".github/workflows/publish-npm.yml")
-  assert.match(publishWorkflow, /npm publish --provenance --access public/)
+  assert.match(publishWorkflow, /npm publish --provenance --access public \.\/artifacts\/\*\.tgz/)
 
   const packageJson = JSON.parse(readText("package.json"))
   assert.equal(packageJson.publishConfig.provenance, true)
