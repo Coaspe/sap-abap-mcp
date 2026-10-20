@@ -6,8 +6,8 @@ Use this canonical copy for directory submissions. Do not describe the server as
 
 - Name: SAP ABAP MCP
 - Official registry name: `io.github.Coaspe/sap-abap-mcp`
-- Current source release: `2.0.1`
-- Release package: `@coaspe/sap-abap-mcp@2.0.1` (documentation-only patch to 2.0.0)
+- Current source release: `2.1.0`
+- Release package: `@coaspe/sap-abap-mcp@2.1.0` (startup, registration recovery and safe-change reliability)
 - The historical [release source audit](release-source-audit-2026-09-07.md) describes the earlier 1.x source reconciliation; it is not the current release status.
 - Repository: `https://github.com/Coaspe/sap-abap-mcp`
 - npm: `https://www.npmjs.com/package/@coaspe/sap-abap-mcp`
@@ -34,8 +34,7 @@ Long description:
       "command": "npx",
       "args": [
         "--yes",
-        "--prefer-online",
-        "@coaspe/sap-abap-mcp@latest",
+        "@coaspe/sap-abap-mcp@2.1.0",
         "serve"
       ]
     }
@@ -56,13 +55,13 @@ On Windows, use `npx.cmd`. The user must create and verify a local SAP profile b
 
 | Target | Release | Verification |
 |---|---|---|
-| npm | 2.0.1 documentation patch | [Public package](https://www.npmjs.com/package/@coaspe/sap-abap-mcp/v/2.0.1); published through the provenance-enabled [Publish npm](../.github/workflows/publish-npm.yml) workflow |
-| Official MCP Registry | 2.0.1 | [io.github.Coaspe/sap-abap-mcp](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp); the npm package version must match `server.json` |
-| GitHub Release | v2.0.1 | [Release notes, MCPB and SHA-256 checksum](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.1) |
+| npm | 2.1.0 reliability update | [Public package](https://www.npmjs.com/package/@coaspe/sap-abap-mcp/v/2.1.0); published through the provenance-enabled [Publish npm](../.github/workflows/publish-npm.yml) workflow |
+| Official MCP Registry | 2.1.0 | [io.github.Coaspe/sap-abap-mcp](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Coaspe/sap-abap-mcp); the npm package version must match `server.json` |
+| GitHub Release | v2.1.0 | [Release notes, MCPB and SHA-256 checksum](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.1.0) |
 
-The 2.0.0 release was published on 2026-10-08. Version 2.0.1 corrects the
-installation and distribution documentation without changing runtime code or
-dependencies. Release publication does not establish live SAP/BTP acceptance or
+Version 2.1.0 fixes noninteractive startup, native Keychain persistence and
+registration recovery, reduces the runtime package and preserves conflicting
+inactive source. Release publication does not establish live SAP/BTP acceptance or
 update third-party directories. Verify each directory's public version and tool
 catalog independently; the historical statuses below are not current claims.
 

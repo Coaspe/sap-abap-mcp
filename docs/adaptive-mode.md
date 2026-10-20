@@ -5,7 +5,7 @@ exposing every schema. The optional `adaptive` preset also exposes 12 common
 read tools, for 17 tools total. Both retain the full capability catalog and
 native workflow prompts. [Workflow measurements](workflow-mode-benchmark.md)
 explain the default and the cost of additional discovery calls.
-Use `@2.0.1` to pin this behavior in an npm-based MCP configuration.
+Use `@2.1.0` to pin this behavior in an npm-based MCP configuration.
 
 ## Startup and compatibility
 

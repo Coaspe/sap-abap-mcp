@@ -36,7 +36,7 @@ abapgit auth status <id> --repository-url <url>
 abapgit auth logout <id> --repository-url <url>
 
 doctor <id> [--include-components]
-# Unreleased candidate only:
+# Added in 2.1.0:
 doctor <id> --registration --client codex|claude [--config <path>]
 repair <id> --client codex|claude [--config <path>] [--version <exact-version>]
     [--apply --expect <planHash>]
@@ -75,7 +75,7 @@ and invocation tools while keeping every v1 capability reachable on demand.
 That optional preset has 17 tools while 120 capabilities remain reachable. Select
 full mode explicitly when the host's discovery or per-tool policy needs original
 tool names. The behavior described here is included in 2.0.0; `npx ...@latest` examples
-use the registry release, and `@2.0.1` pins this version.
+use the registry release, and `@2.1.0` pins this version.
 
 `--onboard-if-empty` opens local SAP setup for an app-managed stdio server with
 no profiles. With this flag, `SAP_ABAP_MCP_OPEN_SETUP=true` reopens existing
@@ -95,4 +95,4 @@ codex mcp add sap-abap-local -- node "/absolute/path/to/sap-abap-mcp/dist/src/in
 Use a distinct MCP name so a local build does not overwrite the published
 configuration. Run `npm run check` and `npm pack --dry-run` before publishing.
 
-The candidate treats no arguments with non-interactive stdin as stdio `serve`. Interactive no-argument usage, `help` and `--help` retain help output. A profile-free server advertises setup-required instructions, not successful SAP setup. See [registration recovery](registration-recovery.md).
+Version 2.1.0 treats no arguments with non-interactive stdin as stdio `serve`. Interactive no-argument usage, `help` and `--help` retain help output. A profile-free server advertises setup-required instructions, not successful SAP setup. See [registration recovery](registration-recovery.md).

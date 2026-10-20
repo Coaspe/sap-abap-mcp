@@ -1,11 +1,12 @@
 {
-  "currentProductVersion": "2.0.1",
-  "candidateState": "unreleased",
+  "currentProductVersion": "2.1.0",
+  "candidateState": "release",
   "currentLiveSupportedCount": 0,
   "recordSchema": "../compatibility-evidence.schema.json",
   "records": [
     "published-201-installation.json",
-    "candidate-reliability.json"
+    "candidate-reliability.json",
+    "owner-windows-readonly-report.json"
   ],
   "historicalDocuments": [
     {

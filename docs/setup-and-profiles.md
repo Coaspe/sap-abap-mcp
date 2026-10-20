@@ -5,7 +5,8 @@ repository plugins, and local MCP registry installs. Profiles are independent
 of a particular MCP client and remain on the user's machine.
 
 The `npx ...@latest` examples run the published npm version. The behavior
-described here is included in 2.0.0; use `@2.0.1` to pin this release.
+described here includes the 2.0.0 features and 2.1.0 reliability fixes; use
+`@2.1.0` to pin this release.
 
 Interactive `setup` creates and edits Basic Auth profiles. OAuth profiles use
 the explicit commands below; Destination profiles use the BTP guide.
@@ -82,7 +83,7 @@ Profiles with an explicit `readOnly` value use file **format 2**, including
 explicit write-enabled profiles. Older runtimes reject this file with
 `PROFILE_FILE_INVALID`; do not change its version field to bypass the check.
 Before using such a profile, build/start the current checkout (or the release
-containing this change). The unreleased candidate uses a pinned npm version for npm-installed onboarding, or PATH-resolved Node with the actual entry of a persistent checkout. Existing registrations are preserved. Use [registration doctor and reviewed repair](registration-recovery.md) to check their actual MCP version, paths and selected profile before a real SAP query.
+containing this change). Version 2.1.0 uses a pinned npm version for npm-installed onboarding, or PATH-resolved Node with the actual entry of a persistent checkout. Existing registrations are preserved. Use [registration doctor and reviewed repair](registration-recovery.md) to check their actual MCP version, paths and selected profile before a real SAP query.
 
 `sap.system.list` includes `readOnly: true` for restricted systems. Cached
 connections receive policy changes on their next acquisition without another
@@ -110,7 +111,7 @@ Finish; SAP authorization still requires the first real system query.
 
 This compares configuration fields, not the contents of another package, the
 identity of an already-running worker or a real SAP session. A registration using
-the matching pinned `npx` version is recognized in the candidate; wrappers and unrelated runtimes require manual review. Claude's human-readable output is less precise than Codex's JSON;
+the matching pinned `npx` version is recognized in 2.1.0; wrappers and unrelated runtimes require manual review. Claude's human-readable output is less precise than Codex's JSON;
 unusual quoting/custom commands need manual review. Restart the client after
 changing its settings.
 
@@ -345,7 +346,7 @@ Create one profile per system/client, for example `DEV100`, `QAS200`, and
 `PRD100`. Register the MCP server with unscoped `serve`:
 
 ```bash
-codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@2.0.1 serve
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@2.1.0 serve
 ```
 
 V1 SAP-facing tools identify profiles with `systemId`; the legacy API uses
@@ -354,7 +355,7 @@ read-only even when another profile in the same process is writable.
 
 ## MCP client configuration
 
-The unreleased candidate registers a pinned package invocation when running from
+Version 2.1.0 registers a pinned package invocation when running from
 an npm installation, including an npx cache. The exact pin is the wizard's
 manifest version. It resolves `npx`/`npx.cmd` from the host PATH and reuses npm's
 cache; it does not force a new download or silently select latest on every start.
@@ -389,7 +390,7 @@ command, configure:
 
 - Command on Windows: `npx.cmd`
 - Command on macOS or Linux: `npx`
-- Arguments: `-y`, `@coaspe/sap-abap-mcp@2.0.1`, `serve`
+- Arguments: `-y`, `@coaspe/sap-abap-mcp@2.1.0`, `serve`
 
 Do not append a sample `--profile DEV100` unless the installation deliberately
 exposes only that real, existing profile.

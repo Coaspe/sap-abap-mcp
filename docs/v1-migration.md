@@ -5,7 +5,7 @@ launch commands advertise 5 gateways and seven Resources. All 120 capabilities
 remain discoverable through the gateway.
 With no `--toolsets` or `--preset`, minimal mode is enabled.
 Use `--toolsets all` to advertise all 120 tools directly. These changes are included
-in 2.0.0; use `@2.0.1` to pin the published version.
+in 2.0.0; use `@2.1.0` to pin the published version.
 All 53 v0 capabilities remain available through `--api-version v0`.
 
 Normal use needs neither `--api-version` nor `--toolsets`:

@@ -1,6 +1,6 @@
 # SAP ABAP MCP detailed reference
 
-Moved from the README. See [current release and candidate status](../README.md) before using installation examples. Historical evidence retains its original date and scope.
+Moved from the README. See [current release status](../README.md) before using installation examples. Historical evidence retains its original date and scope.
 
 [![npm version](https://img.shields.io/npm/v/%40coaspe%2Fsap-abap-mcp)](https://www.npmjs.com/package/@coaspe/sap-abap-mcp)
 [![npm downloads](https://img.shields.io/npm/dw/%40coaspe%2Fsap-abap-mcp)](https://www.npmjs.com/package/@coaspe/sap-abap-mcp)
@@ -57,7 +57,8 @@ application's runtime, so keep that application updated.
 ### Recommended: guided onboarding
 
 The commands below install the published npm release. The features described
-here are included in 2.0.0; use `@2.0.1` instead of `@latest` to pin this version.
+here include the 2.0.0 feature set and 2.1.0 reliability fixes; use `@2.1.0`
+instead of `@latest` to pin this version.
 
 Run one command and follow the local browser wizard. It checks npm, Claude Code,
 Codex, existing `.claude` and `.codex` settings, and saved SAP profiles. It then
@@ -111,13 +112,13 @@ startup options and permissions remain under your control. See
 
 ### Claude Desktop without a separate Node installation
 
-The 2.0.1 MCPB bundle uses Claude Desktop's built-in Node runtime. Installing
+The 2.1.0 MCPB bundle uses Claude Desktop's built-in Node runtime. Installing
 it opens the same SAP browser setup when no profiles exist, without requiring
 Claude Code, Codex CLI, npm or a duplicate MCP registration. Existing profiles
 skip automatic setup. Enable the extension's **Open SAP setup on startup**
 setting to renew credentials or add another connection, then turn it off after
 finishing. Follow [desktop bundle setup](desktop-bundle-setup.md).
-Download the bundle and checksum from the [2.0.1 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.0.1).
+Download the bundle and checksum from the [2.1.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.1.0).
 Actual Claude Desktop installation and live SAP acceptance remain unverified.
 
 ### Manual setup
@@ -145,13 +146,13 @@ After setup, run only the command for your client. On Windows, use `npx.cmd`.
 Codex CLI:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@2.0.1 serve
+codex mcp add sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@2.1.0 serve
 ```
 
 Claude Code:
 
 ```powershell
-claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@2.0.1 serve
+claude mcp add --transport stdio --scope user sap-abap -- npx.cmd -y @coaspe/sap-abap-mcp@2.1.0 serve
 ```
 
 On macOS or Linux, use `npx`.
@@ -159,13 +160,13 @@ On macOS or Linux, use `npx`.
 Codex CLI:
 
 ```bash
-codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@2.0.1 serve
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@2.1.0 serve
 ```
 
 Claude Code:
 
 ```bash
-claude mcp add --transport stdio --scope user sap-abap -- npx -y @coaspe/sap-abap-mcp@2.0.1 serve
+claude mcp add --transport stdio --scope user sap-abap -- npx -y @coaspe/sap-abap-mcp@2.1.0 serve
 ```
 
 This registration exposes all saved SAP profiles; every SAP-facing tool still requires an explicit `connectionId`. Restart the client, then use `codex mcp list`, `claude mcp get sap-abap`, or `/mcp` to confirm that the process starts. The completed wizard already performs live SAP verification; `/mcp` alone does not prove that SAP authentication succeeded.
@@ -569,13 +570,13 @@ A completed setup already performs this live check. Run `doctor` again whenever 
 Codex CLI:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd --yes @coaspe/sap-abap-mcp@2.0.1 serve --profile DEV100
+codex mcp add sap-abap -- npx.cmd --yes @coaspe/sap-abap-mcp@2.1.0 serve --profile DEV100
 ```
 
 Claude Code:
 
 ```powershell
-claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes @coaspe/sap-abap-mcp@2.0.1 serve --profile DEV100
+claude mcp add --transport stdio --scope user sap-abap -- npx.cmd --yes @coaspe/sap-abap-mcp@2.1.0 serve --profile DEV100
 ```
 
 Restart the client after registration. Use `codex mcp list`, `claude mcp get sap-abap`, or the client's `/mcp` command to verify the connection.
@@ -615,7 +616,7 @@ Use `npx` instead of `npx.cmd`:
 npx @coaspe/sap-abap-mcp@latest setup
 npx @coaspe/sap-abap-mcp@latest setup edit DEV100
 npx @coaspe/sap-abap-mcp@latest setup remove DEV100
-codex mcp add sap-abap -- npx --yes @coaspe/sap-abap-mcp@2.0.1 serve --profile DEV100
+codex mcp add sap-abap -- npx --yes @coaspe/sap-abap-mcp@2.1.0 serve --profile DEV100
 ```
 
 The wizard tests the SAP connection and stores the password in macOS Keychain.
@@ -653,7 +654,7 @@ DEV100
 Create one profile per SAP client, for example `DEV100`, `QAS200`, and `PRD100`. To expose all profiles through one MCP server, register `serve` without `--profile`:
 
 ```powershell
-codex mcp add sap-abap -- npx.cmd --yes @coaspe/sap-abap-mcp@2.0.1 serve
+codex mcp add sap-abap -- npx.cmd --yes @coaspe/sap-abap-mcp@2.1.0 serve
 ```
 
 Every SAP-facing tool requires an explicit `connectionId`, which prevents accidental cross-system routing. Cross-system comparison requires the same object to exist in both selected profiles.
@@ -705,7 +706,7 @@ Auditing is off by default and is enabled per server process. When enabled, ever
 tool call and Resource read emits exactly one JSON Lines record:
 
 ```powershell
-npx.cmd @coaspe/sap-abap-mcp@2.0.1 serve --profile DEV100 `
+npx.cmd @coaspe/sap-abap-mcp@2.1.0 serve --profile DEV100 `
   --audit-log file --audit-log-file C:\ProgramData\sap-abap-mcp\audit.jsonl
 ```
 
@@ -798,7 +799,7 @@ That emits `keyHmacSha256` instead of `keySha256`, and the server needs the same
 secret:
 
 ```bash
-npx @coaspe/sap-abap-mcp@2.0.1 serve --http \
+npx @coaspe/sap-abap-mcp@2.1.0 serve --http \
   --api-keys-file /etc/sap-abap-mcp/api-keys.json \
   --api-key-pepper-file /etc/sap-abap-mcp/pepper
 ```
@@ -825,7 +826,7 @@ environment variable is `SAP_ABAP_MCP_API_KEY_PEPPER_FILE`.
 ### 2. Start the server
 
 ```bash
-npx @coaspe/sap-abap-mcp@2.0.1 serve --http \
+npx @coaspe/sap-abap-mcp@2.1.0 serve --http \
   --api-keys-file /etc/sap-abap-mcp/api-keys.json \
   --host 0.0.0.0 --port 3000 --allowed-host mcp.internal.example.com
 ```
@@ -863,7 +864,7 @@ An existing identity provider can issue MCP credentials, so keys do not have to 
 distributed and rotated by hand:
 
 ```bash
-npx @coaspe/sap-abap-mcp@2.0.1 serve --http \
+npx @coaspe/sap-abap-mcp@2.1.0 serve --http \
   --oidc-issuer https://login.example.com/oauth2/v2.0 \
   --oidc-audience sap-abap-mcp \
   --oidc-role-map "sap.developer=developer,sap.admin=admin" \
@@ -1214,9 +1215,9 @@ The compatibility and toolset manifest is maintained in `src/compat/abap-fs-tool
 ## Release status
 
 - Package: `@coaspe/sap-abap-mcp`
-- Checkout manifest version: `2.0.1`
+- Checkout manifest version: `2.1.0`
 - Version 2.0.0 uses maintained security backports and an explicit release discovery contract: [vendor/README.md](../vendor/README.md), [spec/RELEASE-PROFILE.md](../spec/RELEASE-PROFILE.md). Checkout metadata and local validation do not prove publication; confirm the intended version in GitHub Releases and npm before installing a pinned version.
-- Install: `npx @coaspe/sap-abap-mcp@2.0.1`
+- Install: `npx @coaspe/sap-abap-mcp@2.1.0`
 - Patch fixes: [1.7.1 release record](release-1.7.1.md).
 - Source lineage and company acceptance scope: [release record](release-1.7.0.md). Default CLI startup exposes five gateways; all 120 capabilities remain discoverable.
 - Runtime: minimum compatible Node.js 20; use a maintained LTS release (currently 22 or 24)

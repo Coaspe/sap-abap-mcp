@@ -3,7 +3,7 @@
 Native prompts are included in 2.0.0. Configure your MCP host to run:
 
 ```sh
-npx -y @coaspe/sap-abap-mcp@2.0.1 serve --profile DEV100 --preset development
+npx -y @coaspe/sap-abap-mcp@2.1.0 serve --profile DEV100 --preset development
 ```
 
 `serve` speaks MCP over stdio; it is intended to be started by your MCP host,

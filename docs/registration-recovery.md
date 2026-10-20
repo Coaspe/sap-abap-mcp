@@ -1,7 +1,8 @@
 # Diagnose, repair and update a registered runtime
 
-These commands are **unreleased candidate** commands. Use the built checkout,
-not `npx ...@2.0.1`, to run them. They do not authenticate SAP or change SAP data.
+These commands are available in **2.1.0**. Use the built checkout shown below
+or prefix the subcommands with `npx -y @coaspe/sap-abap-mcp@2.1.0`.
+They do not authenticate SAP or change SAP data.
 
 ```sh
 node dist/src/index.js doctor DEV100 --registration --client codex
