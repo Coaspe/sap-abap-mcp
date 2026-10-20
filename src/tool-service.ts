@@ -2713,31 +2713,18 @@ export class AbapToolService {
         applied.push(change)
       }
     } catch (error) {
-      const rollbackFailures: string[] = []
-      for (const change of [...applied].reverse()) {
-        try {
-          await client.replaceSource(
-            change.object.name,
-            change.objectUri,
-            change.sourceUri,
-            change.after,
-            change.before,
-            transport,
-            false,
-            undefined,
-            change.syntaxObjectUri
-          )
-        } catch {
-          rollbackFailures.push(change.object.name)
-        }
-      }
       throw new AppError(
         "MULTI_OBJECT_WRITE_FAILED",
-        "Quick-fix failed while writing affected objects",
+        "Quick-fix stopped; inspect saved and inactive source before resuming. Changes are not atomic",
         {
           cause: error instanceof Error ? error.message : String(error),
-          rolledBack: applied.length - rollbackFailures.length,
-          rollbackFailures
+          rolledBack: 0,
+          rollbackAttempted: false,
+          rollbackFailures: [],
+          appliedObjects: applied.map(change => change.object.name),
+          uncertainObject: changes[applied.length]?.object.name ?? null,
+          notAttemptedObjects: changes.slice(applied.length + 1).map(change => change.object.name),
+          readBackBeforeRetry: true
         }
       )
     }
