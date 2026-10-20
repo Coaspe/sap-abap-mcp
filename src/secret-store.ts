@@ -1,12 +1,10 @@
-import { execFile, spawn } from "node:child_process"
+import { spawn } from "node:child_process"
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { promisify } from "node:util"
 import { AppError } from "./errors.js"
+import { keychain } from "./keychain.js"
 
-const execFileAsync = promisify(execFile)
-const KEYCHAIN_SERVICE = "sap-abap-mcp"
 const WINDOWS_DPAPI_TIMEOUT_MS = 15_000
 
 const WINDOWS_DPAPI_SCRIPTS = {
@@ -31,23 +29,6 @@ const WINDOWS_DPAPI_SCRIPTS = {
     "try { [Console]::Out.Write([Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }"
   ].join("; ")
 } as const
-
-async function runSecurityWithInput(args: string[], input: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn("/usr/bin/security", args, { stdio: ["pipe", "ignore", "pipe"] })
-    let errorText = ""
-    child.stderr.setEncoding("utf8")
-    child.stderr.on("data", chunk => {
-      errorText += String(chunk)
-    })
-    child.once("error", reject)
-    child.once("close", code => {
-      if (code === 0) resolve()
-      else reject(new Error(errorText.trim() || `security exited with code ${code}`))
-    })
-    child.stdin.end(`${input}\n`)
-  })
-}
 
 export interface SecretStore {
   get(profileId: string): Promise<string | undefined>
@@ -141,55 +122,15 @@ export class MacOsKeychainSecretStore implements SecretStore {
     const configuredSecret = environmentSecret(profileId)
     if (configuredSecret) return configuredSecret
 
-    try {
-      const result = await execFileAsync("/usr/bin/security", [
-        "find-generic-password",
-        "-a",
-        profileId.toUpperCase(),
-        "-s",
-        KEYCHAIN_SERVICE,
-        "-w"
-      ])
-      return result.stdout.trim()
-    } catch (error) {
-      const stderr = (error as { stderr?: string }).stderr ?? ""
-      if (stderr.includes("could not be found")) return undefined
-      throw new AppError("KEYCHAIN_READ_FAILED", "Could not read SAP credentials from Keychain")
-    }
+    return keychain("get", profileId)
   }
 
   async set(profileId: string, secret: string): Promise<void> {
-    try {
-      await runSecurityWithInput(
-        [
-          "add-generic-password",
-          "-a",
-          profileId.toUpperCase(),
-          "-s",
-          KEYCHAIN_SERVICE,
-          "-U",
-          "-w"
-        ],
-        secret
-      )
-    } catch {
-      throw new AppError("KEYCHAIN_WRITE_FAILED", "Could not store SAP credentials in Keychain")
-    }
+    await keychain("set", profileId, secret)
   }
 
   async delete(profileId: string): Promise<void> {
-    try {
-      await execFileAsync("/usr/bin/security", [
-        "delete-generic-password",
-        "-a",
-        profileId.toUpperCase(),
-        "-s",
-        KEYCHAIN_SERVICE
-      ])
-    } catch (error) {
-      const stderr = (error as { stderr?: string }).stderr ?? ""
-      if (!stderr.includes("could not be found")) throw error
-    }
+    await keychain("delete", profileId)
   }
 }
 
