@@ -31,4 +31,5 @@ jobs:
       - run: npm run audit:backports
       - run: npm audit --omit=dev
       - run: npm audit signatures
-      - run: npm publish --provenance --access public
+      - run: node scripts/pack-runtime.mjs artifacts
+      - run: npm publish --provenance --access public artifacts/*.tgz
