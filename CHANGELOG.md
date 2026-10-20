@@ -5,6 +5,7 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 ## 2.1.0 — 2026-10-20
 
 - Accept no-argument noninteractive stdio launch; preserve interactive help, explicit help and invalid-command errors. Empty-profile discovery reports setup required.
+- Resolve Node-bundled npm.cmd/npx.cmd launchers through their matching npm CLI without a shell; reject modified custom wrappers.
 - Pin npm registrations and use PATH Node for persistent checkouts. Add local registration doctor and reviewed, hash-bound repair/update with preflight, guarded config preservation and recovery copies.
 - Load the Windows PowerShell security module from its native system path so PowerShell 7 → Node → Windows PowerShell launches retain DPAPI support, with a native module-shadow regression test.
 - Fix native macOS Keychain writes that previously returned success while storing an empty value; pass credential data through stdin to native Security APIs.
