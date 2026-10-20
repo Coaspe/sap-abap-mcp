@@ -9,7 +9,8 @@ scoped change, then inspect diagnostics, activation, ABAP Unit and ATC evidence.
 The change workflow returns **diff → actual checks → uncertainty → next action**.
 
 **2.1.0** fixes noninteractive startup, native macOS credential storage and
-registration recovery. It also reduces the runtime package and preserves
+registration recovery. Windows DPAPI explicitly loads its native security module
+even when Node inherits a PowerShell 7 module path. This release also reduces the runtime package and preserves
 conflicting inactive source. Existing five gateways still reach 120 capabilities.
 
 ## Quick start

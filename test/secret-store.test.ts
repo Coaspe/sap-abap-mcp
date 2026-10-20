@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { delimiter, join } from "node:path"
 import test from "node:test"
 import {
   EnvironmentSecretStore,
@@ -106,4 +106,28 @@ test("WindowsDpapiSecretStore rejects profile IDs that could escape the secrets 
       "code" in error &&
       (error as { code: string }).code === "SECRET_PROFILE_ID_INVALID"
   )
+})
+
+
+test("native Windows DPAPI ignores an incompatible inherited PowerShell module path", { skip: process.platform !== "win32" }, async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-dpapi-module-shadow-"))
+  const modules = join(directory, "modules")
+  const shadow = join(modules, "Microsoft.PowerShell.Security")
+  await mkdir(shadow, { recursive: true })
+  await writeFile(join(shadow, "Microsoft.PowerShell.Security.psd1"),
+    "@{ RootModule='shadow.psm1'; ModuleVersion='9999.0'; FunctionsToExport=@('ConvertTo-SecureString','ConvertFrom-SecureString') }")
+  await writeFile(join(shadow, "shadow.psm1"), "throw 'INCOMPATIBLE_INHERITED_SECURITY_MODULE'")
+  const previous = process.env.PSModulePath
+  process.env.PSModulePath = modules + (previous ? delimiter + previous : "")
+  const store = new WindowsDpapiSecretStore(join(directory, "secrets"))
+  t.after(async () => {
+    if (previous === undefined) delete process.env.PSModulePath
+    else process.env.PSModulePath = previous
+    await rm(directory, { recursive: true, force: true })
+  })
+  const value = '  public-native-fixture " 한국어\ntrailing  '
+  await store.set("MODULE_SHADOW", value)
+  assert.equal(await store.get("MODULE_SHADOW"), value)
+  await store.delete("MODULE_SHADOW")
+  assert.equal(await store.get("MODULE_SHADOW"), undefined)
 })

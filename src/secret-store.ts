@@ -10,6 +10,7 @@ const WINDOWS_DPAPI_TIMEOUT_MS = 15_000
 const WINDOWS_DPAPI_SCRIPTS = {
   protect: [
     "$ErrorActionPreference = 'Stop'",
+    "Import-Module -Name ($PSHOME + '/Modules/Microsoft.PowerShell.Security/Microsoft.PowerShell.Security.psd1') -ErrorAction Stop",
     "$utf8 = [Text.UTF8Encoding]::new($false)",
     "[Console]::InputEncoding = $utf8",
     "[Console]::OutputEncoding = $utf8",
@@ -20,6 +21,7 @@ const WINDOWS_DPAPI_SCRIPTS = {
   ].join("; "),
   unprotect: [
     "$ErrorActionPreference = 'Stop'",
+    "Import-Module -Name ($PSHOME + '/Modules/Microsoft.PowerShell.Security/Microsoft.PowerShell.Security.psd1') -ErrorAction Stop",
     "$utf8 = [Text.UTF8Encoding]::new($false)",
     "[Console]::InputEncoding = $utf8",
     "[Console]::OutputEncoding = $utf8",

@@ -41,7 +41,7 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm run build
-      - run: node --test dist/test/local-command.test.js dist/test/security-backports.test.js dist/test/token-efficiency.test.js
+      - run: node --test dist/test/local-command.test.js dist/test/security-backports.test.js dist/test/token-efficiency.test.js dist/test/secret-store.test.js
       - run: node scripts/smoke-v1-stdio.mjs
       - run: node --test dist/test/stdio-launch.test.js dist/test/launch-contract.test.js dist/test/registration.test.js
       - name: Verify native DPAPI with throwaway credentials
