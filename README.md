@@ -12,7 +12,8 @@ The change workflow returns **diff → actual checks → uncertainty → next ac
 registration recovery. Windows DPAPI explicitly loads its native security module
 even when Node inherits a PowerShell 7 module path. Bundled npm/npx Windows
 launchers are resolved without a shell while preserving custom wrappers. This release also reduces the runtime package and preserves
-conflicting inactive source. Existing five gateways still reach 120 capabilities.
+conflicting inactive source. Patched vendor bytes are preserved across Windows
+and Unix checkouts. Existing five gateways still reach 120 capabilities.
 
 ## Quick start
 

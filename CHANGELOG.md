@@ -10,6 +10,7 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 - Load the Windows PowerShell security module from its native system path so PowerShell 7 → Node → Windows PowerShell launches retain DPAPI support, with a native module-shadow regression test.
 - Fix native macOS Keychain writes that previously returned success while storing an empty value; pass credential data through stdin to native Security APIs.
 - Preserve conflicting inactive source under lock and stop multi-object writes with explicit saved/uncertain/unattempted state instead of automatic rollback.
+- Preserve patched vendor/browser asset bytes across Git line-ending settings and verify installed runtime hashes on Windows as well as Linux.
 - Return Unknown for SAP_BASIS-only system evidence. Load Mermaid only when used and remove dependency demos/maps from release tarballs while preserving patched runtime, licenses and provenance workflow.
 - Separate current, historical, offline and blocked evidence. Add public download collection and consent-based local outcome aggregation without remote telemetry.
 
