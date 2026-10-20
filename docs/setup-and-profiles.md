@@ -5,7 +5,8 @@ repository plugins, and local MCP registry installs. Profiles are independent
 of a particular MCP client and remain on the user's machine.
 
 The `npx ...@latest` examples run the published npm version. The behavior
-described here is included in 2.0.0; use `@2.0.1` to pin this release.
+described here includes the 2.0.0 features and 2.1.0 reliability fixes; use
+`@2.1.0` to pin this release.
 
 Interactive `setup` creates and edits Basic Auth profiles. OAuth profiles use
 the explicit commands below; Destination profiles use the BTP guide.
@@ -82,10 +83,7 @@ Profiles with an explicit `readOnly` value use file **format 2**, including
 explicit write-enabled profiles. Older runtimes reject this file with
 `PROFILE_FILE_INVALID`; do not change its version field to bypass the check.
 Before using such a profile, build/start the current checkout (or the release
-containing this change). A fresh wizard registration uses the Node executable
-and server file running the wizard. Existing registrations are preserved and
-may still point at an older runtime: inspect their command and update it through
-the client's normal configuration flow before the first query.
+containing this change). Version 2.1.0 uses a pinned npm version for npm-installed onboarding, or PATH-resolved Node with the actual entry of a persistent checkout. Existing registrations are preserved. Use [registration doctor and reviewed repair](registration-recovery.md) to check their actual MCP version, paths and selected profile before a real SAP query.
 
 `sap.system.list` includes `readOnly: true` for restricted systems. Cached
 connections receive policy changes on their next acquisition without another
@@ -113,8 +111,7 @@ Finish; SAP authorization still requires the first real system query.
 
 This compares configuration fields, not the contents of another package, the
 identity of an already-running worker or a real SAP session. A registration using
-`npx`, a wrapper or another runtime can be valid but is not identified as this
-installation. Claude's human-readable output is less precise than Codex's JSON;
+the matching pinned `npx` version is recognized in 2.1.0; wrappers and unrelated runtimes require manual review. Claude's human-readable output is less precise than Codex's JSON;
 unusual quoting/custom commands need manual review. Restart the client after
 changing its settings.
 
@@ -349,7 +346,7 @@ Create one profile per system/client, for example `DEV100`, `QAS200`, and
 `PRD100`. Register the MCP server with unscoped `serve`:
 
 ```bash
-codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@latest serve
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@2.1.0 serve
 ```
 
 V1 SAP-facing tools identify profiles with `systemId`; the legacy API uses
@@ -358,22 +355,22 @@ read-only even when another profile in the same process is writable.
 
 ## MCP client configuration
 
-This checkout's browser onboarding registers the running Node executable and
-this installation's absolute `dist/src/index.js` path, with `serve --profile`
-set to the selected saved profile. It also records the profile directory as
-`SAP_ABAP_MCP_HOME` using the clients' `--env` option ([Claude documentation](https://code.claude.com/docs/en/mcp)).
-Starting from another working directory therefore uses the same saved profiles.
-Registration no longer silently switches a local build to npm `latest`.
+Version 2.1.0 registers a pinned package invocation when running from
+an npm installation, including an npx cache. The exact pin is the wizard's
+manifest version. It resolves `npx`/`npx.cmd` from the host PATH and reuses npm's
+cache; it does not force a new download or silently select latest on every start.
+A persistent checkout instead registers `node` from PATH and that checkout's
+actual entry point, so a development preview does not silently run registry code.
+Both paths preserve `serve --profile` and explicit `SAP_ABAP_MCP_HOME`.
+Existing registrations are never automatically replaced. See [repair/update](registration-recovery.md).
+
 The browser offers minimal (five tools, default), adaptive (17 tools), and single
 (one tool) for new registrations. It writes the selection as `serve --preset`;
 all three modes retain the same role-filtered capability catalog. Smaller fixed
 schemas may require more discovery calls; the single developer/admin gateway
 may trigger host approvals even for reads. Existing registrations are skipped
 rather than replaced, and selecting another mode does not modify them.
-Keep the Node executable and installation directory
-available; moving/removing them or clearing an npx cache containing this install
-requires updating the client registration. Use a persistent checkout or installed
-package directory for a lasting setup.
+Node/npm must be available on the actual MCP host PATH. Keep a development checkout available when choosing that route. Clearing npm cache may require fetching the same pinned release again; offline startup after cache removal is not guaranteed. Normal warm starts reuse the cache.
 
 Onboarding distinguishes a saved MCP registration from a reported MCP connection.
 Only an explicit connected status on the server's listing row is shown as
@@ -393,7 +390,7 @@ command, configure:
 
 - Command on Windows: `npx.cmd`
 - Command on macOS or Linux: `npx`
-- Arguments: `-y`, `@coaspe/sap-abap-mcp@latest`, `serve`
+- Arguments: `-y`, `@coaspe/sap-abap-mcp@2.1.0`, `serve`
 
 Do not append a sample `--profile DEV100` unless the installation deliberately
 exposes only that real, existing profile.

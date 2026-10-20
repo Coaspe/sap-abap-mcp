@@ -681,7 +681,7 @@ export function adtFailureEvidence(error: unknown): {
 function detectSystemType(components: SapSoftwareComponent[]): SapSystemInfo["systemType"] {
   const names = new Set(components.map(item => item.component.toUpperCase()))
   if (names.has("S4CORE") || names.has("S4COREOP")) return "S/4HANA"
-  if (names.has("SAP_APPL") || names.has("SAP_BASIS")) return "ECC"
+  if (names.has("SAP_APPL")) return "ECC"
   return "Unknown"
 }
 
@@ -990,12 +990,23 @@ export class AdtSapClient implements SapClient {
       try {
         const lock = await this.client.lock(objectUri)
         lockHandle = lock.LOCK_HANDLE
-        const lockedSource = await this.client.getObjectSource(sourceUri)
+        const lockedSource = await this.client.getObjectSource(sourceUri, { version: "active" })
         if (lockedSource !== expectedSource) {
           throw new AppError(
             "SOURCE_CHANGED",
             `ABAP source changed after it was read; refusing to overwrite ${sourceUri}`
           )
+        }
+        try {
+          const inactiveSource = await this.client.getObjectSource(sourceUri, { version: "inactive" })
+          if (inactiveSource !== expectedSource) {
+            throw new AppError("INACTIVE_SOURCE_CONFLICT",
+              "A different inactive version exists; inspect it and reconcile the change before patching")
+          }
+        } catch (error) {
+          // An explicit absent inactive resource is the only safe fallback.
+          const candidate = error as { response?: { status?: number }; status?: number; err?: number }
+          if ((candidate.response?.status ?? candidate.status ?? candidate.err) !== 404) throw error
         }
         await this.client.setObjectSource(sourceUri, source, lockHandle, transport)
         const diagnostics = await this.checkSyntax(

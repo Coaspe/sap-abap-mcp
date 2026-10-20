@@ -3,7 +3,7 @@
 Native prompts are included in 2.0.0. Configure your MCP host to run:
 
 ```sh
-npx -y @coaspe/sap-abap-mcp@2.0.1 serve --profile DEV100 --preset development
+npx -y @coaspe/sap-abap-mcp@2.1.0 serve --profile DEV100 --preset development
 ```
 
 `serve` speaks MCP over stdio; it is intended to be started by your MCP host,
@@ -102,3 +102,28 @@ The tests validate protocol discovery/retrieval, input bounds, preset and role
 selection, absence of SAP calls during prompt retrieval, and graph traversal
 against deterministic test doubles. They do not measure an agent's real-world
 workflow success rate or establish SAP-release compatibility.
+
+## Existing-object change acceptance (candidate)
+
+The candidate strengthens the existing explain/change prompts; it adds no MCP
+tool. Before a change, retain returned client/system identity and source revision
+or content hash. A configured alias is not an independently verified SAP SID.
+Resolve relevant includes/methods, DDIC and public types and direct callers;
+explicitly record dynamic calls, denied reads and remaining pages/truncation.
+Present the smallest patch preview and validation plan within the authorized scope.
+
+The runtime acquires the existing ADT lock and rechecks active source and inactive
+state before saving a patch. A different inactive version is a conflict, even if
+active source is unchanged. Reconcile it with the owner; do not activate it or
+retry the same patch. A missing inactive resource is distinguished from a denied
+or failed inactive read, which prevents a write.
+
+Multi-object quick fixes cannot provide a database-style atomic transaction.
+After a failed or lost write response they retain completed changes and report
+applied, uncertain and unattempted objects, without automatic rollback. Read back
+active/inactive state before resuming; do not repeat an already saved write.
+
+Keep diagnose, activate, ABAP Unit and ATC outcomes separate. A successful syntax
+check is not business acceptance; zero tests, skipped/unsupported checks or partial
+findings are not passes. The handoff order is diff, actual validation, uncertainty,
+and one next action. Current regressions are local fixtures, not live T3 success.

@@ -69,8 +69,7 @@ Use `npx` on macOS/Linux and `npx.cmd` on Windows:
       "command": "npx",
       "args": [
         "--yes",
-        "--prefer-online",
-        "@coaspe/sap-abap-mcp@latest",
+        "@coaspe/sap-abap-mcp@2.1.0",
         "serve",
         "--profile",
         "DEV100"

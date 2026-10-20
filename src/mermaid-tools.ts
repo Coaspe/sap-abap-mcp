@@ -2,7 +2,6 @@ import { copyFile, mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import DOMPurify from "dompurify"
-import mermaid from "mermaid"
 import { AppError } from "./errors.js"
 
 // Mermaid's parser invokes the browser-oriented DOMPurify surface while normalizing labels.
@@ -168,6 +167,7 @@ function errorMessage(error: unknown): string {
 
 export async function validateMermaidSyntax(code: string, suppressErrors = true) {
   try {
+    const { default: mermaid } = await import("mermaid")
     const parsed = await mermaid.parse(code, { suppressErrors: false })
     if (!parsed) throw new Error("Mermaid parser did not return a result")
     return {

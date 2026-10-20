@@ -336,7 +336,7 @@ test("onboard server keeps credentials local and configures Claude through its C
     "--env",
     `SAP_ABAP_MCP_HOME=${config}`,
     "--",
-    process.execPath,
+    "node",
     fileURLToPath(new URL("../src/index.js", import.meta.url)),
     "serve",
     "--profile",
@@ -457,7 +457,7 @@ test("onboarding refuses registration when existing settings cannot be read and 
     if (args[1] === "add") {
       assert.equal(command, "codex")
       assert.deepEqual(args, ["mcp", "add", "--env", `SAP_ABAP_MCP_HOME=${config}`, "sap-abap", "--",
-        process.execPath, fileURLToPath(new URL("../src/index.js", import.meta.url)), "serve", "--profile", "DEV100", "--preset", "minimal"])
+        "node", fileURLToPath(new URL("../src/index.js", import.meta.url)), "serve", "--profile", "DEV100", "--preset", "minimal"])
       writes++; registered = true; return result("added")
     }
     return result("1.0")

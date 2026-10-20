@@ -7,9 +7,13 @@ This project separates implementation coverage from live SAP compatibility. Pass
 | Evidence scope | SAP release | System type | Result |
 | --- | --- | --- | --- |
 | Automated TypeScript and MCP integration suite | Not applicable | In-memory SAP double | Implementation regression coverage only |
-| Sanitized live evidence committed to this repository | Not supplied | Not supplied | Unverified |
+| Historical narrative from 2026-08-05 | Reported 758 | Original product labels require component reconfirmation | Limited historical results; exact deployed version/commit not bound |
+| Owner-reported Windows candidate field check | Not supplied | Not established | Owner reports unchanged candidate passed the supplied read-only procedure; [operation-level records pending](evidence/owner-windows-readonly-report.json) |
+| Current 2.x live-SAP acceptance | No independently retained new operation records | Not established | Unverified; see [evidence index](evidence/index.json) |
 
 No SAP release is listed as live-supported until a sanitized record from the exact operation passes the rules in [`live-sap-acceptance.md`](live-sap-acceptance.md) and validates against [`compatibility-evidence.schema.json`](compatibility-evidence.schema.json).
+
+The [historical narrative](live-sap-evidence.md) is retained as dated reported evidence. It is not absent, and it is not promoted to current-release support. `SAP_BASIS` is a platform component and alone cannot identify ECC. Reconfirm the actual components with `doctor <id> --include-components`; insufficient product evidence returns `Unknown`.
 
 ## Evidence rules
 

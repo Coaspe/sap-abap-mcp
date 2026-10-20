@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "productVersion": "2.0.1",
+  "sourceCommit": "515c9c40fb7da68498155cf2728684d40ff405b4",
+  "scope": "live-sap",
+  "connection": "owner-reported-development-read-only",
+  "system": {
+    "sapRelease": "Not supplied",
+    "systemType": "Unknown"
+  },
+  "capability": "windows-installation-and-read-only-field-procedure",
+  "status": "unverified",
+  "observedAt": "2026-10-20T08:26:57.483289Z",
+  "operation": "Owner reports completing the supplied Windows installation and read-only verification prompt without source modifications",
+  "sanitizedResult": {
+    "evidenceType": "owner_report",
+    "ownerStatement": "수정 없이 모두 통과",
+    "candidateManifestVersion": "2.0.1",
+    "releaseImplementationVersion": "2.1.0",
+    "rawSanitizedReportsSupplied": false,
+    "sourceModificationsReported": false,
+    "independentlyReexecutedLiveSap": false,
+    "operationLevelAcceptance": "pending sanitized records",
+    "sapWritesExecuted": false,
+    "taskComparison": "not_run; not an identical T1-T5 comparison",
+    "privateSystemDetailsRecorded": false
+  }
+}

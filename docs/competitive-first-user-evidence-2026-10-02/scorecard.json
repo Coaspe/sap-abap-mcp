@@ -27,5 +27,17 @@
     "Store only bounded aggregate metadata; no customer identities, source, URLs or credentials."
   ],
   "reports": [],
-  "completionClaim": false
+  "completionClaim": false,
+  "lastUpdated": "2026-10-20",
+  "experiment": {
+    "preregisteredExternalDevelopers": 10,
+    "targetFirstTaskSuccess": 8,
+    "targetDay7DifferentTaskReuse": 5,
+    "marketBenchmark": false,
+    "denominatorRule": "Keep all ten planned members; failures and nonresponses are not removed. No participant has been recruited or observed in this review."
+  },
+  "mcpInitializationReady": 0,
+  "sapAuthenticationVerified": 0,
+  "firstTaskSuccess": 0,
+  "day7DifferentTaskReuse": 0
 }

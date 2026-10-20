@@ -33,7 +33,7 @@ permission in the discussion before adding an entry here.
 
 ## Setup feedback and public listing are separate
 
-The unreleased [setup and first-read form](.github/ISSUE_TEMPLATE/compatibility-report.yml)
+The [setup, first-read and task outcome form](.github/ISSUE_TEMPLATE/compatibility-report.yml)
 collects bounded self-reported outcomes without organization or SAP identifiers.
 An issue submission or permission for anonymous aggregation does not grant
 permission to list a public organization name, alias or outcome quotation. A

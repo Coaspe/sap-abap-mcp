@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process"
-import readCmdShim from "read-cmd-shim"
-import which from "which"
+import { resolveLocalCommand } from "./local-command.js"
+import { onboardLaunch, PACKAGE_NAME, PACKAGE_VERSION } from "./launch-contract.js"
 import { randomBytes } from "node:crypto"
 import { realpath, stat } from "node:fs/promises"
 import {
@@ -145,6 +145,7 @@ export interface OnboardProfileStatus {
 export interface OnboardStatus {
   hostManaged?: boolean
   environment: {
+    wizardVersion: string
     platform: NodeJS.Platform
     nodeVersion: string
     cwd: string
@@ -212,20 +213,11 @@ function oneLine(value: string): string | undefined {
 export const runLocalCommand: CommandRunner = async (command, args) => {
   let executable = command
   let executableArgs = [...args]
-  if (process.platform === "win32") {
+  {
     try {
-      executable = await which(command)
-      if (/\.cmd$/i.test(executable)) {
-        const target = resolve(dirname(executable), await readCmdShim(executable))
-        if (/\.[cm]?js$/i.test(target)) {
-          executable = process.execPath
-          executableArgs = [target, ...args]
-        } else if (/\.(?:exe|com)$/i.test(target)) {
-          executable = target
-        } else {
-          return { ok: false, stdout: "", stderr: "Unsupported Windows command shim target", missing: false }
-        }
-      }
+      const resolved = await resolveLocalCommand(command, args)
+      executable = resolved.command
+      executableArgs = resolved.args
     } catch (error) {
       return {
         ok: false, stdout: "", stderr: error instanceof Error ? error.message : String(error),
@@ -383,7 +375,9 @@ async function inspectRegistration(
     const serve = displayedArgs.indexOf(" serve")
     if (serve < 0) return { state: "different", differences: ["runtime"], expected }
     command = displayedCommand
-    args = [displayedArgs.slice(0, serve), ...displayedArgs.slice(serve + 1).split(/\s+/)]
+    args = /(?:^|[\\/])npx(?:\.cmd)?$/.test(command)
+      ? displayedArgs.split(/\s+/)
+      : [displayedArgs.slice(0, serve), ...displayedArgs.slice(serve + 1).split(/\s+/)]
     profileHome = output.match(/^\s+SAP_ABAP_MCP_HOME=(.*)$/m)?.[1]?.trim()
     enabled = !/disabled|rejected|pending approval/i.test(field("Status") ?? "")
   }
@@ -391,8 +385,12 @@ async function inspectRegistration(
   args = args.flatMap(value => value.startsWith("--") && value.includes("=")
     ? [value.slice(0, value.indexOf("=")), value.slice(value.indexOf("=") + 1)] : [value])
   const differences: NonNullable<OnboardClientStatus["registration"]>["differences"] = []
-  if (!await sameFile(command, expected.command) || !await sameFile(args[0]!, expected.serverFile) ||
-      args[1] !== "serve" || args.includes("--http") || (args.includes("--api-version") && args[args.lastIndexOf("--api-version") + 1] !== "v1")) {
+  const packageIndex = args.findIndex(value => value.startsWith(`${PACKAGE_NAME}@`))
+  const pinnedPackage = /(?:^|[\\/])npx(?:\.cmd)?$/.test(command) && packageIndex >= 0 &&
+    args[packageIndex] === `${PACKAGE_NAME}@${PACKAGE_VERSION}` && args[packageIndex + 1] === "serve"
+  const executable = await resolveLocalCommand(command, []).then(value => value.command).catch(() => command)
+  const currentFile = await sameFile(executable, expected.command) && await sameFile(args[0]!, expected.serverFile) && args[1] === "serve"
+  if ((!pinnedPackage && !currentFile) || args.includes("--http") || (args.includes("--api-version") && args[args.lastIndexOf("--api-version") + 1] !== "v1")) {
     differences.push("runtime")
   }
   const profiles = args.flatMap((value, index) => value === "--profile" ? [args[index + 1] ?? ""] : [])
@@ -447,6 +445,7 @@ export async function inspectOnboardStatus(options: OnboardServices, profileId?:
   return {
     ...(options.hostManaged ? { hostManaged: true } : {}),
     environment: {
+      wizardVersion: PACKAGE_VERSION,
       platform,
       nodeVersion: process.version,
       cwd,
@@ -567,15 +566,14 @@ async function configureClient(raw: unknown, options: OnboardServices): Promise<
   }
   if (current.configured) return current
 
-  const serverArgs = [
-    process.execPath,
-    fileURLToPath(new URL("./index.js", import.meta.url)),
+  const launch = onboardLaunch(fileURLToPath(new URL("./index.js", import.meta.url)), options.platform ?? process.platform, [
     "serve",
     "--profile",
     profile.id,
     "--preset",
     request.preset
-  ]
+  ])
+  const serverArgs = [launch.command, ...launch.args]
   const profileEnvironment = `SAP_ABAP_MCP_HOME=${dirname(resolve(options.profiles.filePath))}`
   const args = definition.id === "claude"
     ? ["mcp", "add", "--transport", "stdio", "--scope", "user", MCP_SERVER_NAME, "--env", profileEnvironment, "--", ...serverArgs]

@@ -17,17 +17,17 @@ const form = JSON.parse(execFileSync("/usr/bin/ruby", ["-rjson", "-ryaml", "-e",
   "puts JSON.generate(YAML.safe_load(File.read(ARGV[0])))", formPath], { encoding: "utf8" }))
 assert.equal(validate(form), true, JSON.stringify(validate.errors))
 const ids = ["build", "sap_family", "mcp_client", "operating_system", "starting_state",
-  "setup_time", "setup_outcome", "first_read", "failure_category", "repeat_use", "aggregate_consent"]
+  "setup_time", "setup_outcome", "client_version", "mcp_initialization", "sap_authentication", "first_read", "first_task", "failure_category", "repeat_use", "aggregate_consent"]
 const safeIntake = value => {
   const fields = value.body.filter(field => field.type !== "markdown")
   return fields.length === ids.length && new Set(fields.map(field => field.id)).size === ids.length
     && fields.every(field => ids.includes(field.id) &&
-      (field.id === "build" ? field.type === "input" : field.type === "dropdown"))
+      (["build", "client_version"].includes(field.id) ? field.type === "input" : field.type === "dropdown"))
 }
 assert.ok(safeIntake(form))
-assert.equal(form.body.filter(field => field.type === "input").length, 1)
+assert.equal(form.body.filter(field => field.type === "input").length, 2)
 for (const field of form.body.filter(field => field.type !== "markdown")) {
-  assert.equal(field.validations.required, field.id !== "repeat_use")
+  assert.equal(field.validations.required, !["repeat_use", "client_version"].includes(field.id))
   if (field.type === "dropdown") {
     assert.ok(field.attributes.options.length <= 5)
     assert.equal(new Set(field.attributes.options).size, field.attributes.options.length)
@@ -54,7 +54,7 @@ assert.equal(scorecard.completionClaim, false)
 const result = { generatedAt: new Date().toISOString(), node: process.versions.node,
   yamlParsed: true, schemaValidated: true, schemaSource: source.sourceUrl,
   schemaSha256: source.schemaSha256, fieldCount: ids.length, requestedUploads: 0,
-  freeTextFields: ["build"], negativeControlsPassed: ["Malformed dropdown option",
+  freeTextFields: ["build", "client_version"], negativeControlsPassed: ["Malformed dropdown option",
     "Duplicate field identifier", "Credential input field", "Diagnostic upload field"],
   zeroRecordedReportsAndNullableMedian: true, runtimeCodeChanged: false, remoteWrites: 0,
   limitations: ["SchemaStore and local policy validation are not GitHub server or rendered-form acceptance.",

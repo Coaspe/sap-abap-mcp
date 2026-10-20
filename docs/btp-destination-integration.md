@@ -13,7 +13,7 @@ are architectural evidence, not a claim that they exactly match those archives.
 Create a Destination profile with the published package, without a stored password:
 
 ```sh
-npx -y @coaspe/sap-abap-mcp@2.0.1 profile add BTP100 --url https://your-abap-host --client 100 --auth-type btp-destination --destination-name ABAP_DEV --destination-auth OAuth2UserTokenExchange
+npx -y @coaspe/sap-abap-mcp@2.1.0 profile add BTP100 --url https://your-abap-host --client 100 --auth-type btp-destination --destination-name ABAP_DEV --destination-auth OAuth2UserTokenExchange
 ```
 
 For Cloud Connector, select `--destination-auth PrincipalPropagation` and the
@@ -38,8 +38,8 @@ prove live token exchange, Cloud Connector reachability or SAP permissions.
 For local setup checks, run:
 
 ```sh
-npx -y @coaspe/sap-abap-mcp@2.0.1 auth status BTP100
-npx -y @coaspe/sap-abap-mcp@2.0.1 doctor BTP100
+npx -y @coaspe/sap-abap-mcp@2.1.0 auth status BTP100
+npx -y @coaspe/sap-abap-mcp@2.1.0 doctor BTP100
 ```
 
 `auth status` identifies HTTP OIDC as the credential source and states that no

@@ -1,0 +1,616 @@
+{
+  "schemaVersion": "1.0",
+  "productVersion": "2.0.1",
+  "sourceCommit": "201fc8814e58dcefc0c202533e72ffcde0a6230e",
+  "scope": "automated-fixture",
+  "connection": "local-install-and-source-fixtures",
+  "system": {
+    "sapRelease": "N/A",
+    "systemType": "N/A"
+  },
+  "capability": "installation-and-safe-change-reliability",
+  "status": "unverified",
+  "observedAt": "2026-10-20T06:02:24.673Z",
+  "operation": "Clean installed tarball protocol matrix, native store, registration lifecycle and offline change recovery; no live SAP acceptance",
+  "sanitizedResult": {
+    "candidateState": "unreleased",
+    "artifact": {
+      "integrity": "sha512-26gBRAARLI0X7TA3Ehj50zTnaZktrO0KuixzEu/dsY2F5e0ZQcH23h/MaqNvoUCAISLYocGcT74ikBCtq71x0w==",
+      "sourceTreeClean": true,
+      "compressedBytes": 13328147,
+      "unpackedBytes": 58288918,
+      "files": 11946,
+      "removedDependencyFilesOrDirectories": 370,
+      "runtimeBackportsVerified": true,
+      "mermaidParser": "passed"
+    },
+    "environment": {
+      "os": "macOS arm64",
+      "node": "24.22.0",
+      "npm": "11.19.1",
+      "logicalBytesNotFilesystemBlocks": true,
+      "installScripts": "disabled",
+      "cacheInitiallyEmpty": true
+    },
+    "candidateProtocol": {
+      "scope": "clean-installed-tarball-protocol-fixture",
+      "observedAt": "2026-10-20T06:02:24.673Z",
+      "platform": "darwin",
+      "nodeVersion": "v24.22.0",
+      "tarballBytes": 13328147,
+      "tarballIntegrity": "sha512-26gBRAARLI0X7TA3Ehj50zTnaZktrO0KuixzEu/dsY2F5e0ZQcH23h/MaqNvoUCAISLYocGcT74ikBCtq71x0w==",
+      "packageVersion": "2.0.1",
+      "build": {
+        "sourceCommit": "201fc8814e58dcefc0c202533e72ffcde0a6230e",
+        "worktreeDirty": false
+      },
+      "coldCacheInitiallyEmpty": true,
+      "coldInstallSeconds": 16.056969709,
+      "fullInstalledDisk": {
+        "bytes": 91810886,
+        "files": 17898
+      },
+      "matrix": [
+        {
+          "configured": false,
+          "viaNpx": false,
+          "args": [],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": true,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 580.517
+        },
+        {
+          "configured": false,
+          "viaNpx": false,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": true,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 221.749
+        },
+        {
+          "configured": false,
+          "viaNpx": true,
+          "args": [],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": true,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 2657.783
+        },
+        {
+          "configured": false,
+          "viaNpx": true,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": true,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 418.377
+        },
+        {
+          "configured": true,
+          "viaNpx": false,
+          "args": [],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 214.624
+        },
+        {
+          "configured": true,
+          "viaNpx": false,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 210.418
+        },
+        {
+          "configured": true,
+          "viaNpx": true,
+          "args": [],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 416.819
+        },
+        {
+          "configured": true,
+          "viaNpx": true,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "exitSignal": null,
+          "noCredentialPrompt": true,
+          "milliseconds": 435.25
+        }
+      ],
+      "warmStartupMilliseconds": [
+        223.106,
+        229.793,
+        239.144
+      ],
+      "runtimeBackportsVerified": true,
+      "mermaidParser": "passed",
+      "explicitHelp": true,
+      "invalidCommand": true,
+      "termination": {
+        "protocolInitialized": true,
+        "toolsListed": true,
+        "setupRequired": true,
+        "installationAccepted": false,
+        "sapAuthenticated": false,
+        "protocolOnly": true,
+        "exitCode": 0,
+        "error": null,
+        "serverVersion": "2.0.1",
+        "exitSignal": null,
+        "noCredentialPrompt": true,
+        "milliseconds": 215.379
+      },
+      "windowsNpxCmd": "not_run: requires Windows",
+      "actualHostRestart": "not_run",
+      "liveSapFirstRead": "not_run",
+      "userInstallationSuccesses": 0
+    },
+    "baselineProtocol": {
+      "scope": "clean-installed-tarball-protocol-fixture",
+      "observedAt": "2026-10-20T06:01:21.371Z",
+      "platform": "darwin",
+      "nodeVersion": "v24.22.0",
+      "tarballBytes": 26292723,
+      "tarballIntegrity": "sha512-sDoaxyHmAty2kznaCAoC02VoF5klOos9LwrDFSeTwKm3q3OWrHsbenhdSyVGmoxkw/ZSKTLB6OKUbkGYS56Mhw==",
+      "packageVersion": "2.0.1",
+      "build": null,
+      "coldCacheInitiallyEmpty": true,
+      "coldInstallSeconds": 12.924588833,
+      "fullInstalledDisk": {
+        "bytes": 118886570,
+        "files": 18518
+      },
+      "matrix": [
+        {
+          "configured": false,
+          "viaNpx": false,
+          "args": [],
+          "protocolInitialized": false,
+          "toolsListed": false,
+          "setupRequired": null,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": false,
+          "exitCode": null,
+          "error": "NON_PROTOCOL_STDOUT",
+          "noCredentialPrompt": true,
+          "milliseconds": 384.684
+        },
+        {
+          "configured": false,
+          "viaNpx": false,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "noCredentialPrompt": true,
+          "milliseconds": 350.361
+        },
+        {
+          "configured": false,
+          "viaNpx": true,
+          "args": [],
+          "protocolInitialized": false,
+          "toolsListed": false,
+          "setupRequired": null,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": false,
+          "exitCode": null,
+          "error": "NON_PROTOCOL_STDOUT",
+          "noCredentialPrompt": true,
+          "milliseconds": 1195.978
+        },
+        {
+          "configured": false,
+          "viaNpx": true,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "noCredentialPrompt": true,
+          "milliseconds": 546.348
+        },
+        {
+          "configured": true,
+          "viaNpx": false,
+          "args": [],
+          "protocolInitialized": false,
+          "toolsListed": false,
+          "setupRequired": null,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": false,
+          "exitCode": null,
+          "error": "NON_PROTOCOL_STDOUT",
+          "noCredentialPrompt": true,
+          "milliseconds": 313.34
+        },
+        {
+          "configured": true,
+          "viaNpx": false,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "noCredentialPrompt": true,
+          "milliseconds": 347.368
+        },
+        {
+          "configured": true,
+          "viaNpx": true,
+          "args": [],
+          "protocolInitialized": false,
+          "toolsListed": false,
+          "setupRequired": null,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": false,
+          "exitCode": null,
+          "error": "NON_PROTOCOL_STDOUT",
+          "noCredentialPrompt": true,
+          "milliseconds": 497.019
+        },
+        {
+          "configured": true,
+          "viaNpx": true,
+          "args": [
+            "serve"
+          ],
+          "protocolInitialized": true,
+          "toolsListed": true,
+          "setupRequired": false,
+          "installationAccepted": false,
+          "sapAuthenticated": false,
+          "protocolOnly": true,
+          "exitCode": 0,
+          "error": null,
+          "serverVersion": "2.0.1",
+          "noCredentialPrompt": true,
+          "milliseconds": 542.14
+        }
+      ],
+      "warmStartupMilliseconds": [
+        348.997,
+        345.942,
+        350.606
+      ],
+      "runtimeBackportsVerified": true,
+      "mermaidParser": "passed",
+      "explicitHelp": true,
+      "invalidCommand": true,
+      "termination": {
+        "protocolInitialized": true,
+        "toolsListed": true,
+        "setupRequired": false,
+        "installationAccepted": false,
+        "sapAuthenticated": false,
+        "protocolOnly": true,
+        "exitCode": 0,
+        "error": null,
+        "serverVersion": "2.0.1",
+        "noCredentialPrompt": true,
+        "milliseconds": 341.362
+      },
+      "windowsNpxCmd": "not_run: requires Windows",
+      "actualHostRestart": "not_run",
+      "liveSapFirstRead": "not_run",
+      "userInstallationSuccesses": 0
+    },
+    "installationPerformanceInterpretation": "Local tarball consumer installs; excludes initial artifact download. Sequential final cold installs are single samples, not a statistically established speed improvement. Warm measurements include protocol/tools-list and exit.",
+    "nativeStore": {
+      "observedAt": "2026-10-20T05:54:42.554Z",
+      "platform": "darwin",
+      "scope": "throwaway-native-store",
+      "cases": [
+        {
+          "bytes": 64,
+          "roundtrip": true
+        },
+        {
+          "bytes": 32,
+          "roundtrip": true
+        },
+        {
+          "bytes": 9000,
+          "roundtrip": true
+        }
+      ],
+      "renewal": true,
+      "removed": true,
+      "sapAuthenticated": false,
+      "legacyItemReadable": true
+    },
+    "registrationLifecycle": {
+      "scope": "isolated-actual-codex-cli-registration",
+      "observedAt": "2026-10-20T05:58:46Z",
+      "realHostRestart": "not_run",
+      "sapAuthentication": "not_run",
+      "realUserSettingsChanged": false,
+      "codexVersion": "codex-cli 0.163.0-alpha.10.2",
+      "legacyBefore": {
+        "wizardVersion": "2.0.1",
+        "registeredVersion": "2.0.0",
+        "registeredCommand": "<isolated-fixture-path>/node",
+        "registeredEntryPoint": "<isolated-fixture-path>/index.js",
+        "resolvedExecutable": "<isolated-fixture-path>/node",
+        "executableExists": true,
+        "entryExists": true,
+        "initialized": true,
+        "toolsListed": true,
+        "selectedProfileFound": true,
+        "profileHomeMatches": true,
+        "sapAuthenticated": false,
+        "status": "local_ready",
+        "errorCode": null
+      },
+      "afterActualCacheDeletion": {
+        "wizardVersion": "2.0.1",
+        "registeredVersion": null,
+        "registeredCommand": "<isolated-fixture-path>/node",
+        "registeredEntryPoint": "<isolated-fixture-path>/index.js",
+        "resolvedExecutable": "<isolated-fixture-path>/node",
+        "executableExists": true,
+        "entryExists": false,
+        "initialized": false,
+        "toolsListed": false,
+        "selectedProfileFound": false,
+        "profileHomeMatches": true,
+        "sapAuthenticated": false,
+        "status": "failed",
+        "errorCode": "ENTRY_MISSING"
+      },
+      "afterRegisteredNodeRemoval": {
+        "wizardVersion": "2.0.1",
+        "registeredVersion": null,
+        "registeredCommand": "<isolated-fixture-path>/node",
+        "registeredEntryPoint": "<isolated-fixture-path>/index.js",
+        "resolvedExecutable": null,
+        "executableExists": false,
+        "entryExists": null,
+        "initialized": false,
+        "toolsListed": false,
+        "selectedProfileFound": false,
+        "profileHomeMatches": true,
+        "sapAuthenticated": false,
+        "status": "failed",
+        "errorCode": "EXECUTABLE_MISSING"
+      },
+      "previewPreservedOriginal": true,
+      "repairApplied": true,
+      "afterPinnedUpgrade": {
+        "wizardVersion": "2.0.1",
+        "registeredVersion": "2.0.1",
+        "registeredCommand": "npx",
+        "registeredEntryPoint": null,
+        "resolvedExecutable": "<isolated-fixture-path>/npx",
+        "executableExists": true,
+        "entryExists": null,
+        "initialized": true,
+        "toolsListed": true,
+        "selectedProfileFound": true,
+        "profileHomeMatches": true,
+        "sapAuthenticated": false,
+        "status": "local_ready",
+        "errorCode": null
+      },
+      "freshCodexGet": true,
+      "persistedLauncherIsPinned": true
+    },
+    "suite": {
+      "total": 730,
+      "passed": 729,
+      "failed": 0,
+      "skipped": 1,
+      "skipReason": "Windows-only runtime test on macOS",
+      "durationMilliseconds": 7678.016667
+    },
+    "additionalChecks": {
+      "stdioModes": 5,
+      "releaseConformance": true,
+      "mcpbCatalog": true,
+      "lobehubCatalog": true,
+      "standaloneMcpbRuntime": true,
+      "mcpbManifestAndPack": true,
+      "nativeDesktopMcpbInstall": "not_run",
+      "guiHostRestart": "not_run",
+      "backportHashVerification": true,
+      "backportOsvAudit": true,
+      "npmProductionVulnerabilities": 0,
+      "registrySignedPackages": 328,
+      "attestationsVerified": 36,
+      "remoteCi": "not_run"
+    },
+    "prerequisiteRuntime": {
+      "version": "24.22.0",
+      "platform": "darwin-arm64",
+      "url": "https://nodejs.org/dist/v24.22.0/node-v24.22.0-darwin-arm64.tar.gz",
+      "sha256": "6a9724d9b50a5f22b4816cded441b5a8d9ddae546191a5e5b7efa5a5e2ee26d5",
+      "matchesOfficialChecksum": true,
+      "archiveBytes": 53049576,
+      "officialNodeNpmDistributionRegularFileBytes": 197365224,
+      "files": 4797,
+      "osLibrariesExcludedForAllProducts": true,
+      "globalUserPackagesExcluded": true
+    },
+    "competitorInstallations": [
+      {
+        "product": "ARC-1",
+        "version": "1.6.0",
+        "installExit": 0,
+        "coldInstallSeconds": 13.381,
+        "fullInstalledBytes": 70510642,
+        "fullInstalledFiles": 8513,
+        "installScripts": "disabled",
+        "liveSapRead": "not_run"
+      },
+      {
+        "product": "VSP",
+        "version": "v2.61.0",
+        "binaryBytes": 26205698,
+        "digest": "sha256:3167664391a7e0c59995c5be52eb9a38ed4cc85277a7e60d02ad438c5b037ec0",
+        "digestMatches": true,
+        "helpExit": 0,
+        "optionalRfcLibraries": "not_configured",
+        "liveSapRead": "not_run"
+      }
+    ],
+    "downloadSummary": {
+      "observedAt": "2026-10-20T05:22:48.293Z",
+      "package": "@coaspe/sap-abap-mcp",
+      "availableEnd": "2026-10-18",
+      "rolling7": {
+        "start": "2026-10-12",
+        "end": "2026-10-18",
+        "downloads": 407,
+        "observedDays": 7,
+        "expectedDays": 7,
+        "ownZeroDays": [
+          "2026-10-13",
+          "2026-10-14",
+          "2026-10-15"
+        ],
+        "commonZeroDays": [
+          "2026-10-13",
+          "2026-10-14",
+          "2026-10-15"
+        ],
+        "quality": "incomplete_suspected",
+        "zeroMeaning": "unknown: download APIs cannot establish whether zero means no requests or missing logs"
+      },
+      "rolling28": {
+        "start": "2026-09-21",
+        "end": "2026-10-18",
+        "downloads": 1488,
+        "observedDays": 28,
+        "expectedDays": 28,
+        "ownZeroDays": [
+          "2026-10-06",
+          "2026-10-13",
+          "2026-10-14",
+          "2026-10-15"
+        ],
+        "commonZeroDays": [
+          "2026-10-06",
+          "2026-10-13",
+          "2026-10-14",
+          "2026-10-15"
+        ],
+        "quality": "incomplete_suspected",
+        "zeroMeaning": "unknown: download APIs cannot establish whether zero means no requests or missing logs"
+      }
+    },
+    "publicDataSources": [
+      "https://registry.npmjs.org/@coaspe%2fsap-abap-mcp",
+      "https://api.npmjs.org/downloads/range/2026-07-13:2026-10-18/@coaspe%2fsap-abap-mcp",
+      "https://api.npmjs.org/downloads/range/2026-07-13:2026-10-18/react",
+      "https://api.npmjs.org/downloads/range/2026-07-13:2026-10-18/express"
+    ],
+    "liveSap": "blocked: no authorized common system/fixture",
+    "modelComparisonAttempted": 0,
+    "externalUsersObserved": 0
+  }
+}
