@@ -2,6 +2,20 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
+## 2.1.0 — 2026-10-20
+
+- Accept no-argument noninteractive stdio launch; preserve interactive help, explicit help and invalid-command errors. Empty-profile discovery reports setup required.
+- Resolve Node-bundled npm.cmd/npx.cmd launchers through their matching npm CLI without a shell; reject modified custom wrappers.
+- Pin npm registrations and use PATH Node for persistent checkouts. Add local registration doctor and reviewed, hash-bound repair/update with preflight, guarded config preservation and recovery copies.
+- Load the Windows PowerShell security module from its native system path so PowerShell 7 → Node → Windows PowerShell launches retain DPAPI support, with a native module-shadow regression test.
+- Fix native macOS Keychain writes that previously returned success while storing an empty value; pass credential data through stdin to native Security APIs.
+- Preserve conflicting inactive source under lock and stop multi-object writes with explicit saved/uncertain/unattempted state instead of automatic rollback.
+- Preserve patched vendor/browser asset bytes across Git line-ending settings and verify installed runtime hashes on Windows as well as Linux.
+- Return Unknown for SAP_BASIS-only system evidence. Load Mermaid only when used and remove dependency demos/maps from release tarballs while preserving patched runtime, licenses and provenance workflow.
+- Separate current, historical, offline and blocked evidence. Add public download collection and consent-based local outcome aggregation without remote telemetry.
+
+The owner reports the unchanged Windows candidate passed the supplied read-only field procedure. Operation-level SAP records were not supplied; this does not establish SAP write/quality acceptance or T1–T5 comparison results.
+
 ## 2.0.1 — 2026-10-12
 
 ### Documentation

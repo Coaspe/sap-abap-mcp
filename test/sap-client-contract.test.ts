@@ -25,6 +25,38 @@ const profile: SapProfile = {
   allowedPackages: ["Z_DEMO"]
 }
 
+test("platform components alone do not identify ECC", async () => {
+  for (const [components, expected] of [
+    [["SAP_BASIS"], "Unknown"], [[], "Unknown"],
+    [["SAP_BASIS", "SAP_ABA"], "Unknown"], [["SAP_APPL", "SAP_BASIS"], "ECC"],
+    [["S4CORE", "SAP_BASIS"], "S/4HANA"], [["S4COREOP", "SAP_APPL"], "S/4HANA"]
+  ] as const) {
+    const client = clientWithAdt({ async runQuery(sql: string) {
+      return { values: sql.includes("FROM CVERS") ? components.map(COMPONENT => ({ COMPONENT })) : [] }
+    } })
+    const system = await client.getSystemInfo(true, 0)
+    assert.equal(system.systemType, expected, components.join(","))
+  }
+})
+
+test("source patch preserves a different inactive version under the acquired lock", async () => {
+  const calls: string[] = []
+  const client = clientWithAdt({ stateful: "stateless",
+    lock: async () => { calls.push("lock"); return { LOCK_HANDLE: "LOCK" } },
+    getObjectSource: async (_uri: string, options?: { version?: string }) => {
+      const version = options?.version ?? "active"
+      calls.push(version)
+      return version === "inactive" ? "REPORT other_work." : "REPORT original."
+    },
+    setObjectSource: async () => { calls.push("write") },
+    statelessClone: { syntaxCheck: async () => [] },
+    unLock: async () => { calls.push("unlock") }
+  })
+  await assert.rejects(client.replaceSource("Z_DEMO", "/object", "/object/source/main",
+    "REPORT original.", "REPORT changed."), { code: "INACTIVE_SOURCE_CONFLICT" })
+  assert.deepEqual(calls, ["lock", "active", "inactive", "unlock"])
+})
+
 for (const version of ["V2", "V4"] as const) {
   for (const category of ["0", "1"] as const) {
     test(`binding creation sends ${version} category ${category} in the actual XML`, async () => {

@@ -2,8 +2,12 @@
 
 import { stdin, stderr, stdout } from "node:process"
 import { realpathSync } from "node:fs"
+import { createHash } from "node:crypto"
 import { fileURLToPath } from "node:url"
 import { promptSecret } from "./secret-prompt.js"
+import { STDIO_COMMAND } from "./launch-contract.js"
+import { applyRegistrationRepair, planRegistrationRepair, probeRegistration,
+  readRegistration, profileHomeForFile, type RegistrationClient } from "./registration.js"
 import { AppError, errorPayload, tokenPassthroughRefused } from "./errors.js"
 import {
   AuditRecorder,
@@ -96,6 +100,10 @@ Commands:
   abapgit auth status <id> --repository-url <url>
   abapgit auth logout <id> --repository-url <url>
   doctor <id> [--include-components]
+  doctor <id> --registration --client codex|claude [--config <path>]
+      Checks the registered runtime and MCP discovery without authenticating SAP.
+  repair <id> --client codex|claude [--config <path>] [--version <exact-version>]
+      Preview a pinned launcher repair/update. Apply with --apply --expect <planHash>.
   apikey new <id> [--role viewer|developer|admin] [--pepper-file <path>]
   apikey pepper
   assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
@@ -547,6 +555,14 @@ async function abapGitCommand(
 async function doctorCommand(parsed: ParsedArguments, profiles: ProfileStore, secrets: SecretStore) {
   const id = requiredPosition(parsed, 1, "profile id")
   const profile = await profiles.get(id)
+  if (parsed.options.has("registration")) {
+    const client = registrationClient(parsed)
+    const file = await readRegistration(client, option(parsed, "config"))
+    const report = await probeRegistration(file.launch, profile.id, profileHomeForFile(profiles.filePath))
+    writeJson(report)
+    if (report.status !== "local_ready") process.exitCode = 2
+    return
+  }
   if (profile.authType === "btp_destination") {
     const { btpConfigurationDiagnostics } = await import("./btp-diagnostics.js")
     writeJson(btpConfigurationDiagnostics(profile, process.env.VCAP_SERVICES))
@@ -562,6 +578,29 @@ async function doctorCommand(parsed: ParsedArguments, profiles: ProfileStore, se
   } finally {
     await manager.close()
   }
+}
+
+function registrationClient(parsed: ParsedArguments): RegistrationClient {
+  const client = requiredOption(parsed, "client")
+  if (client !== "codex" && client !== "claude") throw new AppError("INVALID_CLIENT", "--client must be codex or claude")
+  return client
+}
+
+async function repairCommand(parsed: ParsedArguments, profiles: ProfileStore): Promise<void> {
+  const profile = await profiles.get(requiredPosition(parsed, 1, "profile id"))
+  const client = registrationClient(parsed)
+  const file = await readRegistration(client, option(parsed, "config"))
+  const home = profileHomeForFile(profiles.filePath)
+  const plan = planRegistrationRepair(file, client, profile.id, home, option(parsed, "version"))
+  const planHash = createHash("sha256").update(file.text).update(plan.text).digest("hex")
+  if (!parsed.options.has("apply")) {
+    writeJson({ applied: false, changed: plan.changed, planHash, diff: plan.diff,
+      nextAction: "Review the diff, then repeat with --apply --expect <planHash>. No SAP authentication or changes are performed." })
+    return
+  }
+  if (requiredOption(parsed, "expect") !== planHash) throw new AppError("REGISTRATION_CHANGED", "The preview is stale; inspect a new repair preview")
+  const result = await applyRegistrationRepair(file, plan.text, () => probeRegistration(plan.launch, profile.id, home))
+  writeJson({ ...result, planHash, nextAction: "Restart the MCP host, run registration doctor, then verify an actual SAP read separately." })
 }
 
 async function setupCommand(
@@ -1004,6 +1043,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
     {
       apiVersion,
       ...selection,
+      setupRequired: (await profiles.list()).length === 0,
       ...(auditRecorder ? { auditRecorder } : {})
     }
   )
@@ -1024,7 +1064,7 @@ async function serveCommand(parsed: ParsedArguments, profiles: ProfileStore, sec
 
 export async function runCli(args = process.argv.slice(2)): Promise<void> {
   const parsed = parseArguments(args)
-  const command = parsed.positionals[0]
+  const command = parsed.positionals[0] ?? (args.length === 0 && !stdin.isTTY ? STDIO_COMMAND : undefined)
   if (!command || command === "help" || parsed.options.has("help")) {
     stdout.write(HELP)
     return
@@ -1040,6 +1080,7 @@ export async function runCli(args = process.argv.slice(2)): Promise<void> {
   if (command === "apikey") return apikeyCommand(parsed)
   if (command === "assure") return assureCommand(parsed, profiles, secrets)
   if (command === "doctor") return doctorCommand(parsed, profiles, secrets)
+  if (command === "repair") return repairCommand(parsed, profiles)
   if (command === "serve") return serveCommand(parsed, profiles, secrets)
   throw new AppError("UNKNOWN_COMMAND", `Unknown command: ${command}`)
 }
