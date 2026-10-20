@@ -69,7 +69,9 @@ bench/.github와 source map만 제외하고 다시 pack한다. 문서 glob은 �
 초기 설치 후 전체 node_modules는 118,886,570 → 91,728,872 bytes였다.
 빈 cache 설치는 14.30 → 15.06초, 3회 warm protocol session은 391–397 →
 213–248ms였다. 두 초기 설치가 동시 실행되어 cold 속도 개선 근거로 쓰지 않는다.
-최종 별도 재측정 값/한계도 evidence에 기록한다. Mermaid eager import는 별도
+최종 순차 측정은 압축 13,328,147 / 압축 해제 58,288,918 / 11,946 files,
+전체 node_modules 91,810,886 bytes다. cold는 12.92 → 16.06초로 개선되지 않았고
+warm 3회는 346–351 → 223–239ms였다. 단일 cold 표본으로 속도 우열을 확정하지 않는다. Mermaid eager import는 별도
 측정에서 126–304ms, DOCX는 10–12ms여서 Mermaid만 lazy load했다.
 
 제품 전체의 로컬 크기를 비교하면 외부 dependency도 포함해야 한다. 실제 ARC-1
@@ -107,6 +109,9 @@ acquisition-drafts-2026-10-20.md)은 준비만 했고 전송·녹화·도입 사
 전체 test suite, 5-mode 실제 stdio smoke, release metadata conformance,
 MCPB/LobeHub catalogue 동기화, standalone MCPB runtime/manifest/pack, backport
 hash/OSV audit, npm production audit와 registry signatures를 로컬에서 실행했다.
+전체 730개 중 729개 통과, Windows 전용 1개는 이 Mac에서 skip이었다. 실제
+Codex CLI 0.163.0-alpha.10.2의 격리 설정으로 2.0.0 등록 → cache/Node 제거 실패
+→ 2.0.1 pin 복구 → 새 CLI 프로세스의 설정 조회까지 통과했다. GUI 재시작은 미실행이다.
 구체 결과와 테스트한 source commit, package integrity는 evidence에 결속한다.
 `npm audit` 통과는 보안 무결함이나 live SAP 지원 보장이 아니다.
 
