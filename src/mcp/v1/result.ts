@@ -49,6 +49,8 @@ const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
   PACKAGE_NOT_ALLOWED: "policy",
   OBJECT_CHANGED: "conflict",
   SOURCE_CHANGED: "conflict",
+  INACTIVE_SOURCE_CONFLICT: "conflict",
+  MULTI_OBJECT_WRITE_FAILED: "sap",
   CONNECTION_MISMATCH: "conflict",
   OBJECT_AMBIGUOUS: "conflict",
   SAP_CAPABILITY_UNAVAILABLE: "capability",
@@ -65,6 +67,10 @@ const RETRYABLE_SAP_STATUSES = new Set([429, 502, 503, 504])
 
 function recoveryFor(code: string): z.infer<typeof V1_ERROR_SCHEMA>["recovery"] {
   switch (code) {
+    case "INACTIVE_SOURCE_CONFLICT":
+      return { action: "inspect_state", message: "Read active and inactive source and reconcile the pending work with its owner. Do not repeat the patch or activate unrelated changes.", nextTools: ["sap.version.inactive.read", "sap.source.read"] }
+    case "MULTI_OBJECT_WRITE_FAILED":
+      return { action: "inspect_state", message: "Some changes may already be saved. Read every attempted object before resuming; do not repeat completed writes or assume atomic rollback.", nextTools: ["sap.version.inactive.read", "sap.source.read"] }
     case "TOKEN_PASSTHROUGH_REFUSED":
       return { action: "review_policy", message: "Ask the operator to configure BTP Destination exchange/propagation or independent SAP credentials. Do not forward the MCP token, weaken audience checks or retry login to bypass this refusal.", nextTools: [] }
     case "AUTH_REQUIRED":
