@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -39,4 +39,27 @@ test("Windows npm-style command shims preserve arguments without executing opera
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
+})
+
+
+test("Windows bundled npm and npx launchers execute their actual CLI without a shell", { skip: process.platform !== "win32" }, async () => {
+  for (const command of ["npm.cmd", "npx.cmd"]) {
+    const result = await runLocalCommand(command, ["--version"])
+    assert.equal(result.ok, true, result.stderr)
+    assert.match(result.stdout.trim(), /^\d+\.\d+\.\d+/)
+  }
+})
+
+test("a custom npm wrapper is not replaced with its adjacent CLI", { skip: process.platform !== "win32" }, async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap npm wrapper "))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const bin = join(directory, "node_modules", "npm", "bin")
+  await mkdir(bin, { recursive: true })
+  await writeFile(join(directory, "node_modules", "npm", "package.json"), '{"name":"npm"}')
+  await writeFile(join(bin, "npm.cmd"), "@ECHO OFF\r\n%NPM_CLI_JS% %*\r\n")
+  await writeFile(join(directory, "npm.cmd"), "@ECHO OFF\r\nREM owner custom wrapper\r\n%NPM_CLI_JS% %*\r\n")
+  await writeFile(join(bin, "npm-cli.js"), "process.stdout.write('must-not-run')")
+  const result = await runLocalCommand(join(directory, "npm.cmd"), ["--version"])
+  assert.equal(result.ok, false)
+  assert.equal(result.stdout, "")
 })
