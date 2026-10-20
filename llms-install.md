@@ -69,7 +69,7 @@ Use `npx` on macOS/Linux and `npx.cmd` on Windows:
       "command": "npx",
       "args": [
         "--yes",
-        "@coaspe/sap-abap-mcp@2.0.1",
+        "@coaspe/sap-abap-mcp@2.1.0",
         "serve",
         "--profile",
         "DEV100"

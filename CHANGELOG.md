@@ -2,7 +2,7 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
-## Unreleased reliability candidate — 2026-10-20
+## 2.1.0 — 2026-10-20
 
 - Accept no-argument noninteractive stdio launch; preserve interactive help, explicit help and invalid-command errors. Empty-profile discovery reports setup required.
 - Pin npm registrations and use PATH Node for persistent checkouts. Add local registration doctor and reviewed, hash-bound repair/update with preflight, guarded config preservation and recovery copies.
@@ -11,7 +11,7 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 - Return Unknown for SAP_BASIS-only system evidence. Load Mermaid only when used and remove dependency demos/maps from release tarballs while preserving patched runtime, licenses and provenance workflow.
 - Separate current, historical, offline and blocked evidence. Add public download collection and consent-based local outcome aggregation without remote telemetry.
 
-No candidate changes are published; Windows/native-host/live-SAP acceptance is still required.
+The owner reports the unchanged Windows candidate passed the supplied read-only field procedure. Operation-level SAP records were not supplied; this does not establish SAP write/quality acceptance or T1–T5 comparison results.
 
 ## 2.0.1 — 2026-10-12
 

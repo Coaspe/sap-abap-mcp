@@ -12,7 +12,7 @@ HTTP roles/audit, transport assure, MCPB and registry distribution already exist
 These features are not new implementation tasks. Shipping them does not establish
 successful deployment on every SAP release, native host or identity provider.
 
-## Current unreleased reliability candidate
+## Reliability improvements in 2.1.0
 
 - Compatible non-interactive no-argument stdio launch and explicit setup-required discovery.
 - Version-pinned npm registration, actual registration doctor and preview/apply repair.
@@ -23,7 +23,7 @@ successful deployment on every SAP release, native host or identity provider.
 ## Acceptance gates
 
 - Verify current 2.x workflows on an authorized SAP development fixture, retaining version/commit/component evidence.
-- Run Windows DPAPI/npx.cmd, native MCPB installation, host restart and actual identity-provider renewal field checks.
+- Retain version-bound Windows/native-host evidence. The owner reports the unchanged Windows read-only candidate passed; sanitized per-operation field records remain pending.
 - Run the existing T1–T5 contract with Coaspe, ARC-1 and VSP, three fresh sessions each; compare correctness before cost.
 - Observe the preregistered 10 external developers: eight first-task successes and five different-task reuses by day seven; retain failures and nonresponses.
 - Collect independent adopters, conformance implementations and neutral governance evidence before making a standard or market-leading claim.
