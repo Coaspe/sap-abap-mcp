@@ -36,6 +36,10 @@ abapgit auth status <id> --repository-url <url>
 abapgit auth logout <id> --repository-url <url>
 
 doctor <id> [--include-components]
+# Unreleased candidate only:
+doctor <id> --registration --client codex|claude [--config <path>]
+repair <id> --client codex|claude [--config <path>] [--version <exact-version>]
+    [--apply --expect <planHash>]
 apikey new <id> [--role viewer|developer|admin] [--pepper-file <path>]
 apikey pepper
 
@@ -90,3 +94,5 @@ codex mcp add sap-abap-local -- node "/absolute/path/to/sap-abap-mcp/dist/src/in
 
 Use a distinct MCP name so a local build does not overwrite the published
 configuration. Run `npm run check` and `npm pack --dry-run` before publishing.
+
+The candidate treats no arguments with non-interactive stdin as stdio `serve`. Interactive no-argument usage, `help` and `--help` retain help output. A profile-free server advertises setup-required instructions, not successful SAP setup. See [registration recovery](registration-recovery.md).

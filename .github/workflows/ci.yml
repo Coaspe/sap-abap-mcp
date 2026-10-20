@@ -43,6 +43,15 @@ jobs:
       - run: npm run build
       - run: node --test dist/test/local-command.test.js dist/test/security-backports.test.js dist/test/token-efficiency.test.js
       - run: node scripts/smoke-v1-stdio.mjs
+      - run: node --test dist/test/stdio-launch.test.js dist/test/launch-contract.test.js dist/test/registration.test.js
+      - name: Verify native DPAPI with throwaway credentials
+        run: node scripts/verify-native-store.mjs
+      - name: Verify Windows installed tarball and npx.cmd
+        shell: pwsh
+        run: |
+          node scripts/pack-runtime.mjs artifacts
+          $tarball = node -p "'artifacts/coaspe-sap-abap-mcp-' + require('./package.json').version + '.tgz'"
+          node scripts/verify-installation.mjs $tarball
 
   package:
     runs-on: ubuntu-latest
@@ -70,7 +79,7 @@ jobs:
         run: |
           package_dir="$(mktemp -d)"
           trap 'rm -rf "$package_dir"' EXIT
-          npm pack --json --pack-destination "$package_dir" > "$package_dir/pack.json"
+          node scripts/pack-runtime.mjs "$package_dir" > "$package_dir/pack.json"
           package_file="$(node -e 'console.log(require(process.argv[1])[0].filename)' "$package_dir/pack.json")"
           npm install --prefix "$package_dir" --omit=dev --ignore-scripts --no-audit --no-fund "$package_dir/$package_file"
           cd "$package_dir/node_modules/@coaspe/sap-abap-mcp"
@@ -82,6 +91,12 @@ jobs:
           node scripts/benchmark-public-contracts.mjs
           node scripts/benchmark-conditional-batch.mjs
       - run: npm run verify:backports
+      - run: node scripts/check-evidence-index.mjs
+      - name: Verify clean installed launch contract
+        run: |
+          node scripts/pack-runtime.mjs artifacts
+          package_file="$(node -p "'artifacts/coaspe-sap-abap-mcp-' + require('./package.json').version + '.tgz'")"
+          node scripts/verify-installation.mjs "$package_file"
       - run: npm run audit:backports
       - run: npm audit --omit=dev
       - run: npm audit signatures

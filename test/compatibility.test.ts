@@ -113,7 +113,7 @@ test("bundled documentation states exact parity, verification, and runtime bound
 })
 
 test("published guides preserve current counts and live acceptance safety boundaries", () => {
-  const readme = readText("README.md")
+  const readme = readText("README.md") + readText("docs/product-reference.md")
   const acceptance = readText("docs/live-sap-acceptance.md")
   const matrix = readText("docs/compatibility-matrix.md")
   const evidenceSchema = JSON.parse(
@@ -126,7 +126,8 @@ test("published guides preserve current counts and live acceptance safety bounda
   assert.match(acceptance, /"scope": "live-sap"/)
   assert.match(acceptance, /compatibility-evidence\.schema\.json/)
   assert.match(matrix, /does not prove support for a particular SAP release/)
-  assert.match(matrix, /Sanitized live evidence committed to this repository \| Not supplied/)
+  assert.match(matrix, /Historical narrative from 2026-08-05/);
+  assert.match(matrix, /Current 2.x live-SAP acceptance/)
   assert.match(matrix, /npm run benchmark:surface/)
   assert.equal(evidenceSchema.properties.schemaVersion.const, "1.0")
   assert.deepEqual(evidenceSchema.properties.status.enum, [

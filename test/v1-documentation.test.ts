@@ -101,13 +101,13 @@ test("MCPB catalog matches the unversioned v1 runtime", async () => {
 })
 
 test("README documents current defaults, strict TMP ownership, and connection diagnosis", async () => {
-  const readme = await readFile("README.md", "utf8")
+  const readme = await readFile("README.md", "utf8") + await readFile("docs/product-reference.md", "utf8")
 
   for (const statement of [
     "Normal clients should omit both `--api-version` and `--toolsets`.",
     "Existing SAP objects may be used for reads, searches, and analysis.",
     "A candidate becomes `RUN_OWNED` only after both a successful create receipt and an immediate exact read-back",
-    "docs/live-sap-v1-120-tool-tmp-test-prompt.ko.md",
+    "live-sap-v1-120-tool-tmp-test-prompt.ko.md",
     "`-32000` (`ConnectionClosed`)"
   ]) {
     assert.ok(readme.includes(statement), statement)

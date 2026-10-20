@@ -1,5 +1,5 @@
 ---
-name: First setup and first read report
+name: First setup, first read and task outcome
 description: Report setup duration, first-read outcome and a bounded failure category
   without confidential SAP data.
 title: 'Setup and first-read report: '
@@ -18,7 +18,7 @@ body:
     label: Product version and setup path
     description: Use the npm version and published npm / supplied preview / local
       checkout label. Do not enter customer or SAP identifiers.
-    placeholder: 1.7.1, published npm
+    placeholder: 2.0.1, published npm (or unreleased candidate with commit)
   validations:
     required: true
 - type: dropdown
@@ -91,6 +91,34 @@ body:
     - Not attempted
   validations:
     required: true
+- type: input
+  id: client_version
+  attributes:
+    label: MCP client version
+    description: Version number only; do not include machine or account identifiers.
+  validations:
+    required: false
+- type: dropdown
+  id: mcp_initialization
+  attributes:
+    label: MCP initialization state
+    options:
+    - Ready with the intended configured profile
+    - setup_required (profile missing)
+    - Failed
+    - Not attempted
+  validations:
+    required: true
+- type: dropdown
+  id: sap_authentication
+  attributes:
+    label: SAP authentication result
+    options:
+    - Verified by an actual SAP read
+    - Failed
+    - Not attempted
+  validations:
+    required: true
 - type: dropdown
   id: first_read
   attributes:
@@ -101,6 +129,19 @@ body:
     - Not attempted
     description: Use the setup page first-query prompt or a user-selected non-sensitive
       development object. Do not run application tests or writes for this report.
+  validations:
+    required: true
+- type: dropdown
+  id: first_task
+  attributes:
+    label: First existing-object ABAP task outcome
+    description: Complete requires the requested behavior and actual validation results, not just syntax or MCP connection. Do not describe the business task or identify its objects.
+    options:
+    - Complete with verified acceptance criteria
+    - Partial
+    - Failed
+    - Blocked
+    - Not attempted
   validations:
     required: true
 - type: dropdown
@@ -120,11 +161,12 @@ body:
 - type: dropdown
   id: repeat_use
   attributes:
-    label: Actual repeat use within 30 days
+    label: Different-task reuse within seven days
     options:
-    - Used again for a real development read
-    - Did not use again
-    - Follow-up not due or not observed
+    - Used again for a different real ABAP task
+    - No different-task reuse by day seven
+    - Follow-up not due
+    - No response or not observed
     description: This is actual repeat use, not an intention to use. Leave follow-up
       unobserved until it happens.
   validations:

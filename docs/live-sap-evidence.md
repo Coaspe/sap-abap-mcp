@@ -1,4 +1,6 @@
-# Live SAP evidence
+# Historical live SAP evidence — 2026-08-05
+
+These are historical reported runs, not verification of the current 2.x candidate. The narrative does not bind an exact deployed npm version and source commit. Counts and original labels below are preserved as reported. In particular, the historical ECC label needs fresh component evidence: `SAP_BASIS` alone identifies a platform, not an application product. No claim is made that either historical system was actually misclassified. See [current evidence index](evidence/index.json).
 
 Reproducible evidence from live SAP systems for the `$TMP`-scoped portion of the
 v1 tool surface, the self-hosted HTTP transport, and the CI assurance gate.

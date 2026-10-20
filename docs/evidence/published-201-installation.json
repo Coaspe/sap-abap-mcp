@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0",
+  "productVersion": "2.0.1",
+  "sourceCommit": "383598fc3ddc2acdf5cf51b086ddcc64528ce089",
+  "scope": "automated-fixture",
+  "connection": "installation-fixture",
+  "system": {
+    "sapRelease": "N/A",
+    "systemType": "N/A"
+  },
+  "capability": "installation.stdio",
+  "status": "unverified",
+  "observedAt": "2026-10-20T05:21:55.983Z",
+  "operation": "T1 protocol subtask using the actual published tarball; no live SAP read",
+  "sanitizedResult": {
+    "environment": {
+      "os": "macOS arm64",
+      "node": "24.22.0",
+      "npm": "11.19.1"
+    },
+    "tarballIntegrity": "sha512-sDoaxyHmAty2kznaCAoC02VoF5klOos9LwrDFSeTwKm3q3OWrHsbenhdSyVGmoxkw/ZSKTLB6OKUbkGYS56Mhw==",
+    "integrityMatchedRegistry": true,
+    "noArguments": "failed: help on stdout followed by exit",
+    "explicitServe": "protocol discovery passed with five gateways",
+    "noProfile": "SAP setup required; not an accepted installation",
+    "liveSapRead": "not_run",
+    "modelTaskCompletion": "not_run"
+  }
+}

@@ -1,84 +1,32 @@
 # Roadmap
 
-SAP ABAP MCP follows an evidence-first roadmap. Dates are intentionally absent:
-an item is complete only when its contract, automated tests, documentation, and
-applicable live-SAP evidence agree.
+Release implementation, local verification, live compatibility and independent
+adoption are separate states. See the [evidence index](docs/evidence/index.json).
 
-## Now
+## Shipped in 2.0.0 / 2.0.1
 
-- Keep npm, GitHub Releases, the Official MCP Registry, MCPB, Smithery, and
-  directory metadata aligned with the same stable version.
-- Publish the v1 compatibility profile and implementation-independent
-  conformance evidence.
-- Expand sanitized live-SAP evidence across ECC, S/4HANA, and ABAP Cloud
-  without publishing customer systems or source.
-- Recruit verified adopters and document reproducible workflows.
+Onboarding/doctor, Basic and OAuth/PKCE, BTP service-key import, DPAPI/Keychain,
+read-only first-run policy, five gateways reaching 120 capabilities, batch and
+conditional source reads, KTD/public contracts, workflow prompts, debugger/RAP,
+HTTP roles/audit, transport assure, MCPB and registry distribution already exist.
+These features are not new implementation tasks. Shipping them does not establish
+successful deployment on every SAP release, native host or identity provider.
 
-## Next
+## Current unreleased reliability candidate
 
-The [2026-10-01 competitor and setup review](docs/competitive-research-2026-10-01.ko.md)
-defines acceptance criteria for BTP identity verification, guided advanced
-authentication, first-user setup, and identical-task comparisons. Recovery
-guidance, MCP progress notifications, guided OAuth/BTP service-key authentication,
-batched capability descriptions, and read-only first-run access scope are implemented locally, pending release;
-they do not close the live BTP/SSO or comparative task-success gaps.
-Existing registration comparison and the actual Claude CLI argument-order fix
-also have isolated local evidence; cross-platform installation and live SAP
-first-query acceptance remain open.
-Conditional batch source rechecks also have local protocol and complete-workload
-token estimates, with unchanged minimal/single schemas; live task/billing
-acceptance remains open. See [batch source reads](docs/batch-source-reads.md).
-Desktop credential renewal can explicitly reopen the existing local setup
-wizard without another CLI, with per-profile cache invalidation after saving;
-native host and live identity-provider acceptance remain open.
-HTTP OIDC deployments also have protected-resource metadata and 401 discovery
-for a reviewed public HTTPS endpoint, with real SDK PKCE/signed-token fixture
-acceptance. External IdP registration, resource/audience mapping and native-host
-login remain acceptance gates; this does not claim a deployed BTP OAuth service.
-The checkout now refuses direct MCP-token forwarding to SAP, including legacy
-passthrough profiles, and rejects Internet exchange headers that reuse the input
-token. Existing files remain readable. Local SDK/HTTP tests preserve Destination
-exchange/Connectivity assertions and independent SAP credentials; real BTP
-identity, proxy configuration and SAP permission acceptance remain open.
-The browser setup also has captured Korean/English backward-navigation and
-keyboard evidence: a freshly saved profile appears immediately for reuse,
-the current step number resets and focus follows the new heading. SAP validation
-and credential persistence in those UI checks are synthetic; native-host,
-protected-store and novice-user first-query acceptance remain open.
-Dependency patch refreshes also preserve the recorded workload while reducing
-production audit affected-package counts from eight to four. The remaining
-node-forge/SAP SDK warnings, upstream patch availability and deployment-specific
-reachability remain tracked; this is not a zero-vulnerability release claim.
-Synthetic SDK certificate-call tracing now has a positive instrumentation control
-and three-runtime local evidence. Maintained Node 22/24 LTS and minimum-compatible
-Node 20 pass the existing suite and workload; native hosts, other operating
-systems and remote CI still require acceptance. Node 22 is added to CI coverage.
+- Compatible non-interactive no-argument stdio launch and explicit setup-required discovery.
+- Version-pinned npm registration, actual registration doctor and preview/apply repair.
+- Native macOS credential round-trip fix, smaller runtime artifact and measured deferred Mermaid loading.
+- Conservative product classification and preservation of conflicting inactive work; uncertain multi-object writes stop without automatic rollback.
+- Validated evidence index, UTC download quality flags and voluntary user-outcome exports; no default telemetry.
 
-Saved target/authentication changes also invalidate cached direct and HTTP
-Destination clients on their next acquisition. Policy-only changes keep the
-existing session; no new MCP schema or call is introduced. Local regressions
-pass, while live SAP profile-edit acceptance remains open.
+## Acceptance gates
 
-The pinned MCP SDK is also refreshed within 1.x to reject oversized HTTP
-message batches before tool execution. The 101-message regression and normal
-workload pass locally without changing tool schemas or token estimates; the
-remaining SAP SDK/node-forge audit warnings are not suppressed.
-
-- Add SAP principal propagation. Per-person SAP profiles already give per-person
-  SAP attribution and authorization, but the server still holds each person's SAP
-  credential. Forwarding an end-user token into SAP requires Cloud Connector or
-  the BTP `OAuth2UserTokenExchange` flow.
-- Add BTP Cloud Foundry deployment with XSUAA and the Destination Service, so an
-  existing BTP landscape can host the server without bespoke configuration.
-- Add an audit sink for the BTP Audit Log Service alongside the file and stderr
-  sinks.
-- Define an admin-governed Dynpro extension profile for systems where public
-  ADT endpoints do not provide the required screen CRUD operations.
-- Add end-to-end Fiori workflows that compose RAP/OData backend generation
-  with established SAP Fiori project tooling instead of duplicating it.
-- Add more conformance levels for safe writes, quality gates, transports, RAP,
-  runtime analysis, and cross-system operations.
-- Publish compatibility evidence produced by independent implementations.
+- Verify current 2.x workflows on an authorized SAP development fixture, retaining version/commit/component evidence.
+- Run Windows DPAPI/npx.cmd, native MCPB installation, host restart and actual identity-provider renewal field checks.
+- Run the existing T1–T5 contract with Coaspe, ARC-1 and VSP, three fresh sessions each; compare correctness before cost.
+- Observe the preregistered 10 external developers: eight first-task successes and five different-task reuses by day seven; retain failures and nonresponses.
+- Collect independent adopters, conformance implementations and neutral governance evidence before making a standard or market-leading claim.
 
 ## Later
 

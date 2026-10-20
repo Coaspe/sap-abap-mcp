@@ -1,0 +1,16 @@
+{
+  "currentProductVersion": "2.0.1",
+  "candidateState": "unreleased",
+  "currentLiveSupportedCount": 0,
+  "recordSchema": "../compatibility-evidence.schema.json",
+  "records": ["published-201-installation.json"],
+  "historicalDocuments": [{
+    "path": "../live-sap-evidence.md",
+    "observedDate": "2026-08-05",
+    "productVersion": null,
+    "sourceCommit": null,
+    "environment": "Two reported development systems; original product labels require component reconfirmation",
+    "result": "historical_report_only",
+    "reasonNotPromoted": "Exact deployed version/source binding was not retained in the narrative; no current 2.x execution was performed"
+  }]
+}

@@ -100,3 +100,13 @@ fixture. It checks full-body reads, unchanged/changed refreshes and denied
 refreshes, and reports a native Resource alternative. It covers only a source
 read subtask, with scripted operation selection and no model or live SAP call;
 it does not change any T1-T5 acceptance status above.
+
+
+## 2026-10-20 field status
+
+[45 scheduled run records](evidence/task-comparison-2026-10-20.json) pin released
+Coaspe 2.0.1, ARC-1 1.6.0 and VSP v2.61.0. All are blocked before attempt because
+an authorized common SAP fixture and frozen host/model session were unavailable.
+There is no live completion rate or product ranking. Candidate offline fixes are
+separate from these released-product runs. Use the [field commands and acceptance
+criteria](field-acceptance-2026-10-20.ko.md) to execute the unchanged tasks.
