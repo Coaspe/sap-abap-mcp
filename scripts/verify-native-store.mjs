@@ -3,11 +3,24 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { createDefaultSecretStore } from "../dist/src/secret-store.js"
-import { execFileSync } from "node:child_process"
+import { execFileSync, spawnSync } from "node:child_process"
 
 if (!["darwin", "win32"].includes(process.platform)) {
   console.log(JSON.stringify({ status: "not_run", reason: "Requires native macOS Keychain or Windows DPAPI" }))
 } else {
+  if (process.platform === "win32") {
+    // This is a fixed public fixture, so a failing native prerequisite can be
+    // diagnosed without printing a stored credential or random test value.
+    const script = ["$ErrorActionPreference = 'Stop'", "$utf8 = [Text.UTF8Encoding]::new($false)",
+      "[Console]::InputEncoding = $utf8", "[Console]::OutputEncoding = $utf8",
+      "$plain = [Console]::In.ReadToEnd()", "$secure = ConvertTo-SecureString -String $plain -AsPlainText -Force",
+      "$encrypted = ConvertFrom-SecureString -SecureString $secure", "[Console]::Out.Write($encrypted.Length)"].join("; ")
+    const probe = spawnSync("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+      { input: "public-fixture", encoding: "utf8", timeout: 15000, windowsHide: true })
+    console.log(JSON.stringify({ scope: "public-dpapi-prerequisite", exitCode: probe.status,
+      encryptedLength: probe.status === 0 ? Number(probe.stdout) : null,
+      diagnostic: probe.status === 0 ? null : String(probe.stderr).slice(0, 2000) }))
+  }
   const directory = await mkdtemp(join(tmpdir(), "sap-native-store-"))
   process.env.SAP_ABAP_MCP_HOME = directory
   const store = createDefaultSecretStore(), id = `INSTALLVERIFY_${randomBytes(8).toString("hex").toUpperCase()}`
@@ -20,6 +33,7 @@ if (!["darwin", "win32"].includes(process.platform)) {
       report.legacyItemReadable = await store.get(id) === "public-fixture"
     }
     for (const value of [randomBytes(32).toString("hex"), '  한국어 " \\ ; $()\ntrailing  ', randomBytes(4500).toString("hex")]) {
+      console.log(JSON.stringify({ scope: "throwaway-native-store-case", bytes: Buffer.byteLength(value) }))
       await store.set(id, value)
       report.cases.push({ bytes: Buffer.byteLength(value), roundtrip: await store.get(id) === value })
     }

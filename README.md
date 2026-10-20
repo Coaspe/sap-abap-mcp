@@ -95,7 +95,7 @@ speed improvement is claimed. See [exact snapshots and limits](docs/evidence/can
 
 ## Reference and release status
 
-- [Full reference](docs/product-reference.md), [CLI](docs/cli-reference.md), [profiles](docs/setup-and-profiles.md), [changelog](CHANGELOG.md).
+- [Transport `assure` and CI](docs/product-reference.md#transport-change-assurance), [full reference](docs/product-reference.md), [CLI](docs/cli-reference.md), [profiles](docs/setup-and-profiles.md), [changelog](CHANGELOG.md).
 - [Evidence index](docs/evidence/index.json), [compatibility](docs/compatibility-matrix.md), [historical live record](docs/live-sap-evidence.md).
 - [Roadmap](ROADMAP.md), [adopters](ADOPTERS.md), [distribution](docs/mcp-directory-submissions.md), [2.1.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.1.0).
 - [Reliability validation](docs/reliability-2026-10-20.ko.md) and [field procedure](docs/field-acceptance-2026-10-20.ko.md). Checkout manifest version: `2.1.0`.
