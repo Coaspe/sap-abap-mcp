@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { dirname, join, isAbsolute } from "node:path"
 import { z } from "zod"
 import { AppError } from "./errors.js"
 
@@ -19,6 +19,7 @@ const baseProfileSchema = z.object({
   environment: z.enum(["development", "quality", "production"]),
   allowDataQueries: z.boolean().default(false),
   readOnly: z.boolean().optional(),
+  caFile: z.string().refine(isAbsolute, "CA file path must be absolute").optional(),
   allowedPackages: z.array(z.string().min(1)).default([]),
   classicBridgePath: classicBridgePathSchema.optional()
 })
@@ -70,10 +71,12 @@ const profileSchema = z.discriminatedUnion("authType", [
 ])
 
 const profileFileSchema = z.object({
-  version: z.union([z.literal(1), z.literal(2)]),
+  version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   profiles: z.array(profileSchema)
-}).refine(data => data.version === 2 || data.profiles.every(profile => profile.readOnly === undefined),
+}).refine(data => data.version >= 2 || data.profiles.every(profile => profile.readOnly === undefined),
   "Profiles with an explicit read-only policy require file version 2")
+  .refine(data => data.version >= 3 || data.profiles.every(profile => profile.caFile === undefined),
+    "Profiles with a CA file require file version 3")
 
 type StoredSapProfile = z.infer<typeof profileSchema>
 export type SapProfile = StoredSapProfile extends infer Profile
@@ -91,6 +94,7 @@ export interface SapProfileInput {
   authType?: SapProfile["authType"]
   username?: string | undefined
   allowDataQueries?: boolean
+  caFile?: string | undefined
   readOnly?: boolean | undefined
   allowedPackages?: string[]
   tokenUrl?: string
@@ -120,6 +124,7 @@ export function normalizeProfile(input: SapProfileInput): StoredSapProfile {
     environment: input.environment ?? "development",
     allowDataQueries: input.allowDataQueries ?? false,
     ...(input.readOnly !== undefined ? { readOnly: input.readOnly } : {}),
+    ...(input.caFile ? { caFile: input.caFile } : {}),
     authType,
     ...(authType === "btp_destination" ? {
       destinationName: input.destinationName?.trim(),
@@ -153,7 +158,7 @@ export function normalizeProfile(input: SapProfileInput): StoredSapProfile {
 export function profileConnectionKey(profile: SapProfile): string {
   return JSON.stringify([
     profile.url, profile.client, profile.language, profile.username,
-    profile.classicBridgePath, profile.authType,
+    profile.classicBridgePath, profile.authType, profile.caFile,
     ...(profile.authType === "oauth_client_credentials" || profile.authType === "oauth_authorization_code"
       ? [profile.tokenUrl, profile.clientId, profile.scope,
           profile.authType === "oauth_authorization_code" ? profile.authorizationUrl : undefined]
@@ -228,7 +233,7 @@ export class ProfileStore {
   private async writeAll(data: z.infer<typeof profileFileSchema>): Promise<void> {
     const parsed = profileFileSchema.parse({
       ...data,
-      version: data.profiles.some(profile => profile.readOnly !== undefined) ? 2 : 1
+      version: requiredFileVersion(data.profiles)
     })
     const directory = dirname(this.filePath)
     const temporaryPath = `${this.filePath}.tmp-${process.pid}`
@@ -236,4 +241,9 @@ export class ProfileStore {
     await writeFile(temporaryPath, `${JSON.stringify(parsed, null, 2)}\n`, { mode: 0o600 })
     await rename(temporaryPath, this.filePath)
   }
+}
+
+export function requiredFileVersion(profiles: SapProfile[]): 1 | 2 | 3 {
+  return profiles.some(profile => profile.caFile !== undefined) ? 3
+    : profiles.some(profile => profile.readOnly !== undefined) ? 2 : 1
 }

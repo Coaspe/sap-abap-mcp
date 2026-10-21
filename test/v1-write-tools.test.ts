@@ -391,3 +391,21 @@ for (const apiVersion of ["v0", "v1"] as const) {
     assert.deepEqual((calls[0]!.input as any).additionalOptions, additionalOptions)
   })
 }
+
+
+for (const apiVersion of ["v0", "v1"] as const) {
+  test(`${apiVersion} preserves the explicit empty superpackage for a top-level package`, async t => {
+    const { service, calls } = createWriteService()
+    const server = createMcpServer(service, { apiVersion })
+    const client = new Client({ name: "package-test", version: "1" })
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    await server.connect(serverTransport); await client.connect(clientTransport)
+    t.after(async () => { await client.close(); await server.close() })
+    const result = await client.callTool({ name: apiVersion === "v1" ? "sap.repository.create" : "create_object_programmatically", arguments: {
+      [apiVersion === "v1" ? "systemId" : "connectionId"]: "DEV100", objectType: "DEVC/K", name: "Z_ROOT", description: "Root package", parentName: "",
+      additionalOptions: { softwareComponent: "HOME", packageType: "development", transportLayer: "ZDEV", transportRequest: { type: "existing", number: "DEVK900123" } }
+    } })
+    assert.notEqual(result.isError, true)
+    assert.equal((calls[0]!.input as any).parentName, "")
+  })
+}

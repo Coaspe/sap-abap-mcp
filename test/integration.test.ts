@@ -5229,7 +5229,7 @@ test("MCP exposes and executes the ABAP FS-compatible tool surface", async t => 
     name: "ZCL_DEMO",
     uri: object.uri
   })
-  assert.ok(fake.transportMutations.includes(`object:DEVK900123:${object.uri}`))
+  assert.ok(fake.transportMutations.includes("object-key:DEVK900123:R3TR:CLAS:ZCL_DEMO"))
   const dynproAdded = await callJson("manage_transport_requests", {
     action: "add_object",
     connectionId: "DEV100",
@@ -6284,4 +6284,47 @@ test("read-only development profiles allow source reads and block SAP mutation a
   assert.deepEqual(fake.replaceSourceCalls, [])
   assert.equal(fake.replExecuteCalls, 0)
   service.dispose()
+})
+
+
+test("source replacements preserve every JavaScript dollar replacement sequence literally", () => {
+  const replacement = "WRITE '$$ $& $` $\' $1'."
+  assert.equal(replaceExactlyOnce("before\nold\nafter", "old", replacement), `before\n${replacement}\nafter`)
+  assert.equal(replaceExactlyOnce("before\r\nold\r\nafter", "before\nold", replacement), `${replacement}\r\nafter`)
+  assert.equal(replaceExactlyOnce("", "", replacement), replacement)
+})
+
+test("top-level transportable package preserves the explicit empty superpackage", async () => {
+  const { service, fake } = createBdefHarness()
+  let validated: any, created: any
+  fake.validateNewObject = async options => { validated = options; return { success: true } }
+  fake.createObject = async options => { created = options }
+  await service.createObjectProgrammatically({ connectionId: "DEV100", objectType: "DEVC/K", name: "Z_DEMO", description: "Top level", packageName: "$TMP", parentName: "",
+    additionalOptions: { softwareComponent: "HOME", packageType: "development", transportLayer: "ZDEV", transportRequest: { type: "existing", number: "DEVK900123" } } })
+  assert.equal(validated.packagename, "")
+  assert.equal(created.parentName, "")
+  assert.equal(created.transport, "DEVK900123")
+})
+
+test("RAP generation reconciles a lost response only when every expected object was absent before and exists after", async () => {
+  const { service, fake } = createBdefHarness()
+  const content = await fake.getRapGeneratorContent()
+  let generated = false, attempts = 0
+  const getStructure = fake.getObjectStructure.bind(fake)
+  fake.getObjectStructure = async uri => {
+    if (uri !== object.uri && !generated) throw Object.assign(new Error("Not found"), { status: 404 })
+    return getStructure(uri)
+  }
+  fake.generateRapObjects = async () => { attempts++; generated = true; throw new Error("Response lost after generation") }
+  const result = await service.manageRap({ connectionId: "DEV100", action: "generate", generatorId: "uiservice", contentOffset: 0, contentLength: 1000, referenceObjectName: object.name, referenceObjectType: object.type,
+    packageName: "Z_DEMO", transport: "DEVK900123", confirmation: "uiservice:ZUI_DEMO_O4", content })
+  assert.ok("generated" in result)
+  assert.ok("generationResponseUncertain" in result)
+  assert.equal(result.generated, true)
+  assert.equal(result.readBackVerified, true)
+  assert.equal(result.generationResponseUncertain, true)
+  assert.equal(attempts, 1)
+  await assert.rejects(service.manageRap({ connectionId: "DEV100", action: "generate", generatorId: "uiservice", contentOffset: 0, contentLength: 1000, referenceObjectName: object.name, referenceObjectType: object.type,
+    packageName: "Z_DEMO", transport: "DEVK900123", confirmation: "uiservice:ZUI_DEMO_O4", content }), (error: any) => error.code === "RAP_GENERATION_UNCERTAIN")
+  assert.equal(attempts, 2, "Exactly one mutation for each separately requested call")
 })
