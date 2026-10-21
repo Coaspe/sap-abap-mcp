@@ -610,7 +610,7 @@ function createMcpServerInternal(
         name: z.string().min(1),
         description: z.string().min(1).max(60),
         packageName: z.string().min(1).default("$TMP"),
-        parentName: z.string().min(1).optional(),
+        parentName: z.string().optional().describe("Parent function group or package; use an empty string for a top-level DEVC/K package"),
         connectionId: z.string().min(1),
         source: z.string().optional().describe(
           "Create-time source for BDEF, classes, interfaces, programs/includes, CDS/DCL/metadata extensions, and service definitions"
@@ -644,7 +644,7 @@ function createMcpServerInternal(
           connectionId: input.connectionId,
           activate: input.activate,
           ...(input.source !== undefined ? { source: input.source } : {}),
-          ...(input.parentName ? { parentName: input.parentName } : {}),
+          ...(input.parentName !== undefined ? { parentName: input.parentName } : {}),
           ...(input.additionalOptions ? {
             additionalOptions: {
               ...(input.additionalOptions.serviceDefinition

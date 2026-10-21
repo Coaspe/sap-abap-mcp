@@ -537,7 +537,7 @@ export function registerV1WriteTools(
       name: NON_EMPTY,
       description: z.string().min(1).max(60),
       packageName: NON_EMPTY.default("$TMP"),
-      parentName: NON_EMPTY.optional(),
+      parentName: z.string().optional().describe("Parent function group or package; use an empty string for a top-level DEVC/K package"),
       source: z.string().optional().describe(
         "Create-time source for textual ADT object types"
       ),
@@ -566,7 +566,7 @@ export function registerV1WriteTools(
       description: input.description,
       packageName: input.packageName,
       activate: input.activate,
-      ...(input.parentName ? { parentName: input.parentName } : {}),
+      ...(input.parentName !== undefined ? { parentName: input.parentName } : {}),
       ...(input.source !== undefined ? { source: input.source } : {}),
       ...(input.additionalOptions ? {
         additionalOptions: {

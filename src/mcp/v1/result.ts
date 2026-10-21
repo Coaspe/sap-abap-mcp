@@ -1,3 +1,4 @@
+import { certificateFailure } from "../../tls-trust.js"
 import { randomUUID } from "node:crypto"
 import {
   ErrorCode,
@@ -29,6 +30,17 @@ const V1_SUCCESS_SCHEMA = z.object({
 })
 
 const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
+  SAP_TLS_CERTIFICATE_UNTRUSTED: "transport",
+  SAP_TLS_CERTIFICATE_EXPIRED: "transport",
+  SAP_TLS_HOSTNAME_MISMATCH: "transport",
+  CA_FILE_INVALID: "validation",
+  ADT_BACKGROUND_FAILED: "transport",
+  ADT_BACKGROUND_INVALID: "transport",
+  ADT_BACKGROUND_OPERATION_FAILED: "transport",
+  ADT_BACKGROUND_TIMEOUT: "transport",
+  RAP_GENERATION_UNCERTAIN: "conflict",
+  RAP_GENERATION_RESULT_MISMATCH: "conflict",
+  TRANSPORT_OBJECT_KEY_MISSING: "validation",
   BATCH_LINE_LIMIT: "validation",
   CAPABILITY_NOT_FOUND: "capability",
   CAPABILITY_RISK_MISMATCH: "validation",
@@ -67,8 +79,21 @@ const RETRYABLE_SAP_STATUSES = new Set([429, 502, 503, 504])
 
 function recoveryFor(code: string): z.infer<typeof V1_ERROR_SCHEMA>["recovery"] {
   switch (code) {
+    case "SAP_TLS_CERTIFICATE_UNTRUSTED":
+    case "SAP_TLS_CERTIFICATE_EXPIRED":
+    case "SAP_TLS_HOSTNAME_MISMATCH":
+    case "CA_FILE_INVALID":
+      return { action: "fix_tls_trust", message: "Review the SAP HTTPS URL, certificate validity and company CA file. Keep certificate verification enabled.", nextTools: [] }
     case "INACTIVE_SOURCE_CONFLICT":
       return { action: "inspect_state", message: "Read active and inactive source and reconcile the pending work with its owner. Do not repeat the patch or activate unrelated changes.", nextTools: ["sap.version.inactive.read", "sap.source.read"] }
+    case "ADT_BACKGROUND_FAILED":
+    case "ADT_BACKGROUND_INVALID":
+    case "ADT_BACKGROUND_OPERATION_FAILED":
+    case "ADT_BACKGROUND_TIMEOUT":
+      return { action: "inspect_state", message: "Inspect this transport and its tasks before retrying. A failed or missing background response does not prove that SAP made no change.", nextTools: ["sap.transport.inspect"] }
+    case "RAP_GENERATION_UNCERTAIN":
+    case "RAP_GENERATION_RESULT_MISMATCH":
+      return { action: "inspect_state", message: "Read back every expected RAP object and reconcile existing objects before requesting generation again.", nextTools: ["sap.repository.inspect"] }
     case "MULTI_OBJECT_WRITE_FAILED":
       return { action: "inspect_state", message: "Some changes may already be saved. Read every attempted object before resuming; do not repeat completed writes or assume atomic rollback.", nextTools: ["sap.version.inactive.read", "sap.source.read"] }
     case "TOKEN_PASSTHROUGH_REFUSED":
@@ -443,6 +468,8 @@ function adtHttpStatus(error: AdtException): number | undefined {
 }
 
 function normalizeV1Error(error: unknown): unknown {
+  const tlsFailure = certificateFailure(error)
+  if (tlsFailure) return tlsFailure
   if (error instanceof AppError || !isAdtException(error)) return error
 
   const httpStatus = adtHttpStatus(error)

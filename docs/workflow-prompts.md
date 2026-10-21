@@ -112,11 +112,14 @@ Resolve relevant includes/methods, DDIC and public types and direct callers;
 explicitly record dynamic calls, denied reads and remaining pages/truncation.
 Present the smallest patch preview and validation plan within the authorized scope.
 
-The runtime acquires the existing ADT lock and rechecks active source and inactive
-state before saving a patch. A different inactive version is a conflict, even if
-active source is unchanged. Reconcile it with the owner; do not activate it or
-retry the same patch. A missing inactive resource is distinguished from a denied
-or failed inactive read, which prevents a write.
+The unreleased patch fix acquires the existing ADT lock and rechecks the same
+unspecified-version current-source view used before the lock. Changed current
+source or a failed read prevents a write. It avoids a separate inactive-source
+probe under lock, which can invalidate a function-module lock on the reported
+backend. Requested activation runs only after successful unlock and session
+restoration; syntax errors skip activation. Published 2.1.0 still has the old read
+and activation order. Reconcile changed source with its owner instead of retrying
+a stale patch or activating unrelated inactive work.
 
 Multi-object quick fixes cannot provide a database-style atomic transaction.
 After a failed or lost write response they retain completed changes and report

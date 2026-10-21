@@ -133,7 +133,7 @@ test("onboard diagnostics detect clients, settings files, and saved profiles", a
 
   assert.equal(status.environment.credentialStorageSupported, true)
   assert.equal(status.environment.npm.version, "10.9.0")
-  assert.deepEqual(status.clients.map(client => ({
+  assert.deepEqual(status.clients.filter(client => client.kind === "cli").map(client => ({
     id: client.id,
     installed: client.installed,
     configured: client.configured
@@ -233,7 +233,7 @@ test("onboarding compares the selected profile's registration without replacing 
     const text = await response.text()
     assert.doesNotMatch(text, /secret-(?:env|get|malformed)/)
     const status = JSON.parse(text)
-    for (const client of status.clients) {
+    for (const client of status.clients.filter((client: any) => client.kind === "cli")) {
       assert.equal(client.registration.state, state, `${client.id}: ${value}`)
       assert.deepEqual(client.registration.differences, difference ? [difference] : [])
       assert.equal(client.registration.expected.profileId, "DEV100")
@@ -852,3 +852,75 @@ for (const authType of ["basic", "oauth_client_credentials", "oauth_authorizatio
     await server.finished
   })
 }
+
+test("browser CA edits validate before login and support clearing without revealing secrets", async t => {
+  const { root, home, cwd, config } = await temporaryDirectories(t)
+  const { testCertificate } = await import("./helpers/certificates.js")
+  const fixture = testCertificate(), ca = join(root, "company.pem"), invalid = join(root, "key.pem")
+  await writeFile(ca, fixture.cert); await writeFile(invalid, fixture.key)
+  const profiles = new ProfileStore(config), secrets = new MemorySecretStore()
+  await profiles.upsert({ id: "DEV", url: "https://sap.example.test", client: "100", username: "USER", caFile: ca })
+  await secrets.set("DEV", "saved-secret")
+  let validations = 0
+  const server = await startOnboardServer({ profiles, secrets, platform: "win32", homeDirectory: home, workingDirectory: cwd,
+    runner: async () => result("", { ok: false, missing: true }), async validateCredentials() { validations++ } })
+  t.after(() => server.close())
+  const url = new URL(server.url), headers = { "content-type": "application/json", "x-onboard-token": url.searchParams.get("token")! }
+  const body = { id: "DEV", url: "https://sap.example.test", client: "100", username: "USER", password: "new-secret", language: "EN", environment: "development" }
+  const failed = await fetch(`${url.origin}/api/profile`, { method: "POST", headers, body: JSON.stringify({ ...body, caFile: invalid }) })
+  assert.equal((await failed.json() as any).code, "CA_FILE_INVALID")
+  assert.equal(validations, 0)
+  assert.equal(await secrets.get("DEV"), "saved-secret")
+  const saved = await fetch(`${url.origin}/api/profile`, { method: "POST", headers, body: JSON.stringify({ ...body, caFile: "" }) })
+  assert.equal(saved.status, 200)
+  assert.equal((await profiles.get("DEV")).caFile, undefined)
+  const status = await (await fetch(`${url.origin}/api/status`, { headers })).text()
+  assert.doesNotMatch(status, /saved-secret|new-secret|BEGIN PRIVATE KEY/)
+})
+
+test("browser file-host registration preserves other entries and reports restart requirements", async t => {
+  const { home, cwd, config } = await temporaryDirectories(t)
+  await mkdir(join(home, ".cursor"))
+  const path = join(home, ".cursor", "mcp.json")
+  await writeFile(path, '{"preferences":{"theme":"keep"},"mcpServers":{"other":{"command":"fixture"}}}')
+  const profiles = new ProfileStore(config), secrets = new MemorySecretStore()
+  await profiles.upsert({ id: "DEV", url: "https://sap.example.test", client: "100" })
+  const server = await startOnboardServer({ profiles, secrets, homeDirectory: home, workingDirectory: cwd,
+    runner: async () => result("", { ok: false, missing: true }), async validateCredentials() {} })
+  t.after(() => server.close())
+  const url = new URL(server.url), headers = { "content-type": "application/json", "x-onboard-token": url.searchParams.get("token")! }
+  const response = await fetch(`${url.origin}/api/client/configure`, { method: "POST", headers, body: JSON.stringify({ clientId: "cursor", profileId: "DEV" }) })
+  assert.equal(response.status, 200)
+  const client = (await response.json() as any).client
+  assert.equal(client.kind, "file")
+  assert.equal(client.registration.state, "matches")
+  assert.equal(client.mcpConnectionStatus, "unknown")
+  assert.equal(client.configPath, path)
+  assert.match(client.recoveryCopy, /Restart/)
+  const { readFile } = await import("node:fs/promises")
+  const document = JSON.parse(await readFile(path, "utf8"))
+  assert.deepEqual(document.preferences, { theme: "keep" })
+  assert.equal(document.mcpServers.other.command, "fixture")
+})
+
+test("browser SAP Logon probe reloads indexed candidates and refuses arbitrary URLs", async t => {
+  const { root, home, cwd, config } = await temporaryDirectories(t)
+  const path = join(root, "SAPUILandscape.xml")
+  await writeFile(path, '<Landscape><Services><Service type="SAPGUI" mode="1" name="DEV" systemid="DEV" server="first.example.test:3201" user="SECRET-user"/></Services></Landscape>')
+  const probes: string[] = []
+  const server = await startOnboardServer({ profiles: new ProfileStore(config), secrets: new MemorySecretStore(),
+    platform: "win32", homeDirectory: home, workingDirectory: cwd, sapLogonFile: path,
+    runner: async () => result("", { ok: false, missing: true }), async validateCredentials() {},
+    async probeAdt(url) { probes.push(url); return { url, adt: true, status: 401 } } })
+  t.after(() => server.close())
+  const url = new URL(server.url), headers = { "content-type": "application/json", "x-onboard-token": url.searchParams.get("token")! }
+  const listing = await (await fetch(`${url.origin}/api/saplogon`, { headers })).text()
+  assert.doesNotMatch(listing, /SECRET/)
+  await writeFile(path, '<Landscape><Services><Service type="SAPGUI" mode="1" name="DEV" systemid="DEV" server="updated.example.test:3202"/></Services></Landscape>')
+  const response = await fetch(`${url.origin}/api/saplogon/probe`, { method: "POST", headers, body: JSON.stringify({ index: 0 }) })
+  assert.equal(response.status, 200)
+  assert.deepEqual(probes, ["https://updated.example.test:44302", "https://updated.example.test:44300"])
+  const invalid = await fetch(`${url.origin}/api/saplogon/probe`, { method: "POST", headers, body: JSON.stringify({ index: 0, url: "https://arbitrary.example.test" }) })
+  assert.equal((await invalid.json() as any).code, "INPUT_INVALID")
+  assert.equal(probes.length, 2)
+})
