@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 
+import { resolve } from "node:path"
+import { readCaFile, certificateFailure } from "./tls-trust.js"
+import { importSapLogon, probeAdtCandidate } from "./saplogon-import.js"
+import { FILE_HOSTS, isFileHost, planFileHostRegistration, applyFileHostRegistration } from "./host-config.js"
+
 import { stdin, stderr, stdout } from "node:process"
 import { realpathSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { fileURLToPath } from "node:url"
 import { promptSecret } from "./secret-prompt.js"
-import { STDIO_COMMAND } from "./launch-contract.js"
-import { applyRegistrationRepair, planRegistrationRepair, probeRegistration,
+import { STDIO_COMMAND, onboardLaunch } from "./launch-contract.js"
+import { checkFileHostScope, applyRegistrationRepair, planRegistrationRepair, probeRegistration,
   readRegistration, profileHomeForFile, type RegistrationClient } from "./registration.js"
 import { AppError, errorPayload, tokenPassthroughRefused } from "./errors.js"
 import {
@@ -77,6 +82,7 @@ Commands:
   onboard
       Opens a local browser wizard for first-time Claude, Codex, MCP, and SAP setup.
   setup
+  setup import-saplogon [--file <path>] [--probe [--ca-file <path>]]
   setup edit [<server-name>]
   setup remove [<server-name>]
   profile add <id> --url <url> --client <nnn> [--language EN]
@@ -84,13 +90,14 @@ Commands:
       [--auth-type basic|oauth-client-credentials|oauth-authorization-code|btp-destination]
       [--destination-name <name> --destination-auth OAuth2UserTokenExchange|PrincipalPropagation]
       [--authorization-url <url>] [--token-url <url> --client-id <id> [--scope <scope>]]
-      [--classic-bridge-path /sap/bc/rest/zmcp_rfc]
+      [--classic-bridge-path /sap/bc/rest/zmcp_rfc] [--ca-file <path>]
       [--packages ZPKG1,ZPKG2] [--read-only | --allow-writes] [--allow-data-queries] [--login [--password-stdin]]
   profile add <id> --service-key <path> [--language EN]
       [--environment development|quality|production] [--scope <scope>]
       [--packages ZPKG1,ZPKG2] [--read-only | --allow-writes] [--allow-data-queries]
       Imports an SAP BTP ABAP environment service key, verifies it live, and
       stores the client secret in the protected credential store.
+  profile edit <id> --ca-file <path> | --clear-ca-file
   profile list
   profile remove <id>
   auth login <id> [--username <user>] [--password-stdin]
@@ -100,10 +107,12 @@ Commands:
   abapgit auth status <id> --repository-url <url>
   abapgit auth logout <id> --repository-url <url>
   doctor <id> [--include-components]
-  doctor <id> --registration --client codex|claude [--config <path>]
+  doctor <id> --registration --client codex|claude|vscode|cursor|gemini|claude-desktop [--config <path>]
       Checks the registered runtime and MCP discovery without authenticating SAP.
-  repair <id> --client codex|claude [--config <path>] [--version <exact-version>]
+  repair <id> --client codex|claude|vscode|cursor|gemini|claude-desktop [--config <path>] [--version <exact-version>]
       Preview a pinned launcher repair/update. Apply with --apply --expect <planHash>.
+  register <id> --client vscode|cursor|gemini|claude-desktop [--config <path>] [--preset minimal|adaptive|single] [--apply]
+      Preview by default. Adds a user registration with a backup of existing settings.
   apikey new <id> [--role viewer|developer|admin] [--pepper-file <path>]
   apikey pepper
   assure <id> --transport <trkorr> [--checks atc,unit_tests,target_compare]
@@ -249,6 +258,17 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     return
   }
 
+  if (action === "edit") {
+    const profile = await profiles.get(requiredPosition(parsed, 2, "profile id"))
+    const caFile = option(parsed, "ca-file")
+    if (parsed.options.has("ca-file") && parsed.options.has("clear-ca-file")) throw new AppError("OPTION_CONFLICT", "Choose --ca-file or --clear-ca-file")
+    if (!caFile && !parsed.options.has("clear-ca-file")) throw new AppError("OPTION_REQUIRED", "Use --ca-file <path> or --clear-ca-file")
+    const path = caFile ? resolve(caFile) : undefined
+    if (path) readCaFile(path)
+    writeJson({ profile: await profiles.upsert({ ...profile, caFile: path }) })
+    return
+  }
+
   if (action === "add") {
     const id = requiredPosition(parsed, 2, "profile id")
     const language = option(parsed, "language")
@@ -261,6 +281,9 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
       throw new AppError("OPTION_CONFLICT", "Choose --read-only or --allow-writes, not both")
     }
     const existingProfile = (await profiles.list()).find(profile => profile.id === id.toUpperCase())
+    const caFile = option(parsed, "ca-file") ? resolve(requiredOption(parsed, "ca-file")) : existingProfile?.caFile
+    if (parsed.options.has("ca-file") && !option(parsed, "ca-file")) throw new AppError("OPTION_REQUIRED", "--ca-file requires a path")
+    if (caFile) readCaFile(caFile)
     const readOnly = parsed.options.has("read-only") ? true
       : parsed.options.has("allow-writes") ? false : existingProfile?.readOnly
     const allowedPackages = packages !== undefined ? packages.split(",")
@@ -273,6 +296,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
       const key = loadBtpServiceKey(serviceKeyPath)
       const serviceKeyInput: SapProfileInput = {
         id,
+        ...(caFile ? { caFile } : {}),
         ...(readOnly !== undefined ? { readOnly } : {}),
         url: key.url,
         client: key.client,
@@ -313,6 +337,7 @@ async function profileCommand(parsed: ParsedArguments, profiles: ProfileStore, s
     const authType = authTypeOption.replaceAll("-", "_") as SapProfile["authType"]
     const input: SapProfileInput = {
       id,
+      ...(caFile ? { caFile } : {}),
       ...(readOnly !== undefined ? { readOnly } : {}),
       url: requiredOption(parsed, "url"),
       client: requiredOption(parsed, "client"),
@@ -582,7 +607,7 @@ async function doctorCommand(parsed: ParsedArguments, profiles: ProfileStore, se
 
 function registrationClient(parsed: ParsedArguments): RegistrationClient {
   const client = requiredOption(parsed, "client")
-  if (client !== "codex" && client !== "claude") throw new AppError("INVALID_CLIENT", "--client must be codex or claude")
+  if (client !== "codex" && client !== "claude" && !isFileHost(client)) throw new AppError("INVALID_CLIENT", "--client must be codex, claude, vscode, cursor, gemini, or claude-desktop")
   return client
 }
 
@@ -603,6 +628,22 @@ async function repairCommand(parsed: ParsedArguments, profiles: ProfileStore): P
   writeJson({ ...result, planHash, nextAction: "Restart the MCP host, run registration doctor, then verify an actual SAP read separately." })
 }
 
+async function registerCommand(parsed: ParsedArguments, profiles: ProfileStore): Promise<void> {
+  const profile = await profiles.get(requiredPosition(parsed, 1, "profile id"))
+  const client = requiredOption(parsed, "client")
+  if (!isFileHost(client)) throw new AppError("INVALID_CLIENT", `--client must be ${FILE_HOSTS.map(host => host.id).join(", ")}`)
+  const preset = option(parsed, "preset") ?? "minimal"
+  if (!["minimal", "adaptive", "single"].includes(preset)) throw new AppError("INVALID_PRESET", "Use minimal, adaptive or single")
+  await checkFileHostScope(client)
+  const launch = onboardLaunch(fileURLToPath(import.meta.url), process.platform, ["serve", "--profile", profile.id, "--preset", preset])
+  const plan = await planFileHostRegistration(client, launch, { SAP_ABAP_MCP_HOME: profileHomeForFile(profiles.filePath) }, {}, option(parsed, "config"))
+  if (!parsed.options.has("apply")) {
+    writeJson({ applied: false, configPath: plan.path, entry: plan.entry, nextAction: "Review the entry, then repeat with --apply. Existing sap-abap entries are never replaced." })
+    return
+  }
+  writeJson({ ...await applyFileHostRegistration(plan), configPath: plan.path, nextAction: "Restart the app, then verify an actual SAP system read." })
+}
+
 async function setupCommand(
   parsed: ParsedArguments,
   profiles: ProfileStore,
@@ -610,6 +651,20 @@ async function setupCommand(
 ) {
   const action = parsed.positionals[1]
   const serverName = parsed.positionals[2]
+  if (action === "import-saplogon") {
+    const caFile = option(parsed, "ca-file") ? resolve(requiredOption(parsed, "ca-file")) : undefined
+    if (caFile) readCaFile(caFile)
+    const imported = await importSapLogon(option(parsed, "file"))
+    if (!parsed.options.has("probe")) { writeJson(imported); return }
+    const entries = []
+    for (const entry of imported.entries) {
+      const probes = []
+      for (const url of entry.candidates) probes.push(await probeAdtCandidate(url, caFile))
+      entries.push({ ...entry, probes })
+    }
+    writeJson({ entries, skipped: imported.skipped })
+    return
+  }
   if (action === "remove") {
     await runSetupRemoval({
       profiles,
@@ -1080,6 +1135,7 @@ export async function runCli(args = process.argv.slice(2)): Promise<void> {
   if (command === "apikey") return apikeyCommand(parsed)
   if (command === "assure") return assureCommand(parsed, profiles, secrets)
   if (command === "doctor") return doctorCommand(parsed, profiles, secrets)
+  if (command === "register") return registerCommand(parsed, profiles)
   if (command === "repair") return repairCommand(parsed, profiles)
   if (command === "serve") return serveCommand(parsed, profiles, secrets)
   throw new AppError("UNKNOWN_COMMAND", `Unknown command: ${command}`)
@@ -1096,7 +1152,7 @@ function isMainModule(): boolean {
 
 if (isMainModule()) {
   runCli().catch(error => {
-    stderr.write(`${JSON.stringify(errorPayload(error), null, 2)}\n`)
+    stderr.write(`${JSON.stringify(errorPayload(certificateFailure(error) ?? error), null, 2)}\n`)
     process.exitCode = 1
   })
 }

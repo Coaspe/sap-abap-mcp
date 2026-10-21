@@ -39,22 +39,132 @@ test("platform components alone do not identify ECC", async () => {
   }
 })
 
-test("source patch preserves a different inactive version under the acquired lock", async () => {
+test("source patch refuses a changed current version under the acquired lock", async () => {
   const calls: string[] = []
   const client = clientWithAdt({ stateful: "stateless",
     lock: async () => { calls.push("lock"); return { LOCK_HANDLE: "LOCK" } },
     getObjectSource: async (_uri: string, options?: { version?: string }) => {
-      const version = options?.version ?? "active"
+      const version = options?.version ?? "current"
       calls.push(version)
-      return version === "inactive" ? "REPORT other_work." : "REPORT original."
+      return version === "active" ? "REPORT original." : "REPORT other_work."
     },
     setObjectSource: async () => { calls.push("write") },
     statelessClone: { syntaxCheck: async () => [] },
     unLock: async () => { calls.push("unlock") }
   })
   await assert.rejects(client.replaceSource("Z_DEMO", "/object", "/object/source/main",
-    "REPORT original.", "REPORT changed."), { code: "INACTIVE_SOURCE_CONFLICT" })
-  assert.deepEqual(calls, ["lock", "active", "inactive", "unlock"])
+    "REPORT original.", "REPORT changed."), { code: "SOURCE_CHANGED" })
+  assert.deepEqual(calls, ["lock", "current", "unlock"])
+})
+
+test("two source patches without activation continue from the current inactive source", async () => {
+  const uri = "/sap/bc/adt/programs/programs/z_demo/source/main"
+  const active = "REPORT original."
+  let inactive: string | undefined
+  const versions: Array<string | undefined> = []
+  const read = (version?: string) => {
+    versions.push(version)
+    return version === "active" ? active : inactive ?? active
+  }
+  const client = clientWithAdt({
+    stateful: "stateless",
+    httpClient: { request: async (_uri: string, options?: { qs?: { version?: string } }) =>
+      ({ body: read(options?.qs?.version), status: 200, headers: {} }) },
+    lock: async () => ({ LOCK_HANDLE: "LOCK" }),
+    getObjectSource: async (_uri: string, options?: { version?: string }) => read(options?.version),
+    setObjectSource: async (_uri: string, source: string) => { inactive = source },
+    statelessClone: { syntaxCheck: async () => [] },
+    unLock: async () => undefined
+  })
+  const first = await client.readSourceByUri(uri)
+  await client.replaceSource("Z_DEMO", "/object", uri, first.source, "REPORT first_patch.")
+  const second = await client.readSourceByUri(uri)
+  assert.equal(second.source, "REPORT first_patch.")
+  await client.replaceSource("Z_DEMO", "/object", uri, second.source, "REPORT second_patch.")
+  assert.equal(inactive, "REPORT second_patch.")
+  assert.equal(active, "REPORT original.")
+  assert.deepEqual(versions, [undefined, undefined, undefined, undefined])
+})
+
+test("function-module patch does not probe missing inactive source and invalidate its lock", async () => {
+  const calls: string[] = []
+  let locked = false
+  const client = clientWithAdt({
+    stateful: "stateless",
+    lock: async () => { locked = true; calls.push("lock"); return { LOCK_HANDLE: "LOCK" } },
+    getObjectSource: async (_uri: string, options?: { version?: string }) => {
+      calls.push(`read:${options?.version ?? "current"}`)
+      // Model the reported backend's 200 response that also drops the FM lock.
+      if (options?.version === "inactive") locked = false
+      return "FUNCTION z_demo. ENDFUNCTION."
+    },
+    setObjectSource: async () => { assert.equal(locked, true, "invalid lock handle"); calls.push("write") },
+    statelessClone: { syntaxCheck: async () => { calls.push("syntax"); return [] } },
+    unLock: async () => { locked = false; calls.push("unlock") }
+  })
+  await client.replaceSource("Z_DEMO", "/sap/bc/adt/functions/groups/zgroup/fmodules/z_demo",
+    "/sap/bc/adt/functions/groups/zgroup/fmodules/z_demo/source/main",
+    "FUNCTION z_demo. ENDFUNCTION.", "FUNCTION z_demo. RETURN. ENDFUNCTION.")
+  assert.deepEqual(calls, ["lock", "read:current", "write", "syntax", "unlock"])
+})
+
+test("source patch releases its edit lock before activation", async () => {
+  const calls: string[] = []
+  let locked = false
+  const adt = {
+    stateful: "stateless",
+    lock: async () => { locked = true; calls.push("lock"); return { LOCK_HANDLE: "LOCK" } },
+    getObjectSource: async () => "REPORT original.",
+    setObjectSource: async () => { calls.push("write") },
+    statelessClone: { syntaxCheck: async () => { calls.push("syntax"); return [] } },
+    unLock: async () => { locked = false; calls.push("unlock") },
+    activate: async () => {
+      assert.equal(locked, false, "object is currently editing")
+      calls.push("activate")
+      return activationResult
+    }
+  }
+  const result = await clientWithAdt(adt).replaceSource("Z_DEMO", "/object", "/object/source/main",
+    "REPORT original.", "REPORT edited.", undefined, true)
+  assert.deepEqual(calls, ["lock", "write", "syntax", "unlock", "activate"])
+  assert.deepEqual(result, { diagnostics: [], activation: activationResult, activationSkipped: false })
+  assert.equal(adt.stateful, "stateless")
+})
+
+test("source patch with syntax errors unlocks and skips activation", async () => {
+  const calls: string[] = []
+  const diagnostics = [{ severity: "E", text: "Syntax error" }]
+  const client = clientWithAdt({
+    stateful: "stateless",
+    lock: async () => ({ LOCK_HANDLE: "LOCK" }),
+    getObjectSource: async () => "REPORT original.",
+    setObjectSource: async () => { calls.push("write") },
+    statelessClone: { syntaxCheck: async () => diagnostics },
+    unLock: async () => { calls.push("unlock") },
+    activate: async () => { calls.push("activate"); return activationResult }
+  })
+  const result = await client.replaceSource("Z_DEMO", "/object", "/object/source/main",
+    "REPORT original.", "invalid ABAP", undefined, true)
+  assert.deepEqual(calls, ["write", "unlock"])
+  assert.deepEqual(result, { diagnostics, activationSkipped: true })
+})
+
+test("source patch never activates when releasing the edit lock fails", async () => {
+  const failure = new Error("Unlock failed")
+  let activations = 0
+  const adt = {
+    stateful: "stateless",
+    lock: async () => ({ LOCK_HANDLE: "LOCK" }),
+    getObjectSource: async () => "REPORT original.",
+    setObjectSource: async () => undefined,
+    statelessClone: { syntaxCheck: async () => [] },
+    unLock: async () => { throw failure },
+    activate: async () => { activations++; return activationResult }
+  }
+  await assert.rejects(clientWithAdt(adt).replaceSource("Z_DEMO", "/object", "/object/source/main",
+    "REPORT original.", "REPORT edited.", undefined, true), error => error === failure)
+  assert.equal(activations, 0)
+  assert.equal(adt.stateful, "stateless")
 })
 
 for (const version of ["V2", "V4"] as const) {
@@ -553,10 +663,14 @@ test("releasing a transport creates an ATC worklist and releases open non-empty 
       return "WORKLIST123"
     },
     httpClient: {
-      request: async (url: string, config: unknown) => {
+      request: async (url: string, config: any) => {
         requests.push({ url, config })
-        const transportNumber = /transportrequests\/([A-Z0-9]+)\//.exec(url)![1]!
-        return { body: releasedReport(transportNumber), status: 200, statusText: "OK", headers: {} }
+        const transportNumber = config.method === "POST" ? /transportrequests\/([A-Z0-9]+)\//.exec(config.body)![1]!
+          : /bgruns\/([A-Z0-9]+)/.exec(url)![1]!
+        if (config.method === "POST") return { body: "", status: 202, statusText: "Accepted", headers: { location: `/sap/bc/adt/communication/bgruns/${transportNumber}` } }
+        if (config.method === "DELETE") return { body: "", status: 204, statusText: "", headers: {} }
+        if (url.endsWith("/result")) return { body: `HTTP/1.1 200 OK\r\nContent-Type: application/xml\r\n\r\n${releasedReport(transportNumber)}`, status: 200, statusText: "OK", headers: {} }
+        return { body: `<runs:run xmlns:runs="http://www.sap.com/adt/runs" xmlns:atom="http://www.w3.org/2005/Atom" runs:status="finished"><atom:link href="${url}/result" rel="http://www.sap.com/adt/relations/runs/result" type="application/http"/></runs:run>`, status: 200, statusText: "OK", headers: {} }
       }
     }
   }
@@ -565,14 +679,12 @@ test("releasing a transport creates an ATC worklist and releases open non-empty 
   const reports = await client.releaseTransport("DEVK900123")
 
   assert.deepEqual(atcCalls, ["ZLGE_CTS"])
-  assert.deepEqual(requests.map(request => request.url), [
-    "/sap/bc/adt/cts/transportrequests/DEVK900124/newreleasejobs?worklistId=WORKLIST123",
-    "/sap/bc/adt/cts/transportrequests/DEVK900123/newreleasejobs?worklistId=WORKLIST123"
-  ])
-  assert.deepEqual(requests[0]!.config, {
-    method: "POST",
-    headers: { Accept: "application/vnd.sap.adt.transportorganizer.v1+xml" }
-  })
+  const submissions = requests.filter(request => request.config.method === "POST")
+  assert.equal(submissions.length, 2)
+  assert.ok(submissions.every(request => request.url === "/sap/bc/adt/communication/bgruns"))
+  assert.match(submissions[0]!.config.body, /DEVK900124\/newreleasejobs\?worklistId=WORKLIST123 HTTP/)
+  assert.match(submissions[1]!.config.body, /DEVK900123\/newreleasejobs\?worklistId=WORKLIST123 HTTP/)
+  assert.equal(submissions[0]!.config.headers["Content-Type"], "application/http")
   assert.equal(reports.length, 2)
   assert.equal(reports[0]!["chkrun:status"], "released")
 })
@@ -677,50 +789,16 @@ test("git operations surface an actionable message when the abapGit ADT backend 
   }
 })
 
-test("a synchronous release rejected with 500 for an object-bearing request raises an actionable hint", async () => {
-  const httpError = Object.assign(new Error("Request failed with status code 500"), {
-    status: 500,
-    type: "ExceptionResourceNoAccess",
-    response: {
-      body:
-        `<?xml version="1.0" encoding="utf-8"?>` +
-        `<exc:exception xmlns:exc="http://www.sap.com/abapxml/types/communicationframework">` +
-        `<message lang="EN">Release of DEVK900123 runs only as a background job</message>` +
-        `</exc:exception>`
-    }
+test("object-bearing release submits only the background request and never retries synchronously after failure", async () => {
+  const failure = Object.assign(new Error("Background submission failed"), { status: 500 })
+  const requests: string[] = []
+  const client = clientWithAdt({
+    transportDetails: async () => ({ "tm:number": "DEVK900123", "tm:status": "D", objects: [{}], tasks: [] }),
+    atcCustomizing: async () => { throw new Error("No ATC release gate") },
+    httpClient: { request: async (url: string) => { requests.push(url); throw failure } }
   })
-  const fakeAdt: any = {
-    transportDetails: async () => ({
-      "tm:number": "DEVK900123",
-      "tm:status": "D",
-      objects: [{ "tm:pgmid": "R3TR" }],
-      tasks: []
-    }),
-    atcCustomizing: async () => { throw new Error("no ATC release gate") },
-    httpClient: {
-      request: async () => { throw httpError }
-    }
-  }
-  const client = clientWithAdt(fakeAdt)
-
-  await assert.rejects(
-    () => client.releaseTransport("DEVK900123"),
-    (error: any) =>
-      error?.code === "TRANSPORT_RELEASE_UNSUPPORTED" &&
-      /SE10/.test(error?.message ?? "")
-  )
-
-  // The ADT endpoint and the exact SAP response text must survive into the error
-  // details: implementing the asynchronous background-run release path needs
-  // that wire evidence, and repeating a failed release to recover it is unsafe.
-  const captured = await client.releaseTransport("DEVK900123").catch((error: any) => error)
-  assert.equal(
-    captured.details.endpoint,
-    "/sap/bc/adt/cts/transportrequests/DEVK900123/newreleasejobs"
-  )
-  assert.equal(captured.details.httpStatus, 500)
-  assert.equal(captured.details.adtErrorType, "ExceptionResourceNoAccess")
-  assert.match(captured.details.sapResponseText, /runs only as a background job/)
+  await assert.rejects(client.releaseTransport("DEVK900123"), error => error === failure)
+  assert.deepEqual(requests, ["/sap/bc/adt/communication/bgruns"])
 })
 
 test("ADT failure evidence is bounded and omits absent fields", () => {
@@ -803,33 +881,19 @@ test("inspecting an unpublished binding returns metadata without crashing on mis
   assert.equal(details.details, undefined)
 })
 
-test("adding an object to a transport posts an escaped ADT object reference", async () => {
-  const calls: Array<{ url: string; config: unknown }> = []
-  const fakeAdt: any = {
-    httpClient: {
-      request: async (url: string, config: unknown) => {
-        calls.push({ url, config })
-        return { body: "", status: 200, statusText: "OK", headers: {} }
-      }
-    }
-  }
-  const client = clientWithAdt(fakeAdt)
-
-  await client.addTransportObject(
-    "DEVK900123",
-    "/sap/bc/adt/programs/programs/z_demo?foo=1&bar=\"two\""
-  )
-
-  assert.deepEqual(calls, [{
-    url: "/sap/bc/adt/cts/transportrequests/DEVK900123/abaptransportcomponents",
-    config: {
-      method: "POST",
-      headers: { "Content-Type": "application/xml" },
-      body:
-        "<adtcore:objectReference xmlns:adtcore=\"http://www.sap.com/adt/core\" " +
-        "adtcore:uri=\"/sap/bc/adt/programs/programs/z_demo?foo=1&amp;bar=&quot;two&quot;\"/>"
-    }
-  }])
+test("adding an object by URI resolves its CTS key and uses the organizer PUT", async () => {
+  const calls: Array<{ url: string; config: any }> = []
+  const uri = "/sap/bc/adt/oo/classes/zcl_demo"
+  const client = clientWithAdt({
+    transportInfo: async (objectUri: string) => { assert.equal(objectUri, uri); return { PGMID: "R3TR", OBJECT: "CLAS", OBJECTNAME: "ZCL_DEMO" } },
+    httpClient: { request: async (url: string, config: any) => { calls.push({ url, config }); return {} } }
+  })
+  await client.addTransportObject("DEVK900123", uri)
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0]!.url, "/sap/bc/adt/cts/transportrequests/DEVK900123")
+  assert.equal(calls[0]!.config.method, "PUT")
+  assert.match(calls[0]!.config.body, /tm:pgmid="R3TR" tm:type="CLAS"/)
+  assert.doesNotMatch(calls[0]!.url, /abaptransportcomponents/)
 })
 
 test("adding a transport subobject posts its CTS key to the organizer endpoint", async () => {
@@ -1365,4 +1429,87 @@ test("KTD pages revalidate cached XML and evict on denied or missing documents",
   await client.logout()
   await client.getKnowledgeTransferDocument("ZCL_DEMO")
   assert.equal(headers.at(-1)?.["If-None-Match"], undefined)
+})
+
+test("package creation emits the requested package properties without a hardcoded superpackage", async () => {
+  const requests: Array<{ uri: string; options: any }> = []
+  const client = clientWithAdt({ httpClient: { request: async (uri: string, options: any) => { requests.push({ uri, options }); return {} } } })
+  for (const parentName of ["", "Z_PARENT"]) {
+    await client.createObject({ objtype: "DEVC/K", name: "Z_NEW", parentName, parentPath: "", description: 'A & "B"', responsible: "DEVELOPER", swcomp: "HOME", packagetype: "development", transportLayer: "ZDEV", transport: "DEVK900123" })
+    const request = requests.at(-1)!
+    assert.equal(request.uri, "/sap/bc/adt/packages")
+    assert.equal(request.options.qs.corrNr, "DEVK900123")
+    const parsed = new XMLParser({ ignoreAttributes: false }).parse(request.options.body)["pak:package"]
+    assert.equal(parsed["@_adtcore:name"], "Z_NEW")
+    assert.equal(parsed["@_adtcore:description"], 'A & "B"')
+    assert.equal(parsed["pak:superPackage"]["@_adtcore:name"], parentName || undefined)
+    assert.doesNotMatch(request.options.body, /YMU_RAP/)
+  }
+})
+
+test("DOMA and DTEL patches use object consistency checks without ABAP text artifacts", async () => {
+  for (const [type, uri] of [["DOMA/DD", "/sap/bc/adt/ddic/domains/z_domain"], ["DTEL/DE", "/sap/bc/adt/ddic/dataelements/z_element"]]) {
+    const calls: string[] = []
+    const client = clientWithAdt({ stateful: "stateless", lock: async () => ({ LOCK_HANDLE: "LOCK" }),
+      getObjectSource: async () => "old", setObjectSource: async () => { calls.push("write") }, unLock: async () => { calls.push("unlock") },
+      syntaxCheckTypes: async () => new Map([["dictionaryReporter", [{ "@_chkrun:type": type }]]]),
+      httpClient: { request: async (_uri: string, options: any) => { calls.push("check"); assert.equal(options.qs.reporters, "dictionaryReporter"); assert.match(options.body, /chkrun:version="inactive"/); assert.doesNotMatch(options.body, /artifact|text\/plain/); return { body: '<chkrun:checkRunReports xmlns:chkrun="http://www.sap.com/adt/checkrun"/>' } } },
+      activate: async () => { calls.push("activate"); return activationResult }
+    })
+    const result = await client.replaceSource("Z_DICTIONARY", uri!, `${uri}/source/main`, "old", "new", undefined, true)
+    assert.equal(result.activationSkipped, false)
+    assert.deepEqual(calls, ["write", "check", "unlock", "activate"])
+  }
+})
+
+test("unavailable Dictionary reporter is explicit and requested activation still performs backend validation", async () => {
+  let activated = false
+  const client = clientWithAdt({ stateful: "stateless", lock: async () => ({ LOCK_HANDLE: "LOCK" }), getObjectSource: async () => "old", setObjectSource: async () => undefined,
+    unLock: async () => undefined, syntaxCheckTypes: async () => new Map(), activate: async () => { activated = true; return activationResult } })
+  const result = await client.replaceSource("Z_DOMAIN", "/sap/bc/adt/ddic/domains/z_domain", "/source", "old", "new", undefined, true)
+  assert.equal(result.diagnostics[0]?.severity, "W")
+  assert.match(result.diagnostics[0]?.text ?? "", /unavailable/)
+  assert.equal(activated, true)
+})
+
+test("all-date transport search includes old open requests and preserves their task owners", async () => {
+  const requests: string[] = []
+  const client = clientWithAdt({ userTransports: async () => ({ workbench: [], customizing: [] }),
+    adtDiscovery: async () => [{ collection: [{ templateLinks: [{ rel: "http://www.sap.com/adt/categories/cts/transports/search", template: "/sap/bc/adt/cts/transports{?owner,searchFor,requestStatus*,fromDate,toDate}" }] }] }],
+    httpClient: { request: async (uri: string) => { requests.push(uri); return { body: '<ts:searchResults xmlns:ts="http://www.sap.com/adt/cts/transports/search"><ts:requests><ts:request ts:number="DEVK900001" ts:type="K"/></ts:requests></ts:searchResults>' } } },
+    transportDetails: async (number: string) => ({ "tm:number": number, "tm:owner": "OLD_OWNER", objects: [{}], tasks: [{ "tm:number": "DEVK900002", "tm:owner": "TASK_OWNER", "tm:status": "D", objects: [] }] }) })
+  const result = await client.getUserTransports("DEVELOPER")
+  assert.equal(result.historyComplete, true)
+  assert.equal(result.workbench[0]?.modifiable[0]?.["tm:number"], "DEVK900001")
+  assert.equal(result.workbench[0]?.modifiable[0]?.tasks[0]?.["tm:owner"], "TASK_OWNER")
+  assert.match(requests[0]!, /fromDate=19500101/)
+  assert.match(requests[0]!, /searchFor=requestWithTask/)
+})
+
+test("a transport list without all-date search support explicitly remains incomplete", async () => {
+  const client = clientWithAdt({ userTransports: async () => ({ workbench: [], customizing: [] }), adtDiscovery: async () => [] })
+  const result = await client.getUserTransports("DEVELOPER")
+  assert.equal(result.historyComplete, false)
+  assert.match(result.historyIssue ?? "", /older locks/)
+})
+
+
+test("V4 unpublish preserves a status message wrapped in the ADT HTTP exception's parent", async () => {
+  const failure = { typeID: Symbol.for("HTTP EXCEPTION"), parent: { response: { body: "<DATA><SEVERITY>E</SEVERITY><SHORT_TEXT>Service still in use</SHORT_TEXT></DATA>" } } }
+  const client = clientWithAdt({ httpClient: { request: async () => { throw failure } } })
+  const result = await client.unpublishRapService("ZUI_DEMO_O4")
+  assert.equal(result.severity, "e")
+  assert.equal(result.shortText, "Service still in use")
+})
+
+test("Dictionary consistency errors remain blocking and are never downgraded to warnings", async () => {
+  let activations = 0
+  const client = clientWithAdt({ stateful: "stateless", lock: async () => ({ LOCK_HANDLE: "LOCK" }), getObjectSource: async () => "old", setObjectSource: async () => undefined,
+    unLock: async () => undefined, syntaxCheckTypes: async () => new Map([["ddicCheck", ["DOMA/DD"]]]),
+    httpClient: { request: async () => ({ body: '<chkrun:checkRunReports xmlns:chkrun="http://www.sap.com/adt/checkrun"><chkrun:checkReport><chkrun:checkMessageList><chkrun:checkMessage chkrun:type="E" chkrun:shortText="Invalid domain length"/></chkrun:checkMessageList></chkrun:checkReport></chkrun:checkRunReports>' }) },
+    activate: async () => { activations++; return activationResult } })
+  const result = await client.replaceSource("Z_DOMAIN", "/sap/bc/adt/ddic/domains/z_domain", "/source", "old", "new", undefined, true)
+  assert.equal(result.activationSkipped, true)
+  assert.equal(result.diagnostics[0]?.severity, "E")
+  assert.equal(activations, 0)
 })

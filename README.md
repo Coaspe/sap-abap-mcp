@@ -3,53 +3,56 @@
 [![npm version](https://img.shields.io/npm/v/%40coaspe%2Fsap-abap-mcp)](https://www.npmjs.com/package/@coaspe/sap-abap-mcp)
 [![npm downloads](https://img.shields.io/npm/dw/%40coaspe%2Fsap-abap-mcp)](https://www.npmjs.com/package/@coaspe/sap-abap-mcp)
 
-For ABAP developers using a local AI coding assistant against an ADT-enabled
-SAP development system. Read current code and its direct impact, make one
-scoped change, then inspect diagnostics, activation, ABAP Unit and ATC evidence.
-The change workflow returns **diff → actual checks → uncertainty → next action**.
+Connect your AI assistant to an ADT-enabled SAP system to read ABAP, make scoped changes and inspect actual check results.
+
+![SAP ABAP MCP demo](https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/demo.gif)
+
+## Quick start
+
+1. Install Node.js 22/24 and connect to your company VPN.
+2. Run `npx -y @coaspe/sap-abap-mcp@2.2.0 onboard` (`npx.cmd` on Windows).
+3. Verify and save your SAP connection, register your host, then restart the app and verify an actual SAP system read.
+
+| Host | Setup command |
+|---|---|
+| Claude Code | `npx -y @coaspe/sap-abap-mcp@2.2.0 onboard` |
+| Codex | `npx -y @coaspe/sap-abap-mcp@2.2.0 onboard` |
+| VS Code | `npx -y @coaspe/sap-abap-mcp@2.2.0 register DEV100 --client vscode --apply` |
+| Cursor | `npx -y @coaspe/sap-abap-mcp@2.2.0 register DEV100 --client cursor --apply` |
+| Gemini CLI | `npx -y @coaspe/sap-abap-mcp@2.2.0 register DEV100 --client gemini --apply` |
+| Claude Desktop | `npx -y @coaspe/sap-abap-mcp@2.2.0 register DEV100 --client claude-desktop --apply` |
+
+Version **2.2.0** includes company CA files, six-host registration and Windows SAP
+Logon import. Omit `--apply` to preview a registration; existing entries are
+preserved and existing settings files are backed up. Claude Desktop MCPB users
+should avoid a duplicate registration. On Windows replace `npx` with `npx.cmd`.
+
+CA profiles use file format version 3 and need 2.2.0 or later. Existing npm
+registrations pin their package version: restart alone does not update a 2.1.0
+registration. Use [registration doctor and reviewed repair](docs/registration-recovery.md)
+to update an existing registration to 2.2.0 before using a CA profile.
+
+See [setup details](docs/setup-and-profiles.md#quick-start-details), including
+Linux environment-only credentials and registration recovery.
 
 **2.1.0** fixes noninteractive startup, native macOS credential storage and
 registration recovery. Windows DPAPI explicitly loads its native security module
 even when Node inherits a PowerShell 7 module path. Bundled npm/npx Windows
-launchers are resolved without a shell while preserving custom wrappers. This release also reduces the runtime package and preserves
-conflicting inactive source. Patched vendor bytes are preserved across Windows
+launchers are resolved without a shell while preserving custom wrappers. This release also reduces the runtime package. Patched vendor bytes are preserved across Windows
 and Unix checkouts. Existing five gateways still reach 120 capabilities.
 
-## Quick start
+## Fixes in 2.2.0
 
-Prerequisites: Node.js 22/24, npm, a local MCP host, SAP HTTPS/VPN access and
-ADT permission. Obtain connection details from your SAP administrator and
-enter credentials only in local setup.
+Repeated source patches use the same current-source view, preserve literal `$`
+sequences and activate after unlock. Transport release supports ADT background
+runs; the release also improves RAP response recovery, V4 unpublish errors,
+old open-transport discovery, CTS-key object assignment, Dictionary checks and
+top-level package creation. See [the eight fixes and validation limits](docs/bugfixes-2026-10-21.ko.md).
 
-Windows PowerShell:
-
-```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@2.1.0 onboard
-```
-
-macOS:
-
-```sh
-npx -y @coaspe/sap-abap-mcp@2.1.0 onboard
-```
-
-The browser wizard uses Windows DPAPI or macOS Keychain and defaults new
-profiles to read-only. On Linux use `npx -y @coaspe/sap-abap-mcp@2.1.0 setup`;
-credentials are environment-only. Existing registrations are preserved.
-
-Restart the host. List configured systems, verify the actual SID/client, and
-read one approved development object. A connected MCP or `setup_required`
-state is not SAP authentication, a first useful read or a completed ABAP task.
-
-For manual MCP registration, use `npx` (`npx.cmd` on Windows) with arguments
-`["--yes", "@coaspe/sap-abap-mcp@2.1.0", "serve"]`. npm registrations pin the
-package version rather than an npm-cache or version-specific Node path.
-A maintained source checkout can use `npm ci`, `npm run build`, then
-`node dist/src/index.js onboard`; keep that checkout for its local registration.
-
-Noninteractive no-argument invocation also starts stdio. Explicit `--help`
-and interactive no-argument invocation show help. MCP stdout contains protocol
-messages only. Empty-profile discovery advertises `SETUP_REQUIRED`.
+These paths have local automated coverage. Live B4D write/release acceptance
+has not been established by this release. Older npm 2.1.0 still has the reported
+source-patch limitations; upgrading the package and its pinned host registration
+is required to use the fixes.
 
 ## One existing-object change
 
@@ -58,8 +61,10 @@ exact Z program/class as `target`, and desired behavior in `goal`. It reuses
 source, semantic/public API, dependency, quality and transport features.
 
 Production/read-only policy, package restrictions, transport requirements and
-exact-source checks remain enforced. Source writes recheck active and inactive
-versions under lock. A conflicting inactive version is preserved. Uncertain
+exact-source checks remain enforced. In 2.2.0, source writes
+recheck the same current-source view under lock, without an explicit inactive
+probe. A changed current version stops the write. Requested activation follows
+successful unlock and is skipped on syntax errors. Uncertain
 multi-object writes stop with saved/uncertain/unattempted identities; there is
 no automatic rollback or atomic-transaction claim. Inspect state before retrying.
 Zero tests, unsupported checks and partial findings cannot establish completion.
@@ -93,6 +98,8 @@ speed improvement is claimed. See [exact snapshots and limits](docs/evidence/can
 | MCP closes immediately | Keep `serve` explicit, especially on 2.0.1; verify Node on the host PATH |
 | `SETUP_REQUIRED` | Complete local setup and reconnect; this state is not an accepted SAP installation |
 | Removed Node/cache or old registered version | Run [registration doctor and reviewed repair/update](docs/registration-recovery.md) |
+| Certificate untrusted / expired / hostname mismatch | Keep verification enabled; use the company CA PEM file or ask the administrator to fix the certificate/URL. See [TLS trust](docs/setup-and-profiles.md#company-ca-and-tls-trust) |
+| SAP URL unknown | On Windows use SAP Logon import to find candidate URLs, then check ADT and confirm the endpoint with your administrator |
 | SAP authentication/authorization failure | Renew locally or ask the administrator for ADT permission; avoid blind repeated logins |
 | Inactive conflict / uncertain write | Read current active/inactive state and reconcile with its owner before resuming |
 
@@ -100,8 +107,8 @@ speed improvement is claimed. See [exact snapshots and limits](docs/evidence/can
 
 - [Transport `assure` and CI](docs/product-reference.md#transport-change-assurance), [full reference](docs/product-reference.md), [CLI](docs/cli-reference.md), [profiles](docs/setup-and-profiles.md), [changelog](CHANGELOG.md).
 - [Evidence index](docs/evidence/index.json), [compatibility](docs/compatibility-matrix.md), [historical live record](docs/live-sap-evidence.md).
-- [Roadmap](ROADMAP.md), [adopters](ADOPTERS.md), [distribution](docs/mcp-directory-submissions.md), [2.1.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.1.0).
-- [Reliability validation](docs/reliability-2026-10-20.ko.md) and [field procedure](docs/field-acceptance-2026-10-20.ko.md). Checkout manifest version: `2.1.0`.
+- [Roadmap](ROADMAP.md), [adopters](ADOPTERS.md), [distribution](docs/mcp-directory-submissions.md), [2.2.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.2.0).
+- [Reliability validation](docs/reliability-2026-10-20.ko.md) and [field procedure](docs/field-acceptance-2026-10-20.ko.md). Checkout manifest version: `2.2.0`.
 
 Normal clients should omit both `--api-version` and `--toolsets`.
 

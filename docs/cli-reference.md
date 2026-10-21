@@ -75,7 +75,7 @@ and invocation tools while keeping every v1 capability reachable on demand.
 That optional preset has 17 tools while 120 capabilities remain reachable. Select
 full mode explicitly when the host's discovery or per-tool policy needs original
 tool names. The behavior described here is included in 2.0.0; `npx ...@latest` examples
-use the registry release, and `@2.1.0` pins this version.
+use the registry release, and `@2.2.0` pins this version.
 
 `--onboard-if-empty` opens local SAP setup for an app-managed stdio server with
 no profiles. With this flag, `SAP_ABAP_MCP_OPEN_SETUP=true` reopens existing

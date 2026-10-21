@@ -1,3 +1,4 @@
+import { certificateFailure } from "./tls-trust.js"
 import { AppError, tokenPassthroughRefused } from "./errors.js"
 import {
   OAuthClientCredentialsProvider,
@@ -152,6 +153,8 @@ export class ConnectionManager {
       await client.login()
       await client.getSystemInfo(false)
       onVerifiedCredential?.(verifiedCredential)
+    } catch (error) {
+      throw certificateFailure(error) ?? error
     } finally {
       await client.logout().catch(() => undefined)
     }
@@ -250,7 +253,7 @@ export class ConnectionManager {
         storedCredential = nextCredential
       }))
     const client = this.factory(profile, credential)
-    await client.login()
+    try { await client.login() } catch (error) { throw certificateFailure(error) ?? error }
     return client
   }
 

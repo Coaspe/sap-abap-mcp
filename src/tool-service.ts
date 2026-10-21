@@ -1203,7 +1203,10 @@ export function replaceExactlyOnce(content: string, oldString: string, newString
     count += 1
     offset = index + oldString.length
   }
-  if (count === 1) return content.replace(oldString, newString)
+  if (count === 1) {
+    const index = content.indexOf(oldString)
+    return content.slice(0, index) + newString + content.slice(index + oldString.length)
+  }
   if (count > 1) {
     throw new AppError(
       "SOURCE_MATCH_AMBIGUOUS",
@@ -1216,7 +1219,7 @@ export function replaceExactlyOnce(content: string, oldString: string, newString
   const first = normalizedContent.indexOf(normalizedOld)
   const second = first < 0 ? -1 : normalizedContent.indexOf(normalizedOld, first + normalizedOld.length)
   if (first >= 0 && second < 0) {
-    const updated = normalizedContent.replace(normalizedOld, newString.replace(/\r\n/g, "\n"))
+    const updated = normalizedContent.slice(0, first) + newString.replace(/\r\n/g, "\n") + normalizedContent.slice(first + normalizedOld.length)
     return content.includes("\r\n") ? updated.replace(/(?<!\r)\n/g, "\r\n") : updated
   }
   throw new AppError(
@@ -2771,7 +2774,7 @@ export class AbapToolService {
     const packageName = input.packageName.trim().toUpperCase()
     const parentName = isGroupType(objectType)
       ? input.parentName?.trim().toUpperCase()
-      : packageName
+      : objectType === "DEVC/K" ? input.parentName?.trim().toUpperCase() ?? packageName : packageName
     if (isGroupType(objectType) && !parentName) {
       throw new AppError(
         "PARENT_REQUIRED",
@@ -2809,7 +2812,7 @@ export class AbapToolService {
         objtype: objectType,
         objname: name,
         description: input.description,
-        packagename: packageName,
+        packagename: parentName ?? "",
         swcomp: additional.softwareComponent,
         packagetype: additional.packageType,
         transportLayer: additional.transportLayer
@@ -3817,6 +3820,7 @@ export class AbapToolService {
       return {
         connectionId: input.connectionId.toUpperCase(),
         user,
+        ...(results.historyComplete !== undefined ? { historyComplete: results.historyComplete, ...(results.historyIssue ? { historyIssue: results.historyIssue } : {}) } : {}),
         total: page.total,
         startIndex: page.startIndex,
         returned: page.returned,
@@ -3832,6 +3836,7 @@ export class AbapToolService {
           description: transport["tm:desc"],
           status: transport["tm:status"],
           taskCount: transport.tasks.length,
+          tasks: transport.tasks.map(task => ({ number: task["tm:number"], owner: task["tm:owner"], status: task["tm:status"] })),
           objectCount: transportObjects(transport).length
         }))
       }
@@ -3988,7 +3993,7 @@ export class AbapToolService {
       }
       const object = await resolveObject(client, objectName, objectType)
       requireWritablePackage(client, object.packageName)
-      await client.addTransportObject(transportNumber, object.uri)
+      await client.addTransportObjectByKey(transportNumber, pgmid, objectType.split("/")[0]!, objectName)
       return {
         connectionId: input.connectionId.toUpperCase(),
         transportNumber,
@@ -4393,7 +4398,7 @@ export class AbapToolService {
       if (input.action === "publish") {
         requireExactConfirmation(input.confirmation, name)
         const result = await client.publishRapService(name)
-        if (result.severity === "error") {
+        if (/^(error|e|a|x)$/i.test(result.severity)) {
           throw new AppError("SERVICE_BINDING_OPERATION_FAILED", result.shortText, {
             longText: result.longText
           })
@@ -4409,7 +4414,7 @@ export class AbapToolService {
       if (bindingVersion === "V4") {
         requireExactConfirmation(input.confirmation, name)
         const result = await client.unpublishRapService(name)
-        if (/^(error|e)$/i.test(result.severity)) {
+        if (/^(error|e|a|x)$/i.test(result.severity)) {
           throw new AppError("SERVICE_BINDING_OPERATION_FAILED", result.shortText, {
             longText: result.longText
           })
@@ -4477,7 +4482,7 @@ export class AbapToolService {
     )
     const packageName = input.packageName.trim().toUpperCase()
     const initial = await client.validateRapGeneratorInitial(generatorId, reference.uri, packageName)
-    if (initial.severity === "error") {
+    if (/^(error|e|a|x)$/i.test(initial.severity)) {
       throw new AppError("RAP_INITIAL_VALIDATION_FAILED", initial.shortText, {
         longText: initial.longText
       })
@@ -4540,7 +4545,7 @@ export class AbapToolService {
         reference: objectIdentity(reference),
         packageName, validation }
     }
-    if (validation.severity === "error") {
+    if (/^(error|e|a|x)$/i.test(validation.severity)) {
       throw new AppError("RAP_CONTENT_VALIDATION_FAILED", validation.shortText, {
         longText: validation.longText
       })
@@ -4565,15 +4570,28 @@ export class AbapToolService {
     const transport = requireTransport(writablePackage, input.transport)
     const bindingName = input.content.businessService.serviceBinding.name.trim().toUpperCase()
     requireExactConfirmation(input.confirmation, `${generatorId}:${bindingName}`)
-    const generated = await client.generateRapObjects(
-      generatorId,
-      reference.uri,
-      transport ?? "",
-      input.content
-    )
+    const absentBefore = new Set<string>()
+    for (const item of preview) {
+      try { await client.getObjectStructure(item.uri) } catch (error) {
+        const failure = error as { status?: number; err?: number; response?: { status?: number }; message?: string }
+        if ((failure.status ?? failure.err ?? failure.response?.status) === 404 || /does not exist|not found/i.test(failure.message ?? "")) absentBefore.add(item.uri)
+      }
+    }
+    let generated: RapGeneratorPreviewObject[]
+    let generationResponseUncertain = false
+    try {
+      generated = await client.generateRapObjects(generatorId, reference.uri, transport ?? "", input.content)
+    } catch (error) {
+      const missing = await this.findMissingGeneratedObjects(client, preview)
+      if (missing.length || absentBefore.size !== preview.length) throw new AppError("RAP_GENERATION_UNCERTAIN",
+        "SAP generation returned an error and not all previewed objects could be verified. Inspect existing objects before retrying.",
+        { missing, absentBefore: [...absentBefore], expected: preview.map(item => `${item.type}:${item.name}`), responseError: error instanceof Error ? error.message : String(error) })
+      generated = preview
+      generationResponseUncertain = true
+    }
     const expected = preview.map(item => `${item.type}:${item.name}`).sort()
     const actual = generated.map(item => `${item.type}:${item.name}`).sort()
-    let readBackVerified = false
+    let readBackVerified = generationResponseUncertain
     if (stableJson(expected) !== stableJson(actual)) {
       // Some systems echo only a subset of the created objects in the generate
       // response (e.g. just the service binding), so confirm each previewed
@@ -4596,6 +4614,7 @@ export class AbapToolService {
       transport: transport ?? null,
       generated: true,
       readBackVerified,
+      ...(generationResponseUncertain ? { generationResponseUncertain: true } : {}),
       objectCount: preview.length,
       objects: preview
     }

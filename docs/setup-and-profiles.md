@@ -5,8 +5,8 @@ repository plugins, and local MCP registry installs. Profiles are independent
 of a particular MCP client and remain on the user's machine.
 
 The `npx ...@latest` examples run the published npm version. The behavior
-described here includes the 2.0.0 features and 2.1.0 reliability fixes; use
-`@2.1.0` to pin this release.
+described here includes the 2.2.0 setup and correctness fixes; use
+`@2.2.0` to pin this release.
 
 Interactive `setup` creates and edits Basic Auth profiles. OAuth profiles use
 the explicit commands below; Destination profiles use the BTP guide.
@@ -346,7 +346,7 @@ Create one profile per system/client, for example `DEV100`, `QAS200`, and
 `PRD100`. Register the MCP server with unscoped `serve`:
 
 ```bash
-codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@2.1.0 serve
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@2.2.0 serve
 ```
 
 V1 SAP-facing tools identify profiles with `systemId`; the legacy API uses
@@ -390,7 +390,7 @@ command, configure:
 
 - Command on Windows: `npx.cmd`
 - Command on macOS or Linux: `npx`
-- Arguments: `-y`, `@coaspe/sap-abap-mcp@2.1.0`, `serve`
+- Arguments: `-y`, `@coaspe/sap-abap-mcp@2.2.0`, `serve`
 
 Do not append a sample `--profile DEV100` unless the installation deliberately
 exposes only that real, existing profile.
@@ -491,3 +491,82 @@ aggregation does not anonymize the original public GitHub issue.
 
 This prepares evidence collection. It does not establish novice setup success,
 a ready production deployment, measured token billing or independent adoption.
+
+
+## Quick start details
+
+Prerequisites: Node.js 22/24, npm, a local MCP host, SAP HTTPS/VPN access and
+ADT permission. Obtain connection details from your SAP administrator and
+enter credentials only in local setup.
+
+Windows PowerShell:
+
+```powershell
+npx.cmd -y @coaspe/sap-abap-mcp@2.2.0 onboard
+```
+
+macOS:
+
+```sh
+npx -y @coaspe/sap-abap-mcp@2.2.0 onboard
+```
+
+The browser wizard uses Windows DPAPI or macOS Keychain and defaults new
+profiles to read-only. On Linux use `npx -y @coaspe/sap-abap-mcp@2.2.0 setup`;
+credentials are environment-only. Existing registrations are preserved.
+
+Restart the host. List configured systems, verify the actual SID/client, and
+read one approved development object. A connected MCP or `setup_required`
+state is not SAP authentication, a first useful read or a completed ABAP task.
+
+For manual MCP registration, use `npx` (`npx.cmd` on Windows) with arguments
+`["--yes", "@coaspe/sap-abap-mcp@2.2.0", "serve"]`. npm registrations pin the
+package version rather than an npm-cache or version-specific Node path.
+A maintained source checkout can use `npm ci`, `npm run build`, then
+`node dist/src/index.js onboard`; keep that checkout for its local registration.
+
+Noninteractive no-argument invocation also starts stdio. Explicit `--help`
+and interactive no-argument invocation show help. MCP stdout contains protocol
+messages only. Empty-profile discovery advertises `SETUP_REQUIRED`.
+
+
+## Company CA and TLS trust
+
+Use `npx -y @coaspe/sap-abap-mcp@2.2.0 profile edit DEV100 --ca-file /absolute/company-ca.pem`
+or `profile add ... --ca-file /absolute/company-ca.pem`. Relative CLI paths are resolved before validation.
+Use `profile edit DEV100 --clear-ca-file` to remove it. Browser Step 2 also accepts an absolute PEM path;
+clearing that field removes the profile CA. Only PEM certificates up to 1 MiB are accepted, without private keys.
+Profiles containing a CA path use file version 3; older executables cannot read that version.
+The profile's HTTPS agent retains default roots and certificate/hostname verification.
+
+For an OS-installed company CA, supported Node versions can use `--use-system-ca`.
+`NODE_USE_SYSTEM_CA=1` requires Node 22.19+ on 22.x, or 24.6+ on 24.x and later.
+Restart the host after changing its Node environment. Remove `NODE_TLS_REJECT_UNAUTHORIZED=0`;
+the wizard warns when this global bypass is present. Expired certificates and hostname mismatches
+require fixing the certificate, clock or URL; adding a CA does not fix them.
+See [Node enterprise trust](https://nodejs.org/learn/http/enterprise-network-configuration).
+
+## Additional host registration
+
+The browser supports Claude Code, Codex, VS Code, Cursor, Gemini CLI and Claude Desktop.
+File hosts are detected by their settings directory. Registration preserves other parsed JSON values,
+refuses an existing `sap-abap` entry, checks workspace overrides and saves a recovery copy before replacing
+an existing settings file. JSON comments and trailing commas require manual resolution in the host.
+Use `register DEV100 --client vscode` to preview; add `--apply` to write. `--config <path>` overrides the file.
+`doctor DEV100 --registration --client <host>` and reviewed `repair` also support these hosts.
+Restart the app after registration and verify SAP separately. Native MCPB installation must not be duplicated.
+
+## SAP Logon import
+
+On Windows, Step 2 can read `%APPDATA%/SAP/Common/SAPUILandscape.xml`.
+`node dist/src/index.js setup import-saplogon --file <path>` lists names, SIDs, hosts,
+instances and HTTPS candidates only. User/client/SNC/SSO credentials and memo text are excluded.
+The parser reads the adjacent global landscape and local includes; remote includes are skipped.
+Message server and application server modes are supported; GUI parameter mode is reported as unsupported.
+
+Candidate order is a matching message server's HTTPS Web Dispatcher, then host port 443NN, then 44300.
+These are guesses: SAP GUI routes, instance numbers and SIDs do not establish a working ADT endpoint.
+`--probe [--ca-file <path>]` checks candidates sequentially with an unauthenticated GET to
+`/sap/bc/adt/discovery`, no cookies, no redirects and a five-second timeout per candidate.
+A 401 or 200 with an XML discovery content type marks a candidate, never a successful SAP login.
+The browser selects a candidate without saving; enter the client and authenticate separately.

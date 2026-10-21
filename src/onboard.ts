@@ -1,3 +1,7 @@
+import { FILE_HOSTS, isFileHost, inspectFileHost, planFileHostRegistration, applyFileHostRegistration, type FileHostId } from "./host-config.js"
+import { checkFileHostScope } from "./registration.js"
+import { readCaFile, globalTlsVerificationDisabled } from "./tls-trust.js"
+import { importSapLogon, probeAdtCandidate } from "./saplogon-import.js"
 import { spawn } from "node:child_process"
 import { resolveLocalCommand } from "./local-command.js"
 import { onboardLaunch, PACKAGE_NAME, PACKAGE_VERSION } from "./launch-contract.js"
@@ -46,6 +50,7 @@ const profileFields = {
   language: z.string().trim().regex(/^[A-Za-z]{2}$/),
   environment: z.enum(["development", "quality", "production"]),
   allowedPackages: z.string().max(4096).optional(),
+  caFile: z.string().trim().max(4096).optional(),
   accessMode: z.enum(["read_only", "packages", "unrestricted"]).optional()
 }
 const connectionFields = {
@@ -78,7 +83,7 @@ const verifyRequestSchema = z.object({
 }).strict()
 
 const configureRequestSchema = z.object({
-  clientId: z.enum(["claude", "codex"]),
+  clientId: z.enum(["claude", "codex", "vscode", "cursor", "gemini", "claude-desktop"]),
   profileId: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/),
   preset: z.enum(["adaptive", "minimal", "single"]).default("minimal")
 }).strict()
@@ -95,7 +100,7 @@ export type CommandRunner = (
   args: readonly string[]
 ) => Promise<CommandResult>
 
-export type OnboardClientId = "claude" | "codex"
+export type OnboardClientId = "claude" | "codex" | FileHostId
 
 interface RegistrationTarget {
   command: string
@@ -107,6 +112,10 @@ interface RegistrationTarget {
 export interface OnboardClientStatus {
   id: OnboardClientId
   label: string
+  kind: "cli" | "file"
+  docsUrl: string
+  configPath?: string
+  recoveryCopy?: string
   installed: boolean
   configured: boolean
   mcpConnectionStatus: "connected" | "failed" | "authentication-required" | "unknown"
@@ -140,6 +149,7 @@ export interface OnboardProfileStatus {
   scope?: string
   allowedPackages: string[]
   readOnly: boolean
+  caFile?: string
 }
 
 export interface OnboardStatus {
@@ -149,6 +159,7 @@ export interface OnboardStatus {
     platform: NodeJS.Platform
     nodeVersion: string
     cwd: string
+    tlsVerificationDisabled: boolean
     credentialStorageSupported: boolean
     npm: { installed: boolean; version?: string }
   }
@@ -158,6 +169,8 @@ export interface OnboardStatus {
 }
 
 interface OnboardServices {
+  sapLogonFile?: string
+  probeAdt?: typeof probeAdtCandidate
   profiles: ProfileStore
   secrets: SecretStore
   validateCredentials(profile: SapProfile, password: string): Promise<void | string>
@@ -299,6 +312,7 @@ async function inspectClient(
     return {
       id: definition.id,
       label: definition.label,
+      kind: "cli", docsUrl: definition.id === "codex" ? "https://learn.chatgpt.com/docs/extend/mcp?surface=cli" : "https://code.claude.com/docs/en/mcp",
       installed: false,
       configured: false,
       mcpConnectionStatus: "unknown",
@@ -316,6 +330,7 @@ async function inspectClient(
   return {
     id: definition.id,
     label: definition.label,
+    kind: "cli", docsUrl: definition.id === "codex" ? "https://learn.chatgpt.com/docs/extend/mcp?surface=cli" : "https://code.claude.com/docs/en/mcp",
     installed: true,
     ...registration,
     ...(registration.configured && target
@@ -381,6 +396,11 @@ async function inspectRegistration(
     profileHome = output.match(/^\s+SAP_ABAP_MCP_HOME=(.*)$/m)?.[1]?.trim()
     enabled = !/disabled|rejected|pending approval/i.test(field("Status") ?? "")
   }
+  return compareRegistration(command, args, profileHome, enabled, expected)
+}
+
+async function compareRegistration(command: string, args: string[], profileHome: string | undefined, enabled: boolean, expected: RegistrationTarget): Promise<NonNullable<OnboardClientStatus["registration"]>> {
+  const unknown = { state: "unknown" as const, differences: [], expected }
   if ([command, ...args, profileHome ?? ""].some(value => /\$\{|%[^%]+%/.test(value))) return unknown
   args = args.flatMap(value => value.startsWith("--") && value.includes("=")
     ? [value.slice(0, value.indexOf("=")), value.slice(value.indexOf("=") + 1)] : [value])
@@ -421,7 +441,23 @@ export async function inspectOnboardStatus(options: OnboardServices, profileId?:
   const target = profileId ? registrationTarget(options, (await options.profiles.get(profileId)).id) : undefined
   const [npm, clients, files, profiles] = await Promise.all([
     options.hostManaged ? Promise.resolve({ ok: false, stdout: "", stderr: "" }) : runner("npm", ["--version"]),
-    options.hostManaged ? Promise.resolve([]) : Promise.all(CLIENTS.map(client => inspectClient(client, runner, target))),
+    options.hostManaged ? Promise.resolve([]) : Promise.all([
+      ...CLIENTS.map(client => inspectClient(client, runner, target)),
+      ...FILE_HOSTS.map(async definition => {
+        if (platform === "linux" && definition.id === "claude-desktop") return { id: definition.id, label: definition.label, kind: "file" as const, docsUrl: definition.docsUrl, installUrl: definition.docsUrl, installed: false, configured: false, mcpConnectionStatus: "unknown" as const }
+        const inspected = await inspectFileHost(definition.id, options)
+        let issue = inspected.issue
+        try { await checkFileHostScope(definition.id, cwd) } catch (error) { issue = error instanceof Error ? error.message : "Workspace registration conflict" }
+        const entry = inspected.entry
+        const registration = inspected.configured && target ? entry && typeof entry.command === "string" && Array.isArray(entry.args) && entry.args.every((value: unknown) => typeof value === "string") && !entry.url
+          ? await compareRegistration(entry.command, entry.args, entry.env?.SAP_ABAP_MCP_HOME, entry.enabled !== false, target)
+          : { state: "different" as const, differences: ["runtime" as const], expected: target } : undefined
+        return { id: definition.id, label: definition.label, kind: "file" as const, docsUrl: definition.docsUrl, installUrl: definition.docsUrl,
+          installed: inspected.installed, configured: inspected.configured, configPath: inspected.configPath,
+          recoveryCopy: "A backup is saved before changing an existing settings file. Restart the app after registration.",
+          mcpConnectionStatus: "unknown" as const, ...(issue ? { issue } : {}), ...(registration ? { registration } : {}) }
+      })
+    ]),
     options.hostManaged ? Promise.resolve([]) : Promise.all(expectedFiles(home, cwd).map(async path => ({ path, exists: await pathExists(path) }))),
     options.profiles.list().then(items => Promise.all(items.map(async profile => ({
       id: profile.id,
@@ -431,6 +467,7 @@ export async function inspectOnboardStatus(options: OnboardServices, profileId?:
       environment: profile.environment,
       authType: profile.authType,
       allowedPackages: profile.allowedPackages,
+      ...(profile.caFile ? { caFile: profile.caFile } : {}),
       readOnly: Boolean(profile.readOnly || profile.environment === "production"),
       ...(profile.username ? { username: profile.username } : {}),
       ...(profile.authType === "oauth_client_credentials" || profile.authType === "oauth_authorization_code"
@@ -449,6 +486,7 @@ export async function inspectOnboardStatus(options: OnboardServices, profileId?:
       platform,
       nodeVersion: process.version,
       cwd,
+      tlsVerificationDisabled: globalTlsVerificationDisabled(),
       credentialStorageSupported: platform === "win32" || platform === "darwin",
       npm: {
         installed: npm.ok,
@@ -481,6 +519,7 @@ async function saveAndVerifyProfile(
   if (existing && existing.authType !== authType) {
     throw new AppError("PROFILE_AUTH_TYPE_UNSUPPORTED", `Profile ${existing.id} uses a different authentication type. Use a new connection name.`)
   }
+  if (request.caFile) readCaFile(request.caFile)
   const requestedPackages = request.allowedPackages?.split(",").map(value => value.trim()).filter(Boolean)
   if ((request.accessMode === "packages" && !requestedPackages?.length) ||
       (request.environment === "production" && request.accessMode !== undefined && request.accessMode !== "read_only")) {
@@ -488,6 +527,7 @@ async function saveAndVerifyProfile(
   }
   const input: SapProfileInput = {
     ...existing,
+    ...(request.caFile !== undefined ? { caFile: request.caFile || undefined } : {}),
     id: request.id,
     url: request.authType === "btp_service_key" ? "" : request.url,
     client: request.authType === "btp_service_key" ? "" : request.client,
@@ -554,6 +594,7 @@ async function configureClient(raw: unknown, options: OnboardServices): Promise<
   const request = parse(configureRequestSchema, raw)
   const profile = await options.profiles.get(request.profileId)
   const runner = options.runner ?? runLocalCommand
+  if (isFileHost(request.clientId)) return configureFileClient(request.clientId, profile.id, request.preset, options)
   const definition = CLIENTS.find(client => client.id === request.clientId)
   if (!definition) throw new AppError("CLIENT_UNKNOWN", "Unknown AI client")
   const target = registrationTarget(options, profile.id)
@@ -593,6 +634,18 @@ async function configureClient(raw: unknown, options: OnboardServices): Promise<
     )
   }
   return configured
+}
+
+async function configureFileClient(client: FileHostId, profileId: string, preset: "adaptive" | "minimal" | "single", options: OnboardServices): Promise<OnboardClientStatus> {
+  await checkFileHostScope(client, options.workingDirectory ?? process.cwd())
+  const current = (await inspectOnboardStatus(options, profileId)).clients.find(item => item.id === client)!
+  if (current.issue) throw new AppError("CLIENT_CONFIG_UNREADABLE", current.issue)
+  if (current.configured) return current
+  if (!current.installed) throw new AppError("CLIENT_NOT_INSTALLED", "Open the host once to create its settings directory, then check again")
+  const launch = onboardLaunch(fileURLToPath(new URL("./index.js", import.meta.url)), options.platform ?? process.platform, ["serve", "--profile", profileId, "--preset", preset])
+  const plan = await planFileHostRegistration(client, launch, { SAP_ABAP_MCP_HOME: dirname(resolve(options.profiles.filePath)) }, options)
+  await applyFileHostRegistration(plan)
+  return (await inspectOnboardStatus(options, profileId)).clients.find(item => item.id === client)!
 }
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
@@ -725,6 +778,24 @@ export async function startOnboardServer(
         const profileId = url.searchParams.get("profileId")
         if (profileId !== null) parse(verifyRequestSchema, { profileId })
         sendJson(response, 200, await inspectOnboardStatus(options, profileId ?? undefined))
+        return
+      }
+      if (request.method === "GET" && url.pathname === "/api/saplogon") {
+        if ((options.platform ?? process.platform) !== "win32" && !options.sapLogonFile) {
+          sendJson(response, 200, { entries: [], skipped: ["SAP Logon import is available on Windows"] })
+        } else sendJson(response, 200, await importSapLogon(options.sapLogonFile))
+        return
+      }
+      if (request.method === "POST" && url.pathname === "/api/saplogon/probe") {
+        const body = parse(z.object({ index: z.number().int().nonnegative(), caFile: z.string().optional() }).strict(), await readJson(request))
+        if ((options.platform ?? process.platform) !== "win32" && !options.sapLogonFile) throw new AppError("HOST_UNSUPPORTED", "SAP Logon import is available on Windows")
+        if (body.caFile) readCaFile(body.caFile)
+        const imported = await importSapLogon(options.sapLogonFile)
+        const entry = imported.entries[body.index]
+        if (!entry) throw new AppError("INPUT_INVALID", "Select a SAP Logon entry")
+        const results = []
+        for (const candidate of entry.candidates) results.push(await (options.probeAdt ?? probeAdtCandidate)(candidate, body.caFile || undefined))
+        sendJson(response, 200, { results })
         return
       }
       if (request.method === "POST" && url.pathname === "/api/profile") {
