@@ -1,3 +1,4 @@
+import { FILE_HOSTS, isFileHost, serversKey, fileHostConfigPath, parseFileHostConfig, type FileHostId } from "./host-config.js"
 import { open, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises"
 import { realpathSync } from "node:fs"
 import { homedir } from "node:os"
@@ -10,7 +11,8 @@ import { AppError } from "./errors.js"
 import { packageLaunch, PACKAGE_NAME, PACKAGE_VERSION, type StdioLaunch } from "./launch-contract.js"
 import { resolveLocalCommand } from "./local-command.js"
 
-export type RegistrationClient = "codex" | "claude"
+export const REGISTRATION_CLIENTS = ["codex", "claude", ...FILE_HOSTS.map(host => host.id)] as const
+export type RegistrationClient = typeof REGISTRATION_CLIENTS[number]
 interface RegisteredLaunch extends StdioLaunch { env: Record<string, string>; enabled?: boolean; cwd?: string }
 interface RegistrationFile {
   path: string
@@ -24,6 +26,7 @@ function parseConfig(text: string, client: RegistrationClient): any {
 }
 
 export function registrationFile(client: RegistrationClient): string {
+  if (isFileHost(client)) return fileHostConfigPath(client)
   return client === "codex"
     ? join(process.env.CODEX_HOME ?? join(homedir(), ".codex"), "config.toml")
     : join(process.env.CLAUDE_CONFIG_DIR ?? homedir(), ".claude.json")
@@ -33,6 +36,7 @@ export async function readRegistration(client: RegistrationClient, path = regist
   const actualPath = await realpath(path)
   const text = await readFile(actualPath, "utf8")
   const document = parseConfig(text, client)
+  if (isFileHost(client)) await checkFileHostScope(client)
   const project = client === "claude" ? Object.entries(document.projects ?? {}).find(
     ([path]) => canonicalPath(path) === canonicalPath(process.cwd()))?.[1] as any : undefined
   if (project?.mcpServers?.["sap-abap"]) {
@@ -43,13 +47,13 @@ export async function readRegistration(client: RegistrationClient, path = regist
     throw new AppError("REGISTRATION_SCOPE_CONFLICT", "A project registration may override the user entry; inspect it with the client first")
   }
   const disabled = project?.disabledMcpServers?.includes("sap-abap") === true
-  const entry = (client === "codex" ? document.mcp_servers : document.mcpServers)?.["sap-abap"]
+  const entry = document[serversKey(client)]?.["sap-abap"]
   if (!entry || typeof entry.command !== "string" || !Array.isArray(entry.args) ||
       !entry.args.every((arg: unknown) => typeof arg === "string") || entry.url) {
     throw new AppError("REGISTRATION_NOT_STDIO", "Select an existing local sap-abap registration; remote servers are not repaired")
   }
   const env = entry.env ?? {}
-  if (typeof env !== "object" || Object.values(env).some(value => typeof value !== "string")) {
+  if (!env || Array.isArray(env) || typeof env !== "object" || Object.values(env).some(value => typeof value !== "string")) {
     throw new AppError("REGISTRATION_INVALID", "Registration environment must contain string values")
   }
   return { path: actualPath, text, launch: { command: entry.command,
@@ -143,11 +147,11 @@ export function planRegistrationRepair(file: RegistrationFile, client: Registrat
   if (serverArgs[0] !== "serve") throw new AppError("CUSTOM_REGISTRATION", "The registered command is not stdio serve")
   const launch = { ...file.launch, ...packageLaunch(process.platform, version, serverArgs) }
   let text: string
-  const key = client === "codex" ? "mcp_servers" : "mcpServers"
+  const key = serversKey(client)
   const expected = parseConfig(file.text, client)
   expected[key]["sap-abap"].command = launch.command
   expected[key]["sap-abap"].args = launch.args
-  if (client === "claude") text = `${JSON.stringify(expected, null, 2)}\n`
+  if (client !== "codex") text = `${JSON.stringify(expected, null, 2)}\n`
   else {
     // Edit only these two values. The parse-and-compare guard refuses exotic TOML
     // layouts instead of reserializing unrelated settings or dropping comments.
@@ -193,3 +197,17 @@ export async function applyRegistrationRepair(file: RegistrationFile, text: stri
 }
 
 export function profileHomeForFile(filePath: string): string { return dirname(resolve(filePath)) }
+
+export async function checkFileHostScope(client: FileHostId, cwd = process.cwd()): Promise<void> {
+  const paths = client === "vscode" ? [join(cwd, ".vscode", "mcp.json"), join(cwd, ".mcp.json")]
+    : client === "cursor" ? [join(cwd, ".cursor", "mcp.json")]
+    : client === "gemini" ? [join(cwd, ".gemini", "settings.json")] : []
+  for (const path of paths) {
+    const text = await readFile(path, "utf8").catch(error => { if (error.code === "ENOENT") return undefined; throw error })
+    if (text === undefined) continue
+    const document = parseFileHostConfig(text)
+    if (document[serversKey(client)]?.["sap-abap"] !== undefined || document.mcpServers?.["sap-abap"] !== undefined) {
+      throw new AppError("REGISTRATION_SCOPE_CONFLICT", "A workspace sap-abap registration may override the user entry. Review it in the host first.")
+    }
+  }
+}

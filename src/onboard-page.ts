@@ -193,7 +193,7 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
         <div class="panel-body">
           <section class="view" data-view="1">
             <h2 class="section-title">${text("자동 점검 결과")}</h2>
-            <p class="section-copy">${text(hostManaged ? "앱이 제공하는 실행 환경을 사용합니다. Node/npm이나 별도 CLI를 설치할 필요가 없습니다." : "Claude 또는 Codex 중 하나만 준비되어 있어도 계속할 수 있습니다.")}</p>
+            <p class="section-copy">${text(hostManaged ? "앱이 제공하는 실행 환경을 사용합니다. Node/npm이나 별도 CLI를 설치할 필요가 없습니다." : "Claude Code, Codex, VS Code, Cursor, Gemini CLI, Claude Desktop 중 하나를 준비하세요.")}</p>
             <div class="check-grid" id="checks" aria-live="polite"></div>
             <details ${hostManaged ? "hidden" : ""}><summary>${text("설정 파일 상세 보기")}</summary><div class="file-list" id="files"></div></details>
             <div class="notice" id="environment-notice" role="status"></div>
@@ -204,12 +204,21 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
             <p class="section-copy">${text("저장된 연결이 있으면 다시 확인해 사용하고, 없으면 새로 추가하세요.")}</p>
             <div class="profiles" id="profiles"></div>
             <div class="divider" id="profile-divider">${text("새 연결 추가")}</div>
+            <details id="saplogon-import"><summary>${text("SAP Logon에서 가져오기")}</summary>
+              <p>${text("URL 후보와 SID만 채웁니다. 클라이언트와 인증 정보는 직접 입력하세요. 자동 저장하지 않습니다.")}</p>
+              <button class="button secondary small" type="button" id="load-saplogon">${text("목록 불러오기")}</button>
+              <select id="saplogon-entries" aria-label="${text("SAP Logon 연결")}"><option value="">${text("연결 선택")}</option></select>
+              <select id="saplogon-candidates" aria-label="${text("ADT URL 후보")}"></select>
+              <button class="button secondary small" type="button" id="probe-saplogon">${text("ADT 응답 확인")}</button>
+              <div class="notice" id="saplogon-notice" role="status"></div>
+            </details>
             <form id="sap-form">
               <div class="fields">
                 <label class="wide">${text("인증 방식")}<select name="authType"><option value="basic">${text("SAP ID · 비밀번호")}</option><option value="btp_service_key">${text("BTP ABAP 서비스 키 가져오기")}</option><option value="oauth_authorization_code">${text("브라우저 로그인 · OAuth PKCE")}</option><option value="oauth_client_credentials">${text("OAuth 클라이언트 인증")}</option></select><small>${text("회사에서 허용한 인증 방식을 선택하세요.")}</small></label>
                 <label>${text("연결 이름")}<input name="id" required maxlength="32" placeholder="DEV100" autocomplete="off"><small>${text("이 SAP 시스템을 구분할 짧은 이름")}</small></label>
                 <label data-auth="basic oauth_client_credentials oauth_authorization_code">${text("SAP 클라이언트")}<input name="client" required inputmode="numeric" pattern="[0-9]{1,3}" maxlength="3" placeholder="100"></label>
                 <label class="wide" data-auth="basic oauth_client_credentials oauth_authorization_code">SAP URL<input name="url" type="url" required placeholder="https://sap.company.com" autocomplete="url"></label>
+                <label class="wide">${text("회사 CA 인증서 파일 · 선택")}<input name="caFile" autocomplete="off" placeholder="${text("이 PC의 PEM 파일 절대 경로")}"><small>${text("인증서 검증을 유지하며 회사 CA를 추가합니다. 개인 키 파일은 사용하지 마세요.")}</small></label>
                 <label data-auth="basic">${text("SAP 사용자 ID")}<input name="username" required autocomplete="username" placeholder="${text("사번 또는 SAP ID")}"></label>
                 <label data-auth="basic">${text("SAP 비밀번호")}<input name="password" type="password" required autocomplete="current-password"></label>
                 <label class="wide" data-auth="btp_service_key" hidden>${text("BTP 서비스 키 JSON")}<textarea name="serviceKey" required disabled maxlength="24576" autocomplete="off" spellcheck="false" placeholder="${text("BTP에서 발급받은 ABAP 환경 서비스 키 JSON")}"></textarea><small>${text("SAP URL·클라이언트·토큰 주소를 자동으로 설정합니다. 저장 뒤 원본 파일도 안전하게 관리하세요.")}</small></label>
@@ -247,7 +256,7 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
             <div class="actions"><button class="button secondary" data-back="2" type="button">${text("이전")}</button><button class="button" id="finish" type="button" disabled>${text("설정 완료")}</button></div>
           </section>
           <section class="view finish" data-view="4" hidden>
-            <div><div class="finish-mark">✓</div><h2>${text("등록을 마쳤습니다.")}</h2><p>${text(hostManaged ? "설치한 앱의 새 대화에 아래 문구를 붙여넣으세요. 실제 SAP 시스템 조회 결과로 접속을 확인하세요. 이 설정 창은 닫아도 됩니다." : "Claude 또는 Codex를 다시 열고 아래 문구를 새 대화에 붙여넣으세요. SAP 시스템 정보가 조회되면 AI 도구에서도 실제 접속이 확인됩니다. 이 창과 터미널은 닫아도 됩니다.")}</p><label class="sr-only" for="first-prompt">${text("첫 SAP 조회 문구")}</label><textarea id="first-prompt" readonly></textarea><button class="button" id="copy-first-prompt" type="button">${text("첫 조회 문구 복사")}</button><div class="notice" id="copy-notice" role="status"></div></div>
+            <div><div class="finish-mark">✓</div><h2>${text("등록을 마쳤습니다.")}</h2><p>${text(hostManaged ? "설치한 앱의 새 대화에 아래 문구를 붙여넣으세요. 실제 SAP 시스템 조회 결과로 접속을 확인하세요. 이 설정 창은 닫아도 됩니다." : "등록한 앱을 다시 시작하고 아래 문구를 새 대화에 붙여넣으세요. SAP 시스템 정보가 조회되면 AI 도구에서도 실제 접속이 확인됩니다. 이 창과 터미널은 닫아도 됩니다.")}</p><label class="sr-only" for="first-prompt">${text("첫 SAP 조회 문구")}</label><textarea id="first-prompt" readonly></textarea><button class="button" id="copy-first-prompt" type="button">${text("첫 조회 문구 복사")}</button><div class="notice" id="copy-notice" role="status"></div></div>
           </section>
         </div>
       </section>
@@ -259,7 +268,7 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
     const headings = {
       1: [${scriptValue(text("Step 1 · PC 확인"))}, ${scriptValue(text("필요한 준비가 되어 있는지 먼저 확인할게요."))}, ${scriptValue(text("설치된 항목은 그대로 사용하고, 부족한 부분만 안내합니다. 기존 설정 파일은 덮어쓰지 않습니다."))}],
       2: [${scriptValue(text("Step 2 · SAP 연결"))}, ${scriptValue(text("SAP 연결과 인증 방식을 설정합니다."))}, ${scriptValue(text("입력한 정보는 이 PC에서 직접 SAP로 확인합니다. 연결에 성공한 뒤에만 안전하게 저장합니다."))}],
-      3: [${scriptValue(text("Step 3 · 도구 연결"))}, ${scriptValue(text("한 번만 연결하면 다음부터 바로 사용할 수 있어요."))}, ${scriptValue(text(hostManaged ? "이 MCP의 등록은 설치한 앱에서 관리합니다. 추가 CLI 설치나 MCP 등록은 필요하지 않습니다." : "공식 Claude와 Codex 명령으로 MCP를 등록합니다. 이미 같은 연결이 있으면 변경하지 않습니다."))}],
+      3: [${scriptValue(text("Step 3 · 도구 연결"))}, ${scriptValue(text("한 번만 연결하면 다음부터 바로 사용할 수 있어요."))}, ${scriptValue(text(hostManaged ? "이 MCP의 등록은 설치한 앱에서 관리합니다. 추가 CLI 설치나 MCP 등록은 필요하지 않습니다." : "6개 호스트의 MCP 등록을 지원합니다. 기존 등록은 보존하고 설정 파일 변경 전 백업합니다."))}],
       4: [${scriptValue(text("Step 4 · 완료"))}, ${scriptValue(text("첫 SAP 조회로 연결을 확인하세요."))}, ""]
     };
     let status;
@@ -340,6 +349,8 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
         const codex = el("a", "", ${scriptValue(text("Codex 설치 안내"))}); codex.href = "https://learn.chatgpt.com/docs/codex/cli"; codex.target = "_blank"; codex.rel = "noreferrer";
         notice.append(claude, text(" · "), codex);
       } else notice.textContent = "";
+      if (status.environment.tlsVerificationDisabled) notice.textContent += " " + ${scriptValue(text("경고: NODE_TLS_REJECT_UNAUTHORIZED=0으로 인증서 검증이 꺼져 있습니다. 이 환경 변수를 제거하고 회사 CA를 설정한 뒤 다시 시작하세요."))};
+      document.querySelector("#saplogon-import").hidden = status.environment.platform !== "win32";
     }
 
     function renderProfiles() {
@@ -376,7 +387,7 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
       const form = document.querySelector("#sap-form");
       form.elements.authType.value = profile.authType;
       updateAuthFields();
-      ["id", "url", "client", "username", "language", "environment", "tokenUrl", "authorizationUrl", "clientId", "scope"].forEach(name => { form.elements[name].value = profile[name] || ""; });
+      ["id", "url", "client", "username", "language", "environment", "tokenUrl", "authorizationUrl", "clientId", "scope", "caFile"].forEach(name => { form.elements[name].value = profile[name] || ""; });
       form.elements.allowedPackages.value = (profile.allowedPackages || []).join(", ");
       form.elements.accessMode.value = profile.readOnly ? "read_only" : profile.allowedPackages?.length ? "packages" : "unrestricted";
       updateWriteScope();
@@ -394,6 +405,11 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
       status.clients.forEach(client => {
         const card = el("article", "client-card");
         const top = el("div", "client-top"); top.append(el("div", "client-name", client.label));
+        if (client.kind === "file") {
+          card.append(el("p", "", ${scriptValue(text("설정 파일: "))} + (client.configPath || "")));
+          card.append(el("p", "", ${scriptValue(text("기존 설정 파일은 변경 전에 백업합니다. 등록 후 앱을 다시 시작하세요."))}));
+          if (client.id === "claude-desktop") card.append(el("p", "", ${scriptValue(text("MCPB 확장으로 이미 설치했다면 중복 등록하지 마세요."))}));
+        }
         const blocked = ["failed", "authentication-required"].includes(client.mcpConnectionStatus);
         const registrationNeedsReview = client.configured && client.registration?.state !== "matches";
         const state = client.issue ? [${scriptValue(text("확인 실패"))}, "warn"] : client.mcpConnectionStatus === "failed" ? [${scriptValue(text("연결 실패"))}, "warn"] : client.mcpConnectionStatus === "authentication-required" ? [${scriptValue(text("인증 필요"))}, "warn"] : client.configured ? [client.mcpConnectionStatus === "connected" ? ${scriptValue(text("MCP 연결 확인"))} : ${scriptValue(text("등록됨"))}, "ready"] : client.installed ? [${scriptValue(text("설정 필요"))}, "warn"] : [${scriptValue(text("설치 필요"))}, "warn"];
@@ -407,7 +423,7 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
           const details = el("details"); details.append(el("summary", "", ${scriptValue(text("이 연결에 필요한 값 보기"))}));
           const expected = client.registration.expected;
           details.append(el("pre", "registration-values", "command: " + expected.command + "\\nserver file: " + expected.serverFile + "\\n--profile: " + expected.profileId + "\\nSAP_ABAP_MCP_HOME: " + expected.profileHome)); card.append(details);
-          const guide = el("a", "", ${scriptValue(text("MCP 설정 안내 열기"))}); guide.href = client.id === "codex" ? "https://learn.chatgpt.com/docs/extend/mcp?surface=cli" : "https://code.claude.com/docs/en/mcp"; guide.target = "_blank"; guide.rel = "noreferrer"; card.append(guide);
+          const guide = el("a", "", ${scriptValue(text("MCP 설정 안내 열기"))}); guide.href = client.docsUrl; guide.target = "_blank"; guide.rel = "noreferrer"; card.append(guide);
         }
         if (client.installed && (client.issue || blocked || registrationNeedsReview)) {
           if (client.issue || blocked) card.append(el("p", "", client.issue ? ${scriptValue(text("기존 MCP 설정을 읽지 못했습니다: "))} + client.issue : client.mcpConnectionStatus === "authentication-required" ? ${scriptValue(text("AI 도구에서 MCP 인증을 완료한 뒤 다시 확인하세요."))} : ${scriptValue(text("AI 도구의 MCP 오류에서 실행 파일 경로와 서버 시작 로그를 확인한 뒤 다시 확인하세요."))}));
@@ -452,6 +468,10 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
     function showNotice(selector, message, kind = "") { const node = document.querySelector(selector); node.className = "notice " + kind; node.textContent = message || ""; }
     function setupError(error) {
       const hints = {
+        CA_FILE_INVALID: ${scriptValue(text("개인 키가 없는 PEM 인증서 파일의 절대 경로를 확인하세요. 최대 1 MiB입니다."))},
+        SAP_TLS_CERTIFICATE_UNTRUSTED: ${scriptValue(text("회사 CA 파일을 지정하거나 Node의 시스템 CA 신뢰 설정을 확인하세요. 인증서 검증은 유지하세요."))},
+        SAP_TLS_CERTIFICATE_EXPIRED: ${scriptValue(text("PC 시간을 확인하고 SAP 관리자에게 인증서 갱신을 요청하세요."))},
+        SAP_TLS_HOSTNAME_MISMATCH: ${scriptValue(text("SAP 관리자에게 인증서 이름과 일치하는 HTTPS URL을 확인하세요."))},
         CANCELLED: ${scriptValue(text("기존 설정과 자격 증명은 유지됩니다. 인증 방식을 확인하고 다시 시도하세요."))},
         SERVICE_KEY_INVALID: ${scriptValue(text("ABAP 환경 서비스의 서비스 키 JSON을 확인하세요."))},
         SERVICE_KEY_CERTIFICATE_UNSUPPORTED: ${scriptValue(text("현재는 Client Secret을 포함한 서비스 키를 지원합니다. 인증서 방식은 관리자와 별도 설정을 확인하세요."))},
@@ -479,6 +499,40 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
       catch (error) { showNotice("#environment-notice", error.message, "error"); }
       finally { setBusy(button, false, ${scriptValue(text("다시 확인"))}); }
     }
+
+    let sapLogonEntries = [];
+    document.querySelector("#load-saplogon").addEventListener("click", async () => {
+      const button = document.querySelector("#load-saplogon"); setBusy(button, true, ${scriptValue(text("확인 중…"))});
+      try {
+        const imported = await api("/api/saplogon"); sapLogonEntries = imported.entries;
+        const select = document.querySelector("#saplogon-entries"); select.replaceChildren();
+        const placeholder = el("option", "", ${scriptValue(text("연결 선택"))}); placeholder.value = ""; select.append(placeholder);
+        imported.entries.forEach((entry, index) => { const option = el("option", "", entry.name + " (" + entry.sid + ")"); option.value = String(index); select.append(option); });
+        showNotice("#saplogon-notice", imported.skipped.length ? ${scriptValue(text("원격 include는 가져오지 않습니다."))} : "");
+      } catch (error) { showNotice("#saplogon-notice", setupError(error), "error"); }
+      finally { setBusy(button, false, ${scriptValue(text("목록 불러오기"))}); }
+    });
+    document.querySelector("#saplogon-entries").addEventListener("change", event => {
+      const entry = event.target.value === "" ? undefined : sapLogonEntries[Number(event.target.value)];
+      const candidates = document.querySelector("#saplogon-candidates"); candidates.replaceChildren();
+      if (!entry) return;
+      entry.candidates.forEach(url => { const option = el("option", "", url); option.value = url; candidates.append(option); });
+      const form = document.querySelector("#sap-form"); form.elements.url.value = entry.candidates[0] || "";
+      form.elements.id.value = entry.sid; showNotice("#saplogon-notice", entry.issue || ${scriptValue(text("URL 후보와 SID만 채웁니다. 클라이언트와 인증 정보는 직접 입력하세요. 자동 저장하지 않습니다."))});
+    });
+    document.querySelector("#saplogon-candidates").addEventListener("change", event => { document.querySelector("#sap-form").elements.url.value = event.target.value; });
+    document.querySelector("#probe-saplogon").addEventListener("click", async () => {
+      const value = document.querySelector("#saplogon-entries").value; if (value === "") return;
+      const button = document.querySelector("#probe-saplogon"); setBusy(button, true, ${scriptValue(text("확인 중…"))});
+      try {
+        const caFile = document.querySelector("#sap-form").elements.caFile.value;
+        const result = await api("/api/saplogon/probe", { method: "POST", body: JSON.stringify({ index: Number(value), ...(caFile ? { caFile } : {}) }) });
+        const found = result.results.find(item => item.adt);
+        if (found) { document.querySelector("#sap-form").elements.url.value = found.url; document.querySelector("#saplogon-candidates").value = found.url; }
+        showNotice("#saplogon-notice", found ? ${scriptValue(text("ADT 응답 후보를 찾았습니다. 아직 SAP 로그인은 확인되지 않았습니다."))} : result.results.map(item => item.url + ": " + (item.code || item.status)).join("; "));
+      } catch (error) { showNotice("#saplogon-notice", setupError(error), "error"); }
+      finally { setBusy(button, false, ${scriptValue(text("ADT 응답 확인"))}); }
+    });
 
     document.querySelector("#refresh").addEventListener("click", refresh);
     document.querySelector("#to-sap").addEventListener("click", () => showStep(2));

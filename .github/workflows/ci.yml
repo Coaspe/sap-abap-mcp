@@ -43,7 +43,7 @@ jobs:
       - run: npm run build
       - run: node --test dist/test/local-command.test.js dist/test/security-backports.test.js dist/test/token-efficiency.test.js dist/test/secret-store.test.js
       - run: node scripts/smoke-v1-stdio.mjs
-      - run: node --test dist/test/stdio-launch.test.js dist/test/launch-contract.test.js dist/test/registration.test.js
+      - run: node --test dist/test/stdio-launch.test.js dist/test/launch-contract.test.js dist/test/registration.test.js dist/test/host-config.test.js dist/test/tls-trust.test.js dist/test/saplogon-import.test.js dist/test/onboard.test.js dist/test/cli-profile.test.js dist/test/adt-background.test.js
       - run: npm run verify:backports
       - name: Verify native DPAPI with throwaway credentials
         run: node scripts/verify-native-store.mjs

@@ -1,3 +1,7 @@
+import { XMLParser, XMLValidator } from "fast-xml-parser"
+import { runAdtBackground } from "./adt-background.js"
+import { parseCheckResults } from "abap-adt-api/build/api/syntax.js"
+import { profileHttpsAgent } from "./tls-trust.js"
 import { createHash, randomUUID } from "node:crypto"
 import { decodeKnowledgeTransferDocument } from "./knowledge-transfer.js"
 import { SourceCache } from "./source-cache.js"
@@ -94,6 +98,11 @@ import {
   type ReplHealthCheck,
   type ReplResponse
 } from "./repl-client.js"
+
+export interface SapTransportListing extends TransportsOfUser {
+  historyComplete?: boolean
+  historyIssue?: string
+}
 
 export interface SapObjectReference {
   name: string
@@ -336,7 +345,7 @@ export interface SapClient {
     elements: TextElement[],
     transport?: string
   ): Promise<ActivationResult>
-  getUserTransports(user: string): Promise<TransportsOfUser>
+  getUserTransports(user: string): Promise<SapTransportListing>
   getTransportDetails(transportNumber: string): Promise<TransportRequest>
   releaseTransport(
     transportNumber: string,
@@ -747,7 +756,8 @@ export class AdtSapClient implements SapClient {
       this.profile.username ?? "OAUTH",
       credential,
       this.profile.client,
-      this.profile.language
+      this.profile.language,
+      ...(this.profile.caFile ? [{ httpsAgent: profileHttpsAgent(this.profile.caFile) }] : [])
     )
   }
 
@@ -964,6 +974,23 @@ export class AdtSapClient implements SapClient {
     source: string,
     mainProgram?: string
   ): Promise<SyntaxCheckResult[]> {
+    const dictionaryType = /\/ddic\/domains\//i.test(objectUri) ? "DOMA/DD"
+      : /\/ddic\/dataelements\//i.test(objectUri) ? "DTEL/DE" : undefined
+    if (dictionaryType) {
+      const reporters = await this.client.syntaxCheckTypes().catch(error => {
+        const status = error.status ?? error.err ?? error.response?.status
+        if ([404, 405, 501].includes(status)) return new Map<string, unknown[]>()
+        throw error
+      })
+      const reporter = [...reporters.entries()].find(([, types]) => JSON.stringify(types).includes(dictionaryType))?.[0]
+      if (!reporter) return [{ uri: objectUri, line: 0, offset: 0, severity: "W",
+        text: "A separate Dictionary consistency reporter is unavailable. Requested activation will run SAP Dictionary validation; a text-source syntax check is not applicable." }]
+      const response = await this.client.httpClient.request("/sap/bc/adt/checkruns", {
+        method: "POST", qs: { reporters: reporter }, headers: { "Content-Type": "application/*" },
+        body: `<chkrun:checkObjectList xmlns:chkrun="http://www.sap.com/adt/checkrun" xmlns:adtcore="http://www.sap.com/adt/core"><chkrun:checkObject adtcore:uri="${escapeXmlAttribute(objectUri)}" chkrun:version="inactive"/></chkrun:checkObjectList>`
+      })
+      return parseCheckResults(fullParse(response.body))
+    }
     return this.client.statelessClone.syntaxCheck(
       objectUri,
       sourceUri,
@@ -987,51 +1014,41 @@ export class AdtSapClient implements SapClient {
       const previousSessionType = this.client.stateful
       this.client.stateful = session_types.stateful
       let lockHandle: string | undefined
+      let diagnostics: SyntaxCheckResult[]
       try {
         const lock = await this.client.lock(objectUri)
         lockHandle = lock.LOCK_HANDLE
-        const lockedSource = await this.client.getObjectSource(sourceUri, { version: "active" })
+        const lockedSource = await this.client.getObjectSource(sourceUri)
         if (lockedSource !== expectedSource) {
           throw new AppError(
             "SOURCE_CHANGED",
             `ABAP source changed after it was read; refusing to overwrite ${sourceUri}`
           )
         }
-        try {
-          const inactiveSource = await this.client.getObjectSource(sourceUri, { version: "inactive" })
-          if (inactiveSource !== expectedSource) {
-            throw new AppError("INACTIVE_SOURCE_CONFLICT",
-              "A different inactive version exists; inspect it and reconcile the change before patching")
-          }
-        } catch (error) {
-          // An explicit absent inactive resource is the only safe fallback.
-          const candidate = error as { response?: { status?: number }; status?: number; err?: number }
-          if ((candidate.response?.status ?? candidate.status ?? candidate.err) !== 404) throw error
-        }
         await this.client.setObjectSource(sourceUri, source, lockHandle, transport)
-        const diagnostics = await this.checkSyntax(
+        diagnostics = await this.checkSyntax(
           syntaxObjectUri ?? objectUri,
           sourceUri,
           source,
           mainProgram
         )
-        const hasSyntaxErrors = diagnostics.some(item =>
-          /^(E|ERROR)$/i.test(item.severity.trim())
-        )
-        const activation = activate && !hasSyntaxErrors
-          ? await this.client.activate(objectName, objectUri, mainProgram, true)
-          : undefined
-        return {
-          diagnostics,
-          ...(activation ? { activation } : {}),
-          activationSkipped: activate && hasSyntaxErrors
-        }
       } finally {
         try {
           if (lockHandle) await this.client.unLock(objectUri, lockHandle)
         } finally {
           this.client.stateful = previousSessionType
         }
+      }
+      const hasSyntaxErrors = diagnostics.some(item =>
+        /^(E|ERROR)$/i.test(item.severity.trim())
+      )
+      const activation = activate && !hasSyntaxErrors
+        ? await this.client.activate(objectName, objectUri, mainProgram, true)
+        : undefined
+      return {
+        diagnostics,
+        ...(activation ? { activation } : {}),
+        activationSkipped: activate && hasSyntaxErrors
       }
     })
   }
@@ -1056,6 +1073,25 @@ export class AdtSapClient implements SapClient {
   }
 
   async createObject(options: SapNewObjectOptions): Promise<void> {
+    if (options.objtype === "DEVC/K") {
+      const pkg = options as NewPackageOptions
+      const xml = escapeXmlAttribute
+      const parent = pkg.parentName ? `adtcore:name="${xml(pkg.parentName)}"` : ""
+      const body = `<?xml version="1.0" encoding="UTF-8"?>
+<pak:package xmlns:pak="http://www.sap.com/adt/packages" xmlns:adtcore="http://www.sap.com/adt/core"
+ adtcore:name="${xml(pkg.name)}" adtcore:type="DEVC/K" adtcore:version="active" adtcore:description="${xml(pkg.description)}"
+ adtcore:responsible="${xml((pkg.responsible || this.profile.username || "").toUpperCase())}">
+ <adtcore:packageRef ${parent}/><pak:attributes pak:packageType="${xml(pkg.packagetype)}"/>
+ <pak:superPackage ${parent}/><pak:applicationComponent/>
+ <pak:transport><pak:softwareComponent pak:name="${xml(pkg.swcomp)}"/><pak:transportLayer pak:name="${xml(pkg.transportLayer)}"/></pak:transport>
+ <pak:translation/><pak:useAccesses/><pak:packageInterfaces/><pak:subPackages/>
+</pak:package>`
+      await this.serializeMutation(() => this.client.httpClient.request("/sap/bc/adt/packages", {
+        method: "POST", headers: { "Content-Type": "application/*" }, body,
+        qs: pkg.transport ? { corrNr: pkg.transport } : {}
+      }))
+      return
+    }
     if (options.objtype !== "SRVB/SVB") {
       await this.serializeMutation(() => this.client.createObject(options))
       return
@@ -1200,8 +1236,55 @@ export class AdtSapClient implements SapClient {
     })
   }
 
-  async getUserTransports(user: string): Promise<TransportsOfUser> {
-    return this.client.userTransports(user, true)
+  async getUserTransports(user: string): Promise<SapTransportListing> {
+    const recent: SapTransportListing = await this.client.userTransports(user, true)
+    try {
+      const discovery = await this.client.adtDiscovery()
+      const template = discovery.flatMap(workspace => workspace.collection).flatMap(collection => collection.templateLinks)
+        .find(link => link.rel === "http://www.sap.com/adt/categories/cts/transports/search")?.template
+      if (!template) return { ...recent, historyComplete: false, historyIssue: "This system does not advertise all-date transport search; older locks may be absent." }
+      if (!template.includes("fromDate") || !template.includes("toDate")) throw new Error("Transport search does not expose its date range")
+      const parameters: Record<string, string | string[]> = { owner: user, transportNumber: "*", searchFor: "requestWithTask",
+        requestType: ["K", "W", "T"], requestStatus: ["D", "P", "O"], taskStatus: ["D", "P", "O"],
+        fromDate: "19500101", toDate: new Date().toISOString().slice(0, 10).replaceAll("-", "") }
+      const expanded = template.replace(/\{([?&])([^}]+)\}/g, (_match, prefix: string, fields: string) => {
+        const pairs = fields.split(",").flatMap(field => {
+          const name = field.replace(/\*$/, ""), value = parameters[name]
+          if (value === undefined) return []
+          const values = Array.isArray(value) ? value : [value]
+          return field.endsWith("*") ? values.map(item => `${encodeURIComponent(name)}=${encodeURIComponent(item)}`)
+            : [`${encodeURIComponent(name)}=${values.map(encodeURIComponent).join(",")}`]
+        })
+        return pairs.length ? prefix + pairs.join("&") : ""
+      })
+      const url = new URL(expanded, this.profile.url)
+      if (url.origin !== new URL(this.profile.url).origin || !url.pathname.startsWith("/sap/bc/adt/") || /[{}]/.test(expanded)) throw new Error("Invalid transport search template")
+      const response = await this.client.httpClient.request(url.pathname + url.search, { method: "GET", headers: { Accept: "application/vnd.sap.adt.transports.search.v1+xml" } })
+      if (XMLValidator.validate(response.body) !== true) throw new Error("Invalid transport search response")
+      const document = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", removeNSPrefix: true }).parse(response.body)
+      if (!document || !Object.hasOwn(document, "searchResults")) throw new Error("Missing transport search result")
+      const numbers = new Map<string, "workbench" | "customizing">()
+      const walk = (value: unknown): void => {
+        if (!value || typeof value !== "object") return
+        for (const [key, child] of Object.entries(value)) {
+          if (key === "request") for (const row of Array.isArray(child) ? child : [child]) {
+            if (row && typeof row === "object" && typeof row.number === "string" && /^[A-Z0-9]{3}K[0-9A-Z]{6}$/.test(row.number)) numbers.set(row.number, row.type === "W" ? "customizing" : "workbench")
+          }
+          walk(child)
+        }
+      }
+      walk(document)
+      const known = new Set([...recent.workbench, ...recent.customizing].flatMap(target => [...target.modifiable, ...target.released].map(request => request["tm:number"])))
+      const missing = [...numbers].filter(([number]) => !known.has(number))
+      for (const [number, category] of missing.slice(0, 200)) {
+        const transport = await this.client.transportDetails(number)
+        recent[category].push({ "tm:name": "", "tm:desc": "All-date search", modifiable: [transport], released: [] })
+      }
+      return { ...recent, historyComplete: missing.length <= 200,
+        ...(missing.length > 200 ? { historyIssue: "All-date search found more than 200 additional requests; listing remains incomplete." } : {}) }
+    } catch {
+      return { ...recent, historyComplete: false, historyIssue: "All-date transport search could not be completed; do not treat this list as proof that no older object lock exists." }
+    }
   }
 
   async getTransportDetails(transportNumber: string): Promise<TransportRequest> {
@@ -1226,15 +1309,13 @@ export class AdtSapClient implements SapClient {
       const requestHasObjects = (details.objects?.length ?? 0) > 0
       const reports: TransportReleaseReport[] = []
       for (const task of openTasks) {
-        reports.push(
-          ...await this.releaseTransportEntity(
-            task["tm:number"], worklistId, ignoreLocks, ignoreAtc, true
-          )
-        )
+        const taskReports = await this.releaseTransportEntity(task["tm:number"], worklistId, ignoreLocks, ignoreAtc, true)
+        reports.push(...taskReports)
+        if (!taskReports.length || taskReports.some(report => report["chkrun:status"] !== "released")) return reports
       }
       reports.push(
         ...await this.releaseTransportEntity(
-          transportNumber, worklistId, ignoreLocks, ignoreAtc, requestHasObjects
+          transportNumber, worklistId, ignoreLocks, ignoreAtc, requestHasObjects || openTasks.length > 0
         )
       )
       return reports
@@ -1258,8 +1339,8 @@ export class AdtSapClient implements SapClient {
     }
   }
 
-  // Release protocol captured from Eclipse ADT: POST newreleasejobs without a
-  // body; when the response's check report names a follow-up action such as
+  // Object-bearing releases tunnel this request through ADT background runs.
+  // The inner POST newreleasejobs has no body; when the response's check report names a follow-up action such as
   // relwithignlock or relObjigchkatc, confirm it by echoing the tm:root
   // attributes back to that endpoint with tm:useraction="release"
   private async releaseTransportEntity(
@@ -1275,31 +1356,10 @@ export class AdtSapClient implements SapClient {
       method: "POST" as const,
       headers: { Accept: "application/vnd.sap.adt.transportorganizer.v1+xml" }
     }
-    let response: { body: string }
-    try {
-      response = await this.client.httpClient.request(endpoint, requestOptions)
-    } catch (error) {
-      // Some systems (e.g. B4D) reject the synchronous release endpoint for
-      // request/tasks that contain objects and run release only as an async
-      // background job from the GUI; surface an actionable hint rather than a raw 500.
-      //
-      // The ADT endpoint and the exact SAP response text are preserved here
-      // because implementing the asynchronous background-run path requires that
-      // wire evidence, and re-running a failed release to recover it is not safe.
-      if (hasObjects && (error as { status?: number })?.status === 500) {
-        throw new AppError(
-          "TRANSPORT_RELEASE_UNSUPPORTED",
-          `SAP rejected the synchronous release of ${transportNumber}. On some systems a request/task that contains objects can only be released from the GUI (SE10/SE09); release it there and verify the status.`,
-          {
-            transportNumber,
-            httpStatus: 500,
-            endpoint,
-            ...adtFailureEvidence(error)
-          }
-        )
-      }
-      throw error
-    }
+    const request = (uri: string, options: NonNullable<Parameters<ADTClient["httpClient"]["request"]>[1]>) => hasObjects
+      ? runAdtBackground((path, config) => this.client.httpClient.request(path, config), this.profile.url, uri, options)
+      : this.client.httpClient.request(uri, options)
+    let response = await request(endpoint, requestOptions)
     let reports: TransportReleaseReport[] = []
     for (let attempt = 0; attempt < 3; attempt++) {
       const raw = fullParse(response.body)
@@ -1322,7 +1382,7 @@ export class AdtSapClient implements SapClient {
         .filter(([key]) => key.startsWith("tm:"))
         .map(([key, value]) => `${key}="${escapeXmlAttribute(String(value))}"`)
         .join(" ")
-      response = await this.client.httpClient.request(
+      response = await request(
         `/sap/bc/adt/cts/transportrequests/${transportNumber}/${followUp}${query}`,
         {
           ...requestOptions,
@@ -1349,18 +1409,9 @@ export class AdtSapClient implements SapClient {
   }
 
   async addTransportObject(transportNumber: string, objectUri: string): Promise<void> {
-    await this.serializeMutation(async () => {
-      await this.client.httpClient.request(
-        `/sap/bc/adt/cts/transportrequests/${encodeURIComponent(transportNumber)}/abaptransportcomponents`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/xml" },
-          body:
-            '<adtcore:objectReference xmlns:adtcore="http://www.sap.com/adt/core" ' +
-            `adtcore:uri="${escapeXmlAttribute(objectUri)}"/>`
-        }
-      )
-    })
+    const info = await this.client.transportInfo(objectUri)
+    if (!info.PGMID || !info.OBJECT || !info.OBJECTNAME) throw new AppError("TRANSPORT_OBJECT_KEY_MISSING", "SAP did not resolve the object's CTS key; the transport was not changed")
+    await this.addTransportObjectByKey(transportNumber, info.PGMID, info.OBJECT, info.OBJECTNAME)
   }
 
   async addTransportObjectByKey(
@@ -1889,7 +1940,7 @@ export class AdtSapClient implements SapClient {
     const body =
       `<?xml version="1.0" encoding="UTF-8"?>` +
       `<adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core">` +
-      `<adtcore:objectReference adtcore:type="SCGR" adtcore:name="${serviceBindingName}"/>` +
+      `<adtcore:objectReference adtcore:type="SCGR" adtcore:name="${escapeXmlAttribute(serviceBindingName)}"/>` +
       `</adtcore:objectReferences>`
     return this.serializeMutation(async () => {
       try {
@@ -1907,7 +1958,7 @@ export class AdtSapClient implements SapClient {
         return parseRapGenValidation(response.body)
       } catch (error) {
         if (isHttpError(error)) {
-          const responseBody = (error as { response?: { body?: string } }).response?.body
+          const responseBody = (error as { response?: { body?: string }; parent?: { response?: { body?: string } } }).parent?.response?.body ?? (error as { response?: { body?: string } }).response?.body
           const parsed = parseRapGenValidation(responseBody)
           if (parsed.shortText) return parsed
         }

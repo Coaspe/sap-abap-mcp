@@ -2,6 +2,28 @@
 
 All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project follows semantic versioning.
 
+## Unreleased
+
+## 2.2.0 — 2026-10-21
+
+- Update MCP SDK to 1.32.1 and refresh follow-redirects/Hono to their patched releases; production dependency audit reports no known vulnerabilities at release preparation.
+
+- Preserve JavaScript replacement sequences literally in exact and CRLF source patches.
+- Tunnel object-bearing transport releases through ADT background runs with bounded polling, encapsulated HTTP result parsing and no mutation replay; stop parent release after an unsuccessful task report.
+- Reconcile uncertain RAP generation responses against before/after object existence; preserve V4 unpublish status messages from ADT-wrapped HTTP failures and reject SAP error severities.
+- Include all-date open transport search and task owners with explicit incomplete-history evidence; assign repository objects using CTS keys through the organizer PUT endpoint.
+- Use Dictionary consistency reporters for DOMA/DTEL patches, expose unavailable separate checks and retain backend validation during requested activation; correct package creation XML and support an explicitly empty superpackage.
+
+- Add per-profile company CA PEM files with version-3 profile storage, certificate validation and actionable TLS trust/expiry/hostname failures in CLI, MCP and browser setup.
+- Add preserved, backed-up JSON registration for VS Code, Cursor, Gemini CLI and Claude Desktop, with preview-first register and registration doctor/repair support.
+- Import Windows SAP UI Landscape connection candidates without credentials; skip remote includes and probe ADT sequentially without authentication or redirects.
+- Put a demo, three-step setup and six-host command table first in README; retain detailed setup and explicit release/live-SAP limitations.
+
+- Recheck source patches using the same unspecified-version read as the initial source read, so a second patch can continue from an unactivated inactive version while changed current source still stops the write.
+- Remove the explicit inactive-source probe while holding an edit lock. Regression fixtures model the reported function-module backend returning 200 while invalidating that lock; no live SAP reproduction is claimed here.
+- Activate only after successful unlock and session restoration, within the same serialized mutation. Syntax errors or unlock failures prevent activation.
+- Add regressions for repeated patches, the reported function-module lock invalidation, activation order, syntax errors and unlock failure. Document the published 2.1.0 limitation in README.
+
 ## 2.1.0 — 2026-10-20
 
 - Accept no-argument noninteractive stdio launch; preserve interactive help, explicit help and invalid-command errors. Empty-profile discovery reports setup required.

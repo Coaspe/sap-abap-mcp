@@ -773,7 +773,7 @@
           "type": "string"
         },
         "parentName": {
-          "minLength": 1,
+          "description": "Parent function group or package; use an empty string for a top-level DEVC/K package",
           "type": "string"
         },
         "source": {
