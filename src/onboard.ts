@@ -536,6 +536,7 @@ async function saveAndVerifyProfile(
     authType,
     readOnly: request.accessMode === undefined ? existing ? existing.readOnly : true : request.accessMode === "read_only",
     allowDataQueries: request.environment === "production" ? false : existing?.allowDataQueries ?? false,
+    ...(existing?.blockedDataSources !== undefined ? { blockedDataSources: existing.blockedDataSources } : {}),
     allowedPackages: request.accessMode === "unrestricted" ? [] : requestedPackages ?? existing?.allowedPackages ?? []
   }
   let credential: string

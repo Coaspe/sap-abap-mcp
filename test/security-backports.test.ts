@@ -126,13 +126,16 @@ test("HTTP cookie names and paths cannot modify object prototypes", () => {
     socketPool: { createSocket: () => ({ id: "fixture", connected: false }) }
   })
   try {
-    for (const name of ["__proto__", "constructor", "session"]) {
-      const cookie = { name, value: "fixture", path: "__proto__", secure: false }
+    const rejected = { name: "__proto__", value: "fixture", path: "/", secure: false }
+    assert.equal(client.setCookie(rejected), false)
+    assert.equal(client.setCookie({ ...rejected, name: "session", path: "__proto__" }), false)
+    for (const name of ["constructor", "session"]) {
+      const cookie = { name, value: "fixture", path: "/", secure: false }
       assert.equal(client.setCookie(cookie), true)
-      assert.equal(client.getCookie(name, "__proto__"), cookie)
+      assert.equal(client.getCookie(name, "/"), cookie)
       assert.equal(Object.getPrototypeOf(client.cookies), null)
       assert.equal(Object.getPrototypeOf(client.cookies[name]), null)
-      assert.equal(client.removeCookie(name, "__proto__"), true)
+      assert.equal(client.removeCookie(name, "/"), true)
     }
     assert.equal(Object.getPrototypeOf({}), Object.prototype)
     assert.equal(Object.prototype.hasOwnProperty.call(Object.prototype, "value"), false)
