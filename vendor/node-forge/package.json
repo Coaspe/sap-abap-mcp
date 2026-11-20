@@ -1,6 +1,6 @@
 {
   "name": "@coaspe/node-forge-security-backport",
-  "version": "1.4.0",
+  "version": "1.4.3",
   "description": "JavaScript implementations of network transports, cryptography, ciphers, PKI, message digests, and various utilities.",
   "homepage": "https://github.com/digitalbazaar/forge",
   "author": {

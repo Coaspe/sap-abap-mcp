@@ -1,0 +1,3110 @@
+{
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-11-03T00:37:35.864Z",
+  "node": "v24.22.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "tokenizer": "o200k_base",
+  "liveSapCalls": 0,
+  "modelCalls": 0,
+  "installedWithScripts": false,
+  "packages": [
+    {
+      "name": "arc-1",
+      "version": "1.9.0",
+      "integrity": "sha512-2s2CJzVhdYm5ZCX8Vbrca+sAAnyu64ZxLlkNDDP9pYE/INjiJRu/s0WBBl2wMvGWPj2tQchChMocWCYZ7xqW5w==",
+      "sha256": "93eafabde39a185d8f02a80336c9266a91d9902a3adb6be4d9a9851420da2212",
+      "registry": "https://registry.npmjs.org/arc-1/-/arc-1-1.9.0.tgz",
+      "gitHead": "817772cfe1d01897d1ca0a103e1541167ae52aac",
+      "install": "npm install --omit=dev --ignore-scripts --no-audit --no-fund"
+    },
+    {
+      "name": "abap-adt-mcp",
+      "version": "2.8.2",
+      "integrity": "sha512-fAfXaW6JfUnlOw9TG+iDyhEo9nUuLY+LwQrtJWxcCwnIYCn+iC4Rs3mDxXrNkASO0PIYPj9jMJ6LUvjDa5timw==",
+      "sha256": "6ce75d03f2e83f77ea9fc8a06e0e9efec05c1eff6f817d2fd924e17c56fc60f1",
+      "registry": "https://registry.npmjs.org/abap-adt-mcp/-/abap-adt-mcp-2.8.2.tgz",
+      "gitHead": "d4617c4269c29796d3f04f41c34b7e1346c0d0d3",
+      "install": "npm install --omit=dev --ignore-scripts --no-audit --no-fund"
+    },
+    {
+      "name": "@mcp-abap-adt/core",
+      "version": "23.0.2",
+      "integrity": "sha512-gGbPQYWvSYbdDhrdMN4fsH4K/4xA7PsZIsWA4QUwBTELUpgHRAMGHny8dWx5l/s+AudhU+66i+ljBWqsDLU9kA==",
+      "sha256": "e8afbec933afe67188fb55166072fd106abff66c187993b8925c9e2b5996133f",
+      "registry": "https://registry.npmjs.org/@mcp-abap-adt/core/-/core-23.0.2.tgz",
+      "gitHead": "acd4cc09276840676d62667a2052a2156d0ffcef",
+      "install": "npm install --omit=dev --ignore-scripts --no-audit --no-fund"
+    }
+  ],
+  "method": {
+    "initial": "Actual stdio initialize and paginated tools/list; tool array and instructions encoded separately.",
+    "workflow": "Actual released competitor CLI processes and unreleased local checkout; SDK tool calls against the same loopback ADT fixture. Script chooses known read operations. Minimal/single/adaptive include optional search plus describe; known-* skips optional search. Resource paths include template discovery. These are explicit caller strategies, not model-selected workflows.",
+    "fixture": {
+      "lines": 200,
+      "initialSha256": "67d5e5a5e5b7ce79ac410d08750c72a60cc7be1e7f76207ffbc4059388ac7ad1",
+      "changedSha256": "88ce5d04c81403f2bdc00cef6e464356f54dba97d8c2520a0cfad23c96ad63cc",
+      "method": "Read active full source, freshly recheck unchanged, observe external source change, refuse read after synthetic authorization revocation; one sequential session per configuration."
+    },
+    "limitations": [
+      "Live SAP compatibility and authorization",
+      "Model task selection/correctness, billing and conversation replay",
+      "Host schema caching/tool search and host-native Resource reader schemas",
+      "Other initialize and JSON-RPC framing fields",
+      "SAP latency rankings and ordinary novice setup",
+      "General outbound-network monitoring",
+      "Full T1-T5 acceptance; this is one offline source-read subtask"
+    ],
+    "changes": "Core 23 uses --system-type=onprem; --transport and --exposition were removed, and read-only is a separate package. HOME and USERPROFILE use isolated fixture directories.",
+    "runsPerScenario": 1
+  },
+  "startup": [
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "default",
+      "version": "2.2.0",
+      "state": "measured",
+      "toolCount": 5,
+      "tools": {
+        "bytes": 3667,
+        "tokens": 880,
+        "sha256": "150ecd89f0617594e75b9e0272a83ed6561a951a36aa1f2ac181fe9b0d340cc0"
+      },
+      "instructions": {
+        "bytes": 689,
+        "tokens": 144,
+        "sha256": "9619b68d6b853fe45b7abb11a868f875e69b5597a1c0f9cfb090337cec2a9628"
+      },
+      "combinedEstimatedTokens": 1024,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "sap-abap-mcp",
+        "title": "SAP ABAP MCP",
+        "icons": [
+          {
+            "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+            "mimeType": "image/png",
+            "sizes": [
+              "400x400"
+            ]
+          }
+        ],
+        "version": "2.2.0",
+        "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+        "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+      },
+      "localFixtureRequests": []
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "minimal",
+      "version": "2.2.0",
+      "state": "measured",
+      "toolCount": 5,
+      "tools": {
+        "bytes": 3667,
+        "tokens": 880,
+        "sha256": "150ecd89f0617594e75b9e0272a83ed6561a951a36aa1f2ac181fe9b0d340cc0"
+      },
+      "instructions": {
+        "bytes": 689,
+        "tokens": 144,
+        "sha256": "9619b68d6b853fe45b7abb11a868f875e69b5597a1c0f9cfb090337cec2a9628"
+      },
+      "combinedEstimatedTokens": 1024,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "sap-abap-mcp",
+        "title": "SAP ABAP MCP",
+        "icons": [
+          {
+            "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+            "mimeType": "image/png",
+            "sizes": [
+              "400x400"
+            ]
+          }
+        ],
+        "version": "2.2.0",
+        "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+        "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+      },
+      "localFixtureRequests": []
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "single",
+      "version": "2.2.0",
+      "state": "measured",
+      "toolCount": 1,
+      "tools": {
+        "bytes": 863,
+        "tokens": 215,
+        "sha256": "99003f790f4824062611d1a6ee5a65f6920fd5d241ba803461581ce11e5385c6"
+      },
+      "instructions": {
+        "bytes": 558,
+        "tokens": 123,
+        "sha256": "6a16671cffcc57a46992b2f41c0e1479a0a5c660eb927a7209e2a2fa97513805"
+      },
+      "combinedEstimatedTokens": 338,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "sap-abap-mcp",
+        "title": "SAP ABAP MCP",
+        "icons": [
+          {
+            "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+            "mimeType": "image/png",
+            "sizes": [
+              "400x400"
+            ]
+          }
+        ],
+        "version": "2.2.0",
+        "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+        "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+      },
+      "localFixtureRequests": []
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "adaptive",
+      "version": "2.2.0",
+      "state": "measured",
+      "toolCount": 17,
+      "tools": {
+        "bytes": 26782,
+        "tokens": 6601,
+        "sha256": "f102abf74877d6bee7d1b37e10234abdb8f5ca501e7713e484c166dc71e2ce5c"
+      },
+      "instructions": {
+        "bytes": 689,
+        "tokens": 144,
+        "sha256": "9619b68d6b853fe45b7abb11a868f875e69b5597a1c0f9cfb090337cec2a9628"
+      },
+      "combinedEstimatedTokens": 6745,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "sap-abap-mcp",
+        "title": "SAP ABAP MCP",
+        "icons": [
+          {
+            "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+            "mimeType": "image/png",
+            "sizes": [
+              "400x400"
+            ]
+          }
+        ],
+        "version": "2.2.0",
+        "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+        "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+      },
+      "localFixtureRequests": []
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "full",
+      "version": "2.2.0",
+      "state": "measured",
+      "toolCount": 120,
+      "tools": {
+        "bytes": 177716,
+        "tokens": 44270,
+        "sha256": "8199c00f90a205db119d2417985d91fd25990c419be2de125468c800bfdb0274"
+      },
+      "instructions": {
+        "bytes": 572,
+        "tokens": 116,
+        "sha256": "695739b15892b6b5f7faa0bee1c7c3066d5eed06490943bd41b688830961ce85"
+      },
+      "combinedEstimatedTokens": 44386,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "sap-abap-mcp",
+        "title": "SAP ABAP MCP",
+        "icons": [
+          {
+            "src": "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png",
+            "mimeType": "image/png",
+            "sizes": [
+              "400x400"
+            ]
+          }
+        ],
+        "version": "2.2.0",
+        "websiteUrl": "https://github.com/Coaspe/sap-abap-mcp",
+        "description": "Develop, test, analyze, and operate SAP ABAP systems through ADT from AI coding agents."
+      },
+      "localFixtureRequests": []
+    },
+    {
+      "product": "arc-1",
+      "scenario": "standard",
+      "version": "1.9.0",
+      "state": "measured",
+      "toolCount": 9,
+      "tools": {
+        "bytes": 46044,
+        "tokens": 10953,
+        "sha256": "8ef9adeda13921c06d3f275d3dc864e0cb087c1204a66c32e0a7ac3c320880af"
+      },
+      "instructions": {
+        "bytes": 1881,
+        "tokens": 424,
+        "sha256": "ba4b7bd56e813ba8b9339158f5152ce427e3efc086917496671cfcc00c7253f7"
+      },
+      "combinedEstimatedTokens": 11377,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "arc-1",
+        "version": "1.9.0"
+      },
+      "localFixtureRequests": [
+        {
+          "method": "HEAD",
+          "path": "/sap/bc/adt/core/discovery?sap-client=100&sap-language=EN"
+        }
+      ]
+    },
+    {
+      "product": "arc-1",
+      "scenario": "hyperfocused",
+      "version": "1.9.0",
+      "state": "measured",
+      "toolCount": 1,
+      "tools": {
+        "bytes": 917,
+        "tokens": 209,
+        "sha256": "e04eb91e8cbb689c431df09877c63c9e8b7b95d4a8a70bbe2dd555f87979373e"
+      },
+      "instructions": {
+        "bytes": 1881,
+        "tokens": 424,
+        "sha256": "ba4b7bd56e813ba8b9339158f5152ce427e3efc086917496671cfcc00c7253f7"
+      },
+      "combinedEstimatedTokens": 633,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "arc-1",
+        "version": "1.9.0"
+      },
+      "localFixtureRequests": [
+        {
+          "method": "HEAD",
+          "path": "/sap/bc/adt/core/discovery?sap-client=100&sap-language=EN"
+        }
+      ]
+    },
+    {
+      "product": "abap-adt-mcp",
+      "scenario": "default",
+      "version": "2.8.2",
+      "state": "measured",
+      "toolCount": 173,
+      "tools": {
+        "bytes": 160181,
+        "tokens": 36585,
+        "sha256": "6b77e162f1606a555d2368af78fcfa2e9ad215d893e4bfb7786cb7cb5697adec"
+      },
+      "instructions": {
+        "bytes": 2549,
+        "tokens": 538,
+        "sha256": "060e4fb24c0ade51c5b3ce87328765ba67185244e4bcd995c0925ae582050c6b"
+      },
+      "combinedEstimatedTokens": 37123,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "abap-adt-mcp",
+        "version": "2.8.2"
+      },
+      "localFixtureRequests": []
+    },
+    {
+      "product": "abap-adt-mcp",
+      "scenario": "focused",
+      "version": "2.8.2",
+      "state": "measured",
+      "toolCount": 114,
+      "tools": {
+        "bytes": 114005,
+        "tokens": 26129,
+        "sha256": "ceca83c4c1a8b953b61aa188ba4a28466bd6529077d01bacfc7032118f323321"
+      },
+      "instructions": {
+        "bytes": 2549,
+        "tokens": 538,
+        "sha256": "060e4fb24c0ade51c5b3ce87328765ba67185244e4bcd995c0925ae582050c6b"
+      },
+      "combinedEstimatedTokens": 26667,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "abap-adt-mcp",
+        "version": "2.8.2"
+      },
+      "localFixtureRequests": []
+    },
+    {
+      "product": "@mcp-abap-adt/core",
+      "scenario": "default",
+      "version": "23.0.2",
+      "state": "measured",
+      "toolCount": 270,
+      "tools": {
+        "bytes": 397223,
+        "tokens": 90381,
+        "sha256": "a6612c74ee1cf839c1515b9f943137d95f97b4dfcd076a062747111ce80e5f4b"
+      },
+      "instructions": {
+        "bytes": 19,
+        "tokens": 5,
+        "sha256": "f454f4b82e5af5d640f138f2c3ade4cc7c7ca1d8e8b7e3989b7dce0479930365"
+      },
+      "combinedEstimatedTokens": 90386,
+      "toolsPages": 1,
+      "serverInfo": {
+        "name": "mcp-abap-adt",
+        "version": "23.0.2"
+      },
+      "localFixtureRequests": []
+    }
+  ],
+  "workflow": [
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "full",
+      "state": "passed",
+      "toolCount": 120,
+      "fixedSchemas": {
+        "bytes": 177716,
+        "tokens": 44277,
+        "sha256": "18d64e991f3b57d8bd601729c0bc6c6bf07285855e13ce5d776baf6ac6a26df0"
+      },
+      "instructions": {
+        "bytes": 299,
+        "tokens": 53,
+        "sha256": "f1c87051a5379af5d9b6eb8ad5c6a5907d62f9355a6cf51219dca1e7fc6c023b"
+      },
+      "mcpOperationCalls": 4,
+      "toolCalls": 4,
+      "resourceReads": 0,
+      "requestTokens": 312,
+      "responseTokens": 9277,
+      "totalEstimatedTokens": 53919,
+      "startupFixtureRequests": [],
+      "stages": [
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 176,
+            "tokens": 48,
+            "sha256": "b8fdebcb236011eb42513cb5737a4e29cde50336fe58da23f2364e78aa8b4e46"
+          },
+          "response": {
+            "bytes": 16097,
+            "tokens": 4395,
+            "sha256": "37e1ae8f1e642ad271cd3c7d2ec23606d09525f196fffd825a1205480471e256"
+          },
+          "contentField": {
+            "bytes": 8282,
+            "tokens": 2228,
+            "sha256": "cfc3d5759858a3e65ca11f4d81c72942ab39d6567a3470c0e88a5337f619815c"
+          },
+          "structuredField": {
+            "bytes": 7782,
+            "tokens": 2162,
+            "sha256": "4ee6b0478a5207c8fcf26f492326ce928bd6ad1fe0f0a9249ed348bd0bcc55d1"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/compatibility/graph",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 257,
+            "tokens": 86,
+            "sha256": "85438822273ccf4fe1fd556969ac453f61c5c4e8a942ae307d9df33263d2787f"
+          },
+          "response": {
+            "bytes": 1090,
+            "tokens": 344,
+            "sha256": "a8eb095ad727b84a2c856c203eaf619b88f22110410a68a883ed62d0dac65fb2"
+          },
+          "contentField": {
+            "bytes": 564,
+            "tokens": 175,
+            "sha256": "43642b0ff642b5abb849783cf2fc9f3db094a582b872b9a9183620928338a6cf"
+          },
+          "structuredField": {
+            "bytes": 493,
+            "tokens": 164,
+            "sha256": "8c83a9b7b7bc7c6696647ca6cec3c8fcc3ae0a331540dfb5c31ea30d3c88a69e"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": true
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 257,
+            "tokens": 86,
+            "sha256": "85438822273ccf4fe1fd556969ac453f61c5c4e8a942ae307d9df33263d2787f"
+          },
+          "response": {
+            "bytes": 16113,
+            "tokens": 4409,
+            "sha256": "0245e6b12c20f584816793251c8b1b7fdd261c8c3da920cc04b4ebfd6e25b2f7"
+          },
+          "contentField": {
+            "bytes": 8290,
+            "tokens": 2235,
+            "sha256": "f6e6435988d2b427f7badc7fd298c044efb9926fb2ef1a2da1bda0324377cef3"
+          },
+          "structuredField": {
+            "bytes": 7790,
+            "tokens": 2169,
+            "sha256": "8750b3def1f2ed24278e8d4559e75299ab22b9602833c51986981d603b03a293"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 257,
+            "tokens": 92,
+            "sha256": "db4a646f77048e8321774ce9b087c45821fe39f8b62dd856973530eaece73526"
+          },
+          "response": {
+            "bytes": 558,
+            "tokens": 129,
+            "sha256": "14e835a38e38b330e88f5cc0704eda2465c9bca7e6846656844e562581f266c8"
+          },
+          "contentField": {
+            "bytes": 531,
+            "tokens": 122,
+            "sha256": "a43c9e317fab41bb34b81544a260c54c1db63b9b261c6e0348159abad292895a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "minimal",
+      "state": "passed",
+      "toolCount": 5,
+      "fixedSchemas": {
+        "bytes": 3667,
+        "tokens": 880,
+        "sha256": "150ecd89f0617594e75b9e0272a83ed6561a951a36aa1f2ac181fe9b0d340cc0"
+      },
+      "instructions": {
+        "bytes": 416,
+        "tokens": 81,
+        "sha256": "6a22aa08a1e7bf98a04019c46d854d19bcc1ada96f55f772bda15cbb8be06253"
+      },
+      "mcpOperationCalls": 6,
+      "toolCalls": 6,
+      "resourceReads": 0,
+      "requestTokens": 560,
+      "responseTokens": 10470,
+      "totalEstimatedTokens": 11991,
+      "startupFixtureRequests": [],
+      "stages": [
+        {
+          "stage": "discover",
+          "method": "tools/call",
+          "request": {
+            "bytes": 81,
+            "tokens": 20,
+            "sha256": "43e1757f8b3f4fb58b9f9ee2e88cc4736d83f9b736887563b9e3408135f9edb1"
+          },
+          "response": {
+            "bytes": 854,
+            "tokens": 224,
+            "sha256": "cbeaa37974ac82512ac6ee60e670749f5f13ecaba40493127fab1415b3cba32e"
+          },
+          "contentField": {
+            "bytes": 448,
+            "tokens": 117,
+            "sha256": "8f565a212c5b5fc6a56347421afe37aef900c77cb1cbe5bccd55efa783975d3c"
+          },
+          "structuredField": {
+            "bytes": 373,
+            "tokens": 102,
+            "sha256": "0ab323538a96ad0764275323972292aa1fe4f2db6e602c3663603eeea901ec8f"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "describe",
+          "method": "tools/call",
+          "request": {
+            "bytes": 73,
+            "tokens": 16,
+            "sha256": "701df3e62b18b82ce92f7c034914b43f139bd2e65f2e4c887b285a8e9c38dcb8"
+          },
+          "response": {
+            "bytes": 3326,
+            "tokens": 969,
+            "sha256": "722ea900743d27a148defac31561d2757cddaaa6249097b8e8f6a8fbb1f8c09a"
+          },
+          "contentField": {
+            "bytes": 1778,
+            "tokens": 497,
+            "sha256": "b45e58847a5f3a8d01032c4e10379cb38424485b13537afe035d7d02ca994376"
+          },
+          "structuredField": {
+            "bytes": 1515,
+            "tokens": 467,
+            "sha256": "ace74eba2f86232dfbeb9e72d1661d353960c1ff38600b1390bb3cd8eedd2794"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 306,
+            "tokens": 101,
+            "sha256": "2574b6a87b6823ab9a1100329b07ef228691422b27620cc7741af326b392acf9"
+          },
+          "response": {
+            "bytes": 16097,
+            "tokens": 4395,
+            "sha256": "37e1ae8f1e642ad271cd3c7d2ec23606d09525f196fffd825a1205480471e256"
+          },
+          "contentField": {
+            "bytes": 8282,
+            "tokens": 2228,
+            "sha256": "cfc3d5759858a3e65ca11f4d81c72942ab39d6567a3470c0e88a5337f619815c"
+          },
+          "structuredField": {
+            "bytes": 7782,
+            "tokens": 2162,
+            "sha256": "4ee6b0478a5207c8fcf26f492326ce928bd6ad1fe0f0a9249ed348bd0bcc55d1"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/compatibility/graph",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 387,
+            "tokens": 139,
+            "sha256": "202a4e4934f00cf22cdbb9c1336872e95c6066ba6a0a8b190968777978a35339"
+          },
+          "response": {
+            "bytes": 1090,
+            "tokens": 344,
+            "sha256": "a8eb095ad727b84a2c856c203eaf619b88f22110410a68a883ed62d0dac65fb2"
+          },
+          "contentField": {
+            "bytes": 564,
+            "tokens": 175,
+            "sha256": "43642b0ff642b5abb849783cf2fc9f3db094a582b872b9a9183620928338a6cf"
+          },
+          "structuredField": {
+            "bytes": 493,
+            "tokens": 164,
+            "sha256": "8c83a9b7b7bc7c6696647ca6cec3c8fcc3ae0a331540dfb5c31ea30d3c88a69e"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": true
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 387,
+            "tokens": 139,
+            "sha256": "202a4e4934f00cf22cdbb9c1336872e95c6066ba6a0a8b190968777978a35339"
+          },
+          "response": {
+            "bytes": 16113,
+            "tokens": 4409,
+            "sha256": "0245e6b12c20f584816793251c8b1b7fdd261c8c3da920cc04b4ebfd6e25b2f7"
+          },
+          "contentField": {
+            "bytes": 8290,
+            "tokens": 2235,
+            "sha256": "f6e6435988d2b427f7badc7fd298c044efb9926fb2ef1a2da1bda0324377cef3"
+          },
+          "structuredField": {
+            "bytes": 7790,
+            "tokens": 2169,
+            "sha256": "8750b3def1f2ed24278e8d4559e75299ab22b9602833c51986981d603b03a293"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 387,
+            "tokens": 145,
+            "sha256": "b90061fc5409c11a381f58d6ec475724c4d2975e3781088a1f9f8748577e22fb"
+          },
+          "response": {
+            "bytes": 558,
+            "tokens": 129,
+            "sha256": "14e835a38e38b330e88f5cc0704eda2465c9bca7e6846656844e562581f266c8"
+          },
+          "contentField": {
+            "bytes": 531,
+            "tokens": 122,
+            "sha256": "a43c9e317fab41bb34b81544a260c54c1db63b9b261c6e0348159abad292895a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "single",
+      "state": "passed",
+      "toolCount": 1,
+      "fixedSchemas": {
+        "bytes": 863,
+        "tokens": 215,
+        "sha256": "99003f790f4824062611d1a6ee5a65f6920fd5d241ba803461581ce11e5385c6"
+      },
+      "instructions": {
+        "bytes": 285,
+        "tokens": 60,
+        "sha256": "c062b8b46ed7f0db53e902f1de9ba18890027b3aa9a44e39f46f42fba55152df"
+      },
+      "mcpOperationCalls": 6,
+      "toolCalls": 6,
+      "resourceReads": 0,
+      "requestTokens": 567,
+      "responseTokens": 10470,
+      "totalEstimatedTokens": 11312,
+      "startupFixtureRequests": [],
+      "stages": [
+        {
+          "stage": "discover",
+          "method": "tools/call",
+          "request": {
+            "bytes": 93,
+            "tokens": 24,
+            "sha256": "45316439323f9b1210a602f188e672f5bb5fc1553ea97bf4331bd6318544096f"
+          },
+          "response": {
+            "bytes": 854,
+            "tokens": 224,
+            "sha256": "cbeaa37974ac82512ac6ee60e670749f5f13ecaba40493127fab1415b3cba32e"
+          },
+          "contentField": {
+            "bytes": 448,
+            "tokens": 117,
+            "sha256": "8f565a212c5b5fc6a56347421afe37aef900c77cb1cbe5bccd55efa783975d3c"
+          },
+          "structuredField": {
+            "bytes": 373,
+            "tokens": 102,
+            "sha256": "0ab323538a96ad0764275323972292aa1fe4f2db6e602c3663603eeea901ec8f"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "describe",
+          "method": "tools/call",
+          "request": {
+            "bytes": 85,
+            "tokens": 20,
+            "sha256": "8999f0c2a70f473311c59432e506cb831219e5d8e5bb00e2dfb5bb3c80eb7391"
+          },
+          "response": {
+            "bytes": 3326,
+            "tokens": 969,
+            "sha256": "722ea900743d27a148defac31561d2757cddaaa6249097b8e8f6a8fbb1f8c09a"
+          },
+          "contentField": {
+            "bytes": 1778,
+            "tokens": 497,
+            "sha256": "b45e58847a5f3a8d01032c4e10379cb38424485b13537afe035d7d02ca994376"
+          },
+          "structuredField": {
+            "bytes": 1515,
+            "tokens": 467,
+            "sha256": "ace74eba2f86232dfbeb9e72d1661d353960c1ff38600b1390bb3cd8eedd2794"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 297,
+            "tokens": 100,
+            "sha256": "5c97238c7bd8ef64b5d0df1a8e90ae80f74cf9d0cd23c2d4a13c773c0b00ff9b"
+          },
+          "response": {
+            "bytes": 16097,
+            "tokens": 4395,
+            "sha256": "37e1ae8f1e642ad271cd3c7d2ec23606d09525f196fffd825a1205480471e256"
+          },
+          "contentField": {
+            "bytes": 8282,
+            "tokens": 2228,
+            "sha256": "cfc3d5759858a3e65ca11f4d81c72942ab39d6567a3470c0e88a5337f619815c"
+          },
+          "structuredField": {
+            "bytes": 7782,
+            "tokens": 2162,
+            "sha256": "4ee6b0478a5207c8fcf26f492326ce928bd6ad1fe0f0a9249ed348bd0bcc55d1"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/compatibility/graph",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 378,
+            "tokens": 139,
+            "sha256": "e8cff4e5ff4de2e6abe747cc7fdd3c865be6eba80694d744dde7eb4096ee63f5"
+          },
+          "response": {
+            "bytes": 1090,
+            "tokens": 344,
+            "sha256": "a8eb095ad727b84a2c856c203eaf619b88f22110410a68a883ed62d0dac65fb2"
+          },
+          "contentField": {
+            "bytes": 564,
+            "tokens": 175,
+            "sha256": "43642b0ff642b5abb849783cf2fc9f3db094a582b872b9a9183620928338a6cf"
+          },
+          "structuredField": {
+            "bytes": 493,
+            "tokens": 164,
+            "sha256": "8c83a9b7b7bc7c6696647ca6cec3c8fcc3ae0a331540dfb5c31ea30d3c88a69e"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": true
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 378,
+            "tokens": 139,
+            "sha256": "e8cff4e5ff4de2e6abe747cc7fdd3c865be6eba80694d744dde7eb4096ee63f5"
+          },
+          "response": {
+            "bytes": 16113,
+            "tokens": 4409,
+            "sha256": "0245e6b12c20f584816793251c8b1b7fdd261c8c3da920cc04b4ebfd6e25b2f7"
+          },
+          "contentField": {
+            "bytes": 8290,
+            "tokens": 2235,
+            "sha256": "f6e6435988d2b427f7badc7fd298c044efb9926fb2ef1a2da1bda0324377cef3"
+          },
+          "structuredField": {
+            "bytes": 7790,
+            "tokens": 2169,
+            "sha256": "8750b3def1f2ed24278e8d4559e75299ab22b9602833c51986981d603b03a293"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 378,
+            "tokens": 145,
+            "sha256": "7b6325e1a2ba2c8e090b730f34474ab56d223128161e1e32b114051a6657bde4"
+          },
+          "response": {
+            "bytes": 558,
+            "tokens": 129,
+            "sha256": "14e835a38e38b330e88f5cc0704eda2465c9bca7e6846656844e562581f266c8"
+          },
+          "contentField": {
+            "bytes": 531,
+            "tokens": 122,
+            "sha256": "a43c9e317fab41bb34b81544a260c54c1db63b9b261c6e0348159abad292895a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "adaptive",
+      "state": "passed",
+      "toolCount": 17,
+      "fixedSchemas": {
+        "bytes": 26782,
+        "tokens": 6601,
+        "sha256": "f102abf74877d6bee7d1b37e10234abdb8f5ca501e7713e484c166dc71e2ce5c"
+      },
+      "instructions": {
+        "bytes": 416,
+        "tokens": 81,
+        "sha256": "6a22aa08a1e7bf98a04019c46d854d19bcc1ada96f55f772bda15cbb8be06253"
+      },
+      "mcpOperationCalls": 6,
+      "toolCalls": 6,
+      "resourceReads": 0,
+      "requestTokens": 560,
+      "responseTokens": 10470,
+      "totalEstimatedTokens": 17712,
+      "startupFixtureRequests": [],
+      "stages": [
+        {
+          "stage": "discover",
+          "method": "tools/call",
+          "request": {
+            "bytes": 81,
+            "tokens": 20,
+            "sha256": "43e1757f8b3f4fb58b9f9ee2e88cc4736d83f9b736887563b9e3408135f9edb1"
+          },
+          "response": {
+            "bytes": 854,
+            "tokens": 224,
+            "sha256": "cbeaa37974ac82512ac6ee60e670749f5f13ecaba40493127fab1415b3cba32e"
+          },
+          "contentField": {
+            "bytes": 448,
+            "tokens": 117,
+            "sha256": "8f565a212c5b5fc6a56347421afe37aef900c77cb1cbe5bccd55efa783975d3c"
+          },
+          "structuredField": {
+            "bytes": 373,
+            "tokens": 102,
+            "sha256": "0ab323538a96ad0764275323972292aa1fe4f2db6e602c3663603eeea901ec8f"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "describe",
+          "method": "tools/call",
+          "request": {
+            "bytes": 73,
+            "tokens": 16,
+            "sha256": "701df3e62b18b82ce92f7c034914b43f139bd2e65f2e4c887b285a8e9c38dcb8"
+          },
+          "response": {
+            "bytes": 3326,
+            "tokens": 969,
+            "sha256": "722ea900743d27a148defac31561d2757cddaaa6249097b8e8f6a8fbb1f8c09a"
+          },
+          "contentField": {
+            "bytes": 1778,
+            "tokens": 497,
+            "sha256": "b45e58847a5f3a8d01032c4e10379cb38424485b13537afe035d7d02ca994376"
+          },
+          "structuredField": {
+            "bytes": 1515,
+            "tokens": 467,
+            "sha256": "ace74eba2f86232dfbeb9e72d1661d353960c1ff38600b1390bb3cd8eedd2794"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 306,
+            "tokens": 101,
+            "sha256": "2574b6a87b6823ab9a1100329b07ef228691422b27620cc7741af326b392acf9"
+          },
+          "response": {
+            "bytes": 16097,
+            "tokens": 4395,
+            "sha256": "37e1ae8f1e642ad271cd3c7d2ec23606d09525f196fffd825a1205480471e256"
+          },
+          "contentField": {
+            "bytes": 8282,
+            "tokens": 2228,
+            "sha256": "cfc3d5759858a3e65ca11f4d81c72942ab39d6567a3470c0e88a5337f619815c"
+          },
+          "structuredField": {
+            "bytes": 7782,
+            "tokens": 2162,
+            "sha256": "4ee6b0478a5207c8fcf26f492326ce928bd6ad1fe0f0a9249ed348bd0bcc55d1"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/compatibility/graph",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 387,
+            "tokens": 139,
+            "sha256": "202a4e4934f00cf22cdbb9c1336872e95c6066ba6a0a8b190968777978a35339"
+          },
+          "response": {
+            "bytes": 1090,
+            "tokens": 344,
+            "sha256": "a8eb095ad727b84a2c856c203eaf619b88f22110410a68a883ed62d0dac65fb2"
+          },
+          "contentField": {
+            "bytes": 564,
+            "tokens": 175,
+            "sha256": "43642b0ff642b5abb849783cf2fc9f3db094a582b872b9a9183620928338a6cf"
+          },
+          "structuredField": {
+            "bytes": 493,
+            "tokens": 164,
+            "sha256": "8c83a9b7b7bc7c6696647ca6cec3c8fcc3ae0a331540dfb5c31ea30d3c88a69e"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": true
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 387,
+            "tokens": 139,
+            "sha256": "202a4e4934f00cf22cdbb9c1336872e95c6066ba6a0a8b190968777978a35339"
+          },
+          "response": {
+            "bytes": 16113,
+            "tokens": 4409,
+            "sha256": "0245e6b12c20f584816793251c8b1b7fdd261c8c3da920cc04b4ebfd6e25b2f7"
+          },
+          "contentField": {
+            "bytes": 8290,
+            "tokens": 2235,
+            "sha256": "f6e6435988d2b427f7badc7fd298c044efb9926fb2ef1a2da1bda0324377cef3"
+          },
+          "structuredField": {
+            "bytes": 7790,
+            "tokens": 2169,
+            "sha256": "8750b3def1f2ed24278e8d4559e75299ab22b9602833c51986981d603b03a293"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 387,
+            "tokens": 145,
+            "sha256": "b90061fc5409c11a381f58d6ec475724c4d2975e3781088a1f9f8748577e22fb"
+          },
+          "response": {
+            "bytes": 558,
+            "tokens": 129,
+            "sha256": "14e835a38e38b330e88f5cc0704eda2465c9bca7e6846656844e562581f266c8"
+          },
+          "contentField": {
+            "bytes": 531,
+            "tokens": 122,
+            "sha256": "a43c9e317fab41bb34b81544a260c54c1db63b9b261c6e0348159abad292895a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "resource-minimal",
+      "state": "passed",
+      "toolCount": 5,
+      "fixedSchemas": {
+        "bytes": 3667,
+        "tokens": 880,
+        "sha256": "150ecd89f0617594e75b9e0272a83ed6561a951a36aa1f2ac181fe9b0d340cc0"
+      },
+      "instructions": {
+        "bytes": 416,
+        "tokens": 81,
+        "sha256": "6a22aa08a1e7bf98a04019c46d854d19bcc1ada96f55f772bda15cbb8be06253"
+      },
+      "mcpOperationCalls": 5,
+      "toolCalls": 0,
+      "resourceReads": 4,
+      "requestTokens": 93,
+      "responseTokens": 6485,
+      "totalEstimatedTokens": 7539,
+      "startupFixtureRequests": [],
+      "stages": [
+        {
+          "stage": "resource-template-discovery",
+          "method": "resources/templates/list",
+          "request": {
+            "bytes": 2,
+            "tokens": 1,
+            "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "response": {
+            "bytes": 1267,
+            "tokens": 274,
+            "sha256": "1f5403b3a4d6b03944d9020d4fbc4310c3166e8b7821d273d8eef14c86edcd0b"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "cold-read",
+          "method": "resources/read",
+          "request": {
+            "bytes": 78,
+            "tokens": 23,
+            "sha256": "a0589698831279dcb23f75b48543c03f8d635ef548e92509863b9cb1c895b8ed"
+          },
+          "response": {
+            "bytes": 7495,
+            "tokens": 2062,
+            "sha256": "68e09d358db3933aa713559b2de33fc3c3ec75f15a52fd4578b329787cced83b"
+          },
+          "resourceContentsField": {
+            "bytes": 7482,
+            "tokens": 2059,
+            "sha256": "673b3e6c32821bd4f5f9eaa687621abf28e2ae251b9215ec4e6608521e4647ff"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/compatibility/graph",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "resources/read",
+          "request": {
+            "bytes": 78,
+            "tokens": 23,
+            "sha256": "a0589698831279dcb23f75b48543c03f8d635ef548e92509863b9cb1c895b8ed"
+          },
+          "response": {
+            "bytes": 7495,
+            "tokens": 2062,
+            "sha256": "68e09d358db3933aa713559b2de33fc3c3ec75f15a52fd4578b329787cced83b"
+          },
+          "resourceContentsField": {
+            "bytes": 7482,
+            "tokens": 2059,
+            "sha256": "673b3e6c32821bd4f5f9eaa687621abf28e2ae251b9215ec4e6608521e4647ff"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "resources/read",
+          "request": {
+            "bytes": 78,
+            "tokens": 23,
+            "sha256": "a0589698831279dcb23f75b48543c03f8d635ef548e92509863b9cb1c895b8ed"
+          },
+          "response": {
+            "bytes": 7503,
+            "tokens": 2063,
+            "sha256": "d9761ea2bb5368bc77129d3f266d1bf018b5ddccbd2e09e5d742dadb967aafe4"
+          },
+          "resourceContentsField": {
+            "bytes": 7490,
+            "tokens": 2060,
+            "sha256": "e916d57ace0003f5671acbe10c1feec9deba47d393f78dba12a089debf81f5cb"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "resources/read",
+          "request": {
+            "bytes": 78,
+            "tokens": 23,
+            "sha256": "a0589698831279dcb23f75b48543c03f8d635ef548e92509863b9cb1c895b8ed"
+          },
+          "response": {
+            "bytes": 81,
+            "tokens": 24,
+            "sha256": "50bb1e5fded28e31b367c9e680a574b62ec857a369659480dbeca0c0af4666bf"
+          },
+          "protocolError": true,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "resource-single",
+      "state": "passed",
+      "toolCount": 1,
+      "fixedSchemas": {
+        "bytes": 863,
+        "tokens": 215,
+        "sha256": "99003f790f4824062611d1a6ee5a65f6920fd5d241ba803461581ce11e5385c6"
+      },
+      "instructions": {
+        "bytes": 285,
+        "tokens": 60,
+        "sha256": "c062b8b46ed7f0db53e902f1de9ba18890027b3aa9a44e39f46f42fba55152df"
+      },
+      "mcpOperationCalls": 5,
+      "toolCalls": 0,
+      "resourceReads": 4,
+      "requestTokens": 93,
+      "responseTokens": 6485,
+      "totalEstimatedTokens": 6853,
+      "startupFixtureRequests": [],
+      "stages": [
+        {
+          "stage": "resource-template-discovery",
+          "method": "resources/templates/list",
+          "request": {
+            "bytes": 2,
+            "tokens": 1,
+            "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "response": {
+            "bytes": 1267,
+            "tokens": 274,
+            "sha256": "1f5403b3a4d6b03944d9020d4fbc4310c3166e8b7821d273d8eef14c86edcd0b"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "cold-read",
+          "method": "resources/read",
+          "request": {
+            "bytes": 78,
+            "tokens": 23,
+            "sha256": "a0589698831279dcb23f75b48543c03f8d635ef548e92509863b9cb1c895b8ed"
+          },
+          "response": {
+            "bytes": 7495,
+            "tokens": 2062,
+            "sha256": "68e09d358db3933aa713559b2de33fc3c3ec75f15a52fd4578b329787cced83b"
+          },
+          "resourceContentsField": {
+            "bytes": 7482,
+            "tokens": 2059,
+            "sha256": "673b3e6c32821bd4f5f9eaa687621abf28e2ae251b9215ec4e6608521e4647ff"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/compatibility/graph",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "resources/read",
+          "request": {
+            "bytes": 78,
+            "tokens": 23,
+            "sha256": "a0589698831279dcb23f75b48543c03f8d635ef548e92509863b9cb1c895b8ed"
+          },
+          "response": {
+            "bytes": 7495,
+            "tokens": 2062,
+            "sha256": "68e09d358db3933aa713559b2de33fc3c3ec75f15a52fd4578b329787cced83b"
+          },
+          "resourceContentsField": {
+            "bytes": 7482,
+            "tokens": 2059,
+            "sha256": "673b3e6c32821bd4f5f9eaa687621abf28e2ae251b9215ec4e6608521e4647ff"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "resources/read",
+          "request": {
+            "bytes": 78,
+            "tokens": 23,
+            "sha256": "a0589698831279dcb23f75b48543c03f8d635ef548e92509863b9cb1c895b8ed"
+          },
+          "response": {
+            "bytes": 7503,
+            "tokens": 2063,
+            "sha256": "d9761ea2bb5368bc77129d3f266d1bf018b5ddccbd2e09e5d742dadb967aafe4"
+          },
+          "resourceContentsField": {
+            "bytes": 7490,
+            "tokens": 2060,
+            "sha256": "e916d57ace0003f5671acbe10c1feec9deba47d393f78dba12a089debf81f5cb"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "resources/read",
+          "request": {
+            "bytes": 78,
+            "tokens": 23,
+            "sha256": "a0589698831279dcb23f75b48543c03f8d635ef548e92509863b9cb1c895b8ed"
+          },
+          "response": {
+            "bytes": 81,
+            "tokens": 24,
+            "sha256": "50bb1e5fded28e31b367c9e680a574b62ec857a369659480dbeca0c0af4666bf"
+          },
+          "protocolError": true,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "known-minimal",
+      "state": "passed",
+      "toolCount": 5,
+      "fixedSchemas": {
+        "bytes": 3667,
+        "tokens": 880,
+        "sha256": "150ecd89f0617594e75b9e0272a83ed6561a951a36aa1f2ac181fe9b0d340cc0"
+      },
+      "instructions": {
+        "bytes": 416,
+        "tokens": 81,
+        "sha256": "6a22aa08a1e7bf98a04019c46d854d19bcc1ada96f55f772bda15cbb8be06253"
+      },
+      "mcpOperationCalls": 5,
+      "toolCalls": 5,
+      "resourceReads": 0,
+      "requestTokens": 540,
+      "responseTokens": 10246,
+      "totalEstimatedTokens": 11747,
+      "startupFixtureRequests": [],
+      "stages": [
+        {
+          "stage": "describe",
+          "method": "tools/call",
+          "request": {
+            "bytes": 73,
+            "tokens": 16,
+            "sha256": "701df3e62b18b82ce92f7c034914b43f139bd2e65f2e4c887b285a8e9c38dcb8"
+          },
+          "response": {
+            "bytes": 3326,
+            "tokens": 969,
+            "sha256": "722ea900743d27a148defac31561d2757cddaaa6249097b8e8f6a8fbb1f8c09a"
+          },
+          "contentField": {
+            "bytes": 1778,
+            "tokens": 497,
+            "sha256": "b45e58847a5f3a8d01032c4e10379cb38424485b13537afe035d7d02ca994376"
+          },
+          "structuredField": {
+            "bytes": 1515,
+            "tokens": 467,
+            "sha256": "ace74eba2f86232dfbeb9e72d1661d353960c1ff38600b1390bb3cd8eedd2794"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 306,
+            "tokens": 101,
+            "sha256": "2574b6a87b6823ab9a1100329b07ef228691422b27620cc7741af326b392acf9"
+          },
+          "response": {
+            "bytes": 16097,
+            "tokens": 4395,
+            "sha256": "37e1ae8f1e642ad271cd3c7d2ec23606d09525f196fffd825a1205480471e256"
+          },
+          "contentField": {
+            "bytes": 8282,
+            "tokens": 2228,
+            "sha256": "cfc3d5759858a3e65ca11f4d81c72942ab39d6567a3470c0e88a5337f619815c"
+          },
+          "structuredField": {
+            "bytes": 7782,
+            "tokens": 2162,
+            "sha256": "4ee6b0478a5207c8fcf26f492326ce928bd6ad1fe0f0a9249ed348bd0bcc55d1"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/compatibility/graph",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 387,
+            "tokens": 139,
+            "sha256": "202a4e4934f00cf22cdbb9c1336872e95c6066ba6a0a8b190968777978a35339"
+          },
+          "response": {
+            "bytes": 1090,
+            "tokens": 344,
+            "sha256": "a8eb095ad727b84a2c856c203eaf619b88f22110410a68a883ed62d0dac65fb2"
+          },
+          "contentField": {
+            "bytes": 564,
+            "tokens": 175,
+            "sha256": "43642b0ff642b5abb849783cf2fc9f3db094a582b872b9a9183620928338a6cf"
+          },
+          "structuredField": {
+            "bytes": 493,
+            "tokens": 164,
+            "sha256": "8c83a9b7b7bc7c6696647ca6cec3c8fcc3ae0a331540dfb5c31ea30d3c88a69e"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": true
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 387,
+            "tokens": 139,
+            "sha256": "202a4e4934f00cf22cdbb9c1336872e95c6066ba6a0a8b190968777978a35339"
+          },
+          "response": {
+            "bytes": 16113,
+            "tokens": 4409,
+            "sha256": "0245e6b12c20f584816793251c8b1b7fdd261c8c3da920cc04b4ebfd6e25b2f7"
+          },
+          "contentField": {
+            "bytes": 8290,
+            "tokens": 2235,
+            "sha256": "f6e6435988d2b427f7badc7fd298c044efb9926fb2ef1a2da1bda0324377cef3"
+          },
+          "structuredField": {
+            "bytes": 7790,
+            "tokens": 2169,
+            "sha256": "8750b3def1f2ed24278e8d4559e75299ab22b9602833c51986981d603b03a293"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 387,
+            "tokens": 145,
+            "sha256": "b90061fc5409c11a381f58d6ec475724c4d2975e3781088a1f9f8748577e22fb"
+          },
+          "response": {
+            "bytes": 558,
+            "tokens": 129,
+            "sha256": "14e835a38e38b330e88f5cc0704eda2465c9bca7e6846656844e562581f266c8"
+          },
+          "contentField": {
+            "bytes": 531,
+            "tokens": 122,
+            "sha256": "a43c9e317fab41bb34b81544a260c54c1db63b9b261c6e0348159abad292895a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "@coaspe/sap-abap-mcp",
+      "scenario": "known-single",
+      "state": "passed",
+      "toolCount": 1,
+      "fixedSchemas": {
+        "bytes": 863,
+        "tokens": 215,
+        "sha256": "99003f790f4824062611d1a6ee5a65f6920fd5d241ba803461581ce11e5385c6"
+      },
+      "instructions": {
+        "bytes": 285,
+        "tokens": 60,
+        "sha256": "c062b8b46ed7f0db53e902f1de9ba18890027b3aa9a44e39f46f42fba55152df"
+      },
+      "mcpOperationCalls": 5,
+      "toolCalls": 5,
+      "resourceReads": 0,
+      "requestTokens": 543,
+      "responseTokens": 10246,
+      "totalEstimatedTokens": 11064,
+      "startupFixtureRequests": [],
+      "stages": [
+        {
+          "stage": "describe",
+          "method": "tools/call",
+          "request": {
+            "bytes": 85,
+            "tokens": 20,
+            "sha256": "8999f0c2a70f473311c59432e506cb831219e5d8e5bb00e2dfb5bb3c80eb7391"
+          },
+          "response": {
+            "bytes": 3326,
+            "tokens": 969,
+            "sha256": "722ea900743d27a148defac31561d2757cddaaa6249097b8e8f6a8fbb1f8c09a"
+          },
+          "contentField": {
+            "bytes": 1778,
+            "tokens": 497,
+            "sha256": "b45e58847a5f3a8d01032c4e10379cb38424485b13537afe035d7d02ca994376"
+          },
+          "structuredField": {
+            "bytes": 1515,
+            "tokens": 467,
+            "sha256": "ace74eba2f86232dfbeb9e72d1661d353960c1ff38600b1390bb3cd8eedd2794"
+          },
+          "protocolError": false,
+          "fixtureRequests": []
+        },
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 297,
+            "tokens": 100,
+            "sha256": "5c97238c7bd8ef64b5d0df1a8e90ae80f74cf9d0cd23c2d4a13c773c0b00ff9b"
+          },
+          "response": {
+            "bytes": 16097,
+            "tokens": 4395,
+            "sha256": "37e1ae8f1e642ad271cd3c7d2ec23606d09525f196fffd825a1205480471e256"
+          },
+          "contentField": {
+            "bytes": 8282,
+            "tokens": 2228,
+            "sha256": "cfc3d5759858a3e65ca11f4d81c72942ab39d6567a3470c0e88a5337f619815c"
+          },
+          "structuredField": {
+            "bytes": 7782,
+            "tokens": 2162,
+            "sha256": "4ee6b0478a5207c8fcf26f492326ce928bd6ad1fe0f0a9249ed348bd0bcc55d1"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/compatibility/graph",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 378,
+            "tokens": 139,
+            "sha256": "e8cff4e5ff4de2e6abe747cc7fdd3c865be6eba80694d744dde7eb4096ee63f5"
+          },
+          "response": {
+            "bytes": 1090,
+            "tokens": 344,
+            "sha256": "a8eb095ad727b84a2c856c203eaf619b88f22110410a68a883ed62d0dac65fb2"
+          },
+          "contentField": {
+            "bytes": 564,
+            "tokens": 175,
+            "sha256": "43642b0ff642b5abb849783cf2fc9f3db094a582b872b9a9183620928338a6cf"
+          },
+          "structuredField": {
+            "bytes": 493,
+            "tokens": 164,
+            "sha256": "8c83a9b7b7bc7c6696647ca6cec3c8fcc3ae0a331540dfb5c31ea30d3c88a69e"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": true
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 378,
+            "tokens": 139,
+            "sha256": "e8cff4e5ff4de2e6abe747cc7fdd3c865be6eba80694d744dde7eb4096ee63f5"
+          },
+          "response": {
+            "bytes": 16113,
+            "tokens": 4409,
+            "sha256": "0245e6b12c20f584816793251c8b1b7fdd261c8c3da920cc04b4ebfd6e25b2f7"
+          },
+          "contentField": {
+            "bytes": 8290,
+            "tokens": 2235,
+            "sha256": "f6e6435988d2b427f7badc7fd298c044efb9926fb2ef1a2da1bda0324377cef3"
+          },
+          "structuredField": {
+            "bytes": 7790,
+            "tokens": 2169,
+            "sha256": "8750b3def1f2ed24278e8d4559e75299ab22b9602833c51986981d603b03a293"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 378,
+            "tokens": 145,
+            "sha256": "7b6325e1a2ba2c8e090b730f34474ab56d223128161e1e32b114051a6657bde4"
+          },
+          "response": {
+            "bytes": 558,
+            "tokens": 129,
+            "sha256": "14e835a38e38b330e88f5cc0704eda2465c9bca7e6846656844e562581f266c8"
+          },
+          "contentField": {
+            "bytes": 531,
+            "tokens": 122,
+            "sha256": "a43c9e317fab41bb34b81544a260c54c1db63b9b261c6e0348159abad292895a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "arc-1",
+      "scenario": "standard",
+      "state": "passed",
+      "toolCount": 9,
+      "fixedSchemas": {
+        "bytes": 46044,
+        "tokens": 10953,
+        "sha256": "8ef9adeda13921c06d3f275d3dc864e0cb087c1204a66c32e0a7ac3c320880af"
+      },
+      "instructions": {
+        "bytes": 1881,
+        "tokens": 424,
+        "sha256": "ba4b7bd56e813ba8b9339158f5152ce427e3efc086917496671cfcc00c7253f7"
+      },
+      "mcpOperationCalls": 4,
+      "toolCalls": 4,
+      "resourceReads": 0,
+      "requestTokens": 100,
+      "responseTokens": 6152,
+      "totalEstimatedTokens": 17629,
+      "startupFixtureRequests": [
+        {
+          "method": "HEAD",
+          "path": "/sap/bc/adt/core/discovery",
+          "query": "?sap-client=100&sap-language=EN",
+          "status": 200,
+          "conditional": false,
+          "bodyBytes": 0
+        }
+      ],
+      "stages": [
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 88,
+            "tokens": 25,
+            "sha256": "5c399681f37443596680126c2274559de39cb8329337ed1ecf032e90b42df9cc"
+          },
+          "response": {
+            "bytes": 7317,
+            "tokens": 2008,
+            "sha256": "65ca9905d5bb7a7fb848f84932677b7e5a353e9ed9c00784b66dea41e5533f9b"
+          },
+          "contentField": {
+            "bytes": 7305,
+            "tokens": 2005,
+            "sha256": "9cb77cf6a7142d45bc8d80b73b4968cef2ae3c6efeae83fc275c24f85d84d79a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/ddic/sysinfo/hanainfo",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/abapgit/repos",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/cts_abapvcs/system",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/ddic/ddl/sources",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/amdp/debugger",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/filestore/ui5-bsp/objects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/cts/transportrequests",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/opu/odata/UI5/ABAP_REPOSITORY_SRV",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/opu/odata/UI2/PAGE_BUILDER_CUST/",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/system/components",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/repository/informationsystem/textsearch/support",
+              "query": "?db=&sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/repository/informationsystem/search",
+              "query": "?operation=quickSearch&query=CL_ABAP_*&maxResults=1&sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/cts/transportrequests",
+              "query": "?user=__PROBE__&sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/discovery",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/activation/inactiveobjects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/abapsource/syntax/configurations",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/Z_MCP_FIXTURE/source/main",
+              "query": "?version=active&sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 88,
+            "tokens": 25,
+            "sha256": "5c399681f37443596680126c2274559de39cb8329337ed1ecf032e90b42df9cc"
+          },
+          "response": {
+            "bytes": 7339,
+            "tokens": 2015,
+            "sha256": "7d95fbd0e569199f19341a11cf5268cbac705daba96531fa615c3bafbb648e2e"
+          },
+          "contentField": {
+            "bytes": 7327,
+            "tokens": 2012,
+            "sha256": "af6a6b93c522784017e58cdc58c6e24c4cb4182ad3c028f45e4fd3069aa77993"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/activation/inactiveobjects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/Z_MCP_FIXTURE/source/main",
+              "query": "?version=active&sap-client=100&sap-language=EN",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 88,
+            "tokens": 25,
+            "sha256": "5c399681f37443596680126c2274559de39cb8329337ed1ecf032e90b42df9cc"
+          },
+          "response": {
+            "bytes": 7325,
+            "tokens": 2009,
+            "sha256": "ec6dbcb6b0eba1c35e4502d0dabc24660d857991cdef97be3333315fb6dcd12d"
+          },
+          "contentField": {
+            "bytes": 7313,
+            "tokens": 2006,
+            "sha256": "53c0db8a684150b5b21545dffe5a488b32ec1578dc67aa81236e63250ee36e53"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/activation/inactiveobjects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/Z_MCP_FIXTURE/source/main",
+              "query": "?version=active&sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": true,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 88,
+            "tokens": 25,
+            "sha256": "5c399681f37443596680126c2274559de39cb8329337ed1ecf032e90b42df9cc"
+          },
+          "response": {
+            "bytes": 497,
+            "tokens": 120,
+            "sha256": "ec40891b2a123b73bd9c585892e312031d9b30379836a954446fe628bf5ffdc0"
+          },
+          "contentField": {
+            "bytes": 470,
+            "tokens": 113,
+            "sha256": "8bbcafe611f688718b436c5dd31df0ae9c98161b5a719885d788473ff3185943"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/activation/inactiveobjects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/Z_MCP_FIXTURE/source/main",
+              "query": "?version=active&sap-client=100&sap-language=EN",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "arc-1",
+      "scenario": "hyperfocused",
+      "state": "passed",
+      "toolCount": 1,
+      "fixedSchemas": {
+        "bytes": 917,
+        "tokens": 209,
+        "sha256": "e04eb91e8cbb689c431df09877c63c9e8b7b95d4a8a70bbe2dd555f87979373e"
+      },
+      "instructions": {
+        "bytes": 1881,
+        "tokens": 424,
+        "sha256": "ba4b7bd56e813ba8b9339158f5152ce427e3efc086917496671cfcc00c7253f7"
+      },
+      "mcpOperationCalls": 4,
+      "toolCalls": 4,
+      "resourceReads": 0,
+      "requestTokens": 124,
+      "responseTokens": 6152,
+      "totalEstimatedTokens": 6909,
+      "startupFixtureRequests": [
+        {
+          "method": "HEAD",
+          "path": "/sap/bc/adt/core/discovery",
+          "query": "?sap-client=100&sap-language=EN",
+          "status": 200,
+          "conditional": false,
+          "bodyBytes": 0
+        }
+      ],
+      "stages": [
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 111,
+            "tokens": 31,
+            "sha256": "f55d194a0d24a0a2c055273f42ad83a944f1c053b9e6266ad284806e49276537"
+          },
+          "response": {
+            "bytes": 7317,
+            "tokens": 2008,
+            "sha256": "65ca9905d5bb7a7fb848f84932677b7e5a353e9ed9c00784b66dea41e5533f9b"
+          },
+          "contentField": {
+            "bytes": 7305,
+            "tokens": 2005,
+            "sha256": "9cb77cf6a7142d45bc8d80b73b4968cef2ae3c6efeae83fc275c24f85d84d79a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/ddic/sysinfo/hanainfo",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/abapgit/repos",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/cts_abapvcs/system",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/ddic/ddl/sources",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/amdp/debugger",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/filestore/ui5-bsp/objects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/cts/transportrequests",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/opu/odata/UI5/ABAP_REPOSITORY_SRV",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/opu/odata/UI2/PAGE_BUILDER_CUST/",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/system/components",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/repository/informationsystem/textsearch/support",
+              "query": "?db=&sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/repository/informationsystem/search",
+              "query": "?operation=quickSearch&query=CL_ABAP_*&maxResults=1&sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/cts/transportrequests",
+              "query": "?user=__PROBE__&sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/discovery",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/activation/inactiveobjects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/abapsource/syntax/configurations",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/Z_MCP_FIXTURE/source/main",
+              "query": "?version=active&sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 111,
+            "tokens": 31,
+            "sha256": "f55d194a0d24a0a2c055273f42ad83a944f1c053b9e6266ad284806e49276537"
+          },
+          "response": {
+            "bytes": 7339,
+            "tokens": 2015,
+            "sha256": "7d95fbd0e569199f19341a11cf5268cbac705daba96531fa615c3bafbb648e2e"
+          },
+          "contentField": {
+            "bytes": 7327,
+            "tokens": 2012,
+            "sha256": "af6a6b93c522784017e58cdc58c6e24c4cb4182ad3c028f45e4fd3069aa77993"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/activation/inactiveobjects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/Z_MCP_FIXTURE/source/main",
+              "query": "?version=active&sap-client=100&sap-language=EN",
+              "status": 304,
+              "conditional": true,
+              "bodyBytes": 0
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 111,
+            "tokens": 31,
+            "sha256": "f55d194a0d24a0a2c055273f42ad83a944f1c053b9e6266ad284806e49276537"
+          },
+          "response": {
+            "bytes": 7325,
+            "tokens": 2009,
+            "sha256": "ec6dbcb6b0eba1c35e4502d0dabc24660d857991cdef97be3333315fb6dcd12d"
+          },
+          "contentField": {
+            "bytes": 7313,
+            "tokens": 2006,
+            "sha256": "53c0db8a684150b5b21545dffe5a488b32ec1578dc67aa81236e63250ee36e53"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/activation/inactiveobjects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/Z_MCP_FIXTURE/source/main",
+              "query": "?version=active&sap-client=100&sap-language=EN",
+              "status": 200,
+              "conditional": true,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 111,
+            "tokens": 31,
+            "sha256": "f55d194a0d24a0a2c055273f42ad83a944f1c053b9e6266ad284806e49276537"
+          },
+          "response": {
+            "bytes": 497,
+            "tokens": 120,
+            "sha256": "ec40891b2a123b73bd9c585892e312031d9b30379836a954446fe628bf5ffdc0"
+          },
+          "contentField": {
+            "bytes": 470,
+            "tokens": 113,
+            "sha256": "8bbcafe611f688718b436c5dd31df0ae9c98161b5a719885d788473ff3185943"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/activation/inactiveobjects",
+              "query": "?sap-client=100&sap-language=EN",
+              "status": 404,
+              "conditional": false,
+              "bodyBytes": 38
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/Z_MCP_FIXTURE/source/main",
+              "query": "?version=active&sap-client=100&sap-language=EN",
+              "status": 403,
+              "conditional": true,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "abap-adt-mcp",
+      "scenario": "focused",
+      "state": "passed",
+      "toolCount": 114,
+      "fixedSchemas": {
+        "bytes": 114005,
+        "tokens": 26129,
+        "sha256": "ceca83c4c1a8b953b61aa188ba4a28466bd6529077d01bacfc7032118f323321"
+      },
+      "instructions": {
+        "bytes": 2549,
+        "tokens": 538,
+        "sha256": "060e4fb24c0ade51c5b3ce87328765ba67185244e4bcd995c0925ae582050c6b"
+      },
+      "mcpOperationCalls": 4,
+      "toolCalls": 4,
+      "resourceReads": 0,
+      "requestTokens": 196,
+      "responseTokens": 6211,
+      "totalEstimatedTokens": 33074,
+      "startupFixtureRequests": [],
+      "stages": [
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 183,
+            "tokens": 49,
+            "sha256": "5c2c30a99bd76375376ddcf6a1282c057dcdb39fd5c7e0fab1c35f442a720cc6"
+          },
+          "response": {
+            "bytes": 7631,
+            "tokens": 2036,
+            "sha256": "a680c70d8eb4c56c0d888ba5ef1b619e89e53920a04092806f893430d0da802f"
+          },
+          "contentField": {
+            "bytes": 7619,
+            "tokens": 2034,
+            "sha256": "376625a95db457fa2d1f361f28ce66c6f1c7ce7cac0f233801e205bd02b5f769"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/compatibility/graph",
+              "query": "?sap-client=100",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 94
+            },
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "?version=active",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 183,
+            "tokens": 49,
+            "sha256": "5c2c30a99bd76375376ddcf6a1282c057dcdb39fd5c7e0fab1c35f442a720cc6"
+          },
+          "response": {
+            "bytes": 7631,
+            "tokens": 2036,
+            "sha256": "a680c70d8eb4c56c0d888ba5ef1b619e89e53920a04092806f893430d0da802f"
+          },
+          "contentField": {
+            "bytes": 7619,
+            "tokens": 2034,
+            "sha256": "376625a95db457fa2d1f361f28ce66c6f1c7ce7cac0f233801e205bd02b5f769"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "?version=active",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 183,
+            "tokens": 49,
+            "sha256": "5c2c30a99bd76375376ddcf6a1282c057dcdb39fd5c7e0fab1c35f442a720cc6"
+          },
+          "response": {
+            "bytes": 7639,
+            "tokens": 2037,
+            "sha256": "44593db6798ba376ac8ffe07dfd1dbc50cb071ff8ac41bb03f2c4cdae0914cc4"
+          },
+          "contentField": {
+            "bytes": 7627,
+            "tokens": 2035,
+            "sha256": "8a13a4096cba4ed20feb3e3665f437574eff1b05e94d4959100e62440be4e68a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "?version=active",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 183,
+            "tokens": 49,
+            "sha256": "5c2c30a99bd76375376ddcf6a1282c057dcdb39fd5c7e0fab1c35f442a720cc6"
+          },
+          "response": {
+            "bytes": 414,
+            "tokens": 102,
+            "sha256": "5c557254d921f175a9d382ed80a0dcc94def6327a3bb8d837c642b929b991633"
+          },
+          "contentField": {
+            "bytes": 387,
+            "tokens": 95,
+            "sha256": "565f6c186c3243ba1cb46f966c5ac8e1ce314f080273082afe68af9201d8e427"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "?version=active",
+              "status": 403,
+              "conditional": false,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    },
+    {
+      "product": "@mcp-abap-adt/core",
+      "scenario": "default-onprem",
+      "state": "passed",
+      "toolCount": 270,
+      "fixedSchemas": {
+        "bytes": 397223,
+        "tokens": 90381,
+        "sha256": "a6612c74ee1cf839c1515b9f943137d95f97b4dfcd076a062747111ce80e5f4b"
+      },
+      "instructions": {
+        "bytes": 19,
+        "tokens": 5,
+        "sha256": "f454f4b82e5af5d640f138f2c3ade4cc7c7ca1d8e8b7e3989b7dce0479930365"
+      },
+      "mcpOperationCalls": 4,
+      "toolCalls": 4,
+      "resourceReads": 0,
+      "requestTokens": 84,
+      "responseTokens": 6309,
+      "totalEstimatedTokens": 96779,
+      "startupFixtureRequests": [
+        {
+          "method": "GET",
+          "path": "/sap/bc/adt/core/discovery",
+          "query": "",
+          "status": 200,
+          "conditional": false,
+          "bodyBytes": 94
+        },
+        {
+          "method": "GET",
+          "path": "/sap/bc/adt/core/http/systeminformation",
+          "query": "?_=1793666256592",
+          "status": 404,
+          "conditional": false,
+          "bodyBytes": 38
+        }
+      ],
+      "stages": [
+        {
+          "stage": "cold-read",
+          "method": "tools/call",
+          "request": {
+            "bytes": 85,
+            "tokens": 21,
+            "sha256": "0ff7fde08f5ddd3b4c595491f87633fc58fcfa4e4b484eb32b5e06283c0113a4"
+          },
+          "response": {
+            "bytes": 7655,
+            "tokens": 2054,
+            "sha256": "c1dddc42cccce7bc2cd8b451dae2e523cac9366cd1e19b17337bdf68e13e569e"
+          },
+          "contentField": {
+            "bytes": 7643,
+            "tokens": 2052,
+            "sha256": "493da0644420a4a8d7710ea8af8f7ed239d2f1a6975d200e4d2dd8f8cf889b97"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "?version=active",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "unchanged-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 85,
+            "tokens": 21,
+            "sha256": "0ff7fde08f5ddd3b4c595491f87633fc58fcfa4e4b484eb32b5e06283c0113a4"
+          },
+          "response": {
+            "bytes": 7655,
+            "tokens": 2054,
+            "sha256": "c1dddc42cccce7bc2cd8b451dae2e523cac9366cd1e19b17337bdf68e13e569e"
+          },
+          "contentField": {
+            "bytes": 7643,
+            "tokens": 2052,
+            "sha256": "493da0644420a4a8d7710ea8af8f7ed239d2f1a6975d200e4d2dd8f8cf889b97"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "?version=active",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7079
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "changed-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 85,
+            "tokens": 21,
+            "sha256": "0ff7fde08f5ddd3b4c595491f87633fc58fcfa4e4b484eb32b5e06283c0113a4"
+          },
+          "response": {
+            "bytes": 7663,
+            "tokens": 2055,
+            "sha256": "a18f798ded1b78ecabee7958fa9b8afb62c901942be8ffc3a571f978dc06b10e"
+          },
+          "contentField": {
+            "bytes": 7651,
+            "tokens": 2053,
+            "sha256": "b3a4ed8f61279acc27670cb6db2dd9f95d0c8c88702e130cea10a5931abaac2a"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "?version=active",
+              "status": 200,
+              "conditional": false,
+              "bodyBytes": 7087
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "completeCurrentSource": true,
+            "freshlyCheckedFixture": true,
+            "retainedBodyReuse": false
+          }
+        },
+        {
+          "stage": "denied-recheck",
+          "method": "tools/call",
+          "request": {
+            "bytes": 85,
+            "tokens": 21,
+            "sha256": "0ff7fde08f5ddd3b4c595491f87633fc58fcfa4e4b484eb32b5e06283c0113a4"
+          },
+          "response": {
+            "bytes": 483,
+            "tokens": 146,
+            "sha256": "e5b7d61ef39d8451d90b23b816dcc341cc8cd41ef9cd2343a843af7d00a6a1dc"
+          },
+          "contentField": {
+            "bytes": 456,
+            "tokens": 139,
+            "sha256": "675a0a2ec003c4e91baf3c1d8591c1d50bcbf725ed93422558e8005badf88721"
+          },
+          "protocolError": false,
+          "fixtureRequests": [
+            {
+              "method": "GET",
+              "path": "/sap/bc/adt/programs/programs/z_mcp_fixture/source/main",
+              "query": "?version=active",
+              "status": 403,
+              "conditional": false,
+              "bodyBytes": 36
+            }
+          ],
+          "acceptance": {
+            "passed": true,
+            "readRefused": true
+          }
+        }
+      ]
+    }
+  ]
+}

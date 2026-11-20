@@ -19,7 +19,7 @@ function method(
 ): (input: unknown) => Promise<Record<string, unknown>> {
   return async input => {
     calls.push({ method: name, input })
-    return { connectionId: "DEV100", method: name, ...(name === "getBatchLines" ? { results: [] } : {}) }
+    return { connectionId: "DEV100", method: name, ...(["getBatchLines", "searchObjectLines"].includes(name) ? { results: [] } : {}) }
   }
 }
 

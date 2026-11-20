@@ -82,6 +82,18 @@ export function toAdtResourceUri(systemId: string, adtPath: string): string {
   ).canonicalUri
 }
 
+/** Build an IDE link only from a validated ADT path belonging to this profile. */
+export function toAdtIdeUri(systemId: string, path: string, line?: number, column?: number): string | undefined {
+  try {
+    const normalized = normalizeV1SystemId(systemId)
+    const uri = path.startsWith("adt://") ? parseAdtResourceUri(path) : parseAdtResourceUri(toAdtResourceUri(normalized, path))
+    if (uri.systemId !== normalized) return undefined
+    const position = Number.isInteger(line) && line! > 0 && Number.isInteger(column) && column! >= 0
+      ? `#start=${line},${column}` : ""
+    return `${uri.canonicalUri}${position}`
+  } catch { return undefined }
+}
+
 export function parseAdtResourceUri(value: string): ParsedAdtResourceUri {
   assertNoQueryOrFragment(value)
   const url = parseUrl(value)

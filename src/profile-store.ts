@@ -18,6 +18,7 @@ const baseProfileSchema = z.object({
   language: z.string().regex(/^[A-Z]{2}$/),
   environment: z.enum(["development", "quality", "production"]),
   allowDataQueries: z.boolean().default(false),
+  blockedDataSources: z.array(z.string().regex(/^(?:\/[A-Z0-9_]+\/)?[A-Z][A-Z0-9_]*\*?$/)).optional(),
   readOnly: z.boolean().optional(),
   caFile: z.string().refine(isAbsolute, "CA file path must be absolute").optional(),
   allowedPackages: z.array(z.string().min(1)).default([]),
@@ -94,6 +95,7 @@ export interface SapProfileInput {
   authType?: SapProfile["authType"]
   username?: string | undefined
   allowDataQueries?: boolean
+  blockedDataSources?: string[] | undefined
   caFile?: string | undefined
   readOnly?: boolean | undefined
   allowedPackages?: string[]
@@ -123,6 +125,7 @@ export function normalizeProfile(input: SapProfileInput): StoredSapProfile {
     language: (input.language ?? "EN").trim().toUpperCase(),
     environment: input.environment ?? "development",
     allowDataQueries: input.allowDataQueries ?? false,
+    ...(input.blockedDataSources !== undefined ? { blockedDataSources: input.blockedDataSources.map(value => value.trim().toUpperCase()) } : {}),
     ...(input.readOnly !== undefined ? { readOnly: input.readOnly } : {}),
     ...(input.caFile ? { caFile: input.caFile } : {}),
     authType,
@@ -174,6 +177,8 @@ export function applyProfileAccessPolicy(target: SapProfile, policy: SapProfile)
   target.environment = policy.environment
   target.allowedPackages = [...policy.allowedPackages]
   target.allowDataQueries = policy.allowDataQueries ?? false
+  if (policy.blockedDataSources === undefined) delete target.blockedDataSources
+  else target.blockedDataSources = [...policy.blockedDataSources]
 }
 
 export class ProfileStore {

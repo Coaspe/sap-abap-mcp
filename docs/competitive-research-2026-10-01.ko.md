@@ -816,3 +816,30 @@ Discussion, 프로파일 변경, 표준 채택은 일어나지 않았다. 실제
 
 [검토용 후보·Discussion 초안](competitive-profile-review-2026-10-02/discussion-draft.json),
 [실제 발견 측정](competitive-profile-review-2026-10-02/measurements.json).
+
+## 2026-11-03: 최신 npm 배포본의 오프라인 재측정
+
+격리 디렉터리에서 `arc-1@1.9.0`, `abap-adt-mcp@2.8.2`,
+`@mcp-abap-adt/core@23.0.2` tarball을 npm registry의 SHA-512 integrity와
+대조하고 설치 스크립트를 끈 상태로 설치했다. 실제 stdio `initialize`와
+페이지별 `tools/list` 및 같은 합성 200줄 소스의 네 단계 읽기·재확인을
+각 구성에서 한 번 실행했다. 실제 SAP·모델 호출은 없다. Core 23은 기존
+`--transport`와 `--exposition`을 제거해 `--system-type=onprem`으로 바꿨으며,
+읽기 전용은 별도 패키지이므로 이전 core readonly 행과 직접 비교하지 않는다.
+
+| 구성 | 초기 도구 수 | 초기 추정 토큰 | 200줄 워크플로 추정 토큰 |
+| --- | ---: | ---: | ---: |
+| 이 체크아웃 minimal | 5 | 1,024 | 11,991 |
+| 이 체크아웃 single | 1 | 338 | 11,312 |
+| ARC-1 standard | 9 | 11,377 | 17,629 |
+| ARC-1 hyperfocused | 1 | 633 | 6,909 |
+| abap-adt-mcp 기본 / focused | 173 / 114 | 37,123 / 26,667 | focused 33,074 |
+| mcp-abap-adt/core on-prem | 270 | 90,386 | 96,779 |
+
+초기값은 도구 배열과 instructions를 따로 `o200k_base`로 계산한 합계다.
+워크플로 값은 초기값과 요청·응답을 포함하며 minimal과 single은 발견과 설명을
+포함한다. 구현 기능과 권한 범위가 다르고 단일 반복이므로 제품 순위, 실제 요금,
+지연이나 모델 작업 성공률을 뜻하지 않는다. 이전 961토큰은 과거 측정값이다.
+[무결성·단계별 수치](evidence/competitive-offline-2026-11-03.json),
+[초기 측정 코드](competitive-stdio-surface-2026-10-02/measure-2026-11-03.mjs),
+[읽기 측정 코드](competitive-read-workflow-2026-10-02/measure-2026-11-03.mjs).
