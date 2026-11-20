@@ -126,7 +126,7 @@ test("setup wizard creates and verifies a server using beginner-facing labels", 
   assert.ok(prompter.labels.every(label => !/Profile ID|System/.test(label)))
   assert.match(prompter.output.join("\n"), /Server name: DEV100/)
   assert.match(prompter.output.join("\n"), /SAP URL: https:\/\/sap\.example\.test/)
-  assert.match(prompter.output.join("\n"), /SAP data queries: Enabled \(all read-only SQL\)/)
+  assert.match(prompter.output.join("\n"), /SAP data queries: Enabled \(subject to data-source policy\)/)
 })
 
 test("setup edit preserves read-only policy while renewing credentials", async t => {

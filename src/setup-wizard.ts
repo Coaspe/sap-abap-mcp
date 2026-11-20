@@ -239,7 +239,7 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
           { value: "disabled", label: "Disabled — block direct table queries" },
           {
             value: "enabled",
-            label: "Enabled — allow all read-only SQL, including sensitive business data"
+            label: "Enabled — allow read-only SQL subject to data-source policy"
           }
         ],
         existing?.allowDataQueries ? "enabled" : "disabled"
@@ -258,6 +258,7 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       language,
       environment,
       allowDataQueries,
+      ...(existing?.blockedDataSources !== undefined ? { blockedDataSources: existing.blockedDataSources } : {}),
       allowedPackages: packageList(packagesText)
     }
     const profile = normalizeProfile(input)
@@ -272,7 +273,7 @@ export async function runSetupWizard(options: SetupWizardOptions): Promise<Setup
       `  Username: ${profile.username}`,
       `  Language: ${profile.language}`,
       `  Environment: ${environmentLabel(profile.environment)}`,
-      `  SAP data queries: ${profile.allowDataQueries ? "Enabled (all read-only SQL)" : profile.environment === "production" ? "Disabled (production policy)" : "Disabled"}`,
+      `  SAP data queries: ${profile.allowDataQueries ? "Enabled (subject to data-source policy)" : profile.environment === "production" ? "Disabled (production policy)" : "Disabled"}`,
       ...(profile.classicBridgePath ? [`  Classic bridge: ${profile.classicBridgePath}`] : []),
       profile.readOnly || profile.environment === "production"
         ? "  Access scope: Read only (SAP changes and ABAP execution disabled)"

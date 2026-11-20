@@ -912,7 +912,8 @@ var verified = ED25519.verify({
   // node.js Buffer, Uint8Array, forge ByteBuffer, or binary string
   publicKey: publicKey
 });
-// `verified` is true/false
+// `verified` is true/false (always false for small-order public keys, such
+// as the identity point, which have no private key)
 
 // sign a message passed as a buffer
 var verified = ED25519.verify({
@@ -1157,7 +1158,9 @@ caStore.addCertificate(certObjectOrPemString);
 // gets the issuer (its certificate) for the given certificate
 var issuerCert = caStore.getIssuer(subjectCert);
 
-// verifies a certificate chain against a CA store
+// verifies a certificate chain against a CA store (checks validity dates,
+// signatures, basicConstraints, keyUsage and nameConstraints, but not
+// revocation, certificate policies, extended key usage or host names)
 pki.verifyCertificateChain(caStore, chain, customVerifyCallback);
 
 // signs a certificate using the given private key
@@ -2016,6 +2019,7 @@ Contact
 -------
 
 * Code: https://github.com/digitalbazaar/forge
+* Security: [Security Policy](SECURITY.md)
 * Bugs: https://github.com/digitalbazaar/forge/issues
 * Email: support@digitalbazaar.com
 * IRC: [#forgejs][] on [Libera.Chat][] (people may also be on [freenode][] for

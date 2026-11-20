@@ -38,9 +38,13 @@ const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
   ADT_BACKGROUND_INVALID: "transport",
   ADT_BACKGROUND_OPERATION_FAILED: "transport",
   ADT_BACKGROUND_TIMEOUT: "transport",
+  ADT_BACKGROUND_UNAVAILABLE: "transport",
   RAP_GENERATION_UNCERTAIN: "conflict",
   RAP_GENERATION_RESULT_MISMATCH: "conflict",
   TRANSPORT_OBJECT_KEY_MISSING: "validation",
+  TRANSPORT_TARGET_UNVERIFIED: "conflict",
+  TRANSPORT_OBJECT_ADD_UNVERIFIED: "conflict",
+  TRANSPORT_RELEASE_PARTIAL: "conflict",
   BATCH_LINE_LIMIT: "validation",
   CAPABILITY_NOT_FOUND: "capability",
   CAPABILITY_RISK_MISMATCH: "validation",
@@ -53,6 +57,7 @@ const ERROR_CATEGORIES: Readonly<Record<string, V1ErrorCategory>> = {
   OAUTH_CLIENT_CREDENTIALS_REQUIRED: "authentication",
   SAP_AUTHORIZATION_DENIED: "authorization",
   DATA_QUERY_NOT_ALLOWED: "policy",
+  DATA_SOURCE_BLOCKED: "policy",
   PROFILE_NOT_ALLOWED: "policy",
   TOKEN_PASSTHROUGH_REFUSED: "policy",
   PROFILE_READ_ONLY: "policy",
@@ -90,7 +95,12 @@ function recoveryFor(code: string): z.infer<typeof V1_ERROR_SCHEMA>["recovery"] 
     case "ADT_BACKGROUND_INVALID":
     case "ADT_BACKGROUND_OPERATION_FAILED":
     case "ADT_BACKGROUND_TIMEOUT":
+    case "ADT_BACKGROUND_UNAVAILABLE":
+    case "TRANSPORT_RELEASE_PARTIAL":
       return { action: "inspect_state", message: "Inspect this transport and its tasks before retrying. A failed or missing background response does not prove that SAP made no change.", nextTools: ["sap.transport.inspect"] }
+    case "TRANSPORT_TARGET_UNVERIFIED":
+    case "TRANSPORT_OBJECT_ADD_UNVERIFIED":
+      return { action: "inspect_state", message: "Inspect the exact target and CTS object key before deciding on another change.", nextTools: ["sap.transport.inspect"] }
     case "RAP_GENERATION_UNCERTAIN":
     case "RAP_GENERATION_RESULT_MISMATCH":
       return { action: "inspect_state", message: "Read back every expected RAP object and reconcile existing objects before requesting generation again.", nextTools: ["sap.repository.inspect"] }
@@ -122,6 +132,7 @@ function recoveryFor(code: string): z.infer<typeof V1_ERROR_SCHEMA>["recovery"] 
     case "PRODUCTION_DATA_BLOCKED":
     case "PACKAGE_NOT_ALLOWED":
     case "DATA_QUERY_NOT_ALLOWED":
+    case "DATA_SOURCE_BLOCKED":
     case "PROFILE_NOT_ALLOWED":
       return { action: "review_policy", message: "Stop this operation and review the configured scope with the owner. Do not weaken policy or switch identities to bypass the refusal.", nextTools: [] }
     case "SAP_OPERATION_FAILED":
@@ -534,6 +545,8 @@ export function v1Failure(error: unknown, requestId?: string): CallToolResult {
     : "internal"
   const retryable = normalizedError instanceof AppError &&
     normalizedError.code === "SAP_OPERATION_FAILED" &&
+    normalizedError.details?.releaseMode === undefined &&
+    normalizedError.details?.ctsObjectWrite !== true &&
     RETRYABLE_SAP_STATUSES.has(normalizedError.details?.httpStatus as number)
   const recovery = recoveryFor(code)
   const envelope = V1_ERROR_SCHEMA.parse({

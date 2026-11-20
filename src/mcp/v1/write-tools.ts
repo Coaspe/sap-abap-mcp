@@ -124,14 +124,15 @@ export function registerV1WriteTools(
     description: string,
     inputSchema: InputArgs,
     annotations: ToolAnnotations,
-    callback: ToolCallback<InputArgs>
+    callback: ToolCallback<InputArgs>,
+    outputSchema = writeOutputSchema
   ) => {
     if (selected && !selected.has(name)) return
     server.registerTool(name, {
       title,
       description,
       inputSchema,
-      outputSchema: writeOutputSchema,
+      outputSchema,
       annotations
     }, callback)
   }
@@ -620,7 +621,11 @@ export function registerV1WriteTools(
       return service.activateObject(uris.length === 1
         ? { url: uris[0]!, connectionId }
         : { urls: uris, connectionId })
-    })
+    }),
+    writeOutputSchema.extend({ data: z.looseObject({
+      status: z.enum(["complete", "partial", "failed"]),
+      objectResults: z.array(z.looseObject({ outcome: z.enum(["activated", "failed", "unknown"]) }))
+    }) })
   )
 
   registerTool(
@@ -632,6 +637,7 @@ export function registerV1WriteTools(
       fileUri: NON_EMPTY,
       oldString: z.string(),
       newString: z.string(),
+      methodName: NON_EMPTY.optional(),
       transport: NON_EMPTY.optional(),
       activate: z.boolean().default(false)
     }).strict(),
@@ -641,6 +647,7 @@ export function registerV1WriteTools(
       fileUri: input.fileUri,
       oldString: input.oldString,
       newString: input.newString,
+      ...(input.methodName ? { methodName: input.methodName } : {}),
       activate: input.activate,
       ...(input.transport ? { transport: input.transport } : {})
     }))

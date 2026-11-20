@@ -28,6 +28,7 @@ export interface ChangeAssuranceFinding {
 }
 
 export interface ChangeAssuranceObjectResult {
+  atcTarget?: { type: string; name: string; uri?: string }
   object: {
     key: string
     pgmid: string
@@ -36,7 +37,8 @@ export interface ChangeAssuranceObjectResult {
     uri?: string
   }
   atc?: {
-    status: "passed" | "warning" | "failed" | "incomplete" | "error"
+    status: "passed" | "warning" | "failed" | "incomplete" | "error" | "skipped"
+    reason?: string
     total?: number
     errors?: number
     warnings?: number
@@ -44,6 +46,7 @@ export interface ChangeAssuranceObjectResult {
     returned?: number
     truncated?: boolean
     findings?: ChangeAssuranceFinding[]
+    notices?: Array<{ code: string; message: string }>
     error?: ChangeAssuranceError
   }
   unitTests?: {
@@ -137,6 +140,7 @@ function sarifRegion(finding: ChangeAssuranceFinding) {
 function renderSarif(report: ChangeAssuranceReport): string {
   const results: Record<string, unknown>[] = []
   const rules = new Map<string, { id: string; name: string; shortDescription: { text: string } }>()
+  const seenAtc = new Set<string>()
   const addResult = (
     ruleId: string,
     title: string,
@@ -164,7 +168,10 @@ function renderSarif(report: ChangeAssuranceReport): string {
   }
 
   for (const item of report.objects) {
-    for (const finding of item.atc?.findings ?? []) {
+    const atcKey = item.atcTarget?.uri ? `URI:${item.atcTarget.uri.toUpperCase()}` : item.atcTarget ? `${item.atcTarget.type}:${item.atcTarget.name}` : item.object.key
+    const duplicateAtc = seenAtc.has(atcKey)
+    seenAtc.add(atcKey)
+    for (const finding of duplicateAtc ? [] : item.atc?.findings ?? []) {
       addResult(
         finding.checkId || finding.messageId || "ABAP_ATC",
         finding.checkTitle || "ABAP Test Cockpit",
@@ -177,7 +184,7 @@ function renderSarif(report: ChangeAssuranceReport): string {
         sarifRegion(finding)
       )
     }
-    if (item.atc?.status === "error" && item.atc.error) {
+    if (!duplicateAtc && item.atc?.status === "error" && item.atc.error) {
       addResult(
         "ABAP_ATC_EXECUTION",
         "ATC execution",
@@ -185,7 +192,7 @@ function renderSarif(report: ChangeAssuranceReport): string {
         `${item.object.name}: ${item.atc.error.message}`,
         item.object.uri
       )
-    } else if (item.atc?.truncated) {
+    } else if (!duplicateAtc && item.atc?.truncated) {
       addResult(
         "ABAP_ATC_TRUNCATED",
         "ATC result coverage",
@@ -285,8 +292,12 @@ interface JunitCase {
 
 function renderJunit(report: ChangeAssuranceReport): string {
   const cases: JunitCase[] = []
+  const seenAtc = new Set<string>()
   for (const item of report.objects) {
-    if (item.atc) {
+    const atcKey = item.atcTarget?.uri ? `URI:${item.atcTarget.uri.toUpperCase()}` : item.atcTarget ? `${item.atcTarget.type}:${item.atcTarget.name}` : item.object.key
+    const duplicateAtc = seenAtc.has(atcKey)
+    seenAtc.add(atcKey)
+    if (item.atc && !duplicateAtc) {
       const messages = (item.atc.findings ?? []).map(finding => finding.messageTitle).join("\n")
       cases.push({
         name: `${item.object.name} ATC`,
@@ -294,6 +305,7 @@ function renderJunit(report: ChangeAssuranceReport): string {
         ...(item.atc.status === "failed" ? { failure: messages || "ATC gate failed" } : {}),
         ...(item.atc.status === "error" ? { error: item.atc.error?.message ?? "ATC execution failed" } : {}),
         ...(item.atc.status === "incomplete" ? { error: "ATC returned a truncated finding set" } : {}),
+        ...(item.atc.status === "skipped" ? { skipped: item.atc.reason ?? "Not an ATC target" } : {}),
         ...(item.atc.status === "warning" ? { output: messages } : {})
       })
     }

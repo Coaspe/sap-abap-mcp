@@ -1,6 +1,6 @@
 {
   "name": "@coaspe/sap-abap-mcp",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Headless MCP server for SAP ABAP Development Tools",
   "keywords": [
     "mcp",
@@ -53,6 +53,7 @@
     "scripts/check-profile-conformance.mjs",
     "scripts/live-evidence-tmp.mjs",
     "scripts/live-read-context.mjs",
+    "scripts/run-private-cloud-acceptance.mjs",
     "scripts/public-contract-evidence.mjs",
     "scripts/smoke-v1-stdio.mjs",
     "vendor",
@@ -108,8 +109,8 @@
     "abap-adt-api": "8.4.1",
     "diff": "9.0.0",
     "docx": "9.5.1",
-    "dompurify": "3.4.16",
-    "fast-xml-parser": "5.10.1",
+    "dompurify": "3.4.17",
+    "fast-xml-parser": "5.12.1",
     "fflate": "0.8.3",
     "mermaid": "file:vendor/mermaid",
     "node-forge": "file:vendor/node-forge",
@@ -118,7 +119,7 @@
     "smol-toml": "1.9.1",
     "sprintf-js": "file:vendor/sprintf-js",
     "which": "4.0.0",
-    "zod": "4.4.3"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

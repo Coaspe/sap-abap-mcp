@@ -674,10 +674,11 @@ class FakeSapClient implements SapClient {
     pgmid: string,
     objectType: string,
     objectName: string
-  ): Promise<void> {
+  ): Promise<"added" | "already_present"> {
     this.transportMutations.push(
       `object-key:${transportNumber}:${pgmid}:${objectType}:${objectName}`
     )
+    return "added"
   }
 
   async listSystemUsers(): Promise<any[]> {
@@ -2129,7 +2130,9 @@ test("activateObject validates batches and classifies one SAP activation respons
       object: { name: object.name, type: object.type },
       success: true,
       messages: [],
-      inactive: []
+      inactive: [],
+      status: "complete",
+      objectResults: [{ object: { name: object.name, type: object.type }, outcome: "activated", messages: [] }]
     }
   )
   assert.equal(legacy.fake.batchActivationCalls, 0)
@@ -2178,6 +2181,29 @@ test("activateObject validates batches and classifies one SAP activation respons
   assert.deepEqual(partialResult.objectResults.map(item => item.outcome), ["unknown", "failed"])
   assert.equal(partial.fake.batchActivationCalls, 1)
 
+  const verified = createActivationHarness()
+  verified.fake.batchActivationResult = partial.fake.batchActivationResult
+  const before = verified.fake.getInactiveObjects.bind(verified.fake)
+  verified.fake.getInactiveObjects = async () => verified.fake.batchActivationCalls
+    ? [inactiveClass("ZCL_SECOND")]
+    : before()
+  const verifiedResult = await verified.service.activateObject({ urls: [firstUrl, secondUrl] })
+  assert.deepEqual(verifiedResult.objectResults.map(item => item.outcome), ["activated", "failed"])
+
+  const rejected = createActivationHarness()
+  rejected.fake.batchActivationResult = partial.fake.batchActivationResult
+  const readBefore = rejected.fake.readSourceByUri.bind(rejected.fake)
+  Object.assign(rejected.fake, { async readSourceByUri(uri: string, version?: string) {
+    return version === "active" ? { source: "previous active version", sourceUri: uri } : readBefore(uri)
+  } })
+  const rejectedResult = await rejected.service.activateObject({ urls: [firstUrl, secondUrl] })
+  assert.equal(rejectedResult.status, "failed")
+  assert.deepEqual(rejectedResult.objectResults.map(item => item.outcome), ["failed", "failed"])
+  const firstOutcome = rejectedResult.objectResults[0]
+  assert.ok(firstOutcome && "outcomeReason" in firstOutcome)
+  assert.equal(firstOutcome.outcomeReason, "ACTIVE_SOURCE_DIFFERS")
+  assert.equal(rejected.fake.batchActivationCalls, 1)
+
   const executionFailure = createActivationHarness()
   executionFailure.fake.batchActivationError = new Error("SAP activation failed")
   await assert.rejects(
@@ -2189,6 +2215,19 @@ test("activateObject validates batches and classifies one SAP activation respons
     }
   )
   assert.equal(executionFailure.fake.batchActivationCalls, 1)
+})
+
+test("single activation reports SAP error messages as failed even with no inactive entries", async () => {
+  const { fake, service } = createActivationHarness()
+  fake.activateObject = async () => ({ success: false, inactive: [], messages: [
+    { type: "E", objDescr: "", line: 0, href: "", forceSupported: false, shortText: "error", msgid: "AB", msgno: "123" },
+    { type: "W", objDescr: "", line: 0, href: "", forceSupported: false, shortText: "warning" }
+  ] })
+  const result = await service.activateObject({ url: `adt://dev100${object.uri}/source/main` })
+  assert.equal(result.status, "failed")
+  assert.equal(result.objectResults[0]?.outcome, "failed")
+  assert.equal((result.messages[0] as { messageClass?: string }).messageClass, "AB")
+  assert.equal((result.messages[0] as { messageNumber?: string }).messageNumber, "123")
 })
 
 test("activateObject canonicalizes SAP evidence and tolerates malformed result fields", async () => {
@@ -2237,6 +2276,7 @@ test("activateObject canonicalizes SAP evidence and tolerates malformed result f
       name: "ZCL_A",
       type: "CLAS/OC"
     },
+    adtUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_a",
     outcome: "unknown",
     messages: []
   }])
@@ -2552,6 +2592,64 @@ test("ABAP source replacement requires one exact match", () => {
     () => replaceExactlyOnce("WRITE x.\nWRITE x.", "WRITE x.", "WRITE y."),
     /matched 2 locations/
   )
+})
+
+test("method-scoped patches reject boundary changes before writing", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.currentSource = source
+  const input = { fileUri: `adt://dev100${object.uri}/source/main`, connectionId: "DEV100",
+    transport: "DEVK900123", activate: false, methodName: "RUN" }
+  await assert.rejects(service.replaceStringInObject({ ...input,
+    oldString: "METHOD run.", newString: "METHOD other." }), /inside the selected method body/)
+  assert.equal(fake.replaceSourceCalls.length, 0)
+  await service.replaceStringInObject({ ...input, oldString: "result = 42", newString: "result = 43" })
+  assert.equal(fake.replaceSourceCalls.length, 1)
+})
+
+test("URI method reads return only the requested parsed method", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.currentSource = source
+  const result = await service.getObjectByUri({ uri: `${object.uri}/source/main`, connectionId: "DEV100",
+    startLine: 0, lineCount: 50, methodName: "RUN" })
+  assert.equal(result.code, "  METHOD run.\n    result = 42.\n  ENDMETHOD.")
+  assert.equal(result.startLine, 1)
+  assert.equal(result.methodEndLine, 4)
+  const first = await service.getObjectByUri({ uri: `${object.uri}/source/main`, connectionId: "DEV100",
+    startLine: 0, lineCount: 1, methodName: "RUN" })
+  assert.equal(first.nextLine, 2)
+  const second = await service.getObjectByUri({ uri: `${object.uri}/source/main`, connectionId: "DEV100",
+    startLine: first.nextLine!, lineCount: 1, methodName: "RUN" })
+  assert.equal(second.code, "    result = 42.")
+  const byName = await service.getObjectLines({ objectName: "ZCL_DEMO", connectionId: "DEV100",
+    startLine: 3, lineCount: 1, methodName: "RUN" })
+  assert.equal(byName.code, "    result = 42.")
+})
+
+test("explicit active source reads pass the active version to SAP client", async () => {
+  const { fake, service } = createBdefHarness()
+  const versions: unknown[] = []
+  fake.readSourceByUri = async (uri: string, version?: any) => {
+    versions.push(version)
+    return { source, sourceUri: uri.endsWith("/source/main") ? uri : `${uri}/source/main` }
+  }
+  await service.getObjectLines({ connectionId: "DEV100", objectName: "ZCL_DEMO", startLine: 1, lineCount: 10, version: "active" })
+  assert.deepEqual(versions, ["active"])
+})
+
+test("diagnostics, ATC findings and dump links expose validated ADT links", async () => {
+  const { fake, service } = createBdefHarness()
+  fake.currentSource = `${source}\nSYNTAX_ERROR`
+  const fileUri = `adt://dev100${object.uri}/source/main`
+  const diagnostics = await service.getAbapDiagnostics({ fileUri, connectionId: "DEV100", startIndex: 0, maxResults: 10 })
+  assert.equal(diagnostics.diagnostics[0]?.adtUri, `${fileUri}#start=3,4`)
+  const result = await service.runAtcAnalysis({ action: "run_analysis", objectUri: fileUri, connectionId: "DEV100",
+    startIndex: 0, maxResults: 10, documentationOffset: 0, documentationLength: 100 })
+  assert.equal((result as { findings: Array<{ adtUri?: string }> }).findings[0]?.adtUri, `${fileUri}#start=2,2`)
+  fake.getDumps = async () => ({ dumps: [{ id: "DUMP-1", author: "", type: "text/html", categories: [], text: "",
+    links: [{ href: "/sap/bc/adt/runtime/dumps/1", rel: "self" }] }] })
+  const dumps = await service.analyzeDumps({ action: "list_dumps", connectionId: "DEV100", startIndex: 0,
+    maxResults: 10, includeFullContent: false, contentOffset: 0, contentLength: 100 })
+  assert.equal((dumps as { dumps: Array<{ adtUri?: string }> }).dumps[0]?.adtUri, "adt://dev100/sap/bc/adt/runtime/dumps/1")
 })
 
 test("class include diagnostics preserve the include syntax URI", async () => {
@@ -3406,12 +3504,20 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
     async listConnections() { return [] },
     async getClient() { return queryFake }
   })
+  let connections = 0
+  const preflightService = new AbapToolService({
+    async listConnections() { return [] },
+    async getProfile() { return { ...queryProfile, allowDataQueries: true } },
+    async getClient() { connections++; return queryFake }
+  })
   const queryInput = {
     displayMode: "internal" as const,
     connectionId: "DEV100",
     maxRows: 10,
     rowRange: { start: 0, end: 10 }
   }
+  await rejectsCode(preflightService.executeDataQuery({ ...queryInput, sql: "SELECT * FROM USR02" }), "DATA_SOURCE_BLOCKED")
+  assert.equal(connections, 0)
   await rejectsCode(
     queryService.executeDataQuery({ ...queryInput, sql: "SELECT MATNR FROM MARA" }),
     "DATA_QUERY_NOT_ALLOWED"
@@ -3419,10 +3525,9 @@ test("write allowlists, production blocking, transports, and read-only SQL are e
   assert.equal(queryFake.runQueryCalls.length, 0)
 
   queryProfile.allowDataQueries = true
-  await queryService.executeDataQuery({ ...queryInput, sql: "SELECT BNAME FROM USR02" })
+  await rejectsCode(queryService.executeDataQuery({ ...queryInput, sql: "SELECT BNAME FROM USR02" }), "DATA_SOURCE_BLOCKED")
   await queryService.executeDataQuery({ ...queryInput, sql: "SELECT VBELN FROM VBAK" })
   assert.deepEqual(queryFake.runQueryCalls, [
-    "SELECT BNAME FROM USR02",
     "SELECT VBELN FROM VBAK"
   ])
 })
@@ -6327,4 +6432,213 @@ test("RAP generation reconciles a lost response only when every expected object 
   await assert.rejects(service.manageRap({ connectionId: "DEV100", action: "generate", generatorId: "uiservice", contentOffset: 0, contentLength: 1000, referenceObjectName: object.name, referenceObjectType: object.type,
     packageName: "Z_DEMO", transport: "DEVK900123", confirmation: "uiservice:ZUI_DEMO_O4", content }), (error: any) => error.code === "RAP_GENERATION_UNCERTAIN")
   assert.equal(attempts, 2, "Exactly one mutation for each separately requested call")
+})
+
+test("ATC creates a worklist for each run and never reads an invalid run", async () => {
+  const { fake, service } = createBdefHarness()
+  const requests: string[] = []
+  const getWorklist = fake.getAtcWorklist.bind(fake)
+  Object.assign(fake, {
+    async checkAtcVariant(variant: string) { requests.push(`variant:${variant}`); return "WL123" },
+    async runAtc(id: string) { requests.push(`run:${id}`); return { id: "WL123", timestamp: 1, infos: [] } },
+    async getAtcWorklist(run: { id: string }) { requests.push(`read:${run.id}`); return getWorklist() }
+  })
+  const input = { action: "run_analysis" as const, objectName: "ZCL_DEMO", objectType: "CLAS", connectionId: "DEV100", startIndex: 0, maxResults: 10, documentationOffset: 0, documentationLength: 1 }
+  await service.runAtcAnalysis(input)
+  assert.deepEqual(requests, ["variant:DEFAULT", "run:WL123", "read:WL123"])
+  Object.assign(fake, { async runAtc() { return { id: "000000", timestamp: 1, infos: [] } } })
+  await assert.rejects(service.runAtcAnalysis(input), { code: "ATC_RUN_INVALID" })
+  assert.equal(requests.filter(item => item.startsWith("read:")).length, 1)
+  Object.assign(fake, { async checkAtcVariant() { return "  " } })
+  await assert.rejects(service.runAtcAnalysis(input), { code: "ATC_WORKLIST_NOT_CREATED" })
+})
+
+test("ATC runs structured repository objects without requiring a source include", async () => {
+  const { fake, service } = createBdefHarness()
+  const uri = "/sap/bc/adt/ddic/dataelements/zdemo"
+  let requested = ""
+  Object.assign(fake, {
+    async searchObjects() { return [{ name: "ZDEMO", type: "DTEL/DE", uri, packageName: "Z_DEMO" }] },
+    async readObject() { throw new Error("No source include") },
+    async checkAtcVariant() { return "WL123" },
+    async runAtc(_id: string, objectUri: string) { requested = objectUri; return { id: "WL123", timestamp: 1, infos: [] } },
+    async getAtcWorklist() { return { objects: [] } }
+  })
+  await service.runAtcAnalysis({ action: "run_analysis", objectName: "ZDEMO", objectType: "DTEL", connectionId: "DEV100", startIndex: 0, maxResults: 10, documentationOffset: 0, documentationLength: 1 })
+  assert.equal(requested, uri)
+})
+
+test("ATC excludes unrelated objects and reports worklist and statistics mismatches", async () => {
+  const { fake, service } = createBdefHarness()
+  const getWorklist = fake.getAtcWorklist.bind(fake)
+  Object.assign(fake, {
+    async checkAtcVariant() { return "WL123" },
+    async runAtc() { return { id: "OTHER", timestamp: 1, infos: [{ type: "FINDING_STATS", description: "5,0,0" }] } },
+    async getAtcWorklist(run: { id: string }) {
+      assert.equal(run.id, "WL123")
+      const worklist = await getWorklist()
+      worklist.objects.push({ ...worklist.objects[0], name: "ZCL_OTHER", uri: "/sap/bc/adt/oo/classes/zcl_other" })
+      worklist.objects.push({ ...worklist.objects[0], uri: "/sap/bc/adt/oo/classes/zcl_other" })
+      return worklist
+    }
+  })
+  const result = await service.runAtcAnalysis({ action: "run_analysis", objectName: "ZCL_DEMO", objectType: "CLAS", connectionId: "DEV100", startIndex: 0, maxResults: 10, documentationOffset: 0, documentationLength: 1 })
+  assert.ok("summary" in result)
+  if (!("summary" in result)) return
+  assert.equal(result.summary.total, 1)
+  assert.deepEqual(result.warnings?.map(item => item.code), ["ATC_WORKLIST_ID_MISMATCH", "ATC_FOREIGN_FINDINGS_EXCLUDED", "ATC_FINDING_STATS_MISMATCH"])
+})
+
+test("ATC preserves findings whose worklist URI differs but whose locations identify the target", async () => {
+  const { fake, service } = createBdefHarness()
+  const getWorklist = fake.getAtcWorklist.bind(fake)
+  Object.assign(fake, {
+    async checkAtcVariant() { return "WL123" },
+    async runAtc() { return { id: "WL123", timestamp: 1, infos: [{ type: "FINDING_STATS", description: "0,1,0" }] } },
+    async getAtcWorklist() {
+      const worklist = await getWorklist()
+      const target = worklist.objects[0]
+      target.uri = "/sap/bc/adt/atc/worklists/WL123/objects/1"
+      target.type = "CLAS"
+      target.findings.push({ ...target.findings[0], location: { uri: "/sap/bc/adt/oo/classes/zcl_demox/source/main" } })
+      return worklist
+    }
+  })
+  const result = await service.runAtcAnalysis({ action: "run_analysis", objectName: "ZCL_DEMO", objectType: "CLAS", connectionId: "DEV100", startIndex: 0, maxResults: 10, documentationOffset: 0, documentationLength: 1 })
+  assert.ok("summary" in result)
+  assert.deepEqual(result.summary, { total: 1, errors: 0, warnings: 1, infos: 0 })
+  assert.deepEqual(result.warnings.map(item => item.code), ["ATC_FOREIGN_FINDINGS_EXCLUDED"])
+})
+
+test("CTS Dictionary entries validate the owning package through ADT without changing the confirmed key", async () => {
+  const { fake, service } = createBdefHarness()
+  const searchedTypes: Array<string | undefined> = []
+  fake.searchObjects = async (name, type) => {
+    searchedTypes.push(type)
+    return type === "DOMA" ? [{ name, type: "DOMA/DD", uri: "/sap/bc/adt/ddic/domains/zdomain", packageName: "Z_DEMO" }] : []
+  }
+  await service.manageTransportRequests({ action: "add_object", connectionId: "DEV100", transportNumber: "DEVK900123", pgmid: "LIMU", objectType: "DOMD", objectName: "ZDOMAIN", confirmation: "DEVK900123:LIMU:DOMD:ZDOMAIN", startIndex: 0, maxResults: 50, includeObjects: false })
+  assert.deepEqual(searchedTypes, ["DOMA"])
+  assert.deepEqual(fake.transportMutations, ["object-key:DEVK900123:LIMU:DOMD:ZDOMAIN"])
+})
+
+test("transport assessment isolates ATC worklists and deduplicates targets while skipping non-ATC entries", async t => {
+  const { fake, service } = createBdefHarness()
+  let worklists = 0, runs = 0
+  const originalTransport = fake.getTransportDetails.bind(fake)
+  Object.assign(fake, {
+    async getTransportDetails(number: string) {
+      const transport = await originalTransport(number)
+      const entry = (pgmid: string, type: string, name: string) => ({ "tm:pgmid": pgmid, "tm:type": type, "tm:name": name, "tm:dummy_uri": "", "tm:obj_info": "" })
+      transport.objects = [entry("R3TR", "CLAS", "ZCL_FIRST"), entry("r3tr", "CLAS", "ZCL_FIRST"), entry("R3TR", "CLAS", "ZCL_SECOND"), entry("CORR", "MERG", "X"), entry("R3TR", "IOBJ", "X")]
+      return transport
+    },
+    async checkAtcVariant() { return `WL${++worklists}` },
+    async runAtc(id: string) { runs++; return { id, timestamp: 1, infos: [] } },
+    async getAtcWorklist() { return { objects: [] } }
+  })
+  const report = await service.manageTransportRequests({ action: "assess_transport", connectionId: "DEV100", transportNumber: "DEVK900123", checks: ["atc"], startIndex: 0, maxResults: 50, includeObjects: false }) as any
+  t.after(() => rm(dirname(report.reports[0].outputPath), { recursive: true, force: true }))
+  assert.equal(worklists, 2)
+  assert.equal(runs, 2)
+  assert.equal(report.gate.status, "passed")
+  assert.equal(report.summary.passedChecks, 2)
+  assert.equal(report.objects.filter((item: any) => item.atc.status === "skipped").length, 2)
+})
+
+test("transport assessment resolves includes to a common main program and refuses unknown function owners", async t => {
+  const { fake, service } = createBdefHarness()
+  let runs = 0, worklists = 0
+  const originalTransport = fake.getTransportDetails.bind(fake)
+  const originalStructure = fake.getObjectStructure.bind(fake)
+  Object.assign(fake, {
+    async getTransportDetails(number: string) {
+      const transport = await originalTransport(number)
+      transport.objects = ["ZINC_A", "ZINC_B"].map(name => ({ "tm:pgmid": "LIMU", "tm:type": "REPS", "tm:name": name, "tm:dummy_uri": `/sap/bc/adt/programs/includes/${name.toLowerCase()}`, "tm:obj_info": "" }))
+      transport.objects.push({ "tm:pgmid": "LIMU", "tm:type": "FUNC", "tm:name": "Z_UNKNOWN", "tm:dummy_uri": "", "tm:obj_info": "" })
+      return transport
+    },
+    async searchObjects(name: string, type?: string) {
+      if (type === "FUGR/FF") return []
+      const uri = name === "ZREPORT" ? "/sap/bc/adt/programs/programs/zreport" : `/sap/bc/adt/programs/includes/${name.toLowerCase()}`
+      return [{ name, type: name === "ZREPORT" ? "PROG/P" : "PROG/I", uri, packageName: "Z_DEMO" }]
+    },
+    async getObjectStructure(uri: string) {
+      if (uri.includes("/programs/")) return { metaData: { "adtcore:name": "ZREPORT", "adtcore:type": "PROG/P" }, links: [] }
+      return originalStructure(uri)
+    },
+    async getMainPrograms() { return [{ "adtcore:uri": "/sap/bc/adt/programs/programs/zreport" }] },
+    async checkAtcVariant() { return `WL${++worklists}` },
+    async runAtc(id: string) { runs++; return { id, timestamp: 1, infos: [] } },
+    async getAtcWorklist() { return { objects: [] } }
+  })
+  const report = await service.manageTransportRequests({ action: "assess_transport", connectionId: "DEV100", transportNumber: "DEVK900123", checks: ["atc"], startIndex: 0, maxResults: 50, includeObjects: false }) as any
+  t.after(() => rm(dirname(report.reports[0].outputPath), { recursive: true, force: true }))
+  assert.equal(worklists, 1)
+  assert.equal(runs, 1)
+  assert.equal(report.objects[0].atcTarget.name, "ZREPORT")
+  assert.equal(report.objects[1].atcTarget.name, "ZREPORT")
+  assert.equal(report.objects[2].atc.status, "error")
+  assert.equal(report.summary.incompleteChecks, 1)
+})
+
+test("transport ATC uses the verified include URI when CTS search and main-program lookup fail", async t => {
+  const { fake, service } = createBdefHarness()
+  const originalTransport = fake.getTransportDetails.bind(fake)
+  const includeUri = "/sap/bc/adt/programs/includes/zinc"
+  const lookups: string[] = []
+  const checks: string[] = []
+  Object.assign(fake, {
+    async getTransportDetails(number: string) {
+      const transport = await originalTransport(number)
+      transport.objects = [{ "tm:pgmid": "LIMU", "tm:type": "REPS", "tm:name": "ZINC", "tm:dummy_uri": "/sap/bc/adt/cts/objects/1", "tm:obj_info": "" }]
+      return transport
+    },
+    async searchObjects() { return [] },
+    async getObjectStructure(uri: string) {
+      assert.equal(uri, includeUri)
+      return { metaData: { "adtcore:name": "ZINC", "adtcore:type": "PROG/I" }, links: [] }
+    },
+    async getMainPrograms(uri: string) { lookups.push(uri); throw new Error("Main program unavailable") },
+    async checkAtcVariant() { return "WL123" },
+    async runAtc(id: string, uri: string) { checks.push(uri); return { id, timestamp: 1, infos: [{ type: "FINDING_STATS", description: "1,0,0" }] } },
+    async getAtcWorklist() { return { objectSetIsComplete: false, objects: [] } }
+  })
+  const report = await service.manageTransportRequests({ action: "assess_transport", connectionId: "DEV100", transportNumber: "DEVK900123", checks: ["atc"], startIndex: 0, maxResults: 50, includeObjects: false }) as any
+  t.after(() => rm(dirname(report.reports[0].outputPath), { recursive: true, force: true }))
+  assert.deepEqual(lookups, [includeUri])
+  assert.deepEqual(checks, [includeUri])
+  assert.equal(report.objects[0].atcTarget.uri, includeUri)
+  assert.equal(report.objects[0].atc.status, "incomplete")
+  assert.equal(report.gate.status, "incomplete")
+  assert.deepEqual(report.objects[0].atc.notices.map((notice: { code: string }) => notice.code), ["ATC_WORKLIST_INCOMPLETE", "ATC_FINDING_STATS_MISMATCH"])
+})
+
+test("transport ATC assesses a resolved function-group include and its group only once", async t => {
+  const { fake, service } = createBdefHarness()
+  const originalTransport = fake.getTransportDetails.bind(fake)
+  const groupUri = "/sap/bc/adt/functions/groups/zgroup"
+  const checks: string[] = []
+  Object.assign(fake, {
+    async getTransportDetails(number: string) {
+      const transport = await originalTransport(number)
+      transport.objects = [
+        { "tm:pgmid": "LIMU", "tm:type": "REPS", "tm:name": "LZGROUPF01", "tm:dummy_uri": "/sap/bc/adt/cts/objects/1", "tm:obj_info": "" },
+        { "tm:pgmid": "R3TR", "tm:type": "FUGR", "tm:name": "ZGROUP", "tm:dummy_uri": "", "tm:obj_info": "" }
+      ]
+      return transport
+    },
+    async searchObjects(name: string, type?: string) {
+      if (type === "FUGR/I") return [{ name, type, uri: `${groupUri}/includes/lzgroupf01` }]
+      if (type === "FUGR") return [{ name, type: "FUGR/F", uri: groupUri }]
+      return []
+    },
+    async checkAtcVariant() { return "WL123" },
+    async runAtc(id: string, uri: string) { checks.push(uri); return { id, timestamp: 1, infos: [] } },
+    async getAtcWorklist() { return { objects: [] } }
+  })
+  const report = await service.manageTransportRequests({ action: "assess_transport", connectionId: "DEV100", transportNumber: "DEVK900123", checks: ["atc"], startIndex: 0, maxResults: 50, includeObjects: false }) as any
+  t.after(() => rm(dirname(report.reports[0].outputPath), { recursive: true, force: true }))
+  assert.deepEqual(checks, [groupUri])
+  assert.deepEqual(report.objects.map((item: any) => item.atcTarget), [{ type: "FUGR", name: "ZGROUP" }, { type: "FUGR", name: "ZGROUP" }])
 })

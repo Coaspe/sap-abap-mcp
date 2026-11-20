@@ -4,6 +4,16 @@ All notable changes to `@coaspe/sap-abap-mcp` are documented here. This project 
 
 ## Unreleased
 
+## 2.3.0 — 2026-11-20
+
+- Discover the SAP ADT background collection before releasing object-bearing transports. Preserve Task-before-Request ordering and report the stage of a failed release without replaying it.
+- Resolve CTS Request and Task details by their exact number. Verify the requested key after adding a CTS object and skip the write when that exact key already exists.
+- Isolate ATC worklists, retain findings with verified target locations, and assess each normalized transport target once. Make incomplete ATC evidence visible in the transport gate.
+- Add ADT links, optional method-scoped reads and patches, explicit active-source reads, and a configurable data-source policy with protected defaults. Method-scoped changes still send the reconstructed source through ADT.
+- Verify activation outcomes and add a private-cloud acceptance kit with allowlisted evidence output. Update production dependencies for the npm audit findings reported during release preparation.
+
+The CTS acceptance run for the preceding internal build confirmed Request and Task release, exact detail reads, and CTS add verification. Separate `LIMU DOMD` registration was not observed when its parent `R3TR DOMA` was already present. V4 service unpublish, live multi-page transport search and customer CI integration were not verified. Earlier field runs also encountered incomplete transport history and a rejected top-level package creation.
+
 ## 2.2.0 — 2026-10-21
 
 - Update MCP SDK to 1.32.1 and refresh follow-redirects/Hono to their patched releases; production dependency audit reports no known vulnerabilities at release preparation.
