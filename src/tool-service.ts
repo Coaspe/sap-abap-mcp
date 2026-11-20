@@ -8,10 +8,12 @@ import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 import { createTwoFilesPatch, diffLines } from "diff"
 import { sanitizeV1Message } from "./mcp/v1/result.js"
-import { toAdtResourceUri } from "./mcp/v1/resource-uri.js"
+import { toAdtIdeUri, toAdtResourceUri } from "./mcp/v1/resource-uri.js"
 import { PublicApiCache } from "./public-api-cache.js"
 import { AppError } from "./errors.js"
-import { requireDataQueryOptIn } from "./data-access-policy.js"
+import { requireAllowedDataSources, requireDataQueryOptIn } from "./data-access-policy.js"
+import { findMethodRange, validateMethodPatch } from "./method-range.js"
+import { dictionaryTransportOwnerType, normalizeAtcTransportTarget } from "./atc-transport-target.js"
 import {
   isCreatableTypeId,
   isGroupType,
@@ -60,6 +62,7 @@ import {
   type ChangeAssuranceReport
 } from "./change-assurance.js"
 import type { ConnectionSummary } from "./connection-manager.js"
+import type { SapProfile } from "./profile-store.js"
 import {
   readAbapFsDocumentation,
   type DocumentationAction
@@ -125,6 +128,7 @@ interface CachedAtcDecoration {
 export interface ConnectionProvider {
   listConnections(): Promise<ConnectionSummary[]>
   getClient(connectionId: string): Promise<SapClient>
+  getProfile?(connectionId: string): Promise<SapProfile>
 }
 
 export interface SearchObjectsInput {
@@ -138,6 +142,7 @@ export interface GetObjectLinesInput {
   objectName: string
   objectType?: string
   methodName?: string
+  version?: "active"
   startLine: number
   lineCount: number
   connectionId: string
@@ -226,6 +231,8 @@ export interface GetObjectByUriInput {
   startLine: number
   lineCount: number
   connectionId: string
+  methodName?: string
+  version?: "active"
 }
 
 export interface WhereUsedFilter {
@@ -290,6 +297,7 @@ export interface DiagnosticsInput extends WorkspaceFileInput {
 export interface ReplaceStringInput extends WorkspaceFileInput {
   oldString: string
   newString: string
+  methodName?: string
   transport?: string
   activate: boolean
 }
@@ -903,28 +911,12 @@ export function extractAbapMethod(
   source: string,
   methodName: string
 ): { code: string; startLine: number; endLine: number } | undefined {
-  const lines = source.split(/\r?\n/)
-  const escapedName = methodName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const startPattern = new RegExp(`^\\s*METHOD\\s+(?:\\w+~)?${escapedName}\\s*\\.`, "i")
-  let startIndex = -1
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index] ?? ""
-    const trimmed = line.trim()
-    if (trimmed.startsWith("*") || trimmed.startsWith('"')) continue
-    if (startIndex < 0 && startPattern.test(line)) {
-      startIndex = index
-      continue
-    }
-    if (startIndex >= 0 && /^\s*ENDMETHOD\s*\./i.test(line)) {
-      return {
-        code: lines.slice(startIndex, index + 1).join("\n"),
-        startLine: startIndex + 1,
-        endLine: index + 1
-      }
-    }
-  }
-  return undefined
+  const method = findMethodRange(source, methodName)
+  if (!method) return undefined
+  const lineStart = source.lastIndexOf("\n", method.start - 1) + 1
+  const start = /^\s*$/.test(source.slice(lineStart, method.start)) ? lineStart : method.start
+  return { code: source.slice(start, method.end).replace(/\r\n/g, "\n"),
+    startLine: method.startLine, endLine: method.endLine }
 }
 
 function sameType(actual: string, expected?: string): boolean {
@@ -1151,6 +1143,17 @@ function syntaxObjectUriFromSourceUri(objectUri: string, sourceUri: string): str
     : objectUri
 }
 
+function activationMessageFields<T extends object>(message: T) {
+  if (!message || typeof message !== "object") return message
+  const raw = message as Record<string, unknown>
+  const messageClass = raw.messageClass ?? raw.msgid
+  const messageNumber = raw.messageNumber ?? raw.msgno
+  if (messageClass === undefined && messageNumber === undefined) return message
+  return { ...message,
+    ...(typeof messageClass === "string" ? { messageClass } : {}),
+    ...(typeof messageNumber === "string" ? { messageNumber } : {}) }
+}
+
 function canonicalActivationUri(value: unknown): string | undefined {
   if (typeof value !== "string" || !value.trim()) return undefined
   const candidate = value.trim()
@@ -1181,6 +1184,15 @@ function canonicalActivationUri(value: unknown): string | undefined {
   const normalized = objectUriFromSourceUri(pathname).replace(/\/+$/, "")
   if (normalized.toLowerCase() === "/sap/bc/adt") return undefined
   return normalized.toLowerCase()
+}
+
+function atcPathBelongsToTarget(path: string | undefined, target: string | undefined): boolean {
+  if (!path || !target) return false
+  if (path === target) return true
+  const member = path.startsWith(`${target}/`) ? path.slice(target.length + 1) : ""
+  if (/\/oo\/(?:classes|interfaces)\//.test(target)) return /^(?:includes|methods)\//.test(member)
+  if (/\/functions\/groups\/(?:\/[^/]+\/)?[^/]+$/.test(target)) return /^(?:includes|fmodules)\//.test(member)
+  return false
 }
 
 export function replaceExactlyOnce(content: string, oldString: string, newString: string): string {
@@ -3025,6 +3037,14 @@ export class AbapToolService {
         "Provide exactly one of sql or data, or webviewId for a cached result"
       )
     }
+    if (input.sql) {
+      validateReadOnlySql(input.sql)
+      const profile = await this.connections.getProfile?.(input.connectionId)
+      if (profile) {
+        requireDataQueryOptIn(profile)
+        requireAllowedDataSources(profile, input.sql)
+      }
+    }
     const client = await this.connections.getClient(input.connectionId)
     if (client.profile.environment === "production" && input.displayMode !== "download_to_file") {
       throw new AppError(
@@ -3035,6 +3055,7 @@ export class AbapToolService {
     if (input.sql) {
       validateReadOnlySql(input.sql)
       requireDataQueryOptIn(client.profile)
+      requireAllowedDataSources(client.profile, input.sql)
     }
     if (input.displayMode === "internal") {
       if (!input.rowRange) {
@@ -3167,7 +3188,7 @@ export class AbapToolService {
       rules: [
         "Only SELECT and WITH statements are accepted by this MCP tool.",
         "Caller-supplied SQL requires a development or quality profile with data queries explicitly enabled during setup or with --allow-data-queries.",
-        "The opt-in permits all read-only table queries, including access to sensitive business and personal data allowed by the SAP user.",
+        "Configured blocked data-source identifiers are refused before a query; SAP authorization and access to indirect views remain the operator's responsibility.",
         "Use ABAP Dictionary table/view names and ABAP field names, not CDS SQL-view aliases unless the backend exposes them.",
         "Use single quotes for character literals and double single-quotes to escape an apostrophe.",
         "Prefer explicit field lists. Do not send INSERT, UPDATE, DELETE, MODIFY, DDL, comments, or multiple statements.",
@@ -3187,7 +3208,7 @@ export class AbapToolService {
       property => property.name === "systemCheckVariant"
     )
     const variant = String(variantProperty?.value ?? "")
-    if (!variant || !(await client.checkAtcVariant(variant))) {
+    if (!variant) {
       throw new AppError("ATC_VARIANT_NOT_FOUND", "No system ATC check variant is available")
     }
     return variant
@@ -3226,20 +3247,22 @@ export class AbapToolService {
       }
     }
 
-    let target: EditableTarget
+    let target: Pick<EditableTarget, "connectionId" | "client" | "object" | "objectUri" | "sourceUri">
     if (input.objectUri) {
-      target = await this.resolveEditableTarget({
-        fileUri: input.objectUri,
-        ...(input.connectionId ? { connectionId: input.connectionId } : {})
-      })
+      const location = parseAdtLocation(input.objectUri, input.connectionId)
+      const client = await this.connections.getClient(location.connectionId)
+      const objectUri = objectUriFromSourceUri(location.path)
+      const structure = await client.getObjectStructure(objectUri)
+      const object = { name: structure.metaData["adtcore:name"], type: structure.metaData["adtcore:type"], uri: objectUri }
+      let sourceUri = location.path
+      try { sourceUri = (await client.readObject(object)).sourceUri } catch { /* Structured repository objects may not expose source. */ }
+      target = { connectionId: location.connectionId, client, object, objectUri, sourceUri }
     } else if (input.objectName && input.connectionId) {
       const client = await this.connections.getClient(input.connectionId)
       const object = await resolveObject(client, input.objectName, input.objectType)
-      const source = await client.readObject(object)
-      target = await this.resolveEditableTarget({
-        fileUri: source.sourceUri,
-        connectionId: input.connectionId
-      })
+      let sourceUri = object.uri
+      try { sourceUri = (await client.readObject(object)).sourceUri } catch { /* Structured repository objects may not expose source. */ }
+      target = { connectionId: input.connectionId.toUpperCase(), client, object, objectUri: object.uri, sourceUri }
     } else {
       throw new AppError(
         "ATC_TARGET_REQUIRED",
@@ -3248,10 +3271,27 @@ export class AbapToolService {
     }
 
     const variant = preparedVariant ?? await this.systemAtcVariant(target.client)
-    const run = await target.client.runAtc(variant, target.sourceUri, 1000)
-    const worklist = await target.client.getAtcWorklist(run)
-    const findings = worklist.objects.flatMap(object =>
-      object.findings.map(finding => ({
+    const worklistId = (await target.client.checkAtcVariant(variant)).trim()
+    if (!worklistId) throw new AppError("ATC_WORKLIST_NOT_CREATED", "ATC did not return a worklist ID")
+    const run = await target.client.runAtc(worklistId, target.objectUri, 1000)
+    if (!run.id?.trim() || /^0+$/.test(run.id.trim())) throw new AppError("ATC_RUN_INVALID", "ATC returned an invalid worklist ID")
+    const warnings: Array<{ code: string; message: string }> = []
+    if (run.id.trim() !== worklistId) warnings.push({ code: "ATC_WORKLIST_ID_MISMATCH", message: "The run returned a different worklist ID; the requested worklist was read." })
+    const worklist = await target.client.getAtcWorklist({ ...run, id: worklistId })
+    const targetPath = canonicalActivationUri(target.objectUri)
+    let excluded = false
+    const findings = worklist.objects.flatMap(object => {
+      const objectPath = canonicalActivationUri(object.uri)
+      const pathMatches = atcPathBelongsToTarget(objectPath, targetPath)
+      const sameIdentity = object.name.toUpperCase() === target.object.name.toUpperCase() &&
+        sameType(object.type, target.object.type.split("/")[0])
+      const opaquePath = !objectPath || objectPath.startsWith("/sap/bc/adt/atc/")
+      return object.findings.filter(finding => {
+        const matches = pathMatches || (sameIdentity && opaquePath &&
+          atcPathBelongsToTarget(canonicalActivationUri(finding.location?.uri), targetPath))
+        if (!matches) excluded = true
+        return matches
+      }).map(finding => ({
         object: {
           name: object.name,
           type: object.type,
@@ -3267,11 +3307,17 @@ export class AbapToolService {
           messageId: finding.messageId,
           messageTitle: finding.messageTitle,
           location: finding.location,
+          ...(toAdtIdeUri(target.connectionId, finding.location?.uri ?? object.uri,
+            finding.location?.range?.start?.line, finding.location?.range?.start?.column)
+            ? { adtUri: toAdtIdeUri(target.connectionId, finding.location?.uri ?? object.uri,
+                finding.location?.range?.start?.line, finding.location?.range?.start?.column) } : {}),
           exemptionApproval: finding.exemptionApproval || null,
           docUri: finding.link?.href || null
         }
       }))
-    )
+    })
+    if (excluded) warnings.push({ code: "ATC_FOREIGN_FINDINGS_EXCLUDED", message: "Findings without a verified link to the requested target were excluded." })
+    if (worklist.objectSetIsComplete === false) warnings.push({ code: "ATC_WORKLIST_INCOMPLETE", message: "SAP marked the ATC object set incomplete." })
     const workspaceUri = `adt://${target.connectionId.toLowerCase()}${target.sourceUri}`
     this.atcDecorations.set(workspaceUri, findings)
     const page = pageItems(findings, input.startIndex, input.maxResults)
@@ -3283,17 +3329,23 @@ export class AbapToolService {
       atcObjectKey(item),
       index
     ]))
+    const summary = {
+      total: findings.length,
+      errors: findings.filter(item => item.finding.priority === 1).length,
+      warnings: findings.filter(item => item.finding.priority === 2).length,
+      infos: findings.filter(item => item.finding.priority >= 3).length
+    }
+    const stats = run.infos.find(info => info.type === "FINDING_STATS")?.description.match(/^\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*$/)
+    if (stats && (Number(stats[1]) !== summary.errors || Number(stats[2]) !== summary.warnings || Number(stats[3]) !== summary.infos)) {
+      warnings.push({ code: "ATC_FINDING_STATS_MISMATCH", message: "Run finding statistics differ from the returned target findings." })
+    }
     return {
       connectionId: target.connectionId,
       target: objectIdentity(target.object),
       variant,
       run,
-      summary: {
-        total: findings.length,
-        errors: findings.filter(item => item.finding.priority === 1).length,
-        warnings: findings.filter(item => item.finding.priority === 2).length,
-        infos: findings.filter(item => item.finding.priority >= 3).length
-      },
+      summary,
+      warnings,
       objects: findingObjects,
       findings: page.items.map(item => ({
         objectIndex: objectIndexes.get(atcObjectKey(item.object))!,
@@ -3548,6 +3600,8 @@ export class AbapToolService {
     const objects: ChangeAssuranceObjectResult[] = []
     let atcVariant: string | undefined
     let atcPreparationError: unknown
+    const atcResults = new Map<string, NonNullable<ChangeAssuranceObjectResult["atc"]>>()
+    const countedAtcTargets = new Set<string>()
     if (checks.includes("atc")) {
       try {
         atcVariant = await this.systemAtcVariant(client)
@@ -3572,7 +3626,10 @@ export class AbapToolService {
       }
 
       if (checks.includes("atc")) {
-        if (atcPreparationError || !atcVariant) {
+        const normalized = normalizeAtcTransportTarget(transportObject)
+        if (normalized.kind === "skipped") {
+          result.atc = { status: "skipped", reason: normalized.reason }
+        } else if (atcPreparationError || !atcVariant) {
           result.atc = {
             status: "error",
             error: changeAssuranceError(
@@ -3585,11 +3642,62 @@ export class AbapToolService {
             )
           }
         } else {
+          let atcKey: string | undefined
           try {
+            let atcType = normalized.kind === "target" ? normalized.type : "PROG"
+            let atcName = normalized.name
+            let atcUri: string | undefined
+            if (normalized.kind === "function") {
+              const owningGroup = (item: SapObjectReference) => item.name.toUpperCase() === atcName
+                ? item.uri.match(/\/functions\/groups\/([^/]+)\/fmodules\//i)?.[1]
+                : undefined
+              let matches: SapObjectReference[] = []
+              try { matches = await client.searchObjects(atcName, "FUGR/FF", 50) } catch { /* Try unfiltered ADT search below. */ }
+              let group = matches.map(owningGroup).find(Boolean)
+              if (!group) group = (await client.searchObjects(atcName, undefined, 50)).map(owningGroup).find(Boolean)
+              if (!group) throw new AppError("ATC_FUNCTION_GROUP_NOT_FOUND", "Cannot resolve function module to its owning function group")
+              atcName = decodeURIComponent(group).toUpperCase()
+              atcType = "FUGR"
+            } else if (normalized.kind === "include" || (normalized.kind === "target" && normalized.type === "PROG")) {
+              let program: SapObjectReference
+              try { program = await resolveObject(client, atcName, "PROG") }
+              catch (error) {
+                if (normalized.kind !== "include") throw error
+                const groupInclude = (await client.searchObjects(atcName, "FUGR/I", 50).catch(() => []))
+                  .find(item => item.name.toUpperCase() === atcName && item.type.toUpperCase() === "FUGR/I" &&
+                    /^\/sap\/bc\/adt\/functions\/groups\/[^/]+\/includes\/[^/]+$/i.test(item.uri))
+                if (groupInclude) {
+                  program = groupInclude
+                } else {
+                  const includeUri = `/sap/bc/adt/programs/includes/${encodeURIComponent(atcName.toLowerCase())}`
+                  const structure = await client.getObjectStructure(includeUri)
+                  if (structure.metaData["adtcore:name"]?.toUpperCase() !== atcName ||
+                      structure.metaData["adtcore:type"]?.toUpperCase() !== "PROG/I") throw error
+                  program = { name: atcName, type: "PROG/I", uri: includeUri }
+                }
+              }
+              atcUri = program.uri
+              if (program.type.toUpperCase() === "PROG/I" || (type === "REPS" && program.type.toUpperCase() !== "FUGR/I")) {
+                try { atcUri = (await client.getMainPrograms(program.uri))[0]?.["adtcore:uri"] ?? program.uri } catch { /* Use the include itself if lookup fails. */ }
+              }
+              const group = atcUri.match(/^\/sap\/bc\/adt\/functions\/groups\/([^/]+)(?:\/includes\/[^/]+)?\/?$/i)
+              if (group) {
+                atcType = "FUGR"
+                atcName = decodeURIComponent(group[1]!).toUpperCase()
+                atcUri = undefined
+              }
+              const mainName = atcUri?.match(/\/programs\/programs\/([^/]+)\/?$/i)?.[1]
+              if (mainName) atcName = decodeURIComponent(mainName).toUpperCase()
+            }
+            result.atcTarget = { type: atcType, name: atcName, ...(atcUri ? { uri: atcUri } : {}) }
+            atcKey = atcUri ? `URI:${atcUri.toUpperCase()}` : `${atcType}:${atcName}`
+            const cached = atcResults.get(atcKey)
+            if (cached) {
+              result.atc = cached
+            } else {
             const atc = await this.runAtcAnalysisWithVariant({
               action: "run_analysis",
-              objectName: name,
-              objectType: type,
+              ...(atcUri ? { objectUri: atcUri } : { objectName: atcName, objectType: atcType }),
               connectionId: input.connectionId,
               startIndex: 0,
               maxResults: 1000,
@@ -3604,7 +3712,7 @@ export class AbapToolService {
             result.atc = {
               status: failed
                 ? "failed"
-                : atc.truncated
+                : atc.truncated || atc.warnings?.some(warning => warning.code !== "ATC_WORKLIST_ID_MISMATCH")
                   ? "incomplete"
                   : atc.summary.warnings > 0
                     ? "warning"
@@ -3615,16 +3723,20 @@ export class AbapToolService {
               infos: atc.summary.infos,
               returned: atc.returned ?? 0,
               truncated: atc.truncated,
+              ...(atc.warnings?.length ? { notices: atc.warnings } : {}),
               findings: (atc.findings ?? []).map(finding => {
                 const { objectIndex: _objectIndex, ...details } = finding
                 return details
               })
+            }
+            atcResults.set(atcKey, result.atc)
             }
           } catch (error) {
             result.atc = {
               status: "error",
               error: changeAssuranceError(error, "atc", key)
             }
+            if (atcKey) atcResults.set(atcKey, result.atc)
           }
         }
       }
@@ -3711,10 +3823,13 @@ export class AbapToolService {
     let failedChecks = 0
     let incompleteChecks = 0
     for (const item of objects) {
-      if (item.atc?.status === "passed") passedChecks += 1
-      if (item.atc?.status === "warning") warningChecks += 1
-      if (item.atc?.status === "failed") failedChecks += 1
-      if (item.atc?.status === "incomplete" || item.atc?.status === "error") {
+      const key = item.atcTarget?.uri ? `URI:${item.atcTarget.uri.toUpperCase()}` : item.atcTarget ? `${item.atcTarget.type}:${item.atcTarget.name}` : item.object.key
+      const countAtc = !countedAtcTargets.has(key)
+      countedAtcTargets.add(key)
+      if (countAtc && item.atc?.status === "passed") passedChecks += 1
+      if (countAtc && item.atc?.status === "warning") warningChecks += 1
+      if (countAtc && item.atc?.status === "failed") failedChecks += 1
+      if (countAtc && (item.atc?.status === "incomplete" || item.atc?.status === "error")) {
         incompleteChecks += 1
       }
       if (item.unitTests?.status === "passed") passedChecks += 1
@@ -3732,8 +3847,8 @@ export class AbapToolService {
       if (item.targetComparison?.status === "error") incompleteChecks += 1
     }
 
-    const atcErrors = objects.reduce((sum, item) => sum + (item.atc?.errors ?? 0), 0)
-    const atcWarnings = objects.reduce((sum, item) => sum + (item.atc?.warnings ?? 0), 0)
+    const atcErrors = [...atcResults.values()].reduce((sum, item) => sum + (item.errors ?? 0), 0)
+    const atcWarnings = [...atcResults.values()].reduce((sum, item) => sum + (item.warnings ?? 0), 0)
     const unitTests = objects.reduce((sum, item) => sum + (item.unitTests?.total ?? 0), 0)
     const unitTestFailures = objects.reduce(
       (sum, item) => sum + (item.unitTests?.failed ?? 0),
@@ -3977,7 +4092,7 @@ export class AbapToolService {
       if (parentProgramName) {
         const parentObject = await resolveObject(client, parentProgramName, "PROG/P")
         requireWritablePackage(client, parentObject.packageName)
-        await client.addTransportObjectByKey(
+        const addition = await client.addTransportObjectByKey(
           transportNumber,
           pgmid,
           objectType,
@@ -3986,18 +4101,21 @@ export class AbapToolService {
         return {
           connectionId: input.connectionId.toUpperCase(),
           transportNumber,
-          added: true,
+          added: addition === "added",
+          ...(addition === "already_present" ? { alreadyPresent: true } : {}),
           object: { pgmid, type: objectType, name: objectName, uri: null },
           parentObject: objectIdentity(parentObject)
         }
       }
-      const object = await resolveObject(client, objectName, objectType)
+      const dictionaryOwner = dictionaryTransportOwnerType(pgmid, objectType)
+      const object = await resolveObject(client, objectName, dictionaryOwner ?? objectType)
       requireWritablePackage(client, object.packageName)
-      await client.addTransportObjectByKey(transportNumber, pgmid, objectType.split("/")[0]!, objectName)
+      const addition = await client.addTransportObjectByKey(transportNumber, pgmid, objectType.split("/")[0]!, objectName)
       return {
         connectionId: input.connectionId.toUpperCase(),
         transportNumber,
-        added: true,
+        added: addition === "added",
+        ...(addition === "already_present" ? { alreadyPresent: true } : {}),
         object: {
           pgmid,
           type: objectType,
@@ -5143,6 +5261,9 @@ export class AbapToolService {
   async analyzeDumps(input: DumpAnalysisInput) {
     const client = await this.connections.getClient(input.connectionId)
     const feed = await client.getDumps()
+    const dumpLink = (dump: (typeof feed.dumps)[number]) =>
+      [dump.id, ...dump.links.map(link => link.href)]
+        .map(path => toAdtIdeUri(input.connectionId, path)).find(Boolean)
     if (input.action === "list_dumps") {
       const page = pageItems(feed.dumps, input.startIndex, input.maxResults)
       return {
@@ -5157,7 +5278,8 @@ export class AbapToolService {
           author: dump.author ?? null,
           type: dump.type,
           categories: dump.categories,
-          contentLength: dump.text.length
+          contentLength: dump.text.length,
+          ...(dumpLink(dump) ? { adtUri: dumpLink(dump) } : {})
         }))
       }
     }
@@ -5177,6 +5299,7 @@ export class AbapToolService {
       connectionId: input.connectionId.toUpperCase(),
       dump: {
         id: dump.id,
+        ...(dumpLink(dump) ? { adtUri: dumpLink(dump) } : {}),
         author: dump.author ?? null,
         type: dump.type,
         categories: dump.categories,
@@ -5553,11 +5676,22 @@ export class AbapToolService {
       if (task.reminderOnly) {
         result = { status: "reminder_due", description: task.description }
       } else if (task.connectionId) {
+        if (task.sampleQuery) {
+          validateReadOnlySql(task.sampleQuery)
+          const profile = await this.connections.getProfile?.(task.connectionId)
+          if (profile) {
+            requireDataQueryOptIn(profile)
+            requireAllowedDataSources(profile, task.sampleQuery)
+          }
+        }
         const client = await this.connections.getClient(task.connectionId)
-        const ping = await client.ping()
         if (task.sampleQuery) {
           validateReadOnlySql(task.sampleQuery)
           requireDataQueryOptIn(client.profile)
+          requireAllowedDataSources(client.profile, task.sampleQuery)
+        }
+        const ping = await client.ping()
+        if (task.sampleQuery) {
           const query = await client.runQuery(task.sampleQuery, 1000)
           const count = query.values.length
           result = {
@@ -5612,6 +5746,12 @@ export class AbapToolService {
     const packageName = requireWritablePackage(target.client, target.object.packageName)
     const transport = requireTransport(packageName, input.transport)
     const updated = replaceExactlyOnce(target.source, input.oldString, input.newString)
+    if (input.methodName) {
+      if (!target.object.type.toUpperCase().startsWith("CLAS")) {
+        throw new AppError("SAP_VALIDATION_FAILED", "Method-scoped patch requires a class")
+      }
+      validateMethodPatch(target.source, updated, input.oldString, input.methodName)
+    }
     const result = await target.client.replaceSource(
       target.object.name,
       target.objectUri,
@@ -5629,6 +5769,7 @@ export class AbapToolService {
       object: objectIdentity(target.object),
       sourceUri: target.sourceUri,
       workspaceUri: `adt://${target.connectionId.toLowerCase()}${target.sourceUri}`,
+      ...(toAdtIdeUri(target.connectionId, target.sourceUri) ? { adtUri: toAdtIdeUri(target.connectionId, target.sourceUri) } : {}),
       changed: true,
       oldLineCount: input.oldString.split(/\r?\n/).length,
       newLineCount: input.newString.split(/\r?\n/).length,
@@ -5663,7 +5804,10 @@ export class AbapToolService {
       returned: page.returned,
       truncated: page.truncated,
       nextStartIndex: page.nextStartIndex,
-      diagnostics: page.items
+      diagnostics: page.items.map(item => ({ ...item,
+        ...(toAdtIdeUri(target.connectionId, item.uri, item.line, item.offset)
+          ? { adtUri: toAdtIdeUri(target.connectionId, item.uri, item.line, item.offset) } : {})
+      }))
     }
   }
 
@@ -5698,12 +5842,15 @@ export class AbapToolService {
         target.objectUri,
         target.mainProgram
       )
+      const messages = result.messages.map(activationMessageFields)
       return {
         connectionId: target.connectionId,
         object: objectIdentity(target.object),
         success: result.success,
-        messages: result.messages,
-        inactive: result.inactive
+        messages,
+        inactive: result.inactive,
+        status: result.success && result.inactive.length === 0 && !result.messages.some(message => /^(E|A|X|ERROR)$/i.test(message?.type?.trim() ?? "")) ? "complete" as const : "failed" as const,
+        objectResults: [{ object: objectIdentity(target.object), outcome: result.success && result.inactive.length === 0 && !result.messages.some(message => /^(E|A|X|ERROR)$/i.test(message?.type?.trim() ?? "")) ? "activated" as const : "failed" as const, messages }]
       }
     }
 
@@ -5772,7 +5919,7 @@ export class AbapToolService {
         "/sap/bc/adt/activation",
         () => client.activateObjects(submitted.map(item => item.inactive))
       )
-      activation = executed.result
+      activation = { ...executed.result, messages: executed.result.messages.map(activationMessageFields) }
       capabilityStatusAtExecution = executed.capabilityStatusAtExecution
     }
 
@@ -5780,7 +5927,19 @@ export class AbapToolService {
       const uri = canonicalActivationUri(record?.object?.["adtcore:uri"])
       return uri ? [uri] : []
     }))
-    const objectResults = targets.map(target => {
+    // A partial batch receipt can omit the objects that did activate. Corroborate
+    // them with the new inactive list and the exact source submitted for activation.
+    let inactiveAfter: Set<string> | undefined
+    if (!activation.success && submitted.length > 0) {
+      try {
+        inactiveAfter = new Set((await client.getInactiveObjects()).flatMap(record => {
+          const uri = canonicalActivationUri(record?.object?.["adtcore:uri"])
+          return uri ? [uri] : []
+        }))
+      } catch { /* Without read-back, unconfirmed outcomes remain unknown. */ }
+    }
+    const objectResults = []
+    for (const target of targets) {
       const uri = canonicalActivationUri(target.objectUri)
       const escapedName = target.object.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
       const namePattern = new RegExp(
@@ -5792,19 +5951,32 @@ export class AbapToolService {
         if (href !== undefined) return href === uri
         return typeof message?.objDescr === "string" && namePattern.test(message.objDescr)
       })
-      const failed = (uri !== undefined && remainingUris.has(uri)) || messages.some(message =>
+      let failed = (uri !== undefined && remainingUris.has(uri)) || messages.some(message =>
         typeof message?.type === "string" && /^(E|A|X|ERROR)$/i.test(message.type.trim())
       )
-      return {
-        object: objectIdentity(target.object),
-        outcome: failed
-          ? "failed"
-          : uri !== undefined && submittedUris.has(uri) && activation.success
-            ? "activated"
-            : "unknown",
-        messages
+      let activated = uri !== undefined && submittedUris.has(uri) && activation.success
+      let outcomeReason: "ACTIVE_SOURCE_DIFFERS" | undefined
+      if (!failed && !activation.success && uri && submittedUris.has(uri)) {
+        try {
+          const active = await client.readSourceByUri(target.sourceUri, "active")
+          if (active.source !== target.source) {
+            failed = true
+            outcomeReason = "ACTIVE_SOURCE_DIFFERS"
+          } else if (inactiveAfter && !inactiveAfter.has(uri)) {
+            activated = true
+          }
+        } catch { /* Without active read-back there is no source outcome to report. */ }
       }
-    })
+      objectResults.push({
+        object: objectIdentity(target.object),
+        ...(toAdtIdeUri(connectionId, target.objectUri) ? { adtUri: toAdtIdeUri(connectionId, target.objectUri) } : {}),
+        outcome: failed
+          ? "failed" as const
+          : activated ? "activated" as const : "unknown" as const,
+        ...(outcomeReason ? { outcomeReason } : {}),
+        messages
+      })
+    }
     const status = objectResults.every(item => item.outcome === "activated")
       ? "complete"
       : objectResults.every(item => item.outcome === "failed")
@@ -5851,7 +6023,7 @@ export class AbapToolService {
     const client = await this.connections.getClient(input.connectionId)
     const object = await resolveObject(client, input.objectName, input.objectType)
 
-    const result = await client.readObject(object)
+    const result = input.version === "active" ? await client.readSourceByUri(object.uri, "active") : await client.readObject(object)
     if (input.methodName) {
       const method = extractAbapMethod(result.source, input.methodName)
       if (!method) {
@@ -5861,14 +6033,15 @@ export class AbapToolService {
         )
       }
       const methodLines = method.code.split(/\r?\n/)
-      const selected = selectLines(methodLines, 0, methodLines.length)
+      const offset = Math.min(methodLines.length, Math.max(0, input.startLine - method.startLine))
+      const selected = selectLines(methodLines, offset, input.lineCount)
       return {
         connectionId: input.connectionId.toUpperCase(),
         object: objectIdentity(object),
         sourceUri: result.sourceUri,
         methodName: input.methodName,
-        startLine: method.startLine,
-        endLine: method.startLine + selected.selected.length - 1,
+        startLine: method.startLine + offset,
+        endLine: method.startLine + selected.endIndex - 1,
         methodEndLine: method.endLine,
         truncated: selected.truncated,
         nextLine: selected.nextIndex === null ? null : method.startLine + selected.nextIndex,
@@ -6115,6 +6288,8 @@ export class AbapToolService {
       connectionId: input.connectionId.toUpperCase(),
       object,
       sourceUri: source?.sourceUri ?? null,
+      ...(toAdtIdeUri(input.connectionId, source?.sourceUri ?? object.uri)
+        ? { adtUri: toAdtIdeUri(input.connectionId, source?.sourceUri ?? object.uri) } : {}),
       totalLines: source ? source.source.split(/\r?\n/).length : null,
       structureSummary: {
         changedAt: structure.metaData["adtcore:changedAt"],
@@ -6505,8 +6680,24 @@ export class AbapToolService {
 
   async getObjectByUri(input: GetObjectByUriInput) {
     const client = await this.connections.getClient(input.connectionId)
-    const result = await client.readSourceByUri(input.uri)
+    const result = await client.readSourceByUri(input.uri, input.version)
     const lines = result.source.split(/\r?\n/)
+    if (input.methodName) {
+      if (!input.uri.toLowerCase().startsWith("/sap/bc/adt/oo/classes/")) {
+        throw new AppError("SAP_VALIDATION_FAILED", "Method-scoped read requires a class source URI")
+      }
+      const method = extractAbapMethod(result.source, input.methodName)
+      if (!method) throw new AppError("METHOD_NOT_FOUND", `Method ${input.methodName} was not found`)
+      const methodLines = method.code.split(/\r?\n/)
+      const offset = Math.min(methodLines.length, Math.max(0, input.startLine - (method.startLine - 1)))
+      const selected = selectLines(methodLines, offset, input.lineCount)
+      return { connectionId: input.connectionId.toUpperCase(), requestedUri: input.uri,
+        sourceUri: result.sourceUri, methodName: input.methodName, methodEndLine: method.endLine,
+        startLine: method.startLine - 1 + offset, endLine: method.startLine - 1 + selected.endIndex,
+        totalLines: lines.length, truncated: selected.truncated,
+        nextLine: selected.nextIndex === null ? null : method.startLine - 1 + selected.nextIndex,
+        code: selected.selected.join("\n") }
+    }
     const selected = selectLines(lines, input.startLine, input.lineCount)
     return {
       connectionId: input.connectionId.toUpperCase(),

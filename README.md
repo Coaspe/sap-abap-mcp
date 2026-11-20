@@ -5,22 +5,36 @@
 
 Connect your AI assistant to an ADT-enabled SAP system to read ABAP, make scoped changes and inspect actual check results.
 
+- **Small gateway:** the current checkout's five-tool minimal mode measured **1,024 estimated initial tokens** in an offline fixture; an earlier measurement was 961.
+- **Six hosts:** start onboarding with one command for Claude Code, Codex, VS Code, Cursor, Gemini CLI or Claude Desktop.
+- **Headless transport assurance:** run `assure` in CI to evaluate configured checks without releasing the transport.
+
+SAP's official ADT MCP is IDE-integrated and overlaps with development and ATC workflows. See the [side-by-side and SAP API Policy review](docs/sap-api-policy-and-coexistence.md); no live-SAP or policy approval is implied.
+
 ![SAP ABAP MCP demo](https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/demo.gif)
 
-## Quick start
+## Quick start: launch in 30 seconds
+
+Launching the command is quick; connection setup, VPN and SAP authorization can take longer.
 
 1. Install Node.js 22/24 and connect to your company VPN.
-2. Run `npx -y @coaspe/sap-abap-mcp@2.2.0 onboard` (`npx.cmd` on Windows).
+2. Run `npx -y @coaspe/sap-abap-mcp@2.3.0 onboard` (`npx.cmd` on Windows).
 3. Verify and save your SAP connection, register your host, then restart the app and verify an actual SAP system read.
 
 | Host | Setup command |
 |---|---|
-| Claude Code | `npx -y @coaspe/sap-abap-mcp@2.2.0 onboard` |
-| Codex | `npx -y @coaspe/sap-abap-mcp@2.2.0 onboard` |
-| VS Code | `npx -y @coaspe/sap-abap-mcp@2.2.0 register DEV100 --client vscode --apply` |
-| Cursor | `npx -y @coaspe/sap-abap-mcp@2.2.0 register DEV100 --client cursor --apply` |
-| Gemini CLI | `npx -y @coaspe/sap-abap-mcp@2.2.0 register DEV100 --client gemini --apply` |
-| Claude Desktop | `npx -y @coaspe/sap-abap-mcp@2.2.0 register DEV100 --client claude-desktop --apply` |
+| Claude Code | `npx -y @coaspe/sap-abap-mcp@2.3.0 onboard` |
+| Codex | `npx -y @coaspe/sap-abap-mcp@2.3.0 onboard` |
+| VS Code | `npx -y @coaspe/sap-abap-mcp@2.3.0 register DEV100 --client vscode --apply` |
+| Cursor | `npx -y @coaspe/sap-abap-mcp@2.3.0 register DEV100 --client cursor --apply` |
+| Gemini CLI | `npx -y @coaspe/sap-abap-mcp@2.3.0 register DEV100 --client gemini --apply` |
+| Claude Desktop | `npx -y @coaspe/sap-abap-mcp@2.3.0 register DEV100 --client claude-desktop --apply` |
+
+## Try a practical prompt
+
+- "In DEV100, find class ZCL_EXAMPLE and explain the public methods; do not change anything."
+- "Compare the implementation of ZCL_EXAMPLE in DEV100 and QAS200 and report differences."
+- "Inspect transport DEVK900123, run the approved checks, and report failures without releasing it."
 
 Version **2.2.0** includes company CA files, six-host registration and Windows SAP
 Logon import. Omit `--apply` to preview a registration; existing entries are
@@ -30,7 +44,7 @@ should avoid a duplicate registration. On Windows replace `npx` with `npx.cmd`.
 CA profiles use file format version 3 and need 2.2.0 or later. Existing npm
 registrations pin their package version: restart alone does not update a 2.1.0
 registration. Use [registration doctor and reviewed repair](docs/registration-recovery.md)
-to update an existing registration to 2.2.0 before using a CA profile.
+to update a pinned registration to the version you intend to run.
 
 See [setup details](docs/setup-and-profiles.md#quick-start-details), including
 Linux environment-only credentials and registration recovery.
@@ -41,18 +55,13 @@ even when Node inherits a PowerShell 7 module path. Bundled npm/npx Windows
 launchers are resolved without a shell while preserving custom wrappers. This release also reduces the runtime package. Patched vendor bytes are preserved across Windows
 and Unix checkouts. Existing five gateways still reach 120 capabilities.
 
-## Fixes in 2.2.0
+## What's new in 2.3.0
 
-Repeated source patches use the same current-source view, preserve literal `$`
-sequences and activate after unlock. Transport release supports ADT background
-runs; the release also improves RAP response recovery, V4 unpublish errors,
-old open-transport discovery, CTS-key object assignment, Dictionary checks and
-top-level package creation. See [the eight fixes and validation limits](docs/bugfixes-2026-10-21.ko.md).
+- **Transport release and inspection.** Discover the SAP ADT background endpoint before release, verify the exact Request or Task, and keep Task-before-Request ordering. CTS object addition confirms the exact key on read-back and avoids duplicate writes.
+- **ATC results.** Isolate worklists, keep findings that match the target, and count each resolved transport object once. Incomplete evidence stays visible in the gate.
+- **Source and data controls.** Open ADT links from supported results, read active source explicitly, and scope class changes to a method. The ADT client sends the reconstructed source. The data policy can block configured table and view names before a query reaches SAP.
 
-These paths have local automated coverage. Live B4D write/release acceptance
-has not been established by this release. Older npm 2.1.0 still has the reported
-source-patch limitations; upgrading the package and its pinned host registration
-is required to use the fixes.
+See the [2.3.0 changelog](https://github.com/Coaspe/sap-abap-mcp/blob/v2.3.0/CHANGELOG.md#230--2026-11-20) and [verification limits](#verified-environments-and-limits).
 
 ## One existing-object change
 
@@ -61,8 +70,7 @@ exact Z program/class as `target`, and desired behavior in `goal`. It reuses
 source, semantic/public API, dependency, quality and transport features.
 
 Production/read-only policy, package restrictions, transport requirements and
-exact-source checks remain enforced. In 2.2.0, source writes
-recheck the same current-source view under lock, without an explicit inactive
+exact-source checks remain enforced. Source writes recheck the same current-source view under lock, without an explicit inactive
 probe. A changed current version stops the write. Requested activation follows
 successful unlock and is skipped on syntax errors. Uncertain
 multi-object writes stop with saved/uncertain/unattempted identities; there is
@@ -83,8 +91,12 @@ See [workflow prompts](docs/workflow-prompts.md) and [T1–T5 criteria](docs/aba
 | Windows read-only field procedure | Owner reports all supplied steps passed without candidate source changes; [sanitized operation records were not supplied](docs/evidence/owner-windows-readonly-report.json) |
 | Windows DPAPI / npx.cmd automation | [Windows CI passed](docs/evidence/windows-ci-210.json): native storage/module-shadow regression, bundled launchers and eight installed-tarball protocol cases |
 | Native Desktop MCPB / host restart | Standalone bundle checks and an owner's overall field report remain distinct from retained app-level evidence |
-| Current 2.x live-SAP acceptance | **not verified** by retained operation-level records; owner-reported read-only completion is recorded separately |
+| SAP transport acceptance | A pre-release build passed Request and Task release, exact Request/Task lookup, CTS add verification and duplicate prevention in a development SAP system. This covers those cases in that build and environment. |
+| V4 service unpublish | Live verification remains open. The development client blocked publication of the test service. |
+| Multi-page transport search and customer CI | Live multi-page search lacked a fixture with multiple result pages. No accessible customer CI pipeline was available for integration verification. |
 | Historical live SAP / model comparison | 2026-08-05 results are historical; no identical-model T1–T5 completion rate or product ranking is established |
+
+Known SAP limitations from earlier field runs: older requests may be missing when the SAP system does not advertise all-date search. Top-level package creation was rejected by the tested backend. Separate `LIMU DOMD` registration was not observed in a task already containing the parent `R3TR DOMA`; the tool verifies the requested key before reporting success. The acceptance kit skips lookup of previous ABAP Unit runs.
 
 Candidate measurements reduced compressed npm size from 26.29 to 13.33 MB and
 installed dependency bytes from 118.89 to 91.81 MB. Three warm protocol sessions
@@ -107,8 +119,8 @@ speed improvement is claimed. See [exact snapshots and limits](docs/evidence/can
 
 - [Transport `assure` and CI](docs/product-reference.md#transport-change-assurance), [full reference](docs/product-reference.md), [CLI](docs/cli-reference.md), [profiles](docs/setup-and-profiles.md), [changelog](CHANGELOG.md).
 - [Evidence index](docs/evidence/index.json), [compatibility](docs/compatibility-matrix.md), [historical live record](docs/live-sap-evidence.md).
-- [Roadmap](ROADMAP.md), [adopters](ADOPTERS.md), [distribution](docs/mcp-directory-submissions.md), [2.2.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.2.0).
-- [Reliability validation](docs/reliability-2026-10-20.ko.md) and [field procedure](docs/field-acceptance-2026-10-20.ko.md). Checkout manifest version: `2.2.0`.
+- [Roadmap](ROADMAP.md), [adopters](ADOPTERS.md), [distribution](docs/mcp-directory-submissions.md), [2.3.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.3.0).
+- [Reliability validation](docs/reliability-2026-10-20.ko.md) and [field procedure](docs/field-acceptance-2026-10-20.ko.md). Checkout manifest version: `2.3.0`.
 
 Normal clients should omit both `--api-version` and `--toolsets`.
 

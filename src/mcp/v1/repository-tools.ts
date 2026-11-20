@@ -19,7 +19,8 @@ const repositorySearchDataSchema = z.object({
     type: z.string(),
     description: z.string().optional(),
     packageName: z.string().optional(),
-    resourceUri: z.string()
+    resourceUri: z.string(),
+    adtUri: z.string().optional()
   }))
 })
 
@@ -66,7 +67,8 @@ export function registerV1RepositoryTools(
         ...(object.packageName !== undefined
           ? { packageName: object.packageName }
           : {}),
-        resourceUri: toAdtResourceUri(normalizedSystemId, object.uri)
+        resourceUri: toAdtResourceUri(normalizedSystemId, object.uri),
+        adtUri: toAdtResourceUri(normalizedSystemId, object.uri)
       }))
       return v1Success({ pattern: result.pattern, objects }, {
         systemId: normalizedSystemId,

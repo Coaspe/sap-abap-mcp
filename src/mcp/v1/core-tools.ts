@@ -5,7 +5,7 @@ import type {
   InspectCodeInput
 } from "../../tool-service.js"
 import { V1_SCHEMA_VERSION } from "./contracts.js"
-import { normalizeV1SystemId } from "./resource-uri.js"
+import { normalizeV1SystemId, toAdtIdeUri } from "./resource-uri.js"
 import { runV1Tool, v1Success } from "./result.js"
 import { V1_READ_ONLY_ANNOTATIONS } from "./system-tools.js"
 
@@ -478,8 +478,10 @@ export function registerV1CoreTools(
           results: batch.results.map((item, index) => {
             if (!item.ok) return { ...item, request: input.requests[index] }
             const { ifNoneMatch: _validator, ...request } = input.requests[index]!
-            if (!item.result.notModified) return { ...item, request }
-            const { code: _code, ...result } = item.result
+            const adtUri = toAdtIdeUri(systemId, item.result.sourceUri, item.result.startLine, 0)
+            if (!item.result.notModified) return { ...item, request, result: { ...item.result, ...(adtUri ? { adtUri } : {}) } }
+            const { code: _code, ...original } = item.result
+            const result = { ...original, ...(adtUri ? { adtUri } : {}) }
             return { ...item, request, result }
           })
         }), { systemId,
@@ -508,16 +510,22 @@ export function registerV1CoreTools(
         outputSchema: coreOutputSchema,
         annotations: V1_READ_ONLY_ANNOTATIONS
       },
-      input => serviceResult(input.systemId, systemId => service.searchObjectLines({
-        connectionId: systemId,
-        objectName: input.objectName,
-        searchTerm: input.searchTerm,
-        contextLines: input.contextLines,
-        isRegexp: input.regularExpression,
-        maxObjects: input.maxObjects,
-        startIndex: input.startIndex,
-        maxResults: input.limit
-      }))
+      input => serviceResult(input.systemId, async systemId => {
+        const result = await service.searchObjectLines({
+          connectionId: systemId,
+          objectName: input.objectName,
+          searchTerm: input.searchTerm,
+          contextLines: input.contextLines,
+          isRegexp: input.regularExpression,
+          maxObjects: input.maxObjects,
+          startIndex: input.startIndex,
+          maxResults: input.limit
+        })
+        return { ...result, results: result.results.map(item => {
+          const adtUri = toAdtIdeUri(systemId, item.sourceUri, item.matchLineNumbers[0], 0)
+          return { ...item, ...(adtUri ? { adtUri } : {}) }
+        }) }
+      })
     )
   }
 

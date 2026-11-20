@@ -12,6 +12,7 @@ const targets = [
   ["rsa", require.resolve("node-forge/lib/rsa.js", { paths: [dirname(require.resolve("jks-js"))] })],
   ["pem", require.resolve("node-forge/lib/pem.js", { paths: [dirname(require.resolve("jks-js"))] })],
   ["forgeHttp", require.resolve("node-forge/lib/http.js", { paths: [dirname(require.resolve("jks-js"))] })],
+  ["forgeCipherModes", require.resolve("node-forge/lib/cipherModes.js", { paths: [dirname(require.resolve("jks-js"))] })],
   ["sprintf", require.resolve("sprintf-js", { paths: [dirname(require.resolve("abap-adt-api"))] })],
   ["mermaidBrowser", join(root, "assets", "mermaid.min.js")]
 ]

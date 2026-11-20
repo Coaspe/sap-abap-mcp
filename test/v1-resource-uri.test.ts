@@ -8,6 +8,7 @@ import {
   parseDocsResourceUri,
   parseEvidenceResourceUri,
   parseTransportResourceUri,
+  toAdtIdeUri,
   toAdtResourceUri,
   toCapabilityResourceUri
 } from "../src/mcp/v1/resource-uri.js"
@@ -34,6 +35,13 @@ test("ADT URI builder normalizes the authority", () => {
     toAdtResourceUri(" dev100 ", "/sap/bc/adt/oo/classes/zcl_demo/source/main"),
     "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main"
   )
+})
+
+test("IDE links retain validated paths and positions and reject foreign authorities", () => {
+  assert.equal(toAdtIdeUri("DEV100", "/sap/bc/adt/oo/classes/zcl_demo/source/main", 12, 3),
+    "adt://dev100/sap/bc/adt/oo/classes/zcl_demo/source/main#start=12,3")
+  assert.equal(toAdtIdeUri("DEV100", "adt://other/sap/bc/adt/oo/classes/zcl_demo"), undefined)
+  assert.equal(toAdtIdeUri("DEV100", "https://example.test/sap/bc/adt/object"), undefined)
 })
 
 test("ADT URI builder uses WHATWG path canonicalization without decoding encoded slashes", () => {
