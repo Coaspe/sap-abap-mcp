@@ -7,6 +7,7 @@ import { V1_SUCCESS_SHAPE } from "./contracts.js"
 import {
   normalizeV1SystemId,
   parseAdtResourceUri,
+  toAdtIdeUri,
   toAdtResourceUri
 } from "./resource-uri.js"
 import { runV1Tool, v1Success } from "./result.js"
@@ -18,6 +19,7 @@ const SOURCE_READ_TOOL = "sap.source.read"
 const sourceReadDataSchema = z.object({
   object: z.object({ name: z.string(), type: z.string() }).optional(),
   resourceUri: z.string(),
+  adtUri: z.string().optional(),
   methodName: z.string().optional(),
   startLine: z.number().int().positive(),
   endLine: z.number().int().nonnegative(),
@@ -43,6 +45,7 @@ const sourceReadInputSchema = z.object({
   resourceUri: z.string().min(1).optional(),
   objectType: z.enum(ABAP_OBJECT_TYPES).optional(),
   methodName: z.string().min(1).optional(),
+  version: z.literal("active").optional(),
   startLine: z.number().int().min(1).default(1),
   lineCount: z.number().int().min(1).max(5000).default(50),
   ifNoneMatch: z.string().regex(/^[0-9a-f]{64}$/).optional().describe(
@@ -94,10 +97,14 @@ export function registerV1SourceTools(
           connectionId: normalizedSystemId,
           uri: parsed.adtPath,
           startLine: input.startLine - 1,
-          lineCount: input.lineCount
+          lineCount: input.lineCount,
+          ...(input.version ? { version: input.version } : {}),
+          ...(input.methodName ? { methodName: input.methodName } : {})
         })
         const data = conditionalSource({
           resourceUri: parsed.canonicalUri,
+          adtUri: toAdtIdeUri(normalizedSystemId, parsed.adtPath, result.startLine + 1, 0),
+          ...(result.methodName !== undefined ? { methodName: result.methodName, methodEndLine: result.methodEndLine } : {}),
           startLine: result.startLine + 1,
           endLine: result.endLine,
           totalLines: result.totalLines,
@@ -121,6 +128,7 @@ export function registerV1SourceTools(
         objectName: input.objectName!,
         startLine: input.startLine,
         lineCount: input.lineCount,
+        ...(input.version ? { version: input.version } : {}),
         ...(input.objectType ? { objectType: input.objectType } : {}),
         ...(input.methodName ? { methodName: input.methodName } : {})
       })
@@ -133,6 +141,7 @@ export function registerV1SourceTools(
       const data = conditionalSource({
         object: source.object,
         resourceUri,
+        adtUri: toAdtIdeUri(normalizedSystemId, sourceUri, source.startLine, 0),
         ...(source.methodName !== undefined
           ? { methodName: source.methodName }
           : {}),

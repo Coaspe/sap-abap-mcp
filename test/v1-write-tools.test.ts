@@ -16,7 +16,7 @@ interface RecordedCall {
 function operation(calls: RecordedCall[], name: string) {
   return async (input: unknown) => {
     calls.push({ method: name, input })
-    return { connectionId: "DEV100", method: name }
+    return { connectionId: "DEV100", method: name, ...(name === "activateObject" ? { status: "complete", objectResults: [] } : {}) }
   }
 }
 

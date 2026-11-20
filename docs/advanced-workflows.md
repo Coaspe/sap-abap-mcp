@@ -4,6 +4,21 @@ These workflows compose the small, action-specific v1 tools instead of adding a
 large schema for every repository subtype. This keeps tool discovery bounded
 while preserving exact ADT operations and safety checks.
 
+## Scoped class method changes in this checkout
+
+`sap.source.read` can select a class method by `methodName`, including from a
+class Resource URI. `sap.source.patch` accepts an optional `methodName`; the
+server parses method boundaries and rejects replacements outside that method's
+body or changes that alter the parsed boundary. The existing exact-match and
+under-lock current-source checks still apply. This preserves the surrounding
+source and declaration, but it does not prove semantic type or signature
+compatibility; use SAP diagnostics and appropriate authorized checks.
+
+The current ADT client still sends the **complete reconstructed source** with
+`setObjectSource` after these checks. This is a scoped logical edit, not a
+server-side partial-source PATCH. No partial-source ADT protocol or live SAP
+behavior has been established in this checkout.
+
 ## Enhancement implementations
 
 Call `sap.repository.inspect` with `includeEnhancements: true` to list bounded

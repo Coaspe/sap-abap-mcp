@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { mkdtemp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises"
+import { cp, mkdtemp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -20,6 +20,13 @@ try {
   const packageRoot = join(stage, "package")
   const manifestPath = join(packageRoot, "package.json")
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
+  // The handoff tarball must run after extraction without fetching packages.
+  // Populate the stage from the installed lockfile dependencies, then let npm
+  // include only the runtime dependency graph in the bundle.
+  await cp(join(root, "node_modules"), join(packageRoot, "node_modules"), {
+    recursive: true, dereference: true, force: true
+  })
+  manifest.bundleDependencies = Object.keys(manifest.dependencies)
   const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim()
   const worktreeDirty = execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim().length > 0
   manifest.sapAbapMcpBuild = { sourceCommit, worktreeDirty }

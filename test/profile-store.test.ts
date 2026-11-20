@@ -111,6 +111,15 @@ test("ProfileStore persists an explicit development data-query opt-in", async t 
   assert.equal((await new ProfileStore(directory).get("DEV100")).allowDataQueries, true)
 })
 
+test("ProfileStore normalizes and persists configured data-source patterns", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "sap-abap-mcp-blocked-"))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const store = new ProfileStore(directory)
+  await store.upsert({ id: "DEV", url: "https://sap.example.test", client: "100", blockedDataSources: [" usr* ", "zsecret"] })
+  assert.deepEqual((await store.get("DEV")).blockedDataSources, ["USR*", "ZSECRET"])
+  await assert.rejects(store.upsert({ id: "DEV", url: "https://sap.example.test", client: "100", blockedDataSources: ["U*R"] }))
+})
+
 test("ProfileStore rejects production data-query opt-in", async () => {
   const store = new ProfileStore("/unused")
 

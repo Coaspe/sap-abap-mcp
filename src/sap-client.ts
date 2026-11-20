@@ -1,10 +1,12 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser"
-import { runAdtBackground } from "./adt-background.js"
+import { discoverAdtBackground, runAdtBackground, withAdtPhase } from "./adt-background.js"
+import { parseCtsTransportDetails, type SapTransportDetails } from "./cts-transport-details.js"
 import { parseCheckResults } from "abap-adt-api/build/api/syntax.js"
 import { profileHttpsAgent } from "./tls-trust.js"
 import { createHash, randomUUID } from "node:crypto"
 import { decodeKnowledgeTransferDocument } from "./knowledge-transfer.js"
 import { SourceCache } from "./source-cache.js"
+import { requireAllowedDataSources } from "./data-access-policy.js"
 import { TransportAdtClient, type AdtTransportFactory } from "./transport-adt-client.js"
 import {
   ADTClient,
@@ -72,7 +74,6 @@ import {
   type TransportAddUserResponse,
   type TransportOwnerResponse,
   type TransportReleaseReport,
-  type TransportRequest,
   type TransportsOfUser,
   type UnitTestClass,
   type UsageReference,
@@ -103,6 +104,8 @@ export interface SapTransportListing extends TransportsOfUser {
   historyComplete?: boolean
   historyIssue?: string
 }
+
+export type SapTransportAddResult = "added" | "already_present"
 
 export interface SapObjectReference {
   name: string
@@ -330,7 +333,7 @@ export interface SapClient {
   createTestInclude(className: string, classUri: string, transport?: string): Promise<void>
   getAtcCustomizing(): Promise<AtcCustomizing>
   checkAtcVariant(variant: string): Promise<string>
-  runAtc(variant: string, objectUri: string, maxResults?: number): Promise<AtcRunResult>
+  runAtc(worklistId: string, objectUri: string, maxResults?: number): Promise<AtcRunResult>
   getAtcWorklist(run: AtcRunResult): Promise<AtcWorkList>
   getAtcDocumentation(docUri: string): Promise<string>
   getTextElements(
@@ -346,7 +349,7 @@ export interface SapClient {
     transport?: string
   ): Promise<ActivationResult>
   getUserTransports(user: string): Promise<SapTransportListing>
-  getTransportDetails(transportNumber: string): Promise<TransportRequest>
+  getTransportDetails(transportNumber: string): Promise<SapTransportDetails>
   releaseTransport(
     transportNumber: string,
     ignoreLocks?: boolean,
@@ -361,7 +364,7 @@ export interface SapClient {
     pgmid: string,
     objectType: string,
     objectName: string
-  ): Promise<void>
+  ): Promise<SapTransportAddResult>
   listSystemUsers(): Promise<Array<{ id: string; title: string }>>
   resolveTransportObject(
     pgmid: string,
@@ -835,8 +838,9 @@ export class AdtSapClient implements SapClient {
     } catch {
       // Some repository objects have structured metadata but no text source.
     }
+    const links = [...(structure.links ?? [])].sort((left, right) => stableJson(left).localeCompare(stableJson(right)))
     const fingerprint = createHash("sha256")
-      .update(stableJson({ metaData: structure.metaData, links: structure.links ?? [], source }))
+      .update(stableJson({ metaData: structure.metaData, links, source }))
       .digest("hex")
     return {
       fingerprint,
@@ -859,7 +863,7 @@ export class AdtSapClient implements SapClient {
     const normalizedName = name.trim().toUpperCase()
     const uri = ddicObjectUri(kind, normalizedName)
     if (kind === "domain") {
-      const value = await this.client.getDomainProperties(uri)
+      const value = await this.withDdicPackage(await this.client.getDomainProperties(uri), uri, normalizedName, "DOMA/DD")
       return {
         kind,
         uri,
@@ -867,13 +871,27 @@ export class AdtSapClient implements SapClient {
         ...value
       }
     }
-    const value = await this.client.getDataElementProperties(uri)
+    const value = await this.withDdicPackage(await this.client.getDataElementProperties(uri), uri, normalizedName, "DTEL/DE")
     return {
       kind,
       uri,
       fingerprint: ddicFingerprint(value),
       ...value
     }
+  }
+
+  private async withDdicPackage<T extends { metaData: DomainMetaData | DataElementMetaData }>(
+    value: T, uri: string, name: string, type: "DOMA/DD" | "DTEL/DE"
+  ): Promise<T> {
+    if (value.metaData.packageName?.trim()) return value
+    const candidates = await this.searchObjects(name, type, 50).catch(() => [])
+    const packages = new Set(candidates.flatMap(candidate => {
+      const packageName = candidate.packageName?.trim().toUpperCase()
+      return packageName && candidate.name.toUpperCase() === name && candidate.type.toUpperCase() === type &&
+        candidate.uri.replace(/\/+$/, "").toLowerCase() === uri.toLowerCase() ? [packageName] : []
+    }))
+    const [packageName] = packages
+    return packages.size === 1 && packageName ? { ...value, metaData: { ...value.metaData, packageName } } : value
   }
 
   async updateDdicDefinition(
@@ -896,7 +914,7 @@ export class AdtSapClient implements SapClient {
         const lock = await this.client.lock(uri, "MODIFY")
         lockHandle = lock.LOCK_HANDLE
         if (kind === "domain") {
-          const current = await this.client.getDomainProperties(uri)
+          const current = await this.withDdicPackage(await this.client.getDomainProperties(uri), uri, normalizedName, "DOMA/DD")
           if (ddicFingerprint(current) !== expectedFingerprint) {
             throw new AppError(
               "SOURCE_CHANGED",
@@ -915,7 +933,7 @@ export class AdtSapClient implements SapClient {
             transport
           )
         } else {
-          const current = await this.client.getDataElementProperties(uri)
+          const current = await this.withDdicPackage(await this.client.getDataElementProperties(uri), uri, normalizedName, "DTEL/DE")
           if (ddicFingerprint(current) !== expectedFingerprint) {
             throw new AppError(
               "SOURCE_CHANGED",
@@ -1140,6 +1158,7 @@ export class AdtSapClient implements SapClient {
   }
 
   async runQuery(sql: string, maxRows: number): Promise<QueryResult> {
+    requireAllowedDataSources(this.profile, sql)
     return this.client.runQuery(sql, maxRows, true)
   }
 
@@ -1179,11 +1198,11 @@ export class AdtSapClient implements SapClient {
   }
 
   async runAtc(
-    variant: string,
+    worklistId: string,
     objectUri: string,
     maxResults?: number
   ): Promise<AtcRunResult> {
-    return this.client.createAtcRun(variant, objectUri, maxResults)
+    return this.client.createAtcRun(worklistId, objectUri, maxResults)
   }
 
   async getAtcWorklist(run: AtcRunResult): Promise<AtcWorkList> {
@@ -1276,19 +1295,30 @@ export class AdtSapClient implements SapClient {
       walk(document)
       const known = new Set([...recent.workbench, ...recent.customizing].flatMap(target => [...target.modifiable, ...target.released].map(request => request["tm:number"])))
       const missing = [...numbers].filter(([number]) => !known.has(number))
+      let unreadable = false
       for (const [number, category] of missing.slice(0, 200)) {
-        const transport = await this.client.transportDetails(number)
-        recent[category].push({ "tm:name": "", "tm:desc": "All-date search", modifiable: [transport], released: [] })
+        try {
+          const transport = await this.client.transportDetails(number)
+          recent[category].push({ "tm:name": "", "tm:desc": "All-date search", modifiable: [transport], released: [] })
+        } catch {
+          unreadable = true
+        }
       }
-      return { ...recent, historyComplete: missing.length <= 200,
-        ...(missing.length > 200 ? { historyIssue: "All-date search found more than 200 additional requests; listing remains incomplete." } : {}) }
+      const historyIssue = missing.length > 200
+        ? "All-date search found more than 200 additional requests; listing remains incomplete."
+        : unreadable ? "Some requests from the all-date search could not be read; listing remains incomplete." : undefined
+      return { ...recent, historyComplete: !historyIssue, ...(historyIssue ? { historyIssue } : {}) }
     } catch {
       return { ...recent, historyComplete: false, historyIssue: "All-date transport search could not be completed; do not treat this list as proof that no older object lock exists." }
     }
   }
 
-  async getTransportDetails(transportNumber: string): Promise<TransportRequest> {
-    return this.client.transportDetails(transportNumber)
+  async getTransportDetails(transportNumber: string): Promise<SapTransportDetails> {
+    const number = transportNumber.trim().toUpperCase()
+    const response = await this.client.httpClient.request(`/sap/bc/adt/cts/transportrequests/${encodeURIComponent(number)}`, {
+      method: "GET", headers: { Accept: "application/vnd.sap.adt.transportorganizer.v1+xml" }
+    })
+    return parseCtsTransportDetails(response.body, number)
   }
 
   async releaseTransport(
@@ -1299,24 +1329,52 @@ export class AdtSapClient implements SapClient {
     return this.serializeMutation(async () => {
       // Releasing a request while its tasks are still open fails with
       // "Referencing task ... not yet released", so release non-empty open tasks first
-      const details = await this.client.transportDetails(transportNumber)
+      const details = await this.getTransportDetails(transportNumber)
+      const rootPhase = details.entityKind === "task" ? "task" : "request"
       const openTasks = (details.tasks ?? []).filter(task =>
         task["tm:number"] !== transportNumber &&
         ["D", "L"].includes(task["tm:status"]) &&
         task.objects.length > 0
       )
-      const worklistId = await this.createReleaseCheckWorklist()
       const requestHasObjects = (details.objects?.length ?? 0) > 0
+      let collection: string | undefined
+      if (requestHasObjects || openTasks.length > 0) {
+        try {
+          collection = await discoverAdtBackground((uri, options) => this.client.httpClient.request(uri, options), this.profile.url)
+          if (!collection) throw new AppError("ADT_BACKGROUND_UNAVAILABLE", "SAP did not advertise a background collection for this release")
+        } catch (error) {
+          throw withAdtPhase(error, { phase: openTasks.length > 0 ? "task" : rootPhase, releaseMode: "background", backgroundPhase: "discovery" })
+        }
+      }
+      const worklistId = await this.createReleaseCheckWorklist()
       const reports: TransportReleaseReport[] = []
+      let releasedTaskCount = 0
+      const release = async (number: string, phase: "task" | "request") => {
+        try {
+          const result = await this.releaseTransportEntity(number, worklistId, ignoreLocks, ignoreAtc, collection)
+          if (releasedTaskCount > 0 && result.length === 0) {
+            throw new AppError("TRANSPORT_RELEASE_UNVERIFIED", "SAP returned no release report")
+          }
+          return result
+        } catch (error) {
+          const diagnosed = withAdtPhase(error, { phase, releaseMode: collection ? "background" : "direct" })
+          if (releasedTaskCount === 0) throw diagnosed
+          throw new AppError("TRANSPORT_RELEASE_PARTIAL", "Earlier tasks were released. Inspect the current transport state before retrying.", {
+            ...(diagnosed instanceof AppError ? diagnosed.details : {}),
+            phase,
+            releasedTaskCount,
+            ...(diagnosed instanceof AppError ? { causeCode: diagnosed.code } : {})
+          })
+        }
+      }
       for (const task of openTasks) {
-        const taskReports = await this.releaseTransportEntity(task["tm:number"], worklistId, ignoreLocks, ignoreAtc, true)
+        const taskReports = await release(task["tm:number"], "task")
         reports.push(...taskReports)
         if (!taskReports.length || taskReports.some(report => report["chkrun:status"] !== "released")) return reports
+        releasedTaskCount++
       }
       reports.push(
-        ...await this.releaseTransportEntity(
-          transportNumber, worklistId, ignoreLocks, ignoreAtc, requestHasObjects || openTasks.length > 0
-        )
+        ...await release(details["tm:number"], rootPhase)
       )
       return reports
     })
@@ -1348,16 +1406,17 @@ export class AdtSapClient implements SapClient {
     worklistId: string | undefined,
     ignoreLocks: boolean,
     ignoreAtc: boolean,
-    hasObjects: boolean
+    collection?: string
   ): Promise<TransportReleaseReport[]> {
     const query = worklistId ? `?worklistId=${encodeURIComponent(worklistId)}` : ""
-    const endpoint = `/sap/bc/adt/cts/transportrequests/${transportNumber}/newreleasejobs${query}`
+    const transportUri = `/sap/bc/adt/cts/transportrequests/${encodeURIComponent(transportNumber)}`
+    const endpoint = `${transportUri}/newreleasejobs${query}`
     const requestOptions = {
       method: "POST" as const,
       headers: { Accept: "application/vnd.sap.adt.transportorganizer.v1+xml" }
     }
-    const request = (uri: string, options: NonNullable<Parameters<ADTClient["httpClient"]["request"]>[1]>) => hasObjects
-      ? runAdtBackground((path, config) => this.client.httpClient.request(path, config), this.profile.url, uri, options)
+    const request = (uri: string, options: NonNullable<Parameters<ADTClient["httpClient"]["request"]>[1]>) => collection
+      ? runAdtBackground((path, config) => this.client.httpClient.request(path, config), this.profile.url, uri, options, undefined, collection)
       : this.client.httpClient.request(uri, options)
     let response = await request(endpoint, requestOptions)
     let reports: TransportReleaseReport[] = []
@@ -1383,7 +1442,7 @@ export class AdtSapClient implements SapClient {
         .map(([key, value]) => `${key}="${escapeXmlAttribute(String(value))}"`)
         .join(" ")
       response = await request(
-        `/sap/bc/adt/cts/transportrequests/${transportNumber}/${followUp}${query}`,
+        `${transportUri}/${followUp}${query}`,
         {
           ...requestOptions,
           headers: { ...requestOptions.headers, "Content-Type": "text/plain" },
@@ -1419,7 +1478,7 @@ export class AdtSapClient implements SapClient {
     pgmid: string,
     objectType: string,
     objectName: string
-  ): Promise<void> {
+  ): Promise<SapTransportAddResult> {
     const mediaType = "application/vnd.sap.adt.transportorganizer.v1+xml"
     const escapedTransport = escapeXmlAttribute(transportNumber)
     const body =
@@ -1428,15 +1487,29 @@ export class AdtSapClient implements SapClient {
       `<tm:request><tm:abap_object tm:name="${escapeXmlAttribute(objectName)}" ` +
       `tm:pgmid="${escapeXmlAttribute(pgmid)}" ` +
       `tm:type="${escapeXmlAttribute(objectType)}"/></tm:request></tm:root>`
-    await this.serializeMutation(async () => {
-      await this.client.httpClient.request(
-        `/sap/bc/adt/cts/transportrequests/${encodeURIComponent(transportNumber)}`,
-        {
-          method: "PUT",
-          headers: { Accept: mediaType, "Content-Type": mediaType },
-          body
-        }
-      )
+    const hasKey = (details: SapTransportDetails) => details.objects.some(object =>
+      object["tm:pgmid"]?.trimEnd() === pgmid.trimEnd() && object["tm:type"]?.trimEnd() === objectType.trimEnd() &&
+      object["tm:name"]?.trimEnd() === objectName.trimEnd())
+    return this.serializeMutation(async () => {
+      const before = await this.getTransportDetails(transportNumber)
+      if (hasKey(before)) return "already_present"
+      try {
+        await this.client.httpClient.request(
+          `/sap/bc/adt/cts/transportrequests/${encodeURIComponent(transportNumber)}`,
+          { method: "PUT", headers: { Accept: mediaType, "Content-Type": mediaType }, body }
+        )
+      } catch (error) {
+        throw withAdtPhase(error, { ctsObjectWrite: true })
+      }
+      let after: SapTransportDetails
+      try { after = await this.getTransportDetails(transportNumber) }
+      catch {
+        throw new AppError("TRANSPORT_OBJECT_ADD_UNVERIFIED", "CTS object addition could not be verified by read-back", { reason: "READBACK_FAILED" })
+      }
+      if (!hasKey(after)) {
+        throw new AppError("TRANSPORT_OBJECT_ADD_UNVERIFIED", "CTS read-back did not contain the exact requested object key", { reason: "REQUESTED_KEY_ABSENT" })
+      }
+      return "added"
     })
   }
 
@@ -2462,10 +2535,9 @@ export class AdtSapClient implements SapClient {
     }
 
     try {
-      const result = await this.client.runQuery(
+      const result = await this.runQuery(
         `SELECT MANDT, MTEXT, LOGSYS FROM T000 WHERE MANDT = '${this.profile.client}'`,
-        1,
-        true
+        1
       )
       const row = result.values[0] as Record<string, unknown> | undefined
       clientName = String(row?.MTEXT ?? "")
@@ -2475,7 +2547,7 @@ export class AdtSapClient implements SapClient {
     }
 
     try {
-      const result = await this.client.runQuery("SELECT VERSION FROM SVERS", 10, true)
+      const result = await this.runQuery("SELECT VERSION FROM SVERS", 10)
       const row = result.values[0] as Record<string, unknown> | undefined
       sapRelease = String(row?.VERSION ?? "")
     } catch (error) {
@@ -2483,10 +2555,9 @@ export class AdtSapClient implements SapClient {
     }
 
     try {
-      const result = await this.client.runQuery(
+      const result = await this.runQuery(
         "SELECT COMPONENT, RELEASE, EXTRELEASE, COMP_TYPE FROM CVERS",
-        500,
-        true
+        500
       )
       softwareComponents = result.values.map(value => {
         const row = value as Record<string, unknown>
@@ -2502,10 +2573,9 @@ export class AdtSapClient implements SapClient {
     }
 
     try {
-      const result = await this.client.runQuery(
+      const result = await this.runQuery(
         "SELECT cu~TZONESYS, z~ZONERULE, t~DESCRIPT FROM TTZCU AS cu INNER JOIN TTZZ AS z ON cu~TZONESYS = z~TZONE INNER JOIN TTZZT AS t ON z~TZONE = t~TZONE WHERE cu~FLAGACTIVE = 'X' AND t~LANGU = 'E'",
-        1,
-        true
+        1
       )
       const row = result.values[0] as Record<string, unknown> | undefined
       if (row) {

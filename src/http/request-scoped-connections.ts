@@ -73,6 +73,17 @@ export class RequestScopedConnectionProvider implements ConnectionProvider {
     return connected
   }
 
+  async getProfile(connectionId: string) {
+    this.assertOpen()
+    const normalized = connectionId.trim().toUpperCase()
+    if (this.allowed && !this.allowed.has(normalized)) {
+      throw new AppError("PROFILE_NOT_ALLOWED", `This identity is not authorized for SAP profile ${normalized}`)
+    }
+    const profile = await this.inner.getProfile(normalized)
+    this.assertOpen()
+    return profile
+  }
+
   close(): Promise<void> {
     if (!this.closing) {
       this.closing = Promise.allSettled([...this.clients.values()].map(client => client.pending)).then(async clients => {

@@ -25,7 +25,7 @@ const analysisOutputSchema = z.object({
   status: z.literal("succeeded"),
   systemId: z.string().min(1).optional(),
   data: z.looseObject({}),
-  warnings: z.array(z.never()).max(0)
+  warnings: z.array(z.object({ code: z.string(), message: z.string() }))
 })
 
 const ANALYSIS_ANNOTATIONS = {
@@ -92,6 +92,7 @@ async function serviceResult(
     const result = resultData(await operation(normalized))
     const envelopeSystemId = normalized ?? result.systemId
     return v1Success(result.data, {
+      ...(Array.isArray(result.data.warnings) && result.data.warnings.every(item => item && typeof item.code === "string" && typeof item.message === "string") ? { warnings: result.data.warnings as Array<{ code: string; message: string }> } : {}),
       ...(envelopeSystemId ? { systemId: envelopeSystemId } : {})
     })
   })
