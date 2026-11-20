@@ -6,7 +6,7 @@ of a particular MCP client and remain on the user's machine.
 
 The `npx ...@latest` examples run the published npm version. The behavior
 described here includes the 2.2.0 setup and correctness fixes; use
-`@2.2.0` to pin this release.
+`@2.3.0` to pin this release.
 
 Interactive `setup` creates and edits Basic Auth profiles. OAuth profiles use
 the explicit commands below; Destination profiles use the BTP guide.
@@ -62,6 +62,24 @@ Read-only access blocks SAP object/transport changes, debugger controls, ABAP
 applications and ABAP Unit execution. Source inspection, repository queries and
 static diagnostics/ATC remain subject to SAP permissions. Direct table SQL has
 its separate `allowDataQueries` opt-in; read-only scope does not enable it.
+
+When data queries are enabled, the default blocked identifier patterns are
+`USR*`, `PA0*` and `HRP1000`. A profile may set `blockedDataSources` to an
+explicit array of exact names or trailing-`*` prefixes; this replaces the default,
+so include the defaults when extending them. An empty array disables this brake.
+Checks cover SQL identifiers conservatively, including joins and nested queries;
+a column or alias matching a pattern can also be refused. They do not inspect
+the underlying tables of views. Maintain SAP authorizations and review views
+and the configured policy with the data owner.
+For example, an individual profile in `profiles.json` can contain:
+
+```json
+"blockedDataSources": ["USR*", "PA0*", "HRP1000", "ZPAY*"]
+```
+
+This setting is currently edited in the profile file; setup preserves it when
+editing an existing profile. Restart the server after changing it. A trailing
+`*` denotes a prefix; other wildcard forms are rejected.
 Package restrictions apply to existing package-aware write paths; they are not
 an execution sandbox for an entire ABAP program or transport.
 
@@ -346,7 +364,7 @@ Create one profile per system/client, for example `DEV100`, `QAS200`, and
 `PRD100`. Register the MCP server with unscoped `serve`:
 
 ```bash
-codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@2.2.0 serve
+codex mcp add sap-abap -- npx -y @coaspe/sap-abap-mcp@2.3.0 serve
 ```
 
 V1 SAP-facing tools identify profiles with `systemId`; the legacy API uses
@@ -390,7 +408,7 @@ command, configure:
 
 - Command on Windows: `npx.cmd`
 - Command on macOS or Linux: `npx`
-- Arguments: `-y`, `@coaspe/sap-abap-mcp@2.2.0`, `serve`
+- Arguments: `-y`, `@coaspe/sap-abap-mcp@2.3.0`, `serve`
 
 Do not append a sample `--profile DEV100` unless the installation deliberately
 exposes only that real, existing profile.
@@ -502,17 +520,17 @@ enter credentials only in local setup.
 Windows PowerShell:
 
 ```powershell
-npx.cmd -y @coaspe/sap-abap-mcp@2.2.0 onboard
+npx.cmd -y @coaspe/sap-abap-mcp@2.3.0 onboard
 ```
 
 macOS:
 
 ```sh
-npx -y @coaspe/sap-abap-mcp@2.2.0 onboard
+npx -y @coaspe/sap-abap-mcp@2.3.0 onboard
 ```
 
 The browser wizard uses Windows DPAPI or macOS Keychain and defaults new
-profiles to read-only. On Linux use `npx -y @coaspe/sap-abap-mcp@2.2.0 setup`;
+profiles to read-only. On Linux use `npx -y @coaspe/sap-abap-mcp@2.3.0 setup`;
 credentials are environment-only. Existing registrations are preserved.
 
 Restart the host. List configured systems, verify the actual SID/client, and
@@ -520,7 +538,7 @@ read one approved development object. A connected MCP or `setup_required`
 state is not SAP authentication, a first useful read or a completed ABAP task.
 
 For manual MCP registration, use `npx` (`npx.cmd` on Windows) with arguments
-`["--yes", "@coaspe/sap-abap-mcp@2.2.0", "serve"]`. npm registrations pin the
+`["--yes", "@coaspe/sap-abap-mcp@2.3.0", "serve"]`. npm registrations pin the
 package version rather than an npm-cache or version-specific Node path.
 A maintained source checkout can use `npm ci`, `npm run build`, then
 `node dist/src/index.js onboard`; keep that checkout for its local registration.
@@ -532,7 +550,7 @@ messages only. Empty-profile discovery advertises `SETUP_REQUIRED`.
 
 ## Company CA and TLS trust
 
-Use `npx -y @coaspe/sap-abap-mcp@2.2.0 profile edit DEV100 --ca-file /absolute/company-ca.pem`
+Use `npx -y @coaspe/sap-abap-mcp@2.3.0 profile edit DEV100 --ca-file /absolute/company-ca.pem`
 or `profile add ... --ca-file /absolute/company-ca.pem`. Relative CLI paths are resolved before validation.
 Use `profile edit DEV100 --clear-ca-file` to remove it. Browser Step 2 also accepts an absolute PEM path;
 clearing that field removes the profile CA. Only PEM certificates up to 1 MiB are accepted, without private keys.

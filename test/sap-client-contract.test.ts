@@ -39,6 +39,16 @@ test("platform components alone do not identify ECC", async () => {
   }
 })
 
+test("data-source policy also covers fixed system metadata queries", async () => {
+  const calls: string[] = []
+  const client = clientWithAdt({ async runQuery(sql: string) { calls.push(sql); return { values: [] } } },
+    { ...profile, blockedDataSources: ["CVERS", "USR*"] })
+  await assert.rejects(client.runQuery("SELECT * FROM USR02", 1), { code: "DATA_SOURCE_BLOCKED" })
+  await client.getSystemInfo(true, 0)
+  assert.ok(calls.length > 0)
+  assert.equal(calls.some(sql => /FROM\s+(CVERS|USR02)/i.test(sql)), false)
+})
+
 test("source patch refuses a changed current version under the acquired lock", async () => {
   const calls: string[] = []
   const client = clientWithAdt({ stateful: "stateless",
@@ -249,6 +259,19 @@ function clientWithAdt(
   Object.defineProperty(client, "client", { value: fakeAdt })
   return client
 }
+
+test("ATC adapter forwards the new worklist ID to run and worklist calls", async () => {
+  const calls: unknown[][] = []
+  const client = clientWithAdt({
+    async atcCheckVariant(variant: string) { calls.push(["create", variant]); return "WL123" },
+    async createAtcRun(id: string, uri: string, limit: number) { calls.push(["run", id, uri, limit]); return { id, timestamp: 42, infos: [] } },
+    async atcWorklists(id: string, timestamp: number) { calls.push(["read", id, timestamp]); return { objects: [] } }
+  })
+  const id = await client.checkAtcVariant("DEFAULT")
+  const run = await client.runAtc(id, "/object", 1000)
+  await client.getAtcWorklist(run)
+  assert.deepEqual(calls, [["create", "DEFAULT"], ["run", "WL123", "/object", 1000], ["read", "WL123", 42]])
+})
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -483,6 +506,27 @@ test("delete uses stateful lock, rechecks the preview fingerprint, deletes, and 
   assert.equal(fakeAdt.stateful, "stateless")
 })
 
+test("delete ignores ADT link ordering under the lock but still refuses changed source", async () => {
+  const uri = "/sap/bc/adt/oo/classes/z_demo"
+  const links = [{ href: `${uri}/source/main`, rel: "source" }, { href: `${uri}/versions`, rel: "versions" }]
+  let locked = false, source = "CLASS source.", deletes = 0
+  const client = clientWithAdt({
+    stateful: "stateless",
+    async objectStructure() { return { metaData: { "adtcore:name": "Z_DEMO", "adtcore:type": "CLAS/OC" }, links: locked ? [...links].reverse() : links } },
+    async lock() { locked = true; return { LOCK_HANDLE: "LOCK" } },
+    async deleteObject() { deletes++ },
+    async unLock() { locked = false }
+  })
+  Object.defineProperty(client, "readSourceByUri", { value: async () => ({ source, sourceUri: `${uri}/source/main` }) })
+  const before = await client.getObjectFingerprint(uri)
+  await client.deleteObject(uri, before.fingerprint)
+  assert.equal(deletes, 1)
+  source = "CLASS changed."
+  await assert.rejects(client.deleteObject(uri, before.fingerprint), { code: "OBJECT_CHANGED" })
+  assert.equal(deletes, 1)
+  assert.equal(locked, false)
+})
+
 test("delete refuses a stale preview and still unlocks without issuing DELETE", async () => {
   const calls: string[] = []
   const fakeAdt: any = {
@@ -629,6 +673,14 @@ test("transport, abapGit, and RAP wrappers preserve upstream argument order", as
   ])
 })
 
+const organizer = "/sap/bc/adt/cts/transportrequests/"
+const backgroundCollection = "/sap/bc/adt/communication/bgruns/runs"
+const discoveryPath = "/sap/bc/adt/core/discovery"
+const discoveryXml = `<app:service xmlns:app="http://www.w3.org/2007/app" xmlns:atom="http://www.w3.org/2005/Atom"><app:workspace><app:collection href="${backgroundCollection}"><atom:category scheme="http://www.sap.com/adt/categories/system/communication/services" term="backgroundruns"/><app:accept>application/http</app:accept></app:collection></app:workspace></app:service>`
+const detailXml = (entries: string) => `<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" xmlns:atom="http://www.w3.org/2005/Atom">${entries}</tm:root>`
+const requestDetail = (entries = "") => detailXml(`<tm:request tm:number="DEVK900123" tm:status="D">${entries}</tm:request>`)
+const adtBody = (body: string) => ({ body, status: 200, statusText: "OK", headers: {} })
+
 const releasedReport = (transportNumber: string) =>
   `<?xml version="1.0" encoding="utf-8"?>` +
   `<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" xmlns:chkrun="http://www.sap.com/adt/checkrun" ` +
@@ -643,19 +695,10 @@ const releasedReport = (transportNumber: string) =>
 test("releasing a transport creates an ATC worklist and releases open non-empty tasks first", async () => {
   const requests: Array<{ url: string; config: any }> = []
   const atcCalls: string[] = []
+  let requestResult: "released" | "not-found" | "empty" = "released"
   const fakeAdt: any = {
-    transportDetails: async (transportNumber: string) => ({
-      "tm:number": transportNumber,
-      "tm:status": "D",
-      objects: [],
-      tasks: [
-        { "tm:number": "DEVK900124", "tm:status": "D", objects: [{ "tm:pgmid": "R3TR" }] },
-        { "tm:number": "DEVK900125", "tm:status": "D", objects: [] },
-        { "tm:number": "DEVK900126", "tm:status": "R", objects: [{ "tm:pgmid": "R3TR" }] }
-      ]
-    }),
     atcCustomizing: async () => ({
-      properties: [{ name: "systemCheckVariant", value: "ZLGE_CTS" }],
+      properties: [{ name: "systemCheckVariant", value: "ZCUSTOM_CTS" }],
       excemptions: []
     }),
     atcCheckVariant: async (variant: string) => {
@@ -665,11 +708,18 @@ test("releasing a transport creates an ATC worklist and releases open non-empty 
     httpClient: {
       request: async (url: string, config: any) => {
         requests.push({ url, config })
+        if (url === `${organizer}DEVK900123`) return adtBody(requestDetail(`<tm:task tm:number="DEVK900124" tm:status="D"><tm:abap_object tm:pgmid="R3TR"/></tm:task><tm:task tm:number="DEVK900125" tm:status="D"/><tm:task tm:number="DEVK900126" tm:status="R"><tm:abap_object tm:pgmid="R3TR"/></tm:task>`))
+        if (url === discoveryPath) return adtBody(discoveryXml)
         const transportNumber = config.method === "POST" ? /transportrequests\/([A-Z0-9]+)\//.exec(config.body)![1]!
-          : /bgruns\/([A-Z0-9]+)/.exec(url)![1]!
-        if (config.method === "POST") return { body: "", status: 202, statusText: "Accepted", headers: { location: `/sap/bc/adt/communication/bgruns/${transportNumber}` } }
+          : url.slice(backgroundCollection.length + 1).split("/")[0]!
+        if (config.method === "POST") return { body: "", status: 202, statusText: "Accepted", headers: { location: `${backgroundCollection}/${transportNumber}` } }
         if (config.method === "DELETE") return { body: "", status: 204, statusText: "", headers: {} }
-        if (url.endsWith("/result")) return { body: `HTTP/1.1 200 OK\r\nContent-Type: application/xml\r\n\r\n${releasedReport(transportNumber)}`, status: 200, statusText: "OK", headers: {} }
+        if (url.endsWith("/result")) {
+          const result = transportNumber === "DEVK900123" ? requestResult : "released"
+          const embeddedStatus = result === "not-found" ? "404 Not Found" : "200 OK"
+          const body = result === "released" ? releasedReport(transportNumber) : "<tm:root/>"
+          return { body: `HTTP/1.1 ${embeddedStatus}\r\nContent-Type: application/xml\r\n\r\n${body}`, status: 200, statusText: "OK", headers: {} }
+        }
         return { body: `<runs:run xmlns:runs="http://www.sap.com/adt/runs" xmlns:atom="http://www.w3.org/2005/Atom" runs:status="finished"><atom:link href="${url}/result" rel="http://www.sap.com/adt/relations/runs/result" type="application/http"/></runs:run>`, status: 200, statusText: "OK", headers: {} }
       }
     }
@@ -678,15 +728,28 @@ test("releasing a transport creates an ATC worklist and releases open non-empty 
 
   const reports = await client.releaseTransport("DEVK900123")
 
-  assert.deepEqual(atcCalls, ["ZLGE_CTS"])
+  assert.deepEqual(atcCalls, ["ZCUSTOM_CTS"])
   const submissions = requests.filter(request => request.config.method === "POST")
   assert.equal(submissions.length, 2)
-  assert.ok(submissions.every(request => request.url === "/sap/bc/adt/communication/bgruns"))
+  assert.ok(submissions.every(request => request.url === backgroundCollection))
   assert.match(submissions[0]!.config.body, /DEVK900124\/newreleasejobs\?worklistId=WORKLIST123 HTTP/)
   assert.match(submissions[1]!.config.body, /DEVK900123\/newreleasejobs\?worklistId=WORKLIST123 HTTP/)
   assert.equal(submissions[0]!.config.headers["Content-Type"], "application/http")
   assert.equal(reports.length, 2)
   assert.equal(reports[0]!["chkrun:status"], "released")
+  for (const scenario of ["not-found", "empty"] as const) {
+    requestResult = scenario
+    requests.length = 0
+    await assert.rejects(client.releaseTransport("DEVK900123"), (error: unknown) => {
+      assert.ok(error instanceof AppError)
+      assert.equal(error.code, "TRANSPORT_RELEASE_PARTIAL")
+      assert.equal(error.details?.phase, "request")
+      assert.equal(error.details?.releasedTaskCount, 1)
+      assert.equal(error.details?.httpStatus, scenario === "not-found" ? 404 : undefined)
+      return true
+    })
+    assert.equal(requests.filter(request => request.config.method === "POST").length, 2)
+  }
 })
 
 test("releasing with ignoreLocks confirms the follow-up action by echoing the tm:root attributes", async () => {
@@ -703,12 +766,12 @@ test("releasing with ignoreLocks confirms the follow-up action by echoing the tm
     `</tm:releasereports>` +
     `</tm:root>`
   const fakeAdt: any = {
-    transportDetails: async () => ({ "tm:number": "DEVK900123", "tm:status": "D", objects: [], tasks: [] }),
     atcCustomizing: async () => {
       throw new Error("no ATC release gate on this system")
     },
     httpClient: {
       request: async (url: string, config: unknown) => {
+        if (url === `${organizer}DEVK900123`) return adtBody(requestDetail())
         requests.push({ url, config })
         return {
           body: url.includes("relwithignlock") ? releasedReport("DEVK900123") : lockQuestion,
@@ -749,12 +812,12 @@ test("release follow-up actions are not confirmed without the matching ignore fl
     `</tm:releasereports>` +
     `</tm:root>`
   const fakeAdt: any = {
-    transportDetails: async () => ({ "tm:number": "DEVK900123", "tm:status": "D", objects: [], tasks: [] }),
     atcCustomizing: async () => {
       throw new Error("no ATC release gate on this system")
     },
     httpClient: {
       request: async (url: string) => {
+        if (url === `${organizer}DEVK900123`) return adtBody(requestDetail())
         requests.push(url)
         return { body: atcQuestion, status: 200, statusText: "OK", headers: {} }
       }
@@ -793,12 +856,31 @@ test("object-bearing release submits only the background request and never retri
   const failure = Object.assign(new Error("Background submission failed"), { status: 500 })
   const requests: string[] = []
   const client = clientWithAdt({
-    transportDetails: async () => ({ "tm:number": "DEVK900123", "tm:status": "D", objects: [{}], tasks: [] }),
     atcCustomizing: async () => { throw new Error("No ATC release gate") },
-    httpClient: { request: async (url: string) => { requests.push(url); throw failure } }
+    httpClient: { request: async (url: string) => { requests.push(url)
+      if (url === `${organizer}DEVK900123`) return adtBody(requestDetail("<tm:abap_object tm:pgmid=\"R3TR\"/>"))
+      if (url === discoveryPath) return adtBody(discoveryXml)
+      throw failure } }
   })
-  await assert.rejects(client.releaseTransport("DEVK900123"), error => error === failure)
-  assert.deepEqual(requests, ["/sap/bc/adt/communication/bgruns"])
+  await assert.rejects(client.releaseTransport("DEVK900123"), {
+    code: "SAP_OPERATION_FAILED",
+    message: failure.message,
+    details: { httpStatus: 500, backgroundPhase: "submission", phase: "request", releaseMode: "background" }
+  })
+  assert.deepEqual(requests, [`${organizer}DEVK900123`, discoveryPath, backgroundCollection])
+})
+
+test("an object-bearing release with no advertised background collection stops before writing", async () => {
+  const requests: string[] = []
+  const client = clientWithAdt({ httpClient: { request: async (url: string, config: { method: string }) => {
+    requests.push(`${config.method} ${url}`)
+    return adtBody(url === discoveryPath ? '<service xmlns="http://www.w3.org/2007/app"/>' : requestDetail('<tm:abap_object tm:type="DOMA"/>'))
+  } } })
+  await assert.rejects(client.releaseTransport("DEVK900123"), {
+    code: "ADT_BACKGROUND_UNAVAILABLE",
+    details: { phase: "request", releaseMode: "background", backgroundPhase: "discovery" }
+  })
+  assert.deepEqual(requests, [`GET ${organizer}DEVK900123`, `GET ${discoveryPath}`])
 })
 
 test("ADT failure evidence is bounded and omits absent fields", () => {
@@ -881,53 +963,73 @@ test("inspecting an unpublished binding returns metadata without crashing on mis
   assert.equal(details.details, undefined)
 })
 
-test("adding an object by URI resolves its CTS key and uses the organizer PUT", async () => {
+test("adding an object by URI uses the exact returned CTS key and verifies it", async () => {
   const calls: Array<{ url: string; config: any }> = []
   const uri = "/sap/bc/adt/oo/classes/zcl_demo"
+  let added = false
   const client = clientWithAdt({
     transportInfo: async (objectUri: string) => { assert.equal(objectUri, uri); return { PGMID: "R3TR", OBJECT: "CLAS", OBJECTNAME: "ZCL_DEMO" } },
-    httpClient: { request: async (url: string, config: any) => { calls.push({ url, config }); return {} } }
+    httpClient: { request: async (url: string, config: any) => {
+      calls.push({ url, config })
+      if (config.method === "PUT") { added = true; return adtBody("") }
+      return adtBody(requestDetail(added ? '<tm:abap_object tm:pgmid="R3TR" tm:type="CLAS" tm:name="ZCL_DEMO"/>' : ""))
+    } }
   })
   await client.addTransportObject("DEVK900123", uri)
-  assert.equal(calls.length, 1)
-  assert.equal(calls[0]!.url, "/sap/bc/adt/cts/transportrequests/DEVK900123")
-  assert.equal(calls[0]!.config.method, "PUT")
-  assert.match(calls[0]!.config.body, /tm:pgmid="R3TR" tm:type="CLAS"/)
-  assert.doesNotMatch(calls[0]!.url, /abaptransportcomponents/)
+  assert.deepEqual(calls.map(call => [call.config.method, call.url]), ["GET", "PUT", "GET"].map(method => [method, `${organizer}DEVK900123`]))
+  assert.match(calls[1]!.config.body, /tm:pgmid="R3TR" tm:type="CLAS"/)
 })
 
-test("adding a transport subobject posts its CTS key to the organizer endpoint", async () => {
-  const calls: Array<{ url: string; config: unknown }> = []
-  const fakeAdt: any = {
-    httpClient: {
-      request: async (url: string, config: unknown) => {
-        calls.push({ url, config })
-        return { body: "", status: 200, statusText: "OK", headers: {} }
+test("CTS addition proves the exact key in the requested Task, without duplicate writes", async () => {
+  const taskNumber = "DEVK900124"
+  const domain = `<tm:abap_object tm:name="ZDOMAIN" tm:pgmid="R3TR" tm:type="DOMA"/>`
+  const exact = `<tm:abap_object tm:name="ZDOMAIN" tm:pgmid="LIMU" tm:type="DOMD"/>`
+  for (const scenario of ["added", "already_present", "missing", "readback_failed", "wrong_target", "nested_only"]) {
+    const calls: string[] = []
+    const client = clientWithAdt({ httpClient: { request: async (url: string, config: any) => {
+      assert.equal(url, `${organizer}${taskNumber}`)
+      calls.push(config.method)
+      if (config.method === "PUT") {
+        assert.match(config.body, /tm:number="DEVK900124"/)
+        assert.ok(config.body.includes(exact))
+        return adtBody(detailXml(exact))
       }
-    }
+      if (scenario === "wrong_target") return adtBody(requestDetail(domain))
+      const after = calls.includes("PUT")
+      if (scenario === "readback_failed" && after) throw new Error("unavailable")
+      const taskKey = scenario === "already_present" || (scenario === "added" && after) ? exact : ""
+      const otherTask = scenario === "nested_only" ? `<tm:task tm:number="DEVK900125">${exact}</tm:task>` : ""
+      return adtBody(detailXml(`<tm:request tm:number="DEVK900123">${domain}${otherTask}</tm:request><tm:task tm:number="${taskNumber}">${taskKey}</tm:task>`))
+    } } })
+    const add = client.addTransportObjectByKey(taskNumber, "LIMU", "DOMD", "ZDOMAIN")
+    if (scenario === "added" || scenario === "already_present") assert.equal(await add, scenario)
+    else if (scenario === "wrong_target") await assert.rejects(add, { code: "TRANSPORT_TARGET_UNVERIFIED" })
+    else await assert.rejects(add, {
+      code: "TRANSPORT_OBJECT_ADD_UNVERIFIED",
+      details: { reason: scenario === "readback_failed" ? "READBACK_FAILED" : "REQUESTED_KEY_ABSENT" }
+    })
+    assert.deepEqual(calls, scenario === "already_present" || scenario === "wrong_target" ? ["GET"] : ["GET", "PUT", "GET"], scenario)
   }
-  const client = clientWithAdt(fakeAdt)
+})
 
-  await client.addTransportObjectByKey(
-    "DEVK900123",
-    "LIMU",
-    "DYNP",
-    "ZDEMO_SCREEN 0100"
-  )
-
-  const mediaType = "application/vnd.sap.adt.transportorganizer.v1+xml"
-  assert.deepEqual(calls, [{
-    url: "/sap/bc/adt/cts/transportrequests/DEVK900123",
-    config: {
-      method: "PUT",
-      headers: { Accept: mediaType, "Content-Type": mediaType },
-      body:
-        "<tm:root xmlns:tm=\"http://www.sap.com/cts/adt/tm\" " +
-        "tm:number=\"DEVK900123\" tm:useraction=\"addobject\">" +
-        "<tm:request><tm:abap_object tm:name=\"ZDEMO_SCREEN 0100\" " +
-        "tm:pgmid=\"LIMU\" tm:type=\"DYNP\"/></tm:request></tm:root>"
-    }
-  }])
+test("CTS detail reads preserve exact sibling and nested Tasks and reject ambiguity", async () => {
+  const task = `<tm:task tm:number="DEVK900124" tm:owner="WORKER" tm:status="R"><tm:abap_object tm:name="ZDOMAIN" tm:type="DOMD" tm:pgmid="LIMU"/><atom:link href="/detail" rel="self"/></tm:task>`
+  let body = detailXml(`<tm:request tm:number="DEVK900123" tm:owner="OWNER" tm:status="D"/>${task}`)
+  const client = clientWithAdt({ httpClient: { request: async () => adtBody(body) } })
+  const sibling = await client.getTransportDetails("DEVK900124")
+  assert.equal(sibling.entityKind, "task")
+  assert.equal(sibling.parentNumber, "DEVK900123")
+  assert.equal(sibling["tm:status"], "R")
+  assert.equal(sibling.objects[0]?.["tm:type"], "DOMD")
+  assert.equal(sibling.links[0]?.href, "/detail")
+  body = requestDetail(task)
+  assert.deepEqual(await client.getTransportDetails("DEVK900124"), sibling)
+  const request = await client.getTransportDetails("DEVK900123")
+  assert.equal(request.entityKind, "request")
+  assert.equal(request.tasks[0]?.["tm:owner"], "WORKER")
+  await assert.rejects(client.getTransportDetails("DEVK900125"), { code: "TRANSPORT_TARGET_UNVERIFIED", details: { reason: "TARGET_ABSENT" } })
+  body = detailXml(`<tm:request tm:number="DEVK900123">${task}</tm:request>${task}`)
+  await assert.rejects(client.getTransportDetails("DEVK900124"), { code: "TRANSPORT_TARGET_UNVERIFIED", details: { reason: "TARGET_AMBIGUOUS" } })
 })
 
 test("activation, semantic detail, and class execution wrappers preserve ADT contracts", async () => {
@@ -1491,6 +1593,51 @@ test("a transport list without all-date search support explicitly remains incomp
   const result = await client.getUserTransports("DEVELOPER")
   assert.equal(result.historyComplete, false)
   assert.match(result.historyIssue ?? "", /older locks/)
+})
+
+test("all-date transport search retains later results after one detail lookup fails", async () => {
+  const client = clientWithAdt({
+    userTransports: async () => ({ workbench: [], customizing: [] }),
+    adtDiscovery: async () => [{ collection: [{ templateLinks: [{ rel: "http://www.sap.com/adt/categories/cts/transports/search", template: "/sap/bc/adt/cts/transports{?fromDate,toDate}" }] }] }],
+    httpClient: { request: async () => ({ body: '<searchResults><request number="DEVK900001" type="K"/><request number="DEVK900002" type="K"/></searchResults>' }) },
+    transportDetails: async (number: string) => {
+      if (number === "DEVK900001") throw new Error("Request details unavailable")
+      return { "tm:number": number }
+    }
+  })
+  const result = await client.getUserTransports("DEVELOPER")
+  assert.equal(result.historyComplete, false)
+  assert.deepEqual(result.workbench.flatMap(entry => entry.modifiable).map(item => item["tm:number"]), ["DEVK900002"])
+})
+
+test("structured DDIC package fallback requires an exact unambiguous repository match", async () => {
+  const uri = "/sap/bc/adt/ddic/domains/zdomain"
+  let packageName = "Z_DEMO", ambiguous = false, writes = 0
+  const properties = { typeInformation: { datatype: "CHAR", length: 10, decimals: 0 }, outputInformation: { length: 10, signExists: false, lowercase: false, ampmFormat: false } }
+  const client = clientWithAdt({
+    async getDomainProperties() { return { metaData: { name: "ZDOMAIN", packageName: "" }, properties } },
+    async searchObject(_name: string, type: string) {
+      assert.equal(type, "DOMA/DD")
+      const entry = { "adtcore:name": "ZDOMAIN", "adtcore:type": type, "adtcore:uri": uri, "adtcore:packageName": packageName }
+      return [entry, { ...entry, "adtcore:uri": `${uri}_other`, "adtcore:packageName": "OTHER" },
+        ...(ambiguous ? [{ ...entry, "adtcore:packageName": "OTHER" }] : [])]
+    },
+    async lock() { return { LOCK_HANDLE: "LOCK" } },
+    async unLock() {},
+    async setDomainProperties(_uri: string, _properties: unknown, metadata: { packageName: string }) {
+      assert.equal(metadata.packageName, "Z_DEMO")
+      writes++
+    }
+  })
+  const before = await client.getDdicDefinition("domain", "ZDOMAIN")
+  assert.equal(before.metaData.packageName, "Z_DEMO")
+  await client.updateDdicDefinition("domain", "ZDOMAIN", before.fingerprint, properties)
+  assert.equal(writes, 1)
+  packageName = "Z_OTHER"
+  await assert.rejects(client.updateDdicDefinition("domain", "ZDOMAIN", before.fingerprint, properties), { code: "SOURCE_CHANGED" })
+  assert.equal(writes, 1)
+  ambiguous = true
+  assert.equal((await client.getDdicDefinition("domain", "ZDOMAIN")).metaData.packageName, "")
 })
 
 

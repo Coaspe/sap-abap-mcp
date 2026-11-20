@@ -133,7 +133,8 @@ test("v1 repository search advertises the exact tool contract", async () => {
     "type",
     "description",
     "packageName",
-    "resourceUri"
+    "resourceUri",
+    "adtUri"
   ])
 })
 
@@ -174,11 +175,13 @@ test("v1 repository search reuses one shared service call and returns canonical 
     type: "CLAS",
     description: "Greeting service",
     packageName: "ZDEMO",
-    resourceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_greeting"
+    resourceUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_greeting",
+    adtUri: "adt://dev100/sap/bc/adt/oo/classes/zcl_greeting"
   }, {
     name: "ZREPORT",
     type: "PROG",
-    resourceUri: "adt://dev100/sap/bc/adt/programs/programs/zreport/source/main"
+    resourceUri: "adt://dev100/sap/bc/adt/programs/programs/zreport/source/main",
+    adtUri: "adt://dev100/sap/bc/adt/programs/programs/zreport/source/main"
   }])
   assert.ok(data.objects.every(object => !("uri" in object)))
   assert.ok(data.objects.every(object => !("connectionId" in object)))

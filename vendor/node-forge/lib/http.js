@@ -22,6 +22,19 @@ var _normalize = function(name) {
 };
 
 /**
+ * Checks for an own property, so cookie names and paths from a server can't
+ * reach properties inherited from Object.prototype.
+ *
+ * @param obj the object.
+ * @param key the property name.
+ *
+ * @return true if obj has its own property key.
+ */
+var _hasOwn = function(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+};
+
+/**
  * Gets the local storage ID for the given client.
  *
  * @param client the client to get the local storage ID for.
@@ -694,8 +707,13 @@ http.createClient = function(options) {
           throw error;
         }
 
+        // '__proto__' can't be stored as a plain object key
+        if(cookie.name === '__proto__' || cookie.path === '__proto__') {
+          return false;
+        }
+
         // add new cookie
-        if(!(cookie.name in client.cookies)) {
+        if(!_hasOwn(client.cookies, cookie.name)) {
           client.cookies[cookie.name] = Object.create(null);
         }
         client.cookies[cookie.name][cookie.path] = cookie;
@@ -720,12 +738,12 @@ http.createClient = function(options) {
    */
   client.getCookie = function(name, path) {
     var rval = null;
-    if(name in client.cookies) {
+    if(_hasOwn(client.cookies, name)) {
       var paths = client.cookies[name];
 
       // get path-specific cookie
       if(path) {
-        if(path in paths) {
+        if(_hasOwn(paths, path)) {
           rval = paths[path];
         }
       } else {
@@ -750,11 +768,11 @@ http.createClient = function(options) {
    */
   client.removeCookie = function(name, path) {
     var rval = false;
-    if(name in client.cookies) {
+    if(_hasOwn(client.cookies, name)) {
       // delete the specific path
       if(path) {
         var paths = client.cookies[name];
-        if(path in paths) {
+        if(_hasOwn(paths, path)) {
           rval = true;
           delete client.cookies[name][path];
           // clean up entry if empty

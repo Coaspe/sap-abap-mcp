@@ -17,6 +17,7 @@ import type { ConnectionSummary } from "../connection-manager.js"
  */
 export class ScopedConnectionProvider implements ConnectionProvider {
   private readonly allowed: ReadonlySet<string> | undefined
+  readonly getProfile?: NonNullable<ConnectionProvider["getProfile"]>
 
   constructor(
     private readonly inner: ConnectionProvider,
@@ -26,6 +27,13 @@ export class ScopedConnectionProvider implements ConnectionProvider {
       .map(value => value.trim().toUpperCase())
       .filter(Boolean)
     this.allowed = normalized.length > 0 ? new Set(normalized) : undefined
+    if (inner.getProfile) this.getProfile = async connectionId => {
+      const id = connectionId.trim().toUpperCase()
+      if (this.allowed && !this.allowed.has(id)) {
+        throw new AppError("PROFILE_NOT_ALLOWED", `This identity is not authorized for SAP profile ${id}`)
+      }
+      return inner.getProfile!(connectionId)
+    }
   }
 
   async listConnections(): Promise<ConnectionSummary[]> {
@@ -48,4 +56,5 @@ export class ScopedConnectionProvider implements ConnectionProvider {
     }
     return this.inner.getClient(connectionId)
   }
+
 }

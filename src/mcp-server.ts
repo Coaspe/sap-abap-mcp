@@ -102,6 +102,10 @@ interface ToolResultPolicy {
   summarize?: (value: unknown) => unknown
 }
 
+// Keep the v0 schema formats stable across Zod upgrades.
+const V0_EMAIL_PATTERN = new RegExp("^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$")
+const V0_DATETIME_OPTIONS = { offset: false, pattern: new RegExp("^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$") }
+
 const packageVersion = (JSON.parse(
   readFileSync(new URL("../../package.json", import.meta.url), "utf8")
 ) as { version: string }).version
@@ -478,7 +482,7 @@ function createMcpServerInternal(
       description:
         "Read active ABAP source directly by ADT object or source URI. startLine is zero-based for ABAP FS compatibility.",
       inputSchema: {
-        uri: z.string().startsWith("/sap/bc/adt/"),
+        uri: z.string().regex(/^\/sap\/bc\/adt\/.*/),
         startLine: z.number().int().min(0).default(0),
         lineCount: z.number().int().min(1).max(5000).default(50),
         connectionId: z.string().min(1)
@@ -1395,13 +1399,13 @@ function createMcpServerInternal(
         ]).optional(),
         alertThreshold: z.number().int().min(0).optional(),
         cooldownMinutes: z.number().int().min(0).optional(),
-        expiresAt: z.iso.datetime().optional(),
+        expiresAt: z.iso.datetime(V0_DATETIME_OPTIONS).optional(),
         maxChecks: z.number().int().min(1).optional(),
-        startAt: z.iso.datetime().optional(),
+        startAt: z.iso.datetime(V0_DATETIME_OPTIONS).optional(),
         reminderOnly: z.boolean().optional(),
         taskId: z.string().min(1).optional(),
         result: z.string().optional(),
-        lastNotifiedAt: z.iso.datetime().optional(),
+        lastNotifiedAt: z.iso.datetime(V0_DATETIME_OPTIONS).optional(),
         lastNotifiedFindings: z.string().optional(),
         modifiedBy: z.enum(["user", "heartbeat", "agent"]).optional(),
         startIndex: z.number().int().min(0).default(0),
@@ -1664,9 +1668,9 @@ function createMcpServerInternal(
         stageAll: z.boolean().default(false),
         comment: z.string().min(1).optional(),
         authorName: z.string().min(1).optional(),
-        authorEmail: z.email().optional(),
+        authorEmail: z.email({ pattern: V0_EMAIL_PATTERN }).optional(),
         committerName: z.string().min(1).optional(),
-        committerEmail: z.email().optional(),
+        committerEmail: z.email({ pattern: V0_EMAIL_PATTERN }).optional(),
         confirmation: z.string().min(1).optional(),
         startIndex: z.number().int().min(0).default(0),
         maxResults: z.number().int().min(1).max(500).default(50)
