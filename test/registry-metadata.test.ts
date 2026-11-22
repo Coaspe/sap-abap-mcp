@@ -26,13 +26,9 @@ test("distribution metadata stays consistent across npm and the official MCP Reg
   const packageJson = JSON.parse(readText("package.json"))
   const serverJson = JSON.parse(readText("server.json"))
   const readme = readText("README.md")
-  const directoryReference = readText("docs/mcp-directory-submissions.md")
 
   assert.match(packageJson.version, /^\d+\.\d+\.\d+$/)
   assert.ok(readme.includes("Checkout manifest version: `" + packageJson.version + "`"))
-  assert.ok(
-    directoryReference.includes("Current source release: `" + packageJson.version + "`")
-  )
   assert.equal(packageJson.mcpName, registryName)
   assert.equal(packageJson.license, "MIT")
   assert.deepEqual(packageJson.repository, {
@@ -98,18 +94,12 @@ test("distribution assets contain the selected license and a 400 by 400 PNG icon
   assert.equal(icon.readUInt32BE(20), 400)
 })
 
-test("README demo is a bounded 1200 by 675 GIF built from synthetic content", () => {
+test("README demo is a bounded 1200 by 675 GIF", () => {
   const demo = readFileSync("assets/demo.gif")
   assert.equal(demo.subarray(0, 6).toString("ascii"), "GIF89a")
   assert.equal(demo.readUInt16LE(6), 1200)
   assert.equal(demo.readUInt16LE(8), 675)
   assert.ok(demo.length < 5_000_000)
-
-  const transcript = readText("docs/demo-script.md")
-  assert.match(transcript, /sap\.repository\.search/)
-  assert.match(transcript, /sap\.quality\.unit_test/)
-  assert.match(transcript, /sap\.transport\.assess/)
-  assert.match(transcript, /Synthetic|synthetic/)
 })
 
 test("MCPB metadata launches the bundled local server on supported secret-store platforms", () => {
@@ -250,30 +240,6 @@ test("LobeHub metadata advertises the current default MCP surface", () => {
   assert.deepEqual(lobeHubManifest.prompts.map((prompt: { name: string }) => prompt.name), [
     "sap-change-object", "sap-explain-object", "sap-plan-rap", "sap-review-transport"
   ])
-})
-
-test("detailed reference explains registry installation without claiming live SAP verification", () => {
-  const readme = readText("docs/product-reference.md")
-  const quickStartIndex = readme.indexOf("## Quick start\n")
-  const releaseStatusIndex = readme.indexOf("## Release status\n")
-  assert.notEqual(quickStartIndex, -1)
-  assert.notEqual(releaseStatusIndex, -1)
-  assert.ok(quickStartIndex < releaseStatusIndex)
-  assert.match(readme, /PowerShell continues a line with a backtick/)
-  assert.match(readme, /Command Prompt \(`cmd\.exe`\) uses a caret \(`\^`\)/)
-  assert.match(readme, /npx\.cmd @coaspe\/sap-abap-mcp@latest setup/)
-  assert.match(readme, /npx @coaspe\/sap-abap-mcp@latest setup/)
-  assert.match(readme, /setup edit DEV100/)
-  assert.match(readme, /setup remove DEV100/)
-  assert.match(readme, /`Server name` is the local name used later as `connectionId`/)
-  assert.match(readme, /SAP URL/)
-  assert.match(readme, /## MCP directories and registries/)
-  assert.match(readme, /io\.github\.Coaspe\/sap-abap-mcp/)
-  assert.match(readme, /local `stdio` server/)
-  assert.match(readme, /remain `unverified`/)
-  assert.match(readme, /### Claude Code and Codex plugin marketplaces/)
-  assert.match(readme, /plugin marketplace add Coaspe\/sap-abap-mcp/)
-  assert.match(readme, /\/sap-abap-mcp:sap-abap-setup/)
 })
 
 test("plugin onboarding keeps credentials local and verifies SAP explicitly", () => {

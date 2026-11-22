@@ -1,7 +1,7 @@
 # Roadmap
 
 Release implementation, local verification, live compatibility and independent
-adoption are separate states. See the [evidence index](docs/evidence/index.json).
+adoption are separate states.
 
 ## Shipped in 2.0.0 / 2.0.1
 

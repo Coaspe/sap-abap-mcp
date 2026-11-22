@@ -41,12 +41,10 @@ The wizard creates Basic Auth profiles. For explicit OAuth client credentials, u
 2.0.0 compatibility change: direct `bearer-passthrough` profiles
 are refused with `TOKEN_PASSTHROUGH_REFUSED`; existing files remain readable.
 Use independent SAP credentials or the experimental BTP Destination
-exchange/propagation flow. See [migration](docs/setup-and-profiles.md#request-scoped-bearer-passthrough)
-and [BTP prerequisites](docs/btp-destination-integration.md). Re-authentication does not repair direct forwarding.
+exchange/propagation flow. Re-authentication does not repair direct forwarding.
 
 Optional Screen/Dynpro and GUI Status access requires a reviewed SAP-side
-bridge plus `--classic-bridge-path /sap/<path>`. Read
-[`docs/classic-bridge.md`](docs/classic-bridge.md) before enabling it.
+bridge plus `--classic-bridge-path /sap/<path>`.
 
 On Linux, the wizard saves the non-secret server settings and prints the exact `SAP_ABAP_MCP_PASSWORD_<NORMALIZED_SERVER_NAME>` commands. Set it with a hidden shell prompt and start Claude Code from the same shell. For example, `DEV-100` uses `SAP_ABAP_MCP_PASSWORD_DEV_100`:
 

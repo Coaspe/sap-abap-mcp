@@ -59,9 +59,6 @@
     "vendor",
     "scripts/verify-security-backports.mjs",
     "scripts/audit-security-backports.mjs",
-    "docs/*.md",
-    "docs/*.json",
-    "docs/evidence/*.json",
     "assets/mermaid.min.js",
     "assets/directory-icon.png"
   ],

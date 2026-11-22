@@ -23,36 +23,6 @@ function assertUnversionedServeArgs(args: readonly string[]): void {
   )
 }
 
-test("v1 migration guide documents the complete local contract and live boundary", async () => {
-  const guide = await readFile("docs/v1-migration.md", "utf8")
-
-  for (const statement of [
-    "The unversioned `serve` uses the minimal v1 surface.",
-    "With no `--toolsets` or `--preset`, minimal mode is enabled.",
-    "The complete v1 surface contains 120 callable tools and seven Resources.",
-    "All 53 v0 capabilities remain available through `--api-version v0`.",
-    "Live SAP acceptance remains a separate gate",
-    "The combined v0 + v1 surface is internal to automated parity tests and is not accepted by the CLI."
-  ]) {
-    assert.ok(guide.includes(statement), statement)
-  }
-  assert.deepEqual(
-    [...guide.matchAll(/^npx @coaspe\/sap-abap-mcp@latest serve.*$/gm)]
-      .map(match => match[0]),
-    [
-      "npx @coaspe/sap-abap-mcp@latest serve",
-      "npx @coaspe/sap-abap-mcp@latest serve --preset compact",
-      "npx @coaspe/sap-abap-mcp@latest serve --toolsets all",
-      "npx @coaspe/sap-abap-mcp@latest serve --toolsets core,analysis",
-      "npx @coaspe/sap-abap-mcp@latest serve --api-version v0",
-    ]
-  )
-  for (const toolset of ["core", "write", "analysis", "debug", "operations", "artifacts"]) {
-    assert.match(guide, new RegExp(`\\b${toolset}\\b`))
-  }
-  assert.doesNotMatch(guide, /only implemented handlers are advertised/i)
-})
-
 test("published unversioned launches use the current v1 default", async () => {
   const plugin = JSON.parse(
     await readFile("plugins/sap-abap-mcp/.mcp.json", "utf8")
@@ -100,18 +70,9 @@ test("MCPB catalog matches the unversioned v1 runtime", async () => {
   )
 })
 
-test("README documents current defaults, strict TMP ownership, and connection diagnosis", async () => {
-  const readme = await readFile("README.md", "utf8") + await readFile("docs/product-reference.md", "utf8")
-
-  for (const statement of [
-    "Normal clients should omit both `--api-version` and `--toolsets`.",
-    "Existing SAP objects may be used for reads, searches, and analysis.",
-    "A candidate becomes `RUN_OWNED` only after both a successful create receipt and an immediate exact read-back",
-    "live-sap-v1-120-tool-tmp-test-prompt.ko.md",
-    "`-32000` (`ConnectionClosed`)"
-  ]) {
-    assert.ok(readme.includes(statement), statement)
-  }
+test("README documents the unversioned default", async () => {
+  const readme = await readFile("README.md", "utf8")
+  assert.ok(readme.includes("Normal clients should omit both `--api-version` and `--toolsets`."))
   assert.doesNotMatch(readme, /--api-version all|168 tools/)
 })
 
@@ -132,32 +93,6 @@ test("published package includes the v1 stdio smoke implementation", async () =>
   }
 
   assert.ok(packageJson.files.includes("scripts/smoke-v1-stdio.mjs"))
-})
-
-test("Windows live prompt covers all tools with strict current-run TMP ownership", async () => {
-  const guide = await readFile("docs/live-sap-b4d-windows-local-test.ko.md", "utf8")
-  const prompt = await readFile(
-    "docs/live-sap-v1-120-tool-tmp-test-prompt.ko.md",
-    "utf8"
-  )
-
-  assert.ok(guide.includes(
-    'claude mcp add --transport stdio --scope user sap-abap-b4d-local -- node "C:\\src\\sap-abap-mcp-v1\\dist\\src\\index.js" serve --profile B4D'
-  ))
-  assert.doesNotMatch(guide, /--api-version all|168개/)
-  for (const statement of [
-    "120행 ledger",
-    "create receipt",
-    "immediate exact read-back",
-    "RUN_OWNED",
-    "SKIP-SCOPE",
-    "SKIP-PREREQUISITE",
-    "EXPECTED-ERROR",
-    "`$TMP`",
-    "이름이나 검색 결과만으로 소유권을 증명할 수 없다."
-  ]) {
-    assert.ok(prompt.includes(statement), statement)
-  }
 })
 
 test("v1 surfaces stay within the documented counts", async () => {

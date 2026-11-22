@@ -235,7 +235,7 @@ export function onboardPage(token: string, nonce: string, locale: "ko" | "en" = 
                 <label class="wide" id="write-packages" hidden>${text("변경 허용 패키지")}<input name="allowedPackages" disabled placeholder="Z_PACKAGE, Z_SHARED"><small>${text("변경할 개발 패키지를 하나 이상 입력하세요. 예: Z_PACKAGE 또는 $TMP. 여러 패키지는 쉼표로 구분합니다.")}</small></label>
               </div>
               <div class="secret-note">${text("자격 증명은 이 PC에서 인증 확인에 사용하고 macOS Keychain 또는 Windows DPAPI로 보호합니다. 브라우저 로그인은 별도 창에서 진행하며, 토큰과 서비스 키는 AI 대화에 입력하지 마세요.")}</div>
-              <p class="section-copy">${text("SAP URL·클라이언트·ADT 권한을 모르면 SAP 관리자에게 확인하세요.")} <a href="https://github.com/Coaspe/sap-abap-mcp/blob/main/docs/setup-and-profiles.md" target="_blank" rel="noreferrer">${text("OAuth·BTP 고급 인증 안내")}</a></p>
+              <p class="section-copy">${text("SAP URL·클라이언트·ADT 권한을 모르면 SAP 관리자에게 확인하세요.")} <a href="https://github.com/Coaspe/sap-abap-mcp/blob/main/llms-install.md" target="_blank" rel="noreferrer">${text("OAuth·BTP 고급 인증 안내")}</a></p>
               <div class="notice" id="sap-notice" role="alert"></div>
               <div class="actions"><button class="button secondary" data-back="1" type="button">${text("이전")}</button><button class="button" id="save-profile" type="submit">${text("연결 확인 후 저장")}</button><button class="button secondary" id="cancel-profile" type="button" hidden>${text("인증 취소")}</button></div>
             </form>

@@ -9,7 +9,7 @@ Connect your AI assistant to an ADT-enabled SAP system to read ABAP, make scoped
 - **Six hosts:** start onboarding with one command for Claude Code, Codex, VS Code, Cursor, Gemini CLI or Claude Desktop.
 - **Headless transport assurance:** run `assure` in CI to evaluate configured checks without releasing the transport.
 
-SAP's official ADT MCP is IDE-integrated and overlaps with development and ATC workflows. See the [side-by-side and SAP API Policy review](docs/sap-api-policy-and-coexistence.md); no live-SAP or policy approval is implied.
+SAP's official ADT MCP is IDE-integrated and overlaps with development and ATC workflows. Live-SAP verification and policy approval are separate.
 
 ![SAP ABAP MCP demo](https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/demo.gif)
 
@@ -43,11 +43,8 @@ should avoid a duplicate registration. On Windows replace `npx` with `npx.cmd`.
 
 CA profiles use file format version 3 and need 2.2.0 or later. Existing npm
 registrations pin their package version: restart alone does not update a 2.1.0
-registration. Use [registration doctor and reviewed repair](docs/registration-recovery.md)
+registration. Use `registration doctor` and review the repair
 to update a pinned registration to the version you intend to run.
-
-See [setup details](docs/setup-and-profiles.md#quick-start-details), including
-Linux environment-only credentials and registration recovery.
 
 **2.1.0** fixes noninteractive startup, native macOS credential storage and
 registration recovery. Windows DPAPI explicitly loads its native security module
@@ -80,7 +77,6 @@ Zero tests, unsupported checks and partial findings cannot establish completion.
 For a read-only evaluation, keep `readOnly: true` and expose only search,
 describe and invoke_read gateways in the host. Do not execute write, activation,
 Unit, ATC, debugger or profiling operations during that evaluation.
-See [workflow prompts](docs/workflow-prompts.md) and [T1–T5 criteria](docs/abap-task-comparison.md).
 
 ## Verified environments and limits
 
@@ -88,8 +84,8 @@ See [workflow prompts](docs/workflow-prompts.md) and [T1–T5 criteria](docs/aba
 |---|---|
 | Clean npm tarball, macOS arm64, Node 24 | Eight launch/profile combinations, Unicode/spaces, help, invalid commands and shutdown passed on the reliability candidate |
 | macOS Keychain | Actual throwaway legacy-item/UTF-8/9,000-byte storage, renewal and deletion passed |
-| Windows read-only field procedure | Owner reports all supplied steps passed without candidate source changes; [sanitized operation records were not supplied](docs/evidence/owner-windows-readonly-report.json) |
-| Windows DPAPI / npx.cmd automation | [Windows CI passed](docs/evidence/windows-ci-210.json): native storage/module-shadow regression, bundled launchers and eight installed-tarball protocol cases |
+| Windows read-only field procedure | Owner reports all supplied steps passed without candidate source changes; sanitized operation records were not supplied |
+| Windows DPAPI / npx.cmd automation | Windows CI passed for native storage/module-shadow regression, bundled launchers and eight installed-tarball protocol cases |
 | Native Desktop MCPB / host restart | Standalone bundle checks and an owner's overall field report remain distinct from retained app-level evidence |
 | Current 2.x live-SAP acceptance | **not verified** across the complete feature set on the published artifact. Field evidence for specific pre-release cases is listed below. |
 | SAP transport acceptance | A pre-release build passed Request and Task release, exact Request/Task lookup, CTS add verification and duplicate prevention in a development SAP system. This covers those cases in that build and environment. |
@@ -102,7 +98,7 @@ Known SAP limitations from earlier field runs: older requests may be missing whe
 Candidate measurements reduced compressed npm size from 26.29 to 13.33 MB and
 installed dependency bytes from 118.89 to 91.81 MB. Three warm protocol sessions
 measured 346–351 to 223–239 ms. Cold install was 12.92 to 16.06 seconds; no cold
-speed improvement is claimed. See [exact snapshots and limits](docs/evidence/candidate-reliability.json).
+speed improvement is claimed.
 
 ## If setup fails
 
@@ -110,18 +106,17 @@ speed improvement is claimed. See [exact snapshots and limits](docs/evidence/can
 |---|---|
 | MCP closes immediately | Keep `serve` explicit, especially on 2.0.1; verify Node on the host PATH |
 | `SETUP_REQUIRED` | Complete local setup and reconnect; this state is not an accepted SAP installation |
-| Removed Node/cache or old registered version | Run [registration doctor and reviewed repair/update](docs/registration-recovery.md) |
-| Certificate untrusted / expired / hostname mismatch | Keep verification enabled; use the company CA PEM file or ask the administrator to fix the certificate/URL. See [TLS trust](docs/setup-and-profiles.md#company-ca-and-tls-trust) |
+| Removed Node/cache or old registered version | Run `registration doctor` and review the repair |
+| Certificate untrusted / expired / hostname mismatch | Keep verification enabled; use the company CA PEM file or ask the administrator to fix the certificate/URL. |
 | SAP URL unknown | On Windows use SAP Logon import to find candidate URLs, then check ADT and confirm the endpoint with your administrator |
 | SAP authentication/authorization failure | Renew locally or ask the administrator for ADT permission; avoid blind repeated logins |
 | Inactive conflict / uncertain write | Read current active/inactive state and reconcile with its owner before resuming |
 
 ## Reference and release status
 
-- [Transport `assure` and CI](docs/product-reference.md#transport-change-assurance), [full reference](docs/product-reference.md), [CLI](docs/cli-reference.md), [profiles](docs/setup-and-profiles.md), [changelog](CHANGELOG.md).
-- [Evidence index](docs/evidence/index.json), [compatibility](docs/compatibility-matrix.md), [historical live record](docs/live-sap-evidence.md).
-- [Roadmap](ROADMAP.md), [adopters](ADOPTERS.md), [distribution](docs/mcp-directory-submissions.md), [2.3.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.3.0).
-- [Reliability validation](docs/reliability-2026-10-20.ko.md) and [field procedure](docs/field-acceptance-2026-10-20.ko.md). Checkout manifest version: `2.3.0`.
+- [Setup](llms-install.md), [changelog](CHANGELOG.md), [roadmap](ROADMAP.md), [adopters](ADOPTERS.md), [2.3.0 release](https://github.com/Coaspe/sap-abap-mcp/releases/tag/v2.3.0).
+
+Checkout manifest version: `2.3.0`.
 
 Normal clients should omit both `--api-version` and `--toolsets`.
 

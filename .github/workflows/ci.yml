@@ -92,7 +92,6 @@ jobs:
           node scripts/benchmark-public-contracts.mjs
           node scripts/benchmark-conditional-batch.mjs
       - run: npm run verify:backports
-      - run: node scripts/check-evidence-index.mjs
       - name: Verify clean installed launch contract
         run: |
           node scripts/pack-runtime.mjs artifacts

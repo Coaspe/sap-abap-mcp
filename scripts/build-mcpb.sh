@@ -22,7 +22,6 @@ node scripts/sync-mcpb-tools.mjs --check
 cp mcpb/manifest.json "${STAGE}/manifest.json"
 cp mcpb/icon.png "${STAGE}/icon.png"
 cp package.json LICENSE PRIVACY.md README.md TERMS.md llms-install.md "${STAGE}/"
-cp docs/desktop-bundle-setup.md "${STAGE}/desktop-setup.md"
 cp assets/mermaid.min.js "${STAGE}/assets/mermaid.min.js"
 npx --yes esbuild@0.27.2 dist/src/index.js \
   --bundle \

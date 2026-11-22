@@ -228,7 +228,7 @@ try {
   await call("sap.runtime.trace.configuration", { systemId: SYSTEM_ID })
   // sap.rap.{defaults,schema,preview,validate,generate} require a prepared CDS
   // root entity and a transportable package, so they are out of scope for a
-  // $TMP run. docs/live-sap-acceptance.md covers them with a dedicated fixture.
+  // $TMP run.
 
   // Heartbeat state is process-local, so these never touch SAP configuration.
   await call("sap.ops.watch.status", {})

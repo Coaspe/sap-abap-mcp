@@ -11,8 +11,6 @@ them as execution capabilities. The validator now rejects required tools without
 an explicit `readOnlyHint: true`, including these two execution capabilities.
 Its evidence
 reports missing names separately from `read-only-tool-unverified` failures.
-A local contract review draft and the earlier annotation audit are in
-[`../docs/competitive-unit-execution-2026-10-02/contract-review.json`](../docs/competitive-unit-execution-2026-10-02/contract-review.json).
 The existing profile and its identifier remain unchanged pending the documented
 governance process; the corrected implementation currently fails that proposal.
 Tool names alone do not make writes safe, so mutation capabilities
@@ -80,8 +78,7 @@ proposal must be reviewed through governance before a release can claim conforma
 
 
 A separate, unpublished review packet contains an eight-capability candidate,
-actual full/minimal/single discovery measurements and a discussion draft:
-[`../docs/competitive-profile-review-2026-10-02/discussion-draft.json`](../docs/competitive-profile-review-2026-10-02/discussion-draft.json).
+actual full/minimal/single discovery measurements and a discussion draft.
 The candidate version is provisional. Its direct advertisement passes the local
 candidate check; gateway catalog schemas match but the current direct-name
 profile does not accept that discovery path. No profile has been ratified or

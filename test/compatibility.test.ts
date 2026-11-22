@@ -8,7 +8,6 @@ import {
   toolsForToolsets
 } from "../src/compat/abap-fs-tools.js"
 import { readAbapFsDocumentation } from "../src/compat/abap-fs-documentation.js"
-import { readText } from "./helpers/read-text.js"
 
 test("implementation advertises the strict-compatible headless subset without the host-only tool", () => {
   assert.equal(ABAP_FS_UPSTREAM_MCP_TOOL_NAMES.length, 43)
@@ -110,77 +109,4 @@ test("bundled documentation states exact parity, verification, and runtime bound
   assert.equal(documentedTools.length, 53)
   assert.equal(new Set(documentedTools).size, 53)
   assert.deepEqual([...documentedTools].sort(), [...IMPLEMENTED_TOOL_NAMES].sort())
-})
-
-test("published guides preserve current counts and live acceptance safety boundaries", () => {
-  const readme = readText("README.md") + readText("docs/product-reference.md")
-  const acceptance = readText("docs/live-sap-acceptance.md")
-  const matrix = readText("docs/compatibility-matrix.md")
-  const evidenceSchema = JSON.parse(
-    readText("docs/compatibility-evidence.schema.json")
-  )
-
-  assert.match(readme, /complete 53-tool schema/)
-  assert.doesNotMatch(readme, /50-tool|eight grouped|eight extension|all 42 MCP tools/)
-  assert.match(acceptance, /"status": "<supported\|unsupported\|unverified>"/)
-  assert.match(acceptance, /"scope": "live-sap"/)
-  assert.match(acceptance, /compatibility-evidence\.schema\.json/)
-  assert.match(matrix, /does not prove support for a particular SAP release/)
-  assert.match(matrix, /Historical narrative from 2026-08-05/);
-  assert.match(matrix, /Current 2.x live-SAP acceptance/)
-  assert.match(matrix, /npm run benchmark:surface/)
-  assert.equal(evidenceSchema.properties.schemaVersion.const, "1.0")
-  assert.deepEqual(evidenceSchema.properties.status.enum, [
-    "supported", "unsupported", "unverified"
-  ])
-  assert.equal(
-    evidenceSchema.allOf[0].then.properties.status.const,
-    "unverified"
-  )
-  assert.match(
-    acceptance,
-    /Choose `supported` only after the relevant operation succeeds and a fresh `get_sap_capabilities` read for the same connection reports `supported`\./
-  )
-  assert.match(
-    acceptance,
-    /`get_sap_system_info\.environment` is the configured MCP profile environment, not an independently detected SAP production flag\./
-  )
-  assert.match(acceptance, /returned `environment` is `production`/)
-  assert.doesNotMatch(acceptance, /SAP reports a production system/)
-  assert.match(acceptance, /Create `CLAS\/OC` without `source`/)
-  assert.match(acceptance, /inside a method body/)
-  assert.match(acceptance, /`completion_element` at the referenced method token/)
-
-  for (const tool of [
-    "create_object_programmatically", "abap_activate", "run_abap_application",
-    "inspect_abap_code", "refactor_abap_code"
-  ]) {
-    assert.match(acceptance, new RegExp("arguments (?:object )?for `" + tool + "`"))
-  }
-  assert.match(acceptance, /`MCP_CLASS_RUNNER_OK`/)
-  assert.doesNotMatch(acceptance, /MCP_CLASSRUN_OK/)
-  assert.match(acceptance, /The execute response's `capabilityStatusAtExecution` is the pre-call status/)
-  assert.match(acceptance, /`success` is `true`, `error` is empty, and output contains `MCP_REPL_OK`/)
-
-  const replSection = acceptance.split("## 5. Check and run the fixed ABAP REPL contract")[1]
-    ?.split("## 6. Inspect detailed semantic information")[0] ?? ""
-  assert.doesNotMatch(
-    replSection,
-    /`capabilityStatusAtExecution` is the pre-call status and may be `unverified`/
-  )
-  assert.match(
-    replSection,
-    /a successful execute should report `capabilityStatusAtExecution` as `supported`/
-  )
-  assert.match(
-    replSection,
-    /fresh `get_sap_capabilities` read remains the authoritative recorded evidence/
-  )
-
-  const classesCleanup = acceptance.indexOf("Delete the three classes first")
-  const bdefCleanup = acceptance.indexOf("Next, delete the `BDEF/BDO` behavior definition")
-  const ddlsCleanup = acceptance.indexOf("Only after the behavior definition is gone, delete the `DDLS`")
-  assert.ok(classesCleanup >= 0 && classesCleanup < bdefCleanup && bdefCleanup < ddlsCleanup)
-  assert.match(acceptance, /Reinspect the dedicated transport at the end/)
-  assert.match(acceptance, /acceptance cannot pass until the final transport state is recorded/)
 })

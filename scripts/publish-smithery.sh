@@ -22,7 +22,7 @@ TOKEN="$(npx --yes smithery@latest auth token --policy "${POLICY}" | head -n 1 |
 PAYLOAD="$(node scripts/sync-mcpb-tools.mjs --smithery-payload)"
 METADATA="$(jq -c \
   --arg iconUrl "https://raw.githubusercontent.com/Coaspe/sap-abap-mcp/main/assets/directory-icon.png" \
-  --arg backlinkUrl "https://github.com/Coaspe/sap-abap-mcp/blob/main/docs/mcp-directory-submissions.md" \
+  --arg backlinkUrl "https://github.com/Coaspe/sap-abap-mcp#readme" \
   '{displayName:.display_name,description:.long_description,homepage:.homepage,repositoryUrl:(.repository.url | sub("\\.git$"; "")),license:.license,iconUrl:$iconUrl,backlinkUrl:$backlinkUrl,unlisted:false}' \
   mcpb/manifest.json)"
 
